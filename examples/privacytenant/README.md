@@ -1,6 +1,6 @@
 # Privacy Multi-Tenant Example
 
-The example code for https://entgo.io/docs/privacy#multi-tenancy. 
+Example demonstrating multi-tenancy using Ent's privacy layer.
    
 ### Generate Assets
 

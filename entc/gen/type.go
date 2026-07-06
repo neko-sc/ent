@@ -1,6 +1,5 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 package gen
 
@@ -17,15 +16,15 @@ import (
 	"strings"
 	"unicode"
 
-	"ariga.io/atlas/sql/postgres"
-	"entgo.io/ent"
-	"entgo.io/ent/dialect"
-	"entgo.io/ent/dialect/entsql"
-	"entgo.io/ent/dialect/sql/schema"
-	"entgo.io/ent/entc/load"
-	entschema "entgo.io/ent/schema"
-	"entgo.io/ent/schema/edge"
-	"entgo.io/ent/schema/field"
+	"github.com/neko-sc/atlas/sql/postgres"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
+	"github.com/neko-sc/ent/dialect/entsql"
+	"github.com/neko-sc/ent/dialect/sql/schema"
+	"github.com/neko-sc/ent/entc/load"
+	entschema "github.com/neko-sc/ent/schema"
+	"github.com/neko-sc/ent/schema/edge"
+	"github.com/neko-sc/ent/schema/field"
 )
 
 // The following types and their exported methods used by the codegen
@@ -293,7 +292,7 @@ func (t Type) HasOneFieldID() bool {
 	return !t.HasCompositeID() && t.ID != nil
 }
 
-// Label returns Gremlin label name of the node/type.
+// Label returns the snake_case label name of the node/type.
 func (t Type) Label() string {
 	return snake(t.Name)
 }
@@ -1688,7 +1687,7 @@ func (f Field) sqlComment() string {
 }
 
 // StorageKey returns the storage name of the field.
-// SQL column or Gremlin property.
+// SQL column name.
 func (f Field) StorageKey() string {
 	if f.def != nil && f.def.StorageKey != "" {
 		return f.def.StorageKey
@@ -1888,8 +1887,7 @@ func (f *Field) Ops() []Op {
 	return ops
 }
 
-// Label returns the Gremlin label name of the edge.
-// If the edge is inverse
+// Label returns the label name of the edge.
 func (e Edge) Label() string {
 	if e.IsInverse() {
 		return fmt.Sprintf("%s_%s", e.Owner.Label(), snake(e.Inverse))
@@ -1917,8 +1915,7 @@ func (e Edge) O2O() bool { return e.Rel.Type == O2O }
 // IsInverse returns if this edge is an inverse edge.
 func (e Edge) IsInverse() bool { return e.Inverse != "" }
 
-// LabelConstant returns the constant name of the edge for the gremlin dialect.
-// If the edge is inverse, it returns the constant name of the owner-edge (assoc-edge).
+// LabelConstant returns the constant name of the edge label.
 func (e Edge) LabelConstant() string {
 	name := e.Name
 	if e.IsInverse() {
@@ -1945,7 +1942,6 @@ func (e Edge) PKConstant() string { return pascal(e.Name) + "PrimaryKey" }
 
 // HasConstraint indicates if this edge has a unique constraint check.
 // We check uniqueness when both-directions are unique or one of them.
-// Used by the Gremlin storage-layer.
 func (e Edge) HasConstraint() bool {
 	return e.Rel.Type == O2O || e.Rel.Type == O2M
 }

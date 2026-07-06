@@ -5,12 +5,12 @@ package enttest
 import (
 	"context"
 
-	"entgo.io/ent/examples/rls/ent"
+	"github.com/neko-sc/ent/examples/rls/ent"
 	// required by schema hooks.
-	_ "entgo.io/ent/examples/rls/ent/runtime"
+	_ "github.com/neko-sc/ent/examples/rls/ent/runtime"
 
-	"entgo.io/ent/dialect/sql/schema"
-	"entgo.io/ent/examples/rls/ent/migrate"
+	"github.com/neko-sc/ent/dialect/sql/schema"
+	"github.com/neko-sc/ent/examples/rls/ent/migrate"
 )
 
 type (

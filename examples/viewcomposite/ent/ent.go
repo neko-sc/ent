@@ -9,13 +9,13 @@ import (
 	"reflect"
 	"sync"
 
-	"entgo.io/ent"
-	"entgo.io/ent/dialect/sql"
-	"entgo.io/ent/dialect/sql/sqlgraph"
-	"entgo.io/ent/examples/viewcomposite/ent/cleanuser"
-	"entgo.io/ent/examples/viewcomposite/ent/pet"
-	"entgo.io/ent/examples/viewcomposite/ent/petusername"
-	"entgo.io/ent/examples/viewcomposite/ent/user"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/examples/viewcomposite/ent/cleanuser"
+	"github.com/neko-sc/ent/examples/viewcomposite/ent/pet"
+	"github.com/neko-sc/ent/examples/viewcomposite/ent/petusername"
+	"github.com/neko-sc/ent/examples/viewcomposite/ent/user"
 )
 
 // ent aliases to avoid import conflicts in user's code.

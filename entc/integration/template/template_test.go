@@ -1,6 +1,5 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 package template
 
@@ -10,12 +9,12 @@ import (
 	"reflect"
 	"testing"
 
-	"entgo.io/ent/dialect/sql"
-	"entgo.io/ent/entc/integration/template/ent"
-	"entgo.io/ent/entc/integration/template/ent/hook"
-	"entgo.io/ent/entc/integration/template/ent/migrate"
-	"entgo.io/ent/entc/integration/template/ent/pet"
-	"entgo.io/ent/entc/integration/template/ent/user"
+	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/entc/integration/template/ent"
+	"github.com/neko-sc/ent/entc/integration/template/ent/hook"
+	"github.com/neko-sc/ent/entc/integration/template/ent/migrate"
+	"github.com/neko-sc/ent/entc/integration/template/ent/pet"
+	"github.com/neko-sc/ent/entc/integration/template/ent/user"
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/require"

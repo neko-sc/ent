@@ -1,6 +1,5 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 package schema
 
@@ -17,13 +16,13 @@ import (
 	"sort"
 	"strings"
 
-	"ariga.io/atlas/sql/migrate"
-	"ariga.io/atlas/sql/schema"
-	"ariga.io/atlas/sql/sqlclient"
-	"ariga.io/atlas/sql/sqltool"
-	"entgo.io/ent/dialect"
-	entsql "entgo.io/ent/dialect/sql"
-	"entgo.io/ent/schema/field"
+	"github.com/neko-sc/atlas/sql/migrate"
+	"github.com/neko-sc/atlas/sql/schema"
+	"github.com/neko-sc/atlas/sql/sqlclient"
+	"github.com/neko-sc/atlas/sql/sqltool"
+	"github.com/neko-sc/ent/dialect"
+	entsql "github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/schema/field"
 )
 
 // Atlas atlas migration engine.
@@ -205,12 +204,11 @@ func (a *Atlas) cleanSchema(ctx context.Context, name string, err0 error) (err e
 	return a.atDriver.ApplyChanges(ctx, drop)
 }
 
-// VerifyTableRange ensures, that the defined autoincrement starting value is set for each table as defined by the
-// TypTable. This is necessary for MySQL versions < 8.0. In those versions the defined starting value for AUTOINCREMENT
-// columns was stored in memory, and when a server restarts happens and there are no rows yet in a table, the defined
-// starting value is lost, which will result in incorrect behavior when working with global unique ids. Calling this
-// method on service start ensures the information are correct and are set again, if they aren't. For MySQL versions > 8
-// calling this method is only required once after the upgrade.
+// VerifyTableRange ensures that the defined autoincrement starting value is set for each table as defined by the
+// TypTable. This is necessary for databases where the starting value for AUTOINCREMENT columns is stored in memory.
+// When a server restart happens and there are no rows yet in a table, the defined starting value may be lost, which
+// will result in incorrect behavior when working with global unique ids. Calling this method on service start ensures
+// the values are correct and are set again if they aren't.
 func (a *Atlas) VerifyTableRange(ctx context.Context, tables []*Table) error {
 	if a.driver != nil {
 		var err error
@@ -492,7 +490,6 @@ func WithFormatter(fmt migrate.Formatter) MigrateOption {
 }
 
 // WithDialect configures the Ent dialect to use when migrating for an Atlas supported dialect flavor.
-// As an example, Ent can work with TiDB in MySQL dialect and Atlas can handle TiDB migrations.
 func WithDialect(d string) MigrateOption {
 	return func(a *Atlas) {
 		a.dialect = d
@@ -773,9 +770,8 @@ func (a *Atlas) diff(ctx context.Context, name string, current, desired *schema.
 	for _, c := range changes {
 		switch c.(type) {
 		// Select only table creation and modification. The reason we may encounter this, even though specific tables
-		// are passed to Inspect, is if the MySQL system variable 'lower_case_table_names' is set to 1. In such a case,
-		// the given tables will be returned from inspection because MySQL compares case-insensitive, but they won't
-		// match when compare them in code.
+		// are passed to Inspect, is if tables are compared case-insensitively by the database. In such a case, the
+		// given tables will be returned from inspection, but they won't match when we compare them in code.
 		case *schema.AddTable, *schema.ModifyTable:
 			filtered = append(filtered, c)
 		}
@@ -1122,8 +1118,6 @@ func (a *Atlas) symbol(name string) string {
 func (a *Atlas) entDialect(ctx context.Context, drv dialect.Driver) (sqlDialect, error) {
 	var d sqlDialect
 	switch a.dialect {
-	case dialect.MySQL:
-		d = &MySQL{Driver: drv}
 	case dialect.SQLite:
 		d = &SQLite{Driver: drv, WithForeignKeys: a.withForeignKeys}
 	case dialect.Postgres:

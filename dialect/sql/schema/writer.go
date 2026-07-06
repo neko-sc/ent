@@ -1,6 +1,5 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 package schema
 
@@ -17,10 +16,10 @@ import (
 	"time"
 	"unicode"
 
-	"entgo.io/ent/dialect"
-	"entgo.io/ent/dialect/sql"
+	"github.com/neko-sc/ent/dialect"
+	"github.com/neko-sc/ent/dialect/sql"
 
-	"ariga.io/atlas/sql/migrate"
+	"github.com/neko-sc/atlas/sql/migrate"
 )
 
 type (

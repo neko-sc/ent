@@ -6,7 +6,7 @@ import (
 	"context"
 	"fmt"
 
-	"entgo.io/ent/examples/domaintypes/ent"
+	"github.com/neko-sc/ent/examples/domaintypes/ent"
 )
 
 // The UserFunc type is an adapter to allow the use of ordinary

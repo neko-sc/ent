@@ -1,12 +1,12 @@
 package schema
 
 import (
-	"entgo.io/ent"
-	"entgo.io/ent/dialect/entsql"
-	"entgo.io/ent/schema"
-	"entgo.io/ent/schema/edge"
-	"entgo.io/ent/schema/field"
-	"entgo.io/ent/schema/index"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect/entsql"
+	"github.com/neko-sc/ent/schema"
+	"github.com/neko-sc/ent/schema/edge"
+	"github.com/neko-sc/ent/schema/field"
+	"github.com/neko-sc/ent/schema/index"
 	"github.com/google/uuid"
 )
 

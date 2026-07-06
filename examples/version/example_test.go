@@ -1,6 +1,5 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 package main
 
@@ -10,9 +9,9 @@ import (
 	"log"
 	"time"
 
-	"entgo.io/ent/examples/version/ent"
-	_ "entgo.io/ent/examples/version/ent/runtime"
-	"entgo.io/ent/examples/version/ent/user"
+	"github.com/neko-sc/ent/examples/version/ent"
+	_ "github.com/neko-sc/ent/examples/version/ent/runtime"
+	"github.com/neko-sc/ent/examples/version/ent/user"
 
 	_ "github.com/mattn/go-sqlite3"
 )

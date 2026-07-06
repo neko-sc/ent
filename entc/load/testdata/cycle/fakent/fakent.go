@@ -1,13 +1,12 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 // Package fakent fis a fake generated Ent package.
 package fakent
 
 import (
-	"entgo.io/ent"
-	"entgo.io/ent/entc/load/testdata/cycle"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/entc/load/testdata/cycle"
 )
 
 type Hook = ent.Hook

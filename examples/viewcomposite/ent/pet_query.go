@@ -7,12 +7,12 @@ import (
 	"fmt"
 	"math"
 
-	"entgo.io/ent"
-	"entgo.io/ent/dialect/sql"
-	"entgo.io/ent/dialect/sql/sqlgraph"
-	"entgo.io/ent/examples/viewcomposite/ent/pet"
-	"entgo.io/ent/examples/viewcomposite/ent/predicate"
-	"entgo.io/ent/schema/field"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/examples/viewcomposite/ent/pet"
+	"github.com/neko-sc/ent/examples/viewcomposite/ent/predicate"
+	"github.com/neko-sc/ent/schema/field"
 )
 
 // PetQuery is the builder for querying Pet entities.

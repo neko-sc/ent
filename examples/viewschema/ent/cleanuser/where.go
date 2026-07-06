@@ -3,8 +3,8 @@
 package cleanuser
 
 import (
-	"entgo.io/ent/dialect/sql"
-	"entgo.io/ent/examples/viewschema/ent/predicate"
+	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/examples/viewschema/ent/predicate"
 )
 
 // ID applies equality check predicate on the "id" field. It's identical to IDEQ.

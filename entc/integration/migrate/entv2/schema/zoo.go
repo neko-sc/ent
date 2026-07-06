@@ -1,14 +1,13 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 package schema
 
 import (
-	"entgo.io/ent"
-	"entgo.io/ent/dialect"
-	"entgo.io/ent/dialect/entsql"
-	"entgo.io/ent/schema/field"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
+	"github.com/neko-sc/ent/dialect/entsql"
+	"github.com/neko-sc/ent/schema/field"
 )
 
 // Zoo holds the schema definition for the Zoo entity.
@@ -22,7 +21,6 @@ func (Zoo) Fields() []ent.Field {
 		field.Int("id").
 			Annotations(
 				entsql.DefaultExprs(map[string]string{
-					dialect.MySQL:    "floor(rand() * ~(1<<31))",
 					dialect.SQLite:   "abs(random())",
 					dialect.Postgres: "floor(random() * ~(1<<31))",
 				}),

@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"strings"
 
-	"entgo.io/ent"
-	"entgo.io/ent/dialect/sql"
-	"entgo.io/ent/examples/viewcomposite/ent/user"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/examples/viewcomposite/ent/user"
 )
 
 // User is the model entity for the User schema.

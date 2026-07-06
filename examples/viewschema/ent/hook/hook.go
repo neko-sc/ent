@@ -6,7 +6,7 @@ import (
 	"context"
 	"fmt"
 
-	"entgo.io/ent/examples/viewschema/ent"
+	"github.com/neko-sc/ent/examples/viewschema/ent"
 )
 
 // The PetFunc type is an adapter to allow the use of ordinary

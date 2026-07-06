@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"sync"
 
-	"entgo.io/ent"
-	"entgo.io/ent/examples/viewcomposite/ent/pet"
-	"entgo.io/ent/examples/viewcomposite/ent/user"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/examples/viewcomposite/ent/pet"
+	"github.com/neko-sc/ent/examples/viewcomposite/ent/user"
 )
 
 const (

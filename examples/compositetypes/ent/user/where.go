@@ -3,9 +3,9 @@
 package user
 
 import (
-	"entgo.io/ent/dialect/sql"
-	"entgo.io/ent/examples/compositetypes/ent/predicate"
-	"entgo.io/ent/examples/compositetypes/ent/schema"
+	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/examples/compositetypes/ent/predicate"
+	"github.com/neko-sc/ent/examples/compositetypes/ent/schema"
 )
 
 // ID filters vertices based on their ID field.

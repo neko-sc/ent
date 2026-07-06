@@ -1,17 +1,16 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 package sql
 
 import (
 	"testing"
 
-	"entgo.io/ent/dialect"
+	"github.com/neko-sc/ent/dialect"
 )
 
 func BenchmarkInsertBuilder_Default(b *testing.B) {
-	for _, d := range []string{dialect.SQLite, dialect.MySQL, dialect.Postgres} {
+	for _, d := range []string{dialect.SQLite, dialect.Postgres} {
 		b.Run(d, func(b *testing.B) {
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
@@ -22,7 +21,7 @@ func BenchmarkInsertBuilder_Default(b *testing.B) {
 }
 
 func BenchmarkInsertBuilder_Small(b *testing.B) {
-	for _, d := range []string{dialect.SQLite, dialect.MySQL, dialect.Postgres} {
+	for _, d := range []string{dialect.SQLite, dialect.Postgres} {
 		b.Run(d, func(b *testing.B) {
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {

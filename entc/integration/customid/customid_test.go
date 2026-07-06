@@ -1,6 +1,5 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 package customid
 
@@ -8,60 +7,31 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"net"
-	"strconv"
 	"testing"
 
-	"entgo.io/ent/dialect"
-	entsql "entgo.io/ent/dialect/sql"
-	"entgo.io/ent/dialect/sql/schema"
-	"entgo.io/ent/entc/integration/customid/ent"
-	"entgo.io/ent/entc/integration/customid/ent/blob"
-	"entgo.io/ent/entc/integration/customid/ent/doc"
-	"entgo.io/ent/entc/integration/customid/ent/intsid"
-	"entgo.io/ent/entc/integration/customid/ent/pet"
-	entschema "entgo.io/ent/entc/integration/customid/ent/schema"
-	"entgo.io/ent/entc/integration/customid/ent/token"
-	"entgo.io/ent/entc/integration/customid/ent/user"
-	"entgo.io/ent/entc/integration/customid/ent/valuescan"
-	"entgo.io/ent/entc/integration/customid/sid"
-	"entgo.io/ent/schema/field"
+	"github.com/neko-sc/ent/dialect"
+	entsql "github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/dialect/sql/schema"
+	"github.com/neko-sc/ent/entc/integration/customid/ent"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/blob"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/doc"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/intsid"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/pet"
+	entschema "github.com/neko-sc/ent/entc/integration/customid/ent/schema"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/token"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/user"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/valuescan"
+	"github.com/neko-sc/ent/entc/integration/customid/sid"
 
-	atlas "ariga.io/atlas/sql/schema"
-	"github.com/go-sql-driver/mysql"
+	atlas "github.com/neko-sc/atlas/sql/schema"
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/require"
 )
 
-func TestMySQL(t *testing.T) {
-	for version, port := range map[string]int{"56": 3306, "57": 3307, "8": 3308} {
-		addr := net.JoinHostPort("localhost", strconv.Itoa(port))
-		t.Run(version, func(t *testing.T) {
-			cfg := mysql.Config{
-				User: "root", Passwd: "pass", Net: "tcp", Addr: addr,
-				AllowNativePasswords: true, ParseTime: true,
-			}
-			db, err := sql.Open("mysql", cfg.FormatDSN())
-			require.NoError(t, err)
-			defer db.Close()
-			_, err = db.Exec("CREATE DATABASE IF NOT EXISTS custom_id")
-			require.NoError(t, err, "creating database")
-			defer db.Exec("DROP DATABASE IF EXISTS custom_id")
-
-			cfg.DBName = "custom_id"
-			client, err := ent.Open("mysql", cfg.FormatDSN())
-			require.NoError(t, err, "connecting to custom_id database")
-			err = client.Schema.Create(context.Background(), schema.WithHooks(clearDefault, skipBytesID))
-			require.NoError(t, err)
-			CustomID(t, client)
-		})
-	}
-}
-
 func TestPostgres(t *testing.T) {
-	for version, port := range map[string]int{"10": 5430, "11": 5431, "12": 5433, "13": 5434} {
+	for version, port := range map[string]int{"16": 5436, "17": 5437, "18": 5438} {
 		t.Run(version, func(t *testing.T) {
 			dsn := fmt.Sprintf("host=localhost port=%d user=postgres password=pass sslmode=disable dbname=test", port)
 			db, err := sql.Open(dialect.Postgres, dsn)
@@ -307,7 +277,7 @@ func BytesID(t *testing.T, client *ent.Client) {
 // clearDefault clears the id's default for non-postgres dialects.
 func clearDefault(c schema.Creator) schema.Creator {
 	return schema.CreateFunc(func(ctx context.Context, tables ...*schema.Table) error {
-		// Drop DEFAULT clause for MySQL without changing the tables.
+		// Drop DEFAULT clause for non-postgres dialects without changing the tables.
 		ct := make([]*schema.Table, len(tables))
 		copy(ct, tables)
 		*ct[1] = *tables[1]
@@ -315,20 +285,6 @@ func clearDefault(c schema.Creator) schema.Creator {
 		*ct[1].Columns[0] = *tables[1].Columns[0]
 		ct[1].Columns[0].Default = nil
 		return c.Create(ctx, ct...)
-	})
-}
-
-// skipBytesID tables with blob ids from the migration.
-func skipBytesID(c schema.Creator) schema.Creator {
-	return schema.CreateFunc(func(ctx context.Context, tables ...*schema.Table) error {
-		t := make([]*schema.Table, 0, len(tables))
-		for i := range tables {
-			if tables[i].PrimaryKey[0].Type == field.TypeBytes {
-				continue
-			}
-			t = append(t, tables[i])
-		}
-		return c.Create(ctx, t...)
 	})
 }
 

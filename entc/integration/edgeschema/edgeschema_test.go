@@ -1,6 +1,5 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 package edgeschema
 
@@ -10,19 +9,19 @@ import (
 	"testing"
 	"time"
 
-	"entgo.io/ent/dialect"
-	"entgo.io/ent/entc/integration/edgeschema/ent"
-	"entgo.io/ent/entc/integration/edgeschema/ent/attachedfile"
-	"entgo.io/ent/entc/integration/edgeschema/ent/file"
-	"entgo.io/ent/entc/integration/edgeschema/ent/friendship"
-	"entgo.io/ent/entc/integration/edgeschema/ent/group"
-	"entgo.io/ent/entc/integration/edgeschema/ent/migrate"
-	"entgo.io/ent/entc/integration/edgeschema/ent/relationship"
-	"entgo.io/ent/entc/integration/edgeschema/ent/relationshipinfo"
-	_ "entgo.io/ent/entc/integration/edgeschema/ent/runtime"
-	"entgo.io/ent/entc/integration/edgeschema/ent/tweetlike"
-	"entgo.io/ent/entc/integration/edgeschema/ent/user"
-	"entgo.io/ent/entql"
+	"github.com/neko-sc/ent/dialect"
+	"github.com/neko-sc/ent/entc/integration/edgeschema/ent"
+	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/attachedfile"
+	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/file"
+	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/friendship"
+	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/group"
+	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/migrate"
+	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/relationship"
+	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/relationshipinfo"
+	_ "github.com/neko-sc/ent/entc/integration/edgeschema/ent/runtime"
+	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/tweetlike"
+	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/user"
+	"github.com/neko-sc/ent/entql"
 
 	"github.com/google/uuid"
 	_ "github.com/mattn/go-sqlite3"

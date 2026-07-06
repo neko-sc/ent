@@ -6,9 +6,9 @@ import (
 	"context"
 	"fmt"
 
-	"entgo.io/ent"
-	"entgo.io/ent/dialect/sql"
-	"entgo.io/ent/examples/rls/ent/predicate"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/examples/rls/ent/predicate"
 )
 
 // Mutation represents an operation that mutates the Tenant nodes in the graph.

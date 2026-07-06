@@ -1,6 +1,5 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 package entsql
 
@@ -8,8 +7,8 @@ import (
 	"errors"
 	"fmt"
 
-	"entgo.io/ent/dialect/sql"
-	"entgo.io/ent/schema"
+	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/schema"
 )
 
 // Annotation is a builtin schema annotation for attaching
@@ -83,8 +82,8 @@ type Annotation struct {
 	//
 	//	entsql.Annotation{
 	//		DefaultExprs: map[string]string{
-	//			dialect.MySQL:    "uuid()",
-	//			dialect.Postgres: "uuid_generate_v4",
+	//			dialect.Postgres: "uuid_generate_v4()",
+	//			dialect.SQLite:   "lower(hex(randomblob(16)))",
 	//		}
 	//
 	DefaultExprs map[string]string `json:"default_exprs,omitempty"`
@@ -187,8 +186,8 @@ type Annotation struct {
 	//
 	//	entsql.Annotation{
 	//		ViewFor: map[string]string{
-	//			dialect.MySQL:    "...",
 	//			dialect.Postgres: "...",
+	//			dialect.SQLite:   "...",
 	//		},
 	//	}
 	ViewFor map[string]string `json:"view_for,omitempty"`
@@ -334,8 +333,8 @@ func DefaultExpr(expr string) *Annotation {
 //		Default(uuid.New).
 //		Annotations(
 //			entsql.DefaultExprs(map[string]string{
-//				dialect.MySQL:    "uuid()",
 //				dialect.Postgres: "uuid_generate_v4()",
+//				dialect.SQLite:   "lower(hex(randomblob(16)))",
 //			}),
 //		)
 func DefaultExprs(exprs map[string]string) *Annotation {
@@ -505,17 +504,17 @@ const (
 // SQL metadata to schema indexes for both codegen and runtime.
 type IndexAnnotation struct {
 	// Prefix defines a column prefix for a single string column index.
-	// In MySQL, the following annotation maps to:
+	// The following annotation maps to:
 	//
 	//	index.Fields("column").
 	//		Annotation(entsql.Prefix(100))
 	//
-	//	CREATE INDEX `table_column` ON `table`(`column`(100))
+	//	CREATE INDEX "table_column" ON "table"("column"(100))
 	//
 	Prefix uint
 
 	// PrefixColumns defines column prefixes for a multi-column index.
-	// In MySQL, the following annotation maps to:
+	// The following annotation maps to:
 	//
 	//	index.Fields("c1", "c2", "c3").
 	//		Annotation(
@@ -523,29 +522,29 @@ type IndexAnnotation struct {
 	//			entsql.PrefixColumn("c2", 200),
 	//		)
 	//
-	//	CREATE INDEX `table_c1_c2_c3` ON `table`(`c1`(100), `c2`(200), `c3`)
+	//	CREATE INDEX "table_c1_c2_c3" ON "table"("c1"(100), "c2"(200), "c3")
 	//
 	PrefixColumns map[string]uint
 
 	// Desc defines the DESC clause for a single column index.
-	// In MySQL, the following annotation maps to:
+	// The following annotation maps to:
 	//
 	//	index.Fields("column").
 	//		Annotation(entsql.Desc())
 	//
-	//	CREATE INDEX `table_column` ON `table`(`column` DESC)
+	//	CREATE INDEX "table_column" ON "table"("column" DESC)
 	//
 	Desc bool
 
 	// DescColumns defines the DESC clause for columns in multi-column index.
-	// In MySQL, the following annotation maps to:
+	// The following annotation maps to:
 	//
 	//	index.Fields("c1", "c2", "c3").
 	//		Annotation(
 	//			entsql.DescColumns("c1", "c2"),
 	//		)
 	//
-	//	CREATE INDEX `table_c1_c2_c3` ON `table`(`c1` DESC, `c2` DESC, `c3`)
+	//	CREATE INDEX "table_c1_c2_c3" ON "table"("c1" DESC, "c2" DESC, "c3")
 	//
 	DescColumns map[string]bool
 
@@ -562,14 +561,14 @@ type IndexAnnotation struct {
 	IncludeColumns []string
 
 	// Type defines the type of the index.
-	// In MySQL, the following annotation maps to:
+	// The following annotation maps to:
 	//
 	//	index.Fields("c1").
 	//		Annotation(
-	//			entsql.IndexType("FULLTEXT"),
+	//			entsql.IndexType("GIN"),
 	//		)
 	//
-	//	CREATE FULLTEXT INDEX `table_c1` ON `table`(`c1`)
+	//	CREATE INDEX "table_c1" ON "table" USING GIN ("c1")
 	//
 	Type string
 
@@ -578,7 +577,6 @@ type IndexAnnotation struct {
 	//	index.Fields("c1").
 	//		Annotation(
 	//			entsql.IndexTypes(map[string]string{
-	//				dialect.MySQL:		"FULLTEXT",
 	//				dialect.Postgres:	"GIN",
 	//			}),
 	//		)
@@ -628,12 +626,12 @@ type IndexAnnotation struct {
 }
 
 // Prefix returns a new index annotation with a single string column index.
-// In MySQL, the following annotation maps to:
+// The following annotation maps to:
 //
 //	index.Fields("column").
 //		Annotation(entsql.Prefix(100))
 //
-//	CREATE INDEX `table_column` ON `table`(`column`(100))
+//	CREATE INDEX "table_column" ON "table"("column"(100))
 func Prefix(prefix uint) *IndexAnnotation {
 	return &IndexAnnotation{
 		Prefix: prefix,
@@ -641,7 +639,7 @@ func Prefix(prefix uint) *IndexAnnotation {
 }
 
 // PrefixColumn returns a new index annotation with column prefix for
-// multi-column indexes. In MySQL, the following annotation maps to:
+// multi-column indexes. The following annotation maps to:
 //
 //	index.Fields("c1", "c2", "c3").
 //		Annotation(
@@ -649,7 +647,7 @@ func Prefix(prefix uint) *IndexAnnotation {
 //			entsql.PrefixColumn("c2", 200),
 //		)
 //
-//	CREATE INDEX `table_c1_c2_c3` ON `table`(`c1`(100), `c2`(200), `c3`)
+//	CREATE INDEX "table_c1_c2_c3" ON "table"("c1"(100), "c2"(200), "c3")
 func PrefixColumn(name string, prefix uint) *IndexAnnotation {
 	return &IndexAnnotation{
 		PrefixColumns: map[string]uint{
@@ -694,12 +692,12 @@ func OpClassColumn(name, op string) *IndexAnnotation {
 }
 
 // Desc returns a new index annotation with the DESC clause for a
-// single column index. In MySQL, the following annotation maps to:
+// single column index. The following annotation maps to:
 //
 //	index.Fields("column").
 //		Annotation(entsql.Desc())
 //
-//	CREATE INDEX `table_column` ON `table`(`column` DESC)
+//	CREATE INDEX "table_column" ON "table"("column" DESC)
 func Desc() *IndexAnnotation {
 	return &IndexAnnotation{
 		Desc: true,
@@ -707,14 +705,14 @@ func Desc() *IndexAnnotation {
 }
 
 // DescColumns returns a new index annotation with the DESC clause attached to
-// the columns in the index. In MySQL, the following annotation maps to:
+// the columns in the index. The following annotation maps to:
 //
 //	index.Fields("c1", "c2", "c3").
 //		Annotation(
 //			entsql.DescColumns("c1", "c2"),
 //		)
 //
-//	CREATE INDEX `table_c1_c2_c3` ON `table`(`c1` DESC, `c2` DESC, `c3`)
+//	CREATE INDEX "table_c1_c2_c3" ON "table"("c1" DESC, "c2" DESC, "c3")
 func DescColumns(names ...string) *IndexAnnotation {
 	ant := &IndexAnnotation{
 		DescColumns: make(map[string]bool, len(names)),
@@ -739,14 +737,14 @@ func IncludeColumns(names ...string) *IndexAnnotation {
 }
 
 // IndexType defines the type of the index.
-// In MySQL, the following annotation maps to:
+// In PostgreSQL, the following annotation maps to:
 //
 //	index.Fields("c1").
 //		Annotation(
-//			entsql.IndexType("FULLTEXT"),
+//			entsql.IndexType("GIN"),
 //		)
 //
-//	CREATE FULLTEXT INDEX `table_c1` ON `table`(`c1`)
+//	CREATE INDEX "table_c1" ON "table" USING GIN ("c1")
 func IndexType(t string) *IndexAnnotation {
 	return &IndexAnnotation{Type: t}
 }
@@ -756,7 +754,6 @@ func IndexType(t string) *IndexAnnotation {
 //	index.Fields("c1").
 //		Annotations(
 //			entsql.IndexTypes(map[string]string{
-//				dialect.MySQL:    "FULLTEXT",
 //				dialect.Postgres: "GIN",
 //			}),
 //		)

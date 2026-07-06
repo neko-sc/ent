@@ -1,5 +1,4 @@
 run:
-  go: '1.19'
   timeout: 5m
 
 linters-settings:
@@ -12,9 +11,8 @@ linters-settings:
     statements: 200
   goheader:
     template: |-
-      Copyright 2019-present Facebook Inc. All rights reserved.
-      This source code is licensed under the Apache 2.0 license found
-      in the LICENSE file in the root directory of this source tree.
+      Copyright 2019-2026 Facebook Inc.
+      SPDX-License-Identifier: Apache-2.0
 linters:
   disable-all: true
   enable:
@@ -25,7 +23,7 @@ linters:
     - errcheck
     - funlen
     - gocritic
-    # - gofmt; Enable back when upgrading CI to Go 1.20.
+    - gofmt
     - goheader
     - gosec
     - gosimple

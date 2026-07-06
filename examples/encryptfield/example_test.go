@@ -1,6 +1,5 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 package encryptfield
 
@@ -9,9 +8,9 @@ import (
 	"fmt"
 	"log"
 
-	"entgo.io/ent/examples/encryptfield/ent"
-	_ "entgo.io/ent/examples/encryptfield/ent/runtime"
-	"entgo.io/ent/examples/encryptfield/ent/user"
+	"github.com/neko-sc/ent/examples/encryptfield/ent"
+	_ "github.com/neko-sc/ent/examples/encryptfield/ent/runtime"
+	"github.com/neko-sc/ent/examples/encryptfield/ent/user"
 
 	_ "github.com/mattn/go-sqlite3"
 	"gocloud.dev/secrets/localsecrets"

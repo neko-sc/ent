@@ -1,6 +1,5 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 package main
 
@@ -15,12 +14,12 @@ import (
 
 func TestCmd(t *testing.T) {
 	defer os.RemoveAll("ent")
-	cmd := exec.Command("go", "run", "entgo.io/ent/cmd/ent", "new", "User")
+	cmd := exec.Command("go", "run", "github.com/neko-sc/ent/cmd/ent", "new", "User")
 	stderr := bytes.NewBuffer(nil)
 	cmd.Stderr = stderr
 	require.NoError(t, cmd.Run())
 	require.Zero(t, stderr.String())
-	cmd = exec.Command("go", "run", "entgo.io/ent/cmd/ent", "new", "User")
+	cmd = exec.Command("go", "run", "github.com/neko-sc/ent/cmd/ent", "new", "User")
 	require.Error(t, cmd.Run())
 
 	_, err := os.Stat("ent/generate.go")
@@ -28,7 +27,7 @@ func TestCmd(t *testing.T) {
 	_, err = os.Stat("ent/schema/user.go")
 	require.NoError(t, err)
 
-	cmd = exec.Command("go", "run", "entgo.io/ent/cmd/ent", "generate", "./ent/schema")
+	cmd = exec.Command("go", "run", "github.com/neko-sc/ent/cmd/ent", "generate", "./ent/schema")
 	stderr = bytes.NewBuffer(nil)
 	cmd.Stderr = stderr
 	require.NoError(t, cmd.Run())

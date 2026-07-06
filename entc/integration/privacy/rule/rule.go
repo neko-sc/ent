@@ -1,6 +1,5 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 package rule
 
@@ -9,14 +8,14 @@ import (
 	"fmt"
 	"sync"
 
-	"entgo.io/ent/entc/integration/privacy/ent"
-	"entgo.io/ent/entc/integration/privacy/ent/hook"
-	"entgo.io/ent/entc/integration/privacy/ent/predicate"
-	"entgo.io/ent/entc/integration/privacy/ent/privacy"
-	"entgo.io/ent/entc/integration/privacy/ent/task"
-	"entgo.io/ent/entc/integration/privacy/ent/team"
-	"entgo.io/ent/entc/integration/privacy/ent/user"
-	"entgo.io/ent/entc/integration/privacy/viewer"
+	"github.com/neko-sc/ent/entc/integration/privacy/ent"
+	"github.com/neko-sc/ent/entc/integration/privacy/ent/hook"
+	"github.com/neko-sc/ent/entc/integration/privacy/ent/predicate"
+	"github.com/neko-sc/ent/entc/integration/privacy/ent/privacy"
+	"github.com/neko-sc/ent/entc/integration/privacy/ent/task"
+	"github.com/neko-sc/ent/entc/integration/privacy/ent/team"
+	"github.com/neko-sc/ent/entc/integration/privacy/ent/user"
+	"github.com/neko-sc/ent/entc/integration/privacy/viewer"
 )
 
 // DenyUpdateRule is a mutation rule that denies the update-many operation.

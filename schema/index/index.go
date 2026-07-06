@@ -1,10 +1,9 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 package index
 
-import "entgo.io/ent/schema"
+import "github.com/neko-sc/ent/schema"
 
 // A Descriptor for index configuration.
 type Descriptor struct {
@@ -21,7 +20,7 @@ type Builder struct {
 }
 
 // Fields creates an index on the given vertex fields.
-// Note that indexes are implemented only for SQL dialects, and does not support gremlin.
+
 //
 //	func (T) Indexes() []ent.Index {
 //
@@ -41,7 +40,7 @@ func Fields(fields ...string) *Builder {
 }
 
 // Edges creates an index on the given vertex edge fields.
-// Note that indexes are implemented only for SQL dialects, and does not support gremlin.
+
 //
 //	func (T) Indexes() []ent.Index {
 //

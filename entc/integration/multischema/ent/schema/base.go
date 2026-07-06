@@ -1,9 +1,9 @@
 package schema
 
 import (
-	"entgo.io/ent"
-	"entgo.io/ent/dialect/entsql"
-	"entgo.io/ent/schema"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect/entsql"
+	"github.com/neko-sc/ent/schema"
 )
 
 // base holds the default configuration for most schemas in this package.

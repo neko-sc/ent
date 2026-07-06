@@ -1,6 +1,5 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 package hooks
 
@@ -11,19 +10,19 @@ import (
 	"testing"
 	"time"
 
-	"entgo.io/ent/dialect"
-	"entgo.io/ent/dialect/sql"
-	"entgo.io/ent/entc/integration/hooks/ent"
-	"entgo.io/ent/entc/integration/hooks/ent/card"
-	"entgo.io/ent/entc/integration/hooks/ent/enttest"
-	"entgo.io/ent/entc/integration/hooks/ent/hook"
-	"entgo.io/ent/entc/integration/hooks/ent/intercept"
-	"entgo.io/ent/entc/integration/hooks/ent/migrate"
-	"entgo.io/ent/entc/integration/hooks/ent/pet"
-	"entgo.io/ent/entc/integration/hooks/ent/schema"
-	"entgo.io/ent/entc/integration/hooks/ent/user"
+	"github.com/neko-sc/ent/dialect"
+	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/entc/integration/hooks/ent"
+	"github.com/neko-sc/ent/entc/integration/hooks/ent/card"
+	"github.com/neko-sc/ent/entc/integration/hooks/ent/enttest"
+	"github.com/neko-sc/ent/entc/integration/hooks/ent/hook"
+	"github.com/neko-sc/ent/entc/integration/hooks/ent/intercept"
+	"github.com/neko-sc/ent/entc/integration/hooks/ent/migrate"
+	"github.com/neko-sc/ent/entc/integration/hooks/ent/pet"
+	"github.com/neko-sc/ent/entc/integration/hooks/ent/schema"
+	"github.com/neko-sc/ent/entc/integration/hooks/ent/user"
 
-	entgo "entgo.io/ent"
+	entgo "github.com/neko-sc/ent"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/require"
 )

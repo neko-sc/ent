@@ -1,6 +1,5 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 package gen
 
@@ -11,8 +10,7 @@ import (
 	"slices"
 	"strings"
 
-	"entgo.io/ent/dialect/gremlin/graph/dsl"
-	"entgo.io/ent/dialect/sql"
+	"github.com/neko-sc/ent/dialect/sql"
 )
 
 // A SchemaMode defines what type of schema feature a storage driver support.
@@ -54,13 +52,13 @@ var drivers = []*Storage{
 		Name:      "sql",
 		IdentName: "SQL",
 		Builder:   reflect.TypeOf(&sql.Selector{}),
-		Dialects:  []string{"dialect.SQLite", "dialect.MySQL", "dialect.Postgres"},
+		Dialects:  []string{"dialect.SQLite", "dialect.Postgres"},
 		Imports: []string{
 			"database/sql/driver",
-			"entgo.io/ent/dialect/sql",
-			"entgo.io/ent/dialect/sql/sqlgraph",
-			"entgo.io/ent/dialect/sql/sqljson",
-			"entgo.io/ent/schema/field",
+			"github.com/neko-sc/ent/dialect/sql",
+			"github.com/neko-sc/ent/dialect/sql/sqlgraph",
+			"github.com/neko-sc/ent/dialect/sql/sqljson",
+			"github.com/neko-sc/ent/schema/field",
 		},
 		SchemaMode: Unique | Indexes | Cascade | Migrate,
 		Ops: func(f *Field) []Op {
@@ -95,23 +93,6 @@ var drivers = []*Storage{
 			}
 		},
 	},
-	{
-		Name:      "gremlin",
-		IdentName: "Gremlin",
-		Builder:   reflect.TypeOf(&dsl.Traversal{}),
-		Dialects:  []string{"dialect.Gremlin"},
-		Imports: []string{
-			"entgo.io/ent/dialect/gremlin",
-			"entgo.io/ent/dialect/gremlin/graph/dsl",
-			"entgo.io/ent/dialect/gremlin/graph/dsl/__",
-			"entgo.io/ent/dialect/gremlin/graph/dsl/g",
-			"entgo.io/ent/dialect/gremlin/graph/dsl/p",
-			"entgo.io/ent/dialect/gremlin/encoding/graphson",
-		},
-		SchemaMode: Unique,
-		OpCode:     opCodes(gremlinCode[:]),
-		Init:       func(*Graph) error { return nil }, // Noop.
-	},
 }
 
 // NewStorage returns the storage driver type from the given string.
@@ -134,16 +115,6 @@ var (
 	sqlCode = [...]string{
 		IsNil:  "IsNull",
 		NotNil: "NotNull",
-	}
-	// exceptional operation names in gremlin.
-	gremlinCode = [...]string{
-		IsNil:     "HasNot",
-		NotNil:    "Has",
-		In:        "Within",
-		NotIn:     "Without",
-		Contains:  "Containing",
-		HasPrefix: "StartingWith",
-		HasSuffix: "EndingWith",
 	}
 )
 

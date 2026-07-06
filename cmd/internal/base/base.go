@@ -1,6 +1,5 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 // Package base defines shared basic pieces of the ent command.
 package base
@@ -16,11 +15,11 @@ import (
 	"text/template"
 	"unicode"
 
-	"entgo.io/ent/cmd/internal/printer"
-	"entgo.io/ent/dialect/sql/schema"
-	"entgo.io/ent/entc"
-	"entgo.io/ent/entc/gen"
-	"entgo.io/ent/schema/field"
+	"github.com/neko-sc/ent/cmd/internal/printer"
+	"github.com/neko-sc/ent/dialect/sql/schema"
+	"github.com/neko-sc/ent/entc"
+	"github.com/neko-sc/ent/entc/gen"
+	"github.com/neko-sc/ent/schema/field"
 
 	"github.com/spf13/cobra"
 )
@@ -204,7 +203,6 @@ func GenerateCmd(postRun ...func(*gen.Config)) *cobra.Command {
 	cmd.Flags().StringSliceVarP(&features, "feature", "", nil, "extend codegen with additional features")
 	cmd.Flags().StringSliceVarP(&templates, "template", "", nil, "external templates to execute")
 	// The --idtype flag predates the field.<Type>("id") option.
-	// See, https://entgo.io/docs/schema-fields#id-field.
 	cobra.CheckErr(cmd.Flags().MarkHidden("idtype"))
 	return cmd
 }
@@ -220,7 +218,6 @@ func SchemaCmd() *cobra.Command {
 			Use:   "schema [flags] path",
 			Short: "dump the DDL for the schema directory",
 			Example: examples(
-				"ent schema ./ent/schema --dialect mysql --version 5.6",
 				"ent schema ./ent/schema --dialect sqlite3",
 				"ent schema github.com/a8m/x --dialect postgres --version 15",
 			),
@@ -328,11 +325,11 @@ const (
 	// default schema package path.
 	defaultSchema = "ent/schema"
 	// ent/generate.go file used for "go generate" command.
-	genFile = "package ent\n\n//go:generate go run -mod=mod entgo.io/ent/cmd/ent generate ./schema\n"
+	genFile = "package ent\n\n//go:generate go run -mod=mod github.com/neko-sc/ent/cmd/ent generate ./schema\n"
 	// schema template for the "init" command.
 	defaultTemplate = `package schema
 
-import "entgo.io/ent"
+import "github.com/neko-sc/ent"
 
 // {{ . }} holds the schema definition for the {{ . }} entity.
 type {{ . }} struct {

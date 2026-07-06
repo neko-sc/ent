@@ -1,6 +1,6 @@
 # Versioned Migration Example
 
-The full reference example for https://entgo.io/docs/versioned-migrations#create-a-migration-files-generator.
+Example for generating versioned migration files with Atlas and Ent.
 
 ### Migration directory
 
@@ -18,14 +18,14 @@ Versioned migration files exists under `ent/migrate/migrations`.
 atlas migrate diff <migration_name> \
   --dir "file://ent/migrate/migrations" \
   --to "ent://ent/schema" \
-  --dev-url "docker://mysql/8/ent"
+  --dev-url "docker://postgres/16/ent"
 ```
 
 ### Run migration linting
 
 ```bash
 atlas migrate lint \
-  --dev-url="docker://mysql/8/dev" \
+  --dev-url="docker://postgres/16/dev" \
   --dir="file://ent/migrate/migrations" \
   --latest=1
 ```

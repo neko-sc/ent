@@ -1,6 +1,5 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 // Package gen is the interface for generating loaded schemas into a Go package.
 package gen
@@ -20,9 +19,9 @@ import (
 	"strings"
 	"text/template/parse"
 
-	"entgo.io/ent/dialect/sql/schema"
-	"entgo.io/ent/entc/load"
-	"entgo.io/ent/schema/field"
+	"github.com/neko-sc/ent/dialect/sql/schema"
+	"github.com/neko-sc/ent/entc/load"
+	"github.com/neko-sc/ent/schema/field"
 
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/tools/imports"
@@ -1010,9 +1009,9 @@ func (g *Graph) templates() (*Template, []GraphTemplate) {
 	return templates, external
 }
 
-// ModuleInfo returns the entgo.io/ent version.
+// ModuleInfo returns the github.com/neko-sc/ent version.
 func (Config) ModuleInfo() (m debug.Module) {
-	const pkg = "entgo.io/ent"
+	const pkg = "github.com/neko-sc/ent"
 	info, ok := debug.ReadBuildInfo()
 	if !ok {
 		return

@@ -1,6 +1,5 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 package sqlgraph
 
@@ -25,7 +24,6 @@ func IsUniqueConstraintError(err error) bool {
 		return false
 	}
 	for _, s := range []string{
-		"Error 1062",                 // MySQL
 		"violates unique constraint", // Postgres
 		"UNIQUE constraint failed",   // SQLite
 	} {
@@ -43,8 +41,6 @@ func IsForeignKeyConstraintError(err error) bool {
 		return false
 	}
 	for _, s := range []string{
-		"Error 1451",                      // MySQL (Cannot delete or update a parent row).
-		"Error 1452",                      // MySQL (Cannot add or update a child row).
 		"violates foreign key constraint", // Postgres
 		"FOREIGN KEY constraint failed",   // SQLite
 	} {
@@ -62,7 +58,6 @@ func IsCheckConstraintError(err error) bool {
 		return false
 	}
 	for _, s := range []string{
-		"Error 3819",                // MySQL
 		"violates check constraint", // Postgres
 		"CHECK constraint failed",   // SQLite
 	} {

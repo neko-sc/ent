@@ -1,13 +1,12 @@
 {{/*
-Copyright 2019-present Facebook Inc. All rights reserved.
-This source code is licensed under the Apache 2.0 license found
-in the LICENSE file in the root directory of this source tree.
+Copyright 2019-2026 Facebook Inc.
+SPDX-License-Identifier: Apache-2.0
 */}}
 
-{{/* gotype: entgo.io/ent/entc/gen.Type */}}
+{{/* gotype: github.com/neko-sc/ent/entc/gen.Type */}}
 
 {{/* Templates used by the "sql/upsert" feature-flag to allows configuring the
- `ON CONFLICT` / `ON DUPLICATE KEY` clause for `INSERT` statements */}}
+ `ON CONFLICT` clause for `INSERT` statements */}}
 
 {{/* Template for adding the "conflict" field to the create builder. */}}
 {{ define "dialect/sql/create/fields/additional/upsert" -}}
@@ -51,8 +50,8 @@ in the LICENSE file in the root directory of this source tree.
 {{ $upsertOne := print $.Name "UpsertOne" }}
 {{ $upsertSet := print $.Name "Upsert" }}
 
-// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
-// of the `INSERT` statement. For example:
+// OnConflict allows configuring the `ON CONFLICT` clause of the `INSERT`
+// statement. For example:
 //
 //	client.{{ $.Name }}.Create().
 {{- with $.Fields }}
@@ -227,13 +226,6 @@ func (u *{{ $upsertOne }}) ExecX(ctx context.Context) {
 {{ if $.HasOneFieldID }}
 	// Exec executes the UPSERT query and returns the inserted/updated ID.
 	func (u *{{ $upsertOne }}) ID(ctx context.Context) (id {{ $.ID.Type }}, err error) {
-		{{- if and $udfID (not $.ID.Type.Numeric) }}
-			if u.create.driver.Dialect() == dialect.MySQL {
-				// In case of "ON CONFLICT", there is no way to get back non-numeric ID
-				// fields from the database since MySQL does not support the RETURNING clause.
-				return id, errors.New("{{ $pkg }}: {{ $upsertOne }}.ID is not supported by MySQL driver. Use {{ $upsertOne }}.Exec instead")
-			}
-		{{- end }}
 		node, err := u.create.Save(ctx)
 		if err != nil {
 			return id, err
@@ -269,8 +261,8 @@ func (u *{{ $upsertOne }}) ExecX(ctx context.Context) {
 {{ $upsertSet := print $.Name "Upsert" }}
 {{ $udfID := false }}{{ if $.HasOneFieldID }}{{ $udfID = $.ID.UserDefined }}{{ end }}
 
-// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
-// of the `INSERT` statement. For example:
+// OnConflict allows configuring the `ON CONFLICT` clause of the `INSERT`
+// statement. For example:
 //
 //	client.{{ $.Name }}.CreateBulk(builders...).
 //		OnConflict(

@@ -6,7 +6,7 @@ import (
 	"context"
 	"sync"
 
-	"entgo.io/ent/dialect"
+	"github.com/neko-sc/ent/dialect"
 )
 
 // Tx is a transactional client that is created by calling Client.Tx().

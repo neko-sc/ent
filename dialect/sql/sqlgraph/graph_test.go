@@ -1,6 +1,5 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 package sqlgraph
 
@@ -13,9 +12,9 @@ import (
 	"strings"
 	"testing"
 
-	"entgo.io/ent/dialect"
-	"entgo.io/ent/dialect/sql"
-	"entgo.io/ent/schema/field"
+	"github.com/neko-sc/ent/dialect"
+	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/schema/field"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/require"
@@ -1462,7 +1461,7 @@ func TestCreateNode(t *testing.T) {
 			db, mock, err := sqlmock.New()
 			require.NoError(t, err)
 			tt.expect(mock)
-			err = CreateNode(context.Background(), sql.OpenDB(dialect.MySQL, db), tt.spec)
+			err = CreateNode(context.Background(), sql.OpenDB(dialect.SQLite, db), tt.spec)
 			require.Equal(t, tt.wantErr, err != nil, err)
 		})
 	}
@@ -1511,9 +1510,9 @@ func TestBatchCreate(t *testing.T) {
 				},
 			},
 			expect: func(m sqlmock.Sqlmock) {
-				m.ExpectExec(escape("INSERT INTO `users` (`active`, `age`, `name`) VALUES (?, ?, ?), (?, ?, ?) ON DUPLICATE KEY UPDATE `active` = `users`.`active`, `age` = `users`.`age`, `name` = `users`.`name`")).
+				m.ExpectQuery(escape("INSERT INTO `users` (`active`, `age`, `name`) VALUES (?, ?, ?), (?, ?, ?) ON CONFLICT DO UPDATE SET `active` = `users`.`active`, `age` = `users`.`age`, `name` = `users`.`name` RETURNING `id`")).
 					WithArgs(false, 32, "a8m", true, 30, "nati").
-					WillReturnResult(sqlmock.NewResult(10, 2))
+					WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(10).AddRow(11))
 			},
 		},
 		{
@@ -1549,9 +1548,9 @@ func TestBatchCreate(t *testing.T) {
 			},
 			expect: func(m sqlmock.Sqlmock) {
 				// Insert nodes with FKs.
-				m.ExpectExec(escape("INSERT INTO `users` (`active`, `age`, `best_friend_id`, `name`, `workplace_id`) VALUES (?, ?, ?, ?, ?), (NULL, ?, ?, ?, ?)")).
+				m.ExpectQuery(escape("INSERT INTO `users` (`active`, `age`, `best_friend_id`, `name`, `workplace_id`) VALUES (?, ?, ?, ?, ?), (NULL, ?, ?, ?, ?) RETURNING `id`")).
 					WithArgs(false, 32, 3, "a8m", 2, 30, 4, "nati", 2).
-					WillReturnResult(sqlmock.NewResult(10, 2))
+					WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(10).AddRow(11))
 			},
 		},
 		{
@@ -1582,9 +1581,9 @@ func TestBatchCreate(t *testing.T) {
 			},
 			expect: func(m sqlmock.Sqlmock) {
 				m.ExpectBegin()
-				m.ExpectExec(escape("INSERT INTO `users` (`name`) VALUES (?), (?)")).
+				m.ExpectQuery(escape("INSERT INTO `users` (`name`) VALUES (?), (?) RETURNING `id`")).
 					WithArgs("a8m", "nati").
-					WillReturnResult(sqlmock.NewResult(10, 2))
+					WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(10).AddRow(11))
 				m.ExpectExec(escape("UPDATE `cards` SET `owner_id` = ? WHERE `id` = ? AND `owner_id` IS NULL")).
 					WithArgs(10 /* LAST_INSERT_ID() */, 3).
 					WillReturnResult(sqlmock.NewResult(1, 1))
@@ -1633,19 +1632,19 @@ func TestBatchCreate(t *testing.T) {
 			expect: func(m sqlmock.Sqlmock) {
 				m.ExpectBegin()
 				// Insert nodes with FKs.
-				m.ExpectExec(escape("INSERT INTO `users` (`active`, `age`, `name`, `workplace_id`) VALUES (?, ?, ?, ?), (NULL, ?, ?, NULL)")).
+				m.ExpectQuery(escape("INSERT INTO `users` (`active`, `age`, `name`, `workplace_id`) VALUES (?, ?, ?, ?), (NULL, ?, ?, NULL) RETURNING `id`")).
 					WithArgs(false, 32, "a8m", 2, 30, "nati").
-					WillReturnResult(sqlmock.NewResult(10, 2))
+					WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(10).AddRow(11))
 				// Insert M2M inverse-edges.
-				m.ExpectExec(escape("INSERT INTO `group_users` (`group_id`, `user_id`) VALUES (?, ?), (?, ?) ON DUPLICATE KEY UPDATE `group_id` = `group_users`.`group_id`, `user_id` = `group_users`.`user_id`")).
+				m.ExpectExec(escape("INSERT INTO `group_users` (`group_id`, `user_id`) VALUES (?, ?), (?, ?) ON CONFLICT DO NOTHING")).
 					WithArgs(2, 10, 2, 11).
 					WillReturnResult(sqlmock.NewResult(2, 2))
 				// Insert M2M bidirectional edges.
-				m.ExpectExec(escape("INSERT INTO `user_friends` (`user_id`, `friend_id`) VALUES (?, ?), (?, ?), (?, ?), (?, ?) ON DUPLICATE KEY UPDATE `user_id` = `user_friends`.`user_id`, `friend_id` = `user_friends`.`friend_id`")).
+				m.ExpectExec(escape("INSERT INTO `user_friends` (`user_id`, `friend_id`) VALUES (?, ?), (?, ?), (?, ?), (?, ?) ON CONFLICT DO NOTHING")).
 					WithArgs(10, 2, 2, 10, 11, 2, 2, 11).
 					WillReturnResult(sqlmock.NewResult(2, 2))
 				// Insert M2M edges.
-				m.ExpectExec(escape("INSERT INTO `user_products` (`user_id`, `product_id`) VALUES (?, ?), (?, ?) ON DUPLICATE KEY UPDATE `user_id` = `user_products`.`user_id`, `product_id` = `user_products`.`product_id`")).
+				m.ExpectExec(escape("INSERT INTO `user_products` (`user_id`, `product_id`) VALUES (?, ?), (?, ?) ON CONFLICT DO NOTHING")).
 					WithArgs(10, 2, 11, 2).
 					WillReturnResult(sqlmock.NewResult(2, 2))
 				// Update FKs exist in different tables.
@@ -1664,7 +1663,7 @@ func TestBatchCreate(t *testing.T) {
 			db, mock, err := sqlmock.New()
 			require.NoError(t, err)
 			tt.expect(mock)
-			err = BatchCreate(context.Background(), sql.OpenDB("mysql", db), tt.spec)
+			err = BatchCreate(context.Background(), sql.OpenDB(dialect.SQLite, db), tt.spec)
 			require.Equal(t, tt.wantErr, err != nil, err)
 		})
 	}
@@ -2608,16 +2607,6 @@ func TestIsConstraintError(t *testing.T) {
 		expectedCheck      bool
 	}{
 		{
-			name: "MySQL FK",
-			errMessage: `insert node to table "pets": Error 1452: Cannot add or update a child row: a foreign key` +
-				" constraint fails (`test`.`pets`, CONSTRAINT `pets_users_pets` FOREIGN KEY (`user_pets`) REFERENCES " +
-				"`users` (`id`) ON DELETE SET NULL)",
-			expectedConstraint: true,
-			expectedFK:         true,
-			expectedUnique:     false,
-			expectedCheck:      false,
-		},
-		{
 			name:               "SQLite FK",
 			errMessage:         `insert node to table "pets": FOREIGN KEY constraint failed`,
 			expectedConstraint: true,
@@ -2628,15 +2617,6 @@ func TestIsConstraintError(t *testing.T) {
 		{
 			name:               "Postgres FK",
 			errMessage:         `insert node to table "pets": pq: insert or update on table "pets" violates foreign key constraint "pets_users_pets"`,
-			expectedConstraint: true,
-			expectedFK:         true,
-			expectedUnique:     false,
-			expectedCheck:      false,
-		},
-		{
-			name: "MySQL FK",
-			errMessage: "Error 1451: Cannot delete or update a parent row: a foreign key constraint " +
-				"fails (`test`.`groups`, CONSTRAINT `groups_group_infos_info` FOREIGN KEY (`group_info`) REFERENCES `group_infos` (`id`))",
 			expectedConstraint: true,
 			expectedFK:         true,
 			expectedUnique:     false,
@@ -2659,14 +2639,6 @@ func TestIsConstraintError(t *testing.T) {
 			expectedCheck:      false,
 		},
 		{
-			name:               "MySQL Unique",
-			errMessage:         `insert node to table "file_types": UNIQUE constraint failed: file_types.name ent: constraint failed: insert node to table "file_types": UNIQUE constraint failed: file_types.name`,
-			expectedConstraint: true,
-			expectedFK:         false,
-			expectedUnique:     true,
-			expectedCheck:      false,
-		},
-		{
 			name:               "SQLite Unique",
 			errMessage:         `insert node to table "file_types": UNIQUE constraint failed: file_types.name ent: constraint failed: insert node to table "file_types": UNIQUE constraint failed: file_types.name`,
 			expectedConstraint: true,
@@ -2681,14 +2653,6 @@ func TestIsConstraintError(t *testing.T) {
 			expectedFK:         false,
 			expectedUnique:     true,
 			expectedCheck:      false,
-		},
-		{
-			name:               "MySQL Check",
-			errMessage:         `insert node to table "users": Error 3819: Check constraint 'users_age_check' is violated`,
-			expectedConstraint: true,
-			expectedFK:         false,
-			expectedUnique:     false,
-			expectedCheck:      true,
 		},
 		{
 			name:               "SQLite Check",

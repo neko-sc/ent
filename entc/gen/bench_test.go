@@ -1,6 +1,5 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 package gen_test
 
@@ -9,9 +8,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"entgo.io/ent/entc"
-	"entgo.io/ent/entc/gen"
-	"entgo.io/ent/schema/field"
+	"github.com/neko-sc/ent/entc"
+	"github.com/neko-sc/ent/entc/gen"
+	"github.com/neko-sc/ent/schema/field"
 	"github.com/stretchr/testify/require"
 )
 
@@ -25,7 +24,7 @@ func BenchmarkGraph_Gen(b *testing.B) {
 		Storage: storage,
 		IDType:  &field.TypeInfo{Type: field.TypeInt},
 		Target:  target,
-		Package: "entgo.io/ent/entc/integration/ent",
+		Package: "github.com/neko-sc/ent/entc/integration/ent",
 		Templates: []*gen.Template{
 			gen.MustParse(gen.NewTemplate("template").
 				Funcs(gen.Funcs).

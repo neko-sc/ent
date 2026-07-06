@@ -9,13 +9,13 @@ import (
 	"log"
 	"reflect"
 
-	"entgo.io/ent"
-	"entgo.io/ent/examples/viewcomposite/ent/migrate"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/examples/viewcomposite/ent/migrate"
 
-	"entgo.io/ent/dialect"
-	"entgo.io/ent/dialect/sql"
-	"entgo.io/ent/examples/viewcomposite/ent/pet"
-	"entgo.io/ent/examples/viewcomposite/ent/user"
+	"github.com/neko-sc/ent/dialect"
+	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/examples/viewcomposite/ent/pet"
+	"github.com/neko-sc/ent/examples/viewcomposite/ent/user"
 )
 
 // Client is the client that holds all ent builders.
@@ -109,7 +109,7 @@ func Driver(driver dialect.Driver) Option {
 // Optional parameters can be added for configuring the client.
 func Open(driverName, dataSourceName string, options ...Option) (*Client, error) {
 	switch driverName {
-	case dialect.MySQL, dialect.Postgres, dialect.SQLite:
+	case dialect.Postgres, dialect.SQLite:
 		drv, err := sql.Open(driverName, dataSourceName)
 		if err != nil {
 			return nil, err

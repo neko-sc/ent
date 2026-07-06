@@ -7,9 +7,9 @@ import (
 	"errors"
 	"fmt"
 
-	"entgo.io/ent/dialect/sql/sqlgraph"
-	"entgo.io/ent/examples/viewcomposite/ent/pet"
-	"entgo.io/ent/schema/field"
+	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/examples/viewcomposite/ent/pet"
+	"github.com/neko-sc/ent/schema/field"
 )
 
 // PetCreate is the builder for creating a Pet entity.

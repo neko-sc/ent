@@ -3,8 +3,8 @@
 package user
 
 import (
-	"entgo.io/ent/dialect/sql"
-	"entgo.io/ent/examples/extensions/ent/predicate"
+	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/examples/extensions/ent/predicate"
 )
 
 // ID filters vertices based on their ID field.

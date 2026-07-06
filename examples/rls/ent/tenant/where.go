@@ -3,8 +3,8 @@
 package tenant
 
 import (
-	"entgo.io/ent/dialect/sql"
-	"entgo.io/ent/examples/rls/ent/predicate"
+	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/examples/rls/ent/predicate"
 )
 
 // ID filters vertices based on their ID field.

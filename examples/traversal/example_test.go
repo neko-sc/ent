@@ -1,6 +1,5 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 package main
 
@@ -9,10 +8,10 @@ import (
 	"fmt"
 	"log"
 
-	"entgo.io/ent/examples/traversal/ent"
-	"entgo.io/ent/examples/traversal/ent/group"
-	"entgo.io/ent/examples/traversal/ent/pet"
-	"entgo.io/ent/examples/traversal/ent/user"
+	"github.com/neko-sc/ent/examples/traversal/ent"
+	"github.com/neko-sc/ent/examples/traversal/ent/group"
+	"github.com/neko-sc/ent/examples/traversal/ent/pet"
+	"github.com/neko-sc/ent/examples/traversal/ent/user"
 
 	_ "github.com/mattn/go-sqlite3"
 )

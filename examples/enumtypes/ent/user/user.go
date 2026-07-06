@@ -5,7 +5,7 @@ package user
 import (
 	"fmt"
 
-	"entgo.io/ent/dialect/sql"
+	"github.com/neko-sc/ent/dialect/sql"
 )
 
 const (

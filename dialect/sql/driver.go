@@ -1,6 +1,5 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 package sql
 
@@ -13,7 +12,7 @@ import (
 	"strconv"
 	"strings"
 
-	"entgo.io/ent/dialect"
+	"github.com/neko-sc/ent/dialect"
 )
 
 // Driver is a dialect.Driver implementation for SQL based databases.
@@ -49,7 +48,7 @@ func (d Driver) DB() *sql.DB {
 // Dialect implements the dialect.Dialect method.
 func (d Driver) Dialect() string {
 	// If the underlying driver is wrapped with a telemetry driver.
-	for _, name := range []string{dialect.MySQL, dialect.SQLite, dialect.Postgres} {
+	for _, name := range []string{dialect.SQLite, dialect.Postgres} {
 		if strings.HasPrefix(d.dialect, name) {
 			return name
 		}
@@ -213,11 +212,8 @@ func (c Conn) maySetVars(ctx context.Context) (ExecQuerier, func() error, error)
 	}
 	for _, s := range sv.vars {
 		if _, ok := seen[s.k]; !ok {
-			switch c.dialect {
-			case dialect.Postgres:
+			if c.dialect == dialect.Postgres {
 				reset = append(reset, fmt.Sprintf("RESET %s", s.k))
-			case dialect.MySQL:
-				reset = append(reset, fmt.Sprintf("SET %s = NULL", s.k))
 			}
 			seen[s.k] = struct{}{}
 		}

@@ -5,11 +5,11 @@ package ent
 import (
 	"context"
 
-	"entgo.io/ent/dialect/sql"
-	"entgo.io/ent/dialect/sql/sqlgraph"
-	"entgo.io/ent/examples/functionalidx/ent/predicate"
-	"entgo.io/ent/examples/functionalidx/ent/user"
-	"entgo.io/ent/schema/field"
+	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/examples/functionalidx/ent/predicate"
+	"github.com/neko-sc/ent/examples/functionalidx/ent/user"
+	"github.com/neko-sc/ent/schema/field"
 )
 
 // UserDelete is the builder for deleting a User entity.

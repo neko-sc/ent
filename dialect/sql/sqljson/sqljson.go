@@ -1,6 +1,5 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 package sqljson
 
@@ -11,8 +10,8 @@ import (
 	"strings"
 	"unicode"
 
-	"entgo.io/ent/dialect"
-	"entgo.io/ent/dialect/sql"
+	"github.com/neko-sc/ent/dialect"
+	"github.com/neko-sc/ent/dialect/sql"
 )
 
 // HasKey return a predicate for checking that a JSON key
@@ -26,7 +25,7 @@ func HasKey(column string, opts ...Option) *sql.Predicate {
 			// JSON_TYPE returns NULL in case the path selects an element
 			// that does not exist. See: https://sqlite.org/json1.html#jtype.
 			path := identPath(column, opts...)
-			path.mysqlFunc("JSON_TYPE", b)
+			path.jsonExtract("JSON_TYPE", b)
 			b.WriteOp(sql.OpNotNull)
 		default:
 			valuePath(b, column, opts...)
@@ -45,19 +44,12 @@ func HasKey(column string, opts ...Option) *sql.Predicate {
 func ValueIsNull(column string, opts ...Option) *sql.Predicate {
 	return sql.P(func(b *sql.Builder) {
 		switch b.Dialect() {
-		case dialect.MySQL:
-			path := identPath(column, opts...)
-			b.WriteString("JSON_CONTAINS").Wrap(func(b *sql.Builder) {
-				b.Ident(column).Comma()
-				b.WriteString("'null'").Comma()
-				path.mysqlPath(b)
-			})
 		case dialect.Postgres:
 			valuePath(b, column, append(opts, Cast("jsonb"))...)
 			b.WriteOp(sql.OpEQ).WriteString("'null'::jsonb")
 		case dialect.SQLite:
 			path := identPath(column, opts...)
-			path.mysqlFunc("JSON_TYPE", b)
+			path.jsonExtract("JSON_TYPE", b)
 			b.WriteOp(sql.OpEQ).WriteString("'null'")
 		}
 	})
@@ -75,15 +67,8 @@ func ValueIsNotNull(column string, opts ...Option) *sql.Predicate {
 			b.WriteOp(sql.OpNEQ).WriteString("'null'::jsonb")
 		case dialect.SQLite:
 			path := identPath(column, opts...)
-			path.mysqlFunc("JSON_TYPE", b)
+			path.jsonExtract("JSON_TYPE", b)
 			b.WriteOp(sql.OpNEQ).WriteString("'null'")
-		case dialect.MySQL:
-			path := identPath(column, opts...)
-			b.WriteString("NOT(JSON_CONTAINS").Wrap(func(b *sql.Builder) {
-				b.Ident(column).Comma()
-				b.WriteString("'null'").Comma()
-				path.mysqlPath(b)
-			}).WriteString(")")
 		}
 	})
 }
@@ -97,7 +82,7 @@ func ValueEQ(column string, arg any, opts ...Option) *sql.Predicate {
 		opts = normalizePG(b, arg, opts)
 		valuePath(b, column, opts...)
 		b.WriteOp(sql.OpEQ)
-		// Inline boolean values, as some drivers (e.g., MySQL) encode them as 0/1.
+		// Inline boolean values, as some drivers encode them as 0/1.
 		if v, ok := arg.(bool); ok {
 			b.WriteString(strconv.FormatBool(v))
 		} else {
@@ -176,18 +161,11 @@ func ValueContains(column string, arg any, opts ...Option) *sql.Predicate {
 	return sql.P(func(b *sql.Builder) {
 		path := identPath(column, opts...)
 		switch b.Dialect() {
-		case dialect.MySQL:
-			b.WriteString("JSON_CONTAINS").Wrap(func(b *sql.Builder) {
-				b.Ident(column).Comma()
-				b.Arg(marshalArg(arg)).Comma()
-				path.mysqlPath(b)
-			})
-			b.WriteOp(sql.OpEQ).Arg(1)
 		case dialect.SQLite:
 			b.WriteString("EXISTS").Wrap(func(b *sql.Builder) {
 				b.WriteString("SELECT * FROM JSON_EACH").Wrap(func(b *sql.Builder) {
 					b.Ident(column).Comma()
-					path.mysqlPath(b)
+					path.jsonPath(b)
 				})
 				b.WriteString(" WHERE ").Ident("value").WriteOp(sql.OpEQ).Arg(arg)
 			})
@@ -521,11 +499,7 @@ func (p *PathOptions) value(b *sql.Builder) {
 		}
 		p.pgTextPath(b)
 	default:
-		if p.Unquote && b.Dialect() == dialect.MySQL {
-			b.WriteString("JSON_UNQUOTE(")
-			defer b.WriteByte(')')
-		}
-		p.mysqlFunc("JSON_EXTRACT", b)
+		p.jsonExtract("JSON_EXTRACT", b)
 	}
 }
 
@@ -536,24 +510,22 @@ func (p *PathOptions) length(b *sql.Builder) {
 		b.WriteString("JSONB_ARRAY_LENGTH(")
 		p.pgTextPath(b)
 		b.WriteByte(')')
-	case b.Dialect() == dialect.MySQL:
-		p.mysqlFunc("JSON_LENGTH", b)
 	default:
-		p.mysqlFunc("JSON_ARRAY_LENGTH", b)
+		p.jsonExtract("JSON_ARRAY_LENGTH", b)
 	}
 }
 
-// mysqlFunc writes the JSON path in MySQL format for the
-// given function. `JSON_EXTRACT("a", '$.b.c')`.
-func (p *PathOptions) mysqlFunc(fn string, b *sql.Builder) {
+// jsonExtract writes a JSON function call with a dollar-path argument.
+// For example: `JSON_EXTRACT("a", '$.b.c')`.
+func (p *PathOptions) jsonExtract(fn string, b *sql.Builder) {
 	b.WriteString(fn).WriteByte('(')
 	b.Ident(p.Ident).Comma()
-	p.mysqlPath(b)
+	p.jsonPath(b)
 	b.WriteByte(')')
 }
 
-// mysqlPath writes the JSON path in MySQL (or SQLite) format.
-func (p *PathOptions) mysqlPath(b *sql.Builder) {
+// jsonPath writes the JSON path in dollar-sign format: `'$.a.b[1].c'`.
+func (p *PathOptions) jsonPath(b *sql.Builder) {
 	b.WriteString(`'$`)
 	for _, p := range p.Path {
 		switch _, isIndex := isJSONIdx(p); {

@@ -1,6 +1,6 @@
 # Getting Started Example
 
-The example from the getting-started page in https://entgo.io.
+A getting-started example for Ent.
 
 ### Generate Assets
 

@@ -1,3 +1,3 @@
 ## Using PostgreSQL Triggers in Ent Schema
 
-Read the full guide in: https://entgo.io/docs/migration/triggers
+Example demonstrating PostgreSQL triggers with Ent migrations.

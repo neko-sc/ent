@@ -7,9 +7,9 @@ import (
 	"errors"
 	"fmt"
 
-	"entgo.io/ent/dialect/sql/sqlgraph"
-	"entgo.io/ent/examples/rls/ent/tenant"
-	"entgo.io/ent/schema/field"
+	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/examples/rls/ent/tenant"
+	"github.com/neko-sc/ent/schema/field"
 )
 
 // TenantCreate is the builder for creating a Tenant entity.

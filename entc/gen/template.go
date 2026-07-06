@@ -1,6 +1,5 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 package gen
 
@@ -20,8 +19,8 @@ import (
 	"text/template"
 	"text/template/parse"
 
-	"entgo.io/ent/schema"
-	"entgo.io/ent/schema/field"
+	"github.com/neko-sc/ent/schema"
+	"github.com/neko-sc/ent/schema/field"
 )
 
 type (
@@ -232,9 +231,9 @@ var (
 		"math":    "math",
 		"strings": "strings",
 		"time":    "time",
-		"ent":     "entgo.io/ent",
-		"dialect": "entgo.io/ent/dialect",
-		"field":   "entgo.io/ent/schema/field",
+		"ent":     "github.com/neko-sc/ent",
+		"dialect": "github.com/neko-sc/ent/dialect",
+		"field":   "github.com/neko-sc/ent/schema/field",
 	}
 )
 

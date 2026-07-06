@@ -1,14 +1,11 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 package sql
 
 import (
 	"fmt"
 	"strings"
-
-	"entgo.io/ent/dialect"
 )
 
 // The following helpers exist to simplify the way raw predicates
@@ -396,12 +393,7 @@ func orderByAgg(fn, field string, opts ...OrderTermOption) *OrderExprTerm {
 func OrderByRand() func(*Selector) {
 	return func(s *Selector) {
 		s.OrderExprFunc(func(b *Builder) {
-			switch s.Dialect() {
-			case dialect.MySQL:
-				b.WriteString("RAND()")
-			default:
-				b.WriteString("RANDOM()")
-			}
+			b.WriteString("RANDOM()")
 		})
 	}
 }

@@ -1,6 +1,5 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 // Package privacy provides sets of types and helpers for writing privacy
 // rules in user schemas, and deal with their evaluation at runtime.
@@ -11,7 +10,7 @@ import (
 	"errors"
 	"fmt"
 
-	"entgo.io/ent"
+	"github.com/neko-sc/ent"
 )
 
 // List of policy decisions.

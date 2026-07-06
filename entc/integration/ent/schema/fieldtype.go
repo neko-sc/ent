@@ -1,6 +1,5 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 package schema
 
@@ -16,11 +15,11 @@ import (
 	"strings"
 	"time"
 
-	"entgo.io/ent"
-	"entgo.io/ent/dialect"
-	"entgo.io/ent/dialect/sql"
-	"entgo.io/ent/entc/integration/ent/role"
-	"entgo.io/ent/schema/field"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
+	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/entc/integration/ent/role"
+	"github.com/neko-sc/ent/schema/field"
 
 	"github.com/google/uuid"
 )
@@ -97,24 +96,20 @@ func (FieldType) Fields() []ent.Field { //nolint:funlen
 		field.Text("text").
 			Optional().
 			SchemaType(map[string]string{
-				dialect.MySQL: "mediumtext",
 			}),
 		field.Time("datetime").
 			Optional().
 			SchemaType(map[string]string{
-				dialect.MySQL:    "datetime",
 				dialect.Postgres: "date",
 			}),
 		field.Float("decimal").
 			Optional().
 			SchemaType(map[string]string{
-				dialect.MySQL:    "decimal(6,2)",
 				dialect.Postgres: "numeric",
 			}),
 		field.Other("link_other", &Link{}).
 			SchemaType(map[string]string{
 				dialect.Postgres: "varchar",
-				dialect.MySQL:    "varchar(255)",
 				dialect.SQLite:   "varchar(255)",
 			}).
 			Optional().
@@ -122,7 +117,6 @@ func (FieldType) Fields() []ent.Field { //nolint:funlen
 		field.Other("link_other_func", &Link{}).
 			SchemaType(map[string]string{
 				dialect.Postgres: "varchar",
-				dialect.MySQL:    "varchar(255)",
 				dialect.SQLite:   "varchar(255)",
 			}).
 			Optional().
@@ -142,13 +136,11 @@ func (FieldType) Fields() []ent.Field { //nolint:funlen
 			SchemaType(map[string]string{
 				dialect.Postgres: "text[]",
 				dialect.SQLite:   "json",
-				dialect.MySQL:    "blob",
 			}),
 		field.String("password").
 			Optional().
 			Sensitive().
 			SchemaType(map[string]string{
-				dialect.MySQL: "char(32)",
 			}),
 
 		// ----------------------------------------------------------------------------
@@ -294,7 +286,6 @@ func (FieldType) Fields() []ent.Field { //nolint:funlen
 			Optional().
 			Sensitive().
 			SchemaType(map[string]string{
-				dialect.MySQL:    "char(32)",
 				dialect.SQLite:   "char(32)",
 				dialect.Postgres: "varchar",
 			}),

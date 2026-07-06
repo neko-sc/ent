@@ -1,6 +1,5 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 // Package entc provides an interface for interacting with
 // entc (ent codegen) as a package rather than an executable.
@@ -15,11 +14,11 @@ import (
 	"reflect"
 	"strings"
 
-	"entgo.io/ent/entc/gen"
-	"entgo.io/ent/entc/internal"
-	"entgo.io/ent/entc/load"
-	"entgo.io/ent/schema"
-	"entgo.io/ent/schema/field"
+	"github.com/neko-sc/ent/entc/gen"
+	"github.com/neko-sc/ent/entc/internal"
+	"github.com/neko-sc/ent/entc/load"
+	"github.com/neko-sc/ent/schema"
+	"github.com/neko-sc/ent/schema/field"
 
 	"golang.org/x/tools/go/packages"
 )
@@ -127,7 +126,6 @@ func FeatureNames(names ...string) Option {
 // Unlike schema annotations, being serializable to JSON raw value is not mandatory.
 //
 // Template extensions can retrieve this metadata and use it inside their execution.
-// Read more about it in ent website: https://entgo.io/docs/templates/#annotations.
 type Annotation = schema.Annotation
 
 // Annotations appends the given annotations to the codegen config.

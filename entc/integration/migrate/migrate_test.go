@@ -1,6 +1,5 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 package migrate
 
@@ -19,81 +18,36 @@ import (
 	"testing"
 	"text/template"
 
-	"entgo.io/ent/dialect"
-	"entgo.io/ent/dialect/sql"
-	"entgo.io/ent/dialect/sql/schema"
-	"entgo.io/ent/entc/integration/migrate/entv1"
-	migratev1 "entgo.io/ent/entc/integration/migrate/entv1/migrate"
-	userv1 "entgo.io/ent/entc/integration/migrate/entv1/user"
-	"entgo.io/ent/entc/integration/migrate/entv2"
-	"entgo.io/ent/entc/integration/migrate/entv2/blog"
-	"entgo.io/ent/entc/integration/migrate/entv2/conversion"
-	"entgo.io/ent/entc/integration/migrate/entv2/customtype"
-	"entgo.io/ent/entc/integration/migrate/entv2/media"
-	migratev2 "entgo.io/ent/entc/integration/migrate/entv2/migrate"
-	"entgo.io/ent/entc/integration/migrate/entv2/predicate"
-	"entgo.io/ent/entc/integration/migrate/entv2/user"
-	"entgo.io/ent/entc/integration/migrate/entv2/zoo"
-	"entgo.io/ent/entc/integration/migrate/versioned"
-	vmigrate "entgo.io/ent/entc/integration/migrate/versioned/migrate"
+	"github.com/neko-sc/ent/dialect"
+	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/dialect/sql/schema"
+	"github.com/neko-sc/ent/entc/integration/migrate/entv1"
+	migratev1 "github.com/neko-sc/ent/entc/integration/migrate/entv1/migrate"
+	userv1 "github.com/neko-sc/ent/entc/integration/migrate/entv1/user"
+	"github.com/neko-sc/ent/entc/integration/migrate/entv2"
+	"github.com/neko-sc/ent/entc/integration/migrate/entv2/blog"
+	"github.com/neko-sc/ent/entc/integration/migrate/entv2/conversion"
+	"github.com/neko-sc/ent/entc/integration/migrate/entv2/customtype"
+	"github.com/neko-sc/ent/entc/integration/migrate/entv2/media"
+	migratev2 "github.com/neko-sc/ent/entc/integration/migrate/entv2/migrate"
+	"github.com/neko-sc/ent/entc/integration/migrate/entv2/predicate"
+	"github.com/neko-sc/ent/entc/integration/migrate/entv2/user"
+	"github.com/neko-sc/ent/entc/integration/migrate/entv2/zoo"
+	"github.com/neko-sc/ent/entc/integration/migrate/versioned"
+	vmigrate "github.com/neko-sc/ent/entc/integration/migrate/versioned/migrate"
 
-	"ariga.io/atlas/sql/migrate"
-	"ariga.io/atlas/sql/postgres"
-	atlas "ariga.io/atlas/sql/schema"
-	"ariga.io/atlas/sql/sqltool"
-	"entgo.io/ent/schema/field"
-	_ "github.com/go-sql-driver/mysql"
+	"github.com/neko-sc/atlas/sql/migrate"
+	"github.com/neko-sc/atlas/sql/postgres"
+	atlas "github.com/neko-sc/atlas/sql/schema"
+	"github.com/neko-sc/atlas/sql/sqltool"
+	"github.com/neko-sc/ent/schema/field"
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/require"
 )
 
-func TestMySQL(t *testing.T) {
-	for version, port := range map[string]int{"56": 3306, "57": 3307, "8": 3308} {
-		t.Run(version, func(t *testing.T) {
-			root, err := sql.Open(dialect.MySQL, fmt.Sprintf("root:pass@tcp(localhost:%d)/", port))
-			require.NoError(t, err)
-			defer root.Close()
-			ctx := context.Background()
-			err = root.Exec(ctx, "CREATE DATABASE IF NOT EXISTS migrate", []any{}, new(sql.Result))
-			require.NoError(t, err, "creating database")
-			defer root.Exec(ctx, "DROP DATABASE IF EXISTS migrate", []any{}, new(sql.Result))
-
-			drv, err := sql.Open("mysql", fmt.Sprintf("root:pass@tcp(localhost:%d)/migrate?parseTime=True", port))
-			require.NoError(t, err, "connecting to migrate database")
-			defer drv.Close()
-
-			clientv1 := entv1.NewClient(entv1.Driver(drv))
-			clientv2 := entv2.NewClient(entv2.Driver(drv))
-			V1ToV2(t, drv.Dialect(), clientv1, clientv2)
-			if version == "8" {
-				CheckConstraint(t, clientv2)
-				DefaultExpr(t, drv, "SELECT column_default FROM information_schema.columns WHERE table_schema = 'migrate' AND table_name = 'users' AND column_name = ?", "lower(_utf8mb4\\'hello\\')", "to_base64(_utf8mb4\\'ent\\')")
-				PKDefault(t, drv, "SELECT column_default FROM information_schema.columns WHERE table_schema = 'migrate' AND table_name = 'zoos' AND column_name = ?", "floor((rand() * ~((1 << 31))))")
-			}
-			NicknameSearch(t, clientv2)
-			TimePrecision(t, drv, "SELECT datetime_precision FROM information_schema.columns WHERE table_schema = 'migrate' AND table_name = ? AND column_name = ?")
-			ColumnComments(t, drv, "SELECT column_name as name, column_comment as comment FROM information_schema.columns WHERE table_schema = 'migrate' AND table_name = 'media' ORDER BY ordinal_position")
-			TableComment(t, drv, "SELECT table_comment FROM information_schema.tables WHERE table_schema = 'migrate' AND table_name = 'media'")
-
-			require.NoError(t, err, root.Exec(ctx, "DROP DATABASE IF EXISTS versioned_migrate", []any{}, new(sql.Result)))
-			require.NoError(t, root.Exec(ctx, "CREATE DATABASE IF NOT EXISTS versioned_migrate", []any{}, new(sql.Result)))
-			defer root.Exec(ctx, "DROP DATABASE IF EXISTS versioned_migrate", []any{}, new(sql.Result))
-			require.NoError(t, err, root.Exec(ctx, "DROP DATABASE IF EXISTS versioned_migrate_dev", []any{}, new(sql.Result)))
-			require.NoError(t, root.Exec(ctx, "CREATE DATABASE IF NOT EXISTS versioned_migrate_dev", []any{}, new(sql.Result)))
-			defer root.Exec(ctx, "DROP DATABASE IF EXISTS versioned_migrate_dev", []any{}, new(sql.Result))
-			vdrv, err := sql.Open("mysql", fmt.Sprintf("root:pass@tcp(localhost:%d)/versioned_migrate?parseTime=True", port))
-			require.NoError(t, err, "connecting to versioned migrate database")
-			defer vdrv.Close()
-			devURL := fmt.Sprintf("mysql://root:pass@localhost:%d/versioned_migrate_dev?parseTime=True", port)
-			Versioned(t, vdrv, devURL, versioned.NewClient(versioned.Driver(vdrv)))
-			ConsistentVersioned(t, devURL)
-		})
-	}
-}
-
 func TestPostgres(t *testing.T) {
-	for version, port := range map[string]int{"10": 5430, "11": 5431, "12": 5432, "13": 5433, "14": 5434} {
+	for version, port := range map[string]int{"16": 5436, "17": 5437, "18": 5438} {
 		t.Run(version, func(t *testing.T) {
 			dsn := fmt.Sprintf("host=localhost port=%d user=postgres password=pass sslmode=disable", port)
 			root, err := sql.Open(dialect.Postgres, dsn)
@@ -144,9 +98,7 @@ func TestPostgres(t *testing.T) {
 			IndexOpClass(t, drv)
 			ColumnComments(t, drv, `SELECT column_name as name, col_description(table_name::regclass::oid, ordinal_position) as comment FROM information_schema.columns WHERE table_name = 'media' ORDER BY ordinal_position`)
 			TableComment(t, drv, "SELECT obj_description('media'::regclass::oid)")
-			if version != "10" {
-				IncludeColumns(t, drv)
-			}
+			IncludeColumns(t, drv)
 			SerialType(t, clientv2)
 			vdrv, err := sql.Open(dialect.Postgres, dsn+" dbname=versioned_migrate")
 			require.NoError(t, err, "connecting to versioned migrate database")
@@ -524,7 +476,7 @@ func SanityV1(t *testing.T, dbdialect string, client *entv1.Client) {
 	u = u.Update().SetBlob([]byte("hello")).SaveX(ctx)
 	require.Equal(t, "hello", string(u.Blob))
 	err = u.Update().SetBlob(make([]byte, 256)).Exec(ctx)
-	require.True(t, strings.Contains(t.Name(), "Postgres") || err != nil, "blob should be limited on SQLite and MySQL")
+	require.True(t, strings.Contains(t.Name(), "Postgres") || err != nil, "blob should be limited on SQLite")
 
 	// Invalid enum value.
 	err = client.User.Create().SetAge(1).SetName("bar").SetNickname("nick_bar").SetState("unknown").Exec(ctx)
@@ -655,11 +607,6 @@ func SanityV2(t *testing.T, dbdialect string, client *entv2.Client) {
 			require.Equal(t, strconv.Itoa(math.MaxInt16), max.Uint16ToString)
 			require.Equal(t, strconv.Itoa(math.MaxInt32), max.Uint32ToString)
 			require.Equal(t, strconv.Itoa(math.MaxInt64), max.Uint64ToString)
-		} else {
-			require.Equal(t, strconv.Itoa(math.MaxUint8), max.Uint8ToString)
-			require.Equal(t, strconv.Itoa(math.MaxUint16), max.Uint16ToString)
-			require.Equal(t, strconv.Itoa(math.MaxUint32), max.Uint32ToString)
-			require.Equal(t, strconv.FormatUint(math.MaxUint64, 10), max.Uint64ToString)
 		}
 	}
 }

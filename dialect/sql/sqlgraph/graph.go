@@ -1,6 +1,5 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 // Package sqlgraph provides graph abstraction capabilities on top
 // of sql-based databases for ent codegen.
@@ -15,9 +14,9 @@ import (
 	"math"
 	"sort"
 
-	"entgo.io/ent/dialect"
-	"entgo.io/ent/dialect/sql"
-	"entgo.io/ent/schema/field"
+	"github.com/neko-sc/ent/dialect"
+	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/schema/field"
 )
 
 // Rel is an edge relation type.
@@ -481,7 +480,7 @@ func orderTerms(q, join *sql.Selector, ts []sql.OrderTerm) {
 			case orderX != nil:
 				b.Join(orderX(join))
 			}
-			// Unlike MySQL and SQLite, NULL values sort as if larger than any other value. Therefore,
+			// In PostgreSQL, NULL values sort as if larger than any other value. Therefore,
 			// we need to explicitly order NULLs first on ASC and last on DESC unless specified otherwise.
 			switch normalizePG := b.Dialect() == dialect.Postgres && !nullsfirst && !nullslast; {
 			case normalizePG && desc:
@@ -1480,24 +1479,7 @@ func (c *creator) insert(ctx context.Context, insert *sql.InsertBuilder) error {
 func (c *creator) ensureConflict(insert *sql.InsertBuilder) {
 	if opts := c.CreateSpec.OnConflict; len(opts) > 0 {
 		insert.OnConflict(opts...)
-		c.ensureLastInsertID(insert)
 	}
-}
-
-// ensureLastInsertID ensures the LAST_INSERT_ID was added to the
-// 'ON DUPLICATE ... UPDATE' clause in it was not provided.
-func (c *creator) ensureLastInsertID(insert *sql.InsertBuilder) {
-	if c.ID == nil || !c.ID.Type.Numeric() || c.ID.Value != nil || insert.Dialect() != dialect.MySQL {
-		return
-	}
-	insert.OnConflict(sql.ResolveWith(func(s *sql.UpdateSet) {
-		for _, column := range s.UpdateColumns() {
-			if column == c.ID.Column {
-				return
-			}
-		}
-		s.Set(c.ID.Column, sql.Expr(fmt.Sprintf("LAST_INSERT_ID(%s)", s.Table().C(c.ID.Column))))
-	}))
 }
 
 type batchCreator struct {
@@ -1534,8 +1516,7 @@ func (c *batchCreator) nodes(ctx context.Context, drv dialect.Driver) error {
 			if _, exists := values[i][column]; !exists {
 				if c.Nodes[i].ID != nil && column == c.Nodes[i].ID.Column {
 					// If the ID value was provided to one of the nodes, it should be
-					// provided to all others because this affects the way we calculate
-					// their values in MySQL and SQLite dialects.
+					// provided to all others for consistency.
 					return fmt.Errorf("inconsistent id values for batch insert")
 				}
 				// Assign NULL values for empty placeholders.
@@ -1907,46 +1888,24 @@ func (c *creator) insertLastID(ctx context.Context, insert *sql.InsertBuilder) e
 	if err != nil {
 		return err
 	}
-	// MySQL does not support the "RETURNING" clause.
-	if insert.Dialect() != dialect.MySQL {
-		rows := &sql.Rows{}
-		if err := c.tx.Query(ctx, query, args, rows); err != nil {
-			return err
-		}
-		defer rows.Close()
-		switch _, ok := c.ID.Value.(field.ValueScanner); {
-		case ok:
-			// If the ID implements the sql.Scanner
-			// interface it should be a pointer type.
-			return sql.ScanOne(rows, c.ID.Value)
-		case c.ID.Type.Numeric():
-			// Normalize the type to int64 to make it
-			// looks like LastInsertId.
-			id, err := sql.ScanInt64(rows)
-			if err != nil {
-				return err
-			}
-			c.ID.Value = id
-			return nil
-		default:
-			return sql.ScanOne(rows, &c.ID.Value)
-		}
-	}
-	// MySQL.
-	var res sql.Result
-	if err := c.tx.Exec(ctx, query, args, &res); err != nil {
+	rows := &sql.Rows{}
+	if err := c.tx.Query(ctx, query, args, rows); err != nil {
 		return err
 	}
-	// If the ID field is not numeric (e.g. string),
-	// there is no way to scan the LAST_INSERT_ID.
-	if c.ID.Type.Numeric() {
-		id, err := res.LastInsertId()
+	defer rows.Close()
+	switch _, ok := c.ID.Value.(field.ValueScanner); {
+	case ok:
+		return sql.ScanOne(rows, c.ID.Value)
+	case c.ID.Type.Numeric():
+		id, err := sql.ScanInt64(rows)
 		if err != nil {
 			return err
 		}
 		c.ID.Value = id
+		return nil
+	default:
+		return sql.ScanOne(rows, &c.ID.Value)
 	}
-	return nil
 }
 
 // insertLastIDs invokes the batch insert query on the transaction and returns the LastInsertID of all entities.
@@ -1955,61 +1914,31 @@ func (c *batchCreator) insertLastIDs(ctx context.Context, tx dialect.ExecQuerier
 	if err != nil {
 		return err
 	}
-	// MySQL does not support the "RETURNING" clause.
-	if insert.Dialect() != dialect.MySQL {
-		rows := &sql.Rows{}
-		if err := tx.Query(ctx, query, args, rows); err != nil {
-			return err
-		}
-		defer rows.Close()
-		for i := 0; rows.Next(); i++ {
-			node := c.Nodes[i]
-			switch _, ok := node.ID.Value.(field.ValueScanner); {
-			case ok:
-				// If the ID implements the sql.Scanner
-				// interface it should be a pointer type.
-				if err := rows.Scan(node.ID.Value); err != nil {
-					return err
-				}
-			case node.ID.Type.Numeric():
-				// Normalize the type to int64 to make it looks
-				// like LastInsertId.
-				var id int64
-				if err := rows.Scan(&id); err != nil {
-					return err
-				}
-				node.ID.Value = id
-			default:
-				if err := rows.Scan(&node.ID.Value); err != nil {
-					return err
-				}
-			}
-		}
-		return rows.Err()
-	}
-	// MySQL.
-	var res sql.Result
-	if err := tx.Exec(ctx, query, args, &res); err != nil {
+	rows := &sql.Rows{}
+	if err := tx.Query(ctx, query, args, rows); err != nil {
 		return err
 	}
-	// If the ID field is not numeric (e.g. string),
-	// there is no way to scan the LAST_INSERT_ID.
-	if len(c.Nodes) > 0 && c.Nodes[0].ID.Type.Numeric() {
-		id, err := res.LastInsertId()
-		if err != nil {
-			return err
-		}
-		affected, err := res.RowsAffected()
-		if err != nil {
-			return err
-		}
-		// Assume the ID field is AUTO_INCREMENT
-		// if its type is numeric.
-		for i := 0; int64(i) < affected && i < len(c.Nodes); i++ {
-			c.Nodes[i].ID.Value = id + int64(i)
+	defer rows.Close()
+	for i := 0; rows.Next(); i++ {
+		node := c.Nodes[i]
+		switch _, ok := node.ID.Value.(field.ValueScanner); {
+		case ok:
+			if err := rows.Scan(node.ID.Value); err != nil {
+				return err
+			}
+		case node.ID.Type.Numeric():
+			var id int64
+			if err := rows.Scan(&id); err != nil {
+				return err
+			}
+			node.ID.Value = id
+		default:
+			if err := rows.Scan(&node.ID.Value); err != nil {
+				return err
+			}
 		}
 	}
-	return nil
+	return rows.Err()
 }
 
 // rollback calls to tx.Rollback and wraps the given error with the rollback error if occurred.

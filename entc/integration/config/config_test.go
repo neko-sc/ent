@@ -1,27 +1,23 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 package template
 
 import (
 	"context"
-	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"entgo.io/ent/dialect/entsql"
-	"entgo.io/ent/dialect/sql"
-	"entgo.io/ent/entc/integration/config/ent"
-	"entgo.io/ent/entc/integration/config/ent/migrate"
-	"entgo.io/ent/entc/integration/config/ent/schema"
+	"github.com/neko-sc/ent/dialect/entsql"
+	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/entc/integration/config/ent"
+	"github.com/neko-sc/ent/entc/integration/config/ent/migrate"
+	"github.com/neko-sc/ent/entc/integration/config/ent/schema"
 
-	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -64,31 +60,4 @@ func TestSchemaConfig(t *testing.T) {
 		}
 		return true
 	})
-}
-
-func TestMySQL(t *testing.T) {
-	for version, port := range map[string]int{"56": 3306, "57": 3307, "8": 3308} {
-		t.Run(version, func(t *testing.T) {
-			root, err := sql.Open("mysql", fmt.Sprintf("root:pass@tcp(localhost:%d)/", port))
-			require.NoError(t, err)
-			defer root.Close()
-			ctx := context.Background()
-			err = root.Exec(ctx, "CREATE DATABASE IF NOT EXISTS config", []any{}, new(sql.Result))
-			require.NoError(t, err, "creating database")
-			defer root.Exec(ctx, "DROP DATABASE IF EXISTS config", []any{}, new(sql.Result))
-
-			drv, err := sql.Open("mysql", fmt.Sprintf("root:pass@tcp(localhost:%d)/config?parseTime=True", port))
-			require.NoError(t, err, "connecting to migrate database")
-
-			client := ent.NewClient(ent.Driver(drv))
-			// Run schema creation.
-			require.NoError(t, client.Schema.Create(ctx))
-
-			u, err := client.User.Create().SetID(200).Save(ctx)
-			require.NoError(t, err)
-			assert.Equal(t, 200, u.ID)
-			_, err = client.User.Create().Save(ctx)
-			assert.Error(t, err)
-		})
-	}
 }

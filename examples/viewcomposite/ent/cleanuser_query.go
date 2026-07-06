@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"math"
 
-	"entgo.io/ent"
-	"entgo.io/ent/dialect/sql"
-	"entgo.io/ent/dialect/sql/sqlgraph"
-	"entgo.io/ent/examples/viewcomposite/ent/cleanuser"
-	"entgo.io/ent/examples/viewcomposite/ent/predicate"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/examples/viewcomposite/ent/cleanuser"
+	"github.com/neko-sc/ent/examples/viewcomposite/ent/predicate"
 )
 
 // CleanUserQuery is the builder for querying CleanUser entities.
