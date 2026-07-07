@@ -5,11 +5,11 @@ package ent
 import (
 	"context"
 
-	"entgo.io/ent/dialect/sql"
-	"entgo.io/ent/dialect/sql/sqlgraph"
-	"entgo.io/ent/examples/viewschema/ent/pet"
-	"entgo.io/ent/examples/viewschema/ent/predicate"
-	"entgo.io/ent/schema/field"
+	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/examples/viewschema/ent/pet"
+	"github.com/neko-sc/ent/examples/viewschema/ent/predicate"
+	"github.com/neko-sc/ent/schema/field"
 )
 
 // PetDelete is the builder for deleting a Pet entity.

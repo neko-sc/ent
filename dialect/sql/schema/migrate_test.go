@@ -1,6 +1,5 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 package schema
 
@@ -16,14 +15,14 @@ import (
 	"text/template"
 	"time"
 
-	"ariga.io/atlas/sql/migrate"
-	"ariga.io/atlas/sql/schema"
-	"ariga.io/atlas/sql/sqlite"
-	"ariga.io/atlas/sql/sqltool"
-	"entgo.io/ent/dialect"
-	"entgo.io/ent/dialect/entsql"
-	"entgo.io/ent/dialect/sql"
-	"entgo.io/ent/schema/field"
+	"github.com/neko-sc/atlas/sql/migrate"
+	"github.com/neko-sc/atlas/sql/schema"
+	"github.com/neko-sc/atlas/sql/sqlite"
+	"github.com/neko-sc/atlas/sql/sqltool"
+	"github.com/neko-sc/ent/dialect"
+	"github.com/neko-sc/ent/dialect/entsql"
+	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/schema/field"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	_ "github.com/mattn/go-sqlite3"
@@ -142,7 +141,7 @@ func TestMigrate_DiffJoinTableAllocationBC(t *testing.T) {
 			if err != nil {
 				return nil, err
 			}
-			require.Len(t, changes, 0)
+			require.Empty(t, changes)
 			return changes, nil
 		})
 	}))
@@ -406,10 +405,10 @@ func TestMigrateWithoutForeignKeys(t *testing.T) {
 		require.Len(t, actual.Changes, 2)
 		addIndex, ok := actual.Changes[0].(*schema.AddIndex)
 		require.True(t, ok)
-		require.EqualValues(t, "id_key", addIndex.I.Name)
+		require.Equal(t, "id_key", addIndex.I.Name)
 		addColumn, ok := actual.Changes[1].(*schema.AddColumn)
 		require.True(t, ok)
-		require.EqualValues(t, "name", addColumn.C.Name)
+		require.Equal(t, "name", addColumn.C.Name)
 	})
 }
 
@@ -436,20 +435,19 @@ func TestAtlas_StateReader(t *testing.T) {
 	require.Equal(t, "users", realm.Schemas[0].Tables[0].Name)
 	require.Equal(t, []schema.Attr{&sqlite.AutoIncrement{Seq: 100}}, realm.Schemas[0].Tables[0].Attrs)
 	require.Equal(t,
-		realm.Schemas[0].Tables[0].Columns,
 		[]*schema.Column{
 			schema.NewIntColumn("id", "integer").
 				AddAttrs(&sqlite.AutoIncrement{}),
 			schema.NewStringColumn("name", "text"),
 			schema.NewBoolColumn("active", "bool"),
-		},
+		}, realm.Schemas[0].Tables[0].Columns,
 	)
 }
 
 func TestAtlas_ParallelCreate(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(10)
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		db, err := sql.Open(dialect.SQLite, fmt.Sprintf("file:test-%d?mode=memory&_fk=1", i))
 		require.NoError(t, err)
 		m, err := NewMigrate(db)

@@ -1,6 +1,5 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 package schema
 
@@ -10,10 +9,10 @@ import (
 	"strings"
 	"testing"
 
-	"entgo.io/ent/dialect"
-	"entgo.io/ent/dialect/entsql"
-	"entgo.io/ent/dialect/sql"
-	"entgo.io/ent/schema/field"
+	"github.com/neko-sc/ent/dialect"
+	"github.com/neko-sc/ent/dialect/entsql"
+	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/schema/field"
 
 	"github.com/stretchr/testify/require"
 )
@@ -103,7 +102,7 @@ func TestColumn_ScanDefault(t *testing.T) {
 
 	c1 = &Column{Type: field.TypeUUID}
 	require.NoError(t, c1.ScanDefault("gen_random_uuid()"))
-	require.Equal(t, nil, c1.Default)
+	require.Nil(t, c1.Default)
 	require.NoError(t, c1.ScanDefault("00000000-0000-0000-0000-000000000000"))
 	require.Equal(t, "00000000-0000-0000-0000-000000000000", c1.Default)
 }
@@ -159,7 +158,6 @@ func TestDDL(t *testing.T) {
 	const (
 		hash   = "249590215c5bc8be0106146e65d7fa7f"
 		idx    = "super_duper_mega_ultra_hyper_giga_colossal_unbelievably_long_index_name"
-		hashMY = "super_duper_mega_ultra_hyper_gi_249590215c5bc8be0106146e65d7fa7f"
 		hashPG = "super_duper_mega_ultra_hyper_g_249590215c5bc8be0106146e65d7fa7f"
 	)
 	tbls := func() []*Table {
@@ -224,36 +222,6 @@ func TestDDL(t *testing.T) {
 		}
 		return []*Table{users, pets, petsWithoutFur, petNames}
 	}
-	my := func(length int, idx string) string {
-		return fmt.Sprintf(strings.ReplaceAll(`-- Add new schema named "s1"
-CREATE DATABASE $s1$;
--- Add new schema named "s2"
-CREATE DATABASE $s2$;
--- Add new schema named "s3"
-CREATE DATABASE $s3$;
--- Create "users" table
-CREATE TABLE $s1$.$users$ (
-  $id$ bigint NOT NULL,
-  $name$ varchar(%d) NOT NULL,
-  $spouse_id$ bigint NOT NULL,
-  PRIMARY KEY ($id$),
-  INDEX $name$ ($name$),
-  FOREIGN KEY ($spouse_id$) REFERENCES $s1$.$users$ ($id$) ON UPDATE SET DEFAULT
-) CHARSET utf8mb4 COLLATE utf8mb4_bin;
--- Create "pets" table
-CREATE TABLE $s2$.$pets$ (
-  $id$ bigint NOT NULL,
-  $name$ varchar(%d) NOT NULL,
-  $owner_id$ bigint NOT NULL,
-  $owner_id$ bigint NOT NULL,
-  UNIQUE INDEX $%s$ ($name$ DESC),
-  FOREIGN KEY ($owner_id$) REFERENCES $s1$.$users$ ($id$) ON DELETE SET DEFAULT
-) CHARSET utf8mb4 COLLATE utf8mb4_bin;
--- Add "pets_without_fur" view
-CREATE VIEW $s3$.$pets_without_fur$ ($id$, $name$, $owner_id$) AS SELECT id, name, owner_id FROM pets;
-`, "$", "`"), length, length, idx)
-	}
-
 	pg := func(idx string) string {
 		return fmt.Sprintf(`-- Add new schema named "s1"
 CREATE SCHEMA "s1";
@@ -318,10 +286,6 @@ CREATE UNIQUE INDEX $%s$ ON $pets$ ($name$ DESC);
 CREATE VIEW $pets_without_fur$ ($id$, $name$, $owner_id$) AS SELECT id, name, owner_id FROM pets;
 `, "$", "`"), idx, idx), false,
 		},
-		{dialect.MySQL, "5.6", my(255, idx), false},
-		{dialect.MySQL, "5.6", my(191, hashMY), true},
-		{dialect.MySQL, "5.7", my(255, idx), false},
-		{dialect.MySQL, "8", my(255, hashMY), true},
 		{dialect.Postgres, "12", pg(idx), false},
 		{dialect.Postgres, "13", pg(idx), false},
 		{dialect.Postgres, "14", pg(hashPG), true},

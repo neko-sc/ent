@@ -1,6 +1,5 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 package schema
 
@@ -17,10 +16,10 @@ import (
 	"time"
 	"unicode"
 
-	"entgo.io/ent/dialect"
-	"entgo.io/ent/dialect/sql"
+	"github.com/neko-sc/ent/dialect"
+	"github.com/neko-sc/ent/dialect/sql"
 
-	"ariga.io/atlas/sql/migrate"
+	"github.com/neko-sc/atlas/sql/migrate"
 )
 
 type (
@@ -59,7 +58,7 @@ func (d *DirWriter) Change(comment string) {
 func (d *DirWriter) Flush(name string) error {
 	switch {
 	case d.b.Len() != 0:
-		return fmt.Errorf("writer has undocumented change. Use Change or FlushChange instead")
+		return errors.New("writer has undocumented change. Use Change or FlushChange instead")
 	case len(d.changes) == 0:
 		return errors.New("writer has no changes to flush")
 	default:

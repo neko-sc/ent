@@ -3,7 +3,7 @@
 package predicate
 
 import (
-	"entgo.io/ent/dialect/sql"
+	"github.com/neko-sc/ent/dialect/sql"
 )
 
 // User is the predicate function for user builders.

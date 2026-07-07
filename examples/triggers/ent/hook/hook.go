@@ -6,7 +6,7 @@ import (
 	"context"
 	"fmt"
 
-	"entgo.io/ent/examples/triggers/ent"
+	"github.com/neko-sc/ent/examples/triggers/ent"
 )
 
 // The UserFunc type is an adapter to allow the use of ordinary

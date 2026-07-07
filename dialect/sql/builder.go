@@ -1,6 +1,5 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 // Package sql provides wrappers around the standard database/sql package
 // to allow the generated code to interact with a statically-typed API.
@@ -19,7 +18,7 @@ import (
 	"strconv"
 	"strings"
 
-	"entgo.io/ent/dialect"
+	"github.com/neko-sc/ent/dialect"
 )
 
 // Querier wraps the basic Query method that is implemented
@@ -298,7 +297,6 @@ func DoNothing() ConflictOption {
 //		)
 //
 //	// Output:
-//	// MySQL: INSERT INTO `users` (`id`) VALUES(1) ON DUPLICATE KEY UPDATE `id` = `users`.`id`
 //	// PostgreSQL: INSERT INTO "users" ("id") VALUES(1) ON CONFLICT ("id") DO UPDATE SET "id" = "users"."id
 func ResolveWithIgnore() ConflictOption {
 	return func(c *conflict) {
@@ -311,7 +309,7 @@ func ResolveWithIgnore() ConflictOption {
 }
 
 // ResolveWithNewValues updates columns using the new values proposed
-// for insertion using the special EXCLUDED/VALUES table.
+// for insertion using the special EXCLUDED table.
 //
 //	sql.Insert("users").
 //		Columns("id", "name").
@@ -322,7 +320,6 @@ func ResolveWithIgnore() ConflictOption {
 //		)
 //
 //	// Output:
-//	// MySQL: INSERT INTO `users` (`id`, `name`) VALUES(1, 'Mashraki) ON DUPLICATE KEY UPDATE `id` = VALUES(`id`), `name` = VALUES(`name`),
 //	// PostgreSQL: INSERT INTO "users" ("id") VALUES(1) ON CONFLICT ("id") DO UPDATE SET "id" = "excluded"."id, "name" = "excluded"."name"
 func ResolveWithNewValues() ConflictOption {
 	return func(c *conflict) {
@@ -381,7 +378,7 @@ type UpdateSet struct {
 
 // Table returns the table the `UPSERT` statement is executed on.
 func (u *UpdateSet) Table() *SelectTable {
-	return Dialect(u.UpdateBuilder.dialect).Table(u.UpdateBuilder.table)
+	return Dialect(u.UpdateBuilder.dialect).Table(u.table)
 }
 
 // Columns returns all columns in the `INSERT` statement.
@@ -391,7 +388,7 @@ func (u *UpdateSet) Columns() []string {
 
 // UpdateColumns returns all columns in the `UPDATE` statement.
 func (u *UpdateSet) UpdateColumns() []string {
-	return append(u.UpdateBuilder.nulls, u.UpdateBuilder.columns...)
+	return append(u.nulls, u.UpdateBuilder.columns...)
 }
 
 // Set sets a column to a given value.
@@ -417,18 +414,11 @@ func (u *UpdateSet) SetIgnore(name string) *UpdateSet {
 	return u.Set(name, Expr(u.Table().C(name)))
 }
 
-// SetExcluded sets the column name to its EXCLUDED/VALUES value.
-// For example, "c" = "excluded"."c", or `c` = VALUES(`c`).
+// SetExcluded sets the column name to its EXCLUDED value.
+// For example, "c" = "excluded"."c".
 func (u *UpdateSet) SetExcluded(name string) *UpdateSet {
-	switch u.UpdateBuilder.Dialect() {
-	case dialect.MySQL:
-		u.UpdateBuilder.Set(name, ExprFunc(func(b *Builder) {
-			b.WriteString("VALUES(").Ident(name).WriteByte(')')
-		}))
-	default:
-		t := Dialect(u.UpdateBuilder.dialect).Table("excluded")
-		u.UpdateBuilder.Set(name, Expr(t.C(name)))
-	}
+	t := Dialect(u.UpdateBuilder.dialect).Table("excluded")
+	u.UpdateBuilder.Set(name, Expr(t.C(name)))
 	return u
 }
 
@@ -441,7 +431,7 @@ func (i *InsertBuilder) Query() (string, []any) {
 // QueryErr returns query representation of an `INSERT INTO`
 // statement and any error occurred in building the statement.
 func (i *InsertBuilder) QueryErr() (string, []any, error) {
-	b := i.Builder.clone()
+	b := i.clone()
 	b.WriteString("INSERT INTO ")
 	b.writeSchema(i.schema)
 	b.Ident(i.table).Pad()
@@ -465,42 +455,27 @@ func (i *InsertBuilder) QueryErr() (string, []any, error) {
 }
 
 func (i *InsertBuilder) writeDefault(b *Builder) {
-	switch i.Dialect() {
-	case dialect.MySQL:
-		b.WriteString("VALUES ()")
-	case dialect.SQLite, dialect.Postgres:
-		b.WriteString("DEFAULT VALUES")
-	}
+	b.WriteString("DEFAULT VALUES")
 }
 
 func (i *InsertBuilder) writeConflict(b *Builder) {
-	switch i.Dialect() {
-	case dialect.MySQL:
-		b.WriteString(" ON DUPLICATE KEY UPDATE ")
-		// Fallback to ResolveWithIgnore() as MySQL
-		// does not support the "DO NOTHING" clause.
-		if i.conflict.action.nothing {
-			i.OnConflict(ResolveWithIgnore())
-		}
-	case dialect.SQLite, dialect.Postgres:
-		b.WriteString(" ON CONFLICT")
-		switch t := i.conflict.target; {
-		case t.constraint != "" && len(t.columns) != 0:
-			b.AddError(fmt.Errorf("duplicate CONFLICT clauses: %q, %q", t.constraint, t.columns))
-		case t.constraint != "":
-			b.WriteString(" ON CONSTRAINT ").Ident(t.constraint)
-		case len(t.columns) != 0:
-			b.WriteString(" (").IdentComma(t.columns...).WriteByte(')')
-		}
-		if p := i.conflict.target.where; p != nil {
-			b.WriteString(" WHERE ").Join(p)
-		}
-		if i.conflict.action.nothing {
-			b.WriteString(" DO NOTHING")
-			return
-		}
-		b.WriteString(" DO UPDATE SET ")
+	b.WriteString(" ON CONFLICT")
+	switch t := i.conflict.target; {
+	case t.constraint != "" && len(t.columns) != 0:
+		b.AddError(fmt.Errorf("duplicate CONFLICT clauses: %q, %q", t.constraint, t.columns))
+	case t.constraint != "":
+		b.WriteString(" ON CONSTRAINT ").Ident(t.constraint)
+	case len(t.columns) != 0:
+		b.WriteString(" (").IdentComma(t.columns...).WriteByte(')')
 	}
+	if p := i.conflict.target.where; p != nil {
+		b.WriteString(" WHERE ").Join(p)
+	}
+	if i.conflict.action.nothing {
+		b.WriteString(" DO NOTHING")
+		return
+	}
+	b.WriteString(" DO UPDATE SET ")
 	if len(i.conflict.action.update) == 0 {
 		b.AddError(errors.New("missing action for 'DO UPDATE SET' clause"))
 	}
@@ -602,7 +577,7 @@ func (u *UpdateBuilder) Empty() bool {
 }
 
 // OrderBy appends the `ORDER BY` clause to the `UPDATE` statement.
-// Supported by SQLite and MySQL.
+// Supported by SQLite.
 func (u *UpdateBuilder) OrderBy(columns ...string) *UpdateBuilder {
 	if u.postgres() {
 		u.AddError(errors.New("ORDER BY is not supported by PostgreSQL"))
@@ -615,7 +590,7 @@ func (u *UpdateBuilder) OrderBy(columns ...string) *UpdateBuilder {
 }
 
 // Limit appends the `LIMIT` clause to the `UPDATE` statement.
-// Supported by SQLite and MySQL.
+// Supported by SQLite.
 func (u *UpdateBuilder) Limit(limit int) *UpdateBuilder {
 	if u.postgres() {
 		u.AddError(errors.New("LIMIT is not supported by PostgreSQL"))
@@ -640,7 +615,7 @@ func (u *UpdateBuilder) Returning(columns ...string) *UpdateBuilder {
 
 // Query returns query representation of an `UPDATE` statement.
 func (u *UpdateBuilder) Query() (string, []any) {
-	b := u.Builder.clone()
+	b := u.clone()
 	if len(u.prefix) > 0 {
 		b.join(u.prefix, " ")
 		b.Pad()
@@ -1206,11 +1181,6 @@ func (p *Predicate) escapedLikeFold(col, left, substr, right string) *Predicate 
 	return p.Append(func(b *Builder) {
 		w, escaped := escape(substr)
 		switch b.dialect {
-		case dialect.MySQL:
-			// We assume the CHARACTER SET is configured to utf8mb4,
-			// because this how it is defined in dialect/sql/schema.
-			b.Ident(col).WriteString(" COLLATE utf8mb4_general_ci LIKE ")
-			b.Arg(left + strings.ToLower(w) + right)
 		case dialect.Postgres:
 			b.Ident(col).WriteString(" ILIKE ")
 			b.Arg(left + strings.ToLower(w) + right)
@@ -1256,10 +1226,6 @@ func ColumnsHasPrefix(col, prefixC string) *Predicate {
 func (p *Predicate) ColumnsHasPrefix(col, prefixC string) *Predicate {
 	return p.Append(func(b *Builder) {
 		switch p.dialect {
-		case dialect.MySQL:
-			b.Ident(col)
-			b.WriteOp(OpLike)
-			b.S("CONCAT(REPLACE(REPLACE(").Ident(prefixC).S(", '_', '\\_'), '%', '\\%'), '%')")
 		case dialect.Postgres, dialect.SQLite:
 			b.Ident(col)
 			b.WriteOp(OpLike)
@@ -1298,11 +1264,6 @@ func (p *Predicate) EqualFold(col, sub string) *Predicate {
 		f := &Func{}
 		f.SetDialect(b.dialect)
 		switch b.dialect {
-		case dialect.MySQL:
-			// We assume the CHARACTER SET is configured to utf8mb4,
-			// because this how it is defined in dialect/sql/schema.
-			b.Ident(col).WriteString(" COLLATE utf8mb4_general_ci = ")
-			b.Arg(strings.ToLower(sub))
 		case dialect.Postgres:
 			b.Ident(col).WriteString(" ILIKE ")
 			w, _ := escape(sub)
@@ -1630,7 +1591,7 @@ func (s *SelectTable) Columns(columns ...string) []string {
 
 // Unquote makes the table name to be formatted as raw string (unquoted).
 // It is useful when you don't want to query tables under the current database.
-// For example: "INFORMATION_SCHEMA.TABLE_CONSTRAINTS" in MySQL.
+// For example: "INFORMATION_SCHEMA.TABLE_CONSTRAINTS" in PostgreSQL.
 func (s *SelectTable) Unquote() *SelectTable {
 	s.quote = false
 	return s
@@ -2170,6 +2131,7 @@ func (s *Selector) UnionAll(t TableView) *Selector {
 }
 
 // UnionDistinct appends the UNION DISTINCT clause to the query.
+//
 // Deprecated: use Union instead as by default, duplicate rows
 // are eliminated unless ALL is specified.
 func (s *Selector) UnionDistinct(t TableView) *Selector {
@@ -2224,7 +2186,7 @@ func (s *Selector) IntersectAll(t TableView) *Selector {
 
 // setOpQuerier implements Querier for a compound set operation (UNION, EXCEPT,
 // INTERSECT) where every branch is wrapped in parentheses. This is required
-// when branches contain ORDER BY, LIMIT, or OFFSET (MySQL, Postgres, and the
+// when branches contain ORDER BY, LIMIT, or OFFSET (Postgres and the
 // SQL standard). SQLite does not support parenthesized branches; on that
 // dialect the parentheses — and any per-branch ORDER BY / LIMIT / OFFSET,
 // which SQLite cannot honour inside a compound SELECT — are silently omitted.
@@ -2237,7 +2199,7 @@ type setOpQuerier struct {
 }
 
 func (q *setOpQuerier) Query() (string, []any) {
-	b := q.Builder.clone()
+	b := q.clone()
 	// If no dialect was set explicitly on the querier (the common case — users
 	// call UnionAll(sel1, sel2) without a DialectBuilder), inherit it from the
 	// first selector so that b.sqlite() / b.postgres() return the right value.
@@ -2269,7 +2231,7 @@ func (q *setOpQuerier) Query() (string, []any) {
 
 // Union returns a Querier that combines selectors with UNION (DISTINCT),
 // wrapping every branch in parentheses. Use this instead of the chaining
-// method when branches carry their own ORDER BY, LIMIT, or OFFSET — MySQL
+// method when branches carry their own ORDER BY, LIMIT, or OFFSET — Postgres
 // and the SQL standard require parentheses in that case.
 func Union(selectors ...*Selector) Querier {
 	return &setOpQuerier{op: string(setOpTypeUnion), selectors: selectors}
@@ -2341,8 +2303,8 @@ func (s *Selector) Columns(columns ...string) []string {
 func (s *Selector) OnP(p *Predicate) *Selector {
 	if len(s.joins) > 0 {
 		join := &s.joins[len(s.joins)-1]
-		switch {
-		case join.on == nil:
+		switch join.on {
+		case nil:
 			join.on = p
 		default:
 			join.on = And(join.on, p)
@@ -2431,7 +2393,7 @@ func WithLockTables(tables ...string) LockOption {
 }
 
 // WithLockClause allows providing a custom clause for
-// locking the statement. For example, in MySQL <= 8.22:
+// locking the statement. For example:
 //
 //	Select().
 //	From(Table("users")).
@@ -2480,7 +2442,7 @@ func (s *Selector) Clone() *Selector {
 		joins[i] = s.joins[i].clone()
 	}
 	return &Selector{
-		Builder:   s.Builder.clone(),
+		Builder:   s.clone(),
 		ctx:       s.ctx,
 		as:        s.as,
 		or:        s.or,
@@ -2577,7 +2539,7 @@ func (s *Selector) Having(p *Predicate) *Selector {
 
 // Query returns query representation of a `SELECT` statement.
 func (s *Selector) Query() (string, []any) {
-	b := s.Builder.clone()
+	b := s.clone()
 	s.joinPrefix(&b)
 	b.WriteString("SELECT ")
 	if s.distinct {
@@ -2930,7 +2892,7 @@ func (w *WindowBuilder) Query() (string, []any) {
 		}
 		joinOrder(w.order, b)
 	})
-	return w.Builder.String(), w.args
+	return w.String(), w.args
 }
 
 // Wrapper wraps a given Querier with different format.
@@ -3012,7 +2974,7 @@ type exprFunc struct {
 }
 
 func (e *exprFunc) Query() (string, []any) {
-	b := e.Builder.clone()
+	b := e.clone()
 	e.fn(&b)
 	return b.Query()
 }
@@ -3238,7 +3200,7 @@ type (
 		// The FormatParam function lets users define
 		// custom placeholder formatting for their types.
 		// For example, formatting the default placeholder
-		// from '?' to 'ST_GeomFromWKB(?)' for MySQL dialect.
+		// from '?' to 'ST_GeomFromWKB(?)' for spatial types.
 		FormatParam(placeholder string, info *StmtInfo) string
 	}
 )
@@ -3256,7 +3218,7 @@ func (b *Builder) Arg(a any) *Builder {
 		b.Join(v)
 		return b
 	}
-	// Default placeholder param (MySQL and SQLite).
+	// Default placeholder param (SQLite).
 	format := "?"
 	if b.postgres() {
 		// Postgres' arguments are referenced using the syntax $n.

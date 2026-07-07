@@ -10,9 +10,9 @@ import (
 	"strings"
 	"testing"
 
-	"entgo.io/ent/dialect"
-	entsql "entgo.io/ent/dialect/sql"
-	"entgo.io/ent/dialect/sql/schema"
+	"github.com/neko-sc/ent/dialect"
+	entsql "github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/dialect/sql/schema"
 	"github.com/stretchr/testify/require"
 
 	_ "github.com/mattn/go-sqlite3"

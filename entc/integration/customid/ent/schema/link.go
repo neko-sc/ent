@@ -1,13 +1,12 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 package schema
 
 import (
-	"entgo.io/ent"
-	uuidc "entgo.io/ent/entc/integration/customid/uuidcompatible"
-	"entgo.io/ent/schema/field"
+	"github.com/neko-sc/ent"
+	uuidc "github.com/neko-sc/ent/entc/integration/customid/uuidcompatible"
+	"github.com/neko-sc/ent/schema/field"
 )
 
 type LinkInformation struct {

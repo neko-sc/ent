@@ -1,22 +1,21 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 package schema
 
 import (
 	"time"
 
-	"entgo.io/ent"
-	"entgo.io/ent/dialect"
-	"entgo.io/ent/dialect/entsql"
-	"entgo.io/ent/schema"
-	"entgo.io/ent/schema/edge"
-	"entgo.io/ent/schema/field"
-	"entgo.io/ent/schema/index"
-	"entgo.io/ent/schema/mixin"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
+	"github.com/neko-sc/ent/dialect/entsql"
+	"github.com/neko-sc/ent/schema"
+	"github.com/neko-sc/ent/schema/edge"
+	"github.com/neko-sc/ent/schema/field"
+	"github.com/neko-sc/ent/schema/index"
+	"github.com/neko-sc/ent/schema/mixin"
 
-	"ariga.io/atlas/sql/postgres"
+	"github.com/neko-sc/atlas/sql/postgres"
 	"github.com/google/uuid"
 )
 
@@ -57,7 +56,6 @@ func (User) Fields() []ent.Field {
 		field.Int("age"),
 		// extending name field to longtext.
 		field.Text("name"),
-		// extending the index prefix below (on MySQL).
 		field.Text("description").
 			Optional(),
 		// changing nickname from unique no non-unique.
@@ -109,7 +107,6 @@ func (User) Fields() []ent.Field {
 		field.String("default_exprs").
 			Optional().
 			Annotations(entsql.DefaultExprs(map[string]string{
-				dialect.MySQL:    "TO_BASE64('ent')",
 				dialect.SQLite:   "hex('ent')",
 				dialect.Postgres: "md5('ent')",
 			})),
@@ -147,8 +144,6 @@ func (User) Edges() []ent.Edge {
 
 func (User) Indexes() []ent.Index {
 	return []ent.Index{
-		// Extend the column prefix by drop and create
-		// this index on MySQL.
 		index.Fields("description").
 			Annotations(entsql.Prefix(100)),
 		// Deleting old indexes (name, address),
@@ -157,12 +152,9 @@ func (User) Indexes() []ent.Index {
 			Unique(),
 		index.Fields("age").
 			Annotations(entsql.Desc()),
-		// Enable FULLTEXT search on "nickname"
-		// field only in MySQL.
 		index.Fields("nickname").
 			Annotations(
 				entsql.IndexTypes(map[string]string{
-					dialect.MySQL: "FULLTEXT",
 				}),
 			),
 		// For PostgreSQL, we can include in the index non-key columns.

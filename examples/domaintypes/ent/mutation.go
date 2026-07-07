@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"sync"
 
-	"entgo.io/ent"
-	"entgo.io/ent/examples/domaintypes/ent/user"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/examples/domaintypes/ent/user"
 )
 
 const (

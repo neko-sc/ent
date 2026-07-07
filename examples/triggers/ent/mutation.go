@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"sync"
 
-	"entgo.io/ent"
-	"entgo.io/ent/examples/triggers/ent/user"
-	"entgo.io/ent/examples/triggers/ent/userauditlog"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/examples/triggers/ent/user"
+	"github.com/neko-sc/ent/examples/triggers/ent/userauditlog"
 )
 
 const (

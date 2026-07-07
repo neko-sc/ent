@@ -1,6 +1,5 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 package sqljson
 
@@ -8,8 +7,8 @@ import (
 	"fmt"
 	"reflect"
 
-	"entgo.io/ent/dialect"
-	"entgo.io/ent/dialect/sql"
+	"github.com/neko-sc/ent/dialect"
+	"github.com/neko-sc/ent/dialect/sql"
 )
 
 type sqlite struct{}
@@ -21,7 +20,7 @@ func (d *sqlite) Append(u *sql.UpdateBuilder, column string, elems []any, opts .
 			typ := func(b *sql.Builder) *sql.Builder {
 				return b.WriteString("JSON_TYPE").Wrap(func(b *sql.Builder) {
 					b.Ident(column).Comma()
-					identPath(column, opts...).mysqlPath(b)
+					identPath(column, opts...).jsonPath(b)
 				})
 			}
 			typ(b).WriteOp(sql.OpIsNull)
@@ -32,7 +31,7 @@ func (d *sqlite) Append(u *sql.UpdateBuilder, column string, elems []any, opts .
 			if len(opts) > 0 {
 				b.WriteString("JSON_SET").Wrap(func(b *sql.Builder) {
 					b.Ident(column).Comma()
-					identPath(column, opts...).mysqlPath(b)
+					identPath(column, opts...).jsonPath(b)
 					b.Comma().Argf("JSON(?)", marshalArg(elems))
 				})
 			} else {
@@ -48,7 +47,7 @@ func (d *sqlite) Append(u *sql.UpdateBuilder, column string, elems []any, opts .
 				if len(opts) > 0 {
 					p := identPath(column, opts...)
 					p.Path = append(p.Path, "[#]")
-					path = p.mysqlPath
+					path = p.jsonPath
 				}
 				for i, e := range elems {
 					if i > 0 {
@@ -67,69 +66,6 @@ func (d *sqlite) appendArg(b *sql.Builder, v any) {
 	switch {
 	case !isPrimitive(v):
 		b.Argf("JSON(?)", marshalArg(v))
-	default:
-		b.Arg(v)
-	}
-}
-
-type mysql struct{}
-
-// Append implements the driver.Append method.
-func (d *mysql) Append(u *sql.UpdateBuilder, column string, elems []any, opts ...Option) {
-	setCase(u, column, when{
-		Cond: func(b *sql.Builder) {
-			typ := func(b *sql.Builder) *sql.Builder {
-				b.WriteString("JSON_TYPE(JSON_EXTRACT(")
-				b.Ident(column).Comma()
-				identPath(column, opts...).mysqlPath(b)
-				return b.WriteString("))")
-			}
-			typ(b).WriteOp(sql.OpIsNull)
-			b.WriteString(" OR ")
-			typ(b).WriteOp(sql.OpEQ).WriteString("'NULL'")
-		},
-		Then: func(b *sql.Builder) {
-			if len(opts) > 0 {
-				b.WriteString("JSON_SET").Wrap(func(b *sql.Builder) {
-					b.Ident(column).Comma()
-					identPath(column, opts...).mysqlPath(b)
-					b.Comma().WriteString("JSON_ARRAY(").Args(d.marshalArgs(elems)...).WriteByte(')')
-				})
-			} else {
-				b.WriteString("JSON_ARRAY(").Args(d.marshalArgs(elems)...).WriteByte(')')
-			}
-		},
-		Else: func(b *sql.Builder) {
-			b.WriteString("JSON_ARRAY_APPEND").Wrap(func(b *sql.Builder) {
-				b.Ident(column).Comma()
-				for i, e := range elems {
-					if i > 0 {
-						b.Comma()
-					}
-					identPath(column, opts...).mysqlPath(b)
-					b.Comma()
-					d.appendArg(b, e)
-				}
-			})
-		},
-	})
-}
-
-func (d *mysql) marshalArgs(args []any) []any {
-	vs := make([]any, len(args))
-	for i, v := range args {
-		if !isPrimitive(v) {
-			v = marshalArg(v)
-		}
-		vs[i] = v
-	}
-	return vs
-}
-
-func (d *mysql) appendArg(b *sql.Builder, v any) {
-	switch {
-	case !isPrimitive(v):
-		b.Argf("CAST(? AS JSON)", marshalArg(v))
 	default:
 		b.Arg(v)
 	}
@@ -186,8 +122,6 @@ func newDriver(name string) (driver, error) {
 	switch name {
 	case dialect.SQLite:
 		return (*sqlite)(nil), nil
-	case dialect.MySQL:
-		return (*mysql)(nil), nil
 	case dialect.Postgres:
 		return (*postgres)(nil), nil
 	default:
@@ -215,7 +149,7 @@ func setCase(u *sql.UpdateBuilder, column string, w when) {
 
 func isPrimitive(v any) bool {
 	switch reflect.TypeOf(v).Kind() {
-	case reflect.Array, reflect.Slice, reflect.Map, reflect.Struct, reflect.Ptr, reflect.Interface:
+	case reflect.Array, reflect.Slice, reflect.Map, reflect.Struct, reflect.Pointer, reflect.Interface:
 		return false
 	}
 	return true

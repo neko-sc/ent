@@ -1,3 +1,3 @@
 ## Using PostgreSQL Domain Types in Ent Schema
 
-Read the full guide in: https://entgo.io/docs/migration/domain-types
+Example demonstrating PostgreSQL domain types with Ent migrations.

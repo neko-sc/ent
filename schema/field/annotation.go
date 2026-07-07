@@ -1,10 +1,13 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 package field
 
-import "entgo.io/ent/schema"
+import (
+	"maps"
+
+	"github.com/neko-sc/ent/schema"
+)
 
 // Annotation is a builtin schema annotation for
 // configuring the schema fields in codegen.
@@ -40,7 +43,6 @@ type Annotation struct {
 //			field.ID("user_id", "tweet_id"),
 //		}
 //	}
-//
 func ID(first, second string, fields ...string) *Annotation {
 	return &Annotation{ID: append([]string{first, second}, fields...)}
 }
@@ -66,9 +68,7 @@ func (a Annotation) Merge(other schema.Annotation) schema.Annotation {
 	if a.StructTag == nil && len(ant.StructTag) > 0 {
 		a.StructTag = make(map[string]string, len(ant.StructTag))
 	}
-	for k, v := range ant.StructTag {
-		a.StructTag[k] = v
-	}
+	maps.Copy(a.StructTag, ant.StructTag)
 	if len(ant.ID) > 0 {
 		a.ID = ant.ID
 	}

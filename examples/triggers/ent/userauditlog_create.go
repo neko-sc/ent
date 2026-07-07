@@ -7,9 +7,9 @@ import (
 	"errors"
 	"fmt"
 
-	"entgo.io/ent/dialect/sql/sqlgraph"
-	"entgo.io/ent/examples/triggers/ent/userauditlog"
-	"entgo.io/ent/schema/field"
+	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/examples/triggers/ent/userauditlog"
+	"github.com/neko-sc/ent/schema/field"
 )
 
 // UserAuditLogCreate is the builder for creating a UserAuditLog entity.

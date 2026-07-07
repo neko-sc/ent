@@ -5,12 +5,12 @@ package enttest
 import (
 	"context"
 
-	"entgo.io/ent/examples/viewcomposite/ent"
+	"github.com/neko-sc/ent/examples/viewcomposite/ent"
 	// required by schema hooks.
-	_ "entgo.io/ent/examples/viewcomposite/ent/runtime"
+	_ "github.com/neko-sc/ent/examples/viewcomposite/ent/runtime"
 
-	"entgo.io/ent/dialect/sql/schema"
-	"entgo.io/ent/examples/viewcomposite/ent/migrate"
+	"github.com/neko-sc/ent/dialect/sql/schema"
+	"github.com/neko-sc/ent/examples/viewcomposite/ent/migrate"
 )
 
 type (

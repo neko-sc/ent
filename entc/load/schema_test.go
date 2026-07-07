@@ -1,6 +1,5 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 package load
 
@@ -13,12 +12,12 @@ import (
 	"testing"
 	"time"
 
-	"entgo.io/ent"
-	"entgo.io/ent/schema"
-	"entgo.io/ent/schema/edge"
-	"entgo.io/ent/schema/field"
-	"entgo.io/ent/schema/index"
-	"entgo.io/ent/schema/mixin"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/schema"
+	"github.com/neko-sc/ent/schema/edge"
+	"github.com/neko-sc/ent/schema/field"
+	"github.com/neko-sc/ent/schema/index"
+	"github.com/neko-sc/ent/schema/mixin"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -162,7 +161,7 @@ func TestMarshalSchema(t *testing.T) {
 		require.Equal(t, "User", schema.Name)
 		require.Len(t, schema.Annotations, 2)
 		ant := schema.Annotations["order_config"].(map[string]any)
-		require.Equal(t, ant["FieldName"], "type annotations")
+		require.Equal(t, "type annotations", ant["FieldName"])
 
 		require.Len(t, schema.Fields, 9)
 		require.Equal(t, "age", schema.Fields[0].Name)
@@ -173,7 +172,7 @@ func TestMarshalSchema(t *testing.T) {
 		require.Equal(t, "unknown", schema.Fields[1].DefaultValue)
 		require.NotEmpty(t, schema.Fields[1].Annotations)
 		ant = schema.Fields[1].Annotations["order_config"].(map[string]any)
-		require.Equal(t, ant["FieldName"], "name")
+		require.Equal(t, "name", ant["FieldName"])
 
 		require.Equal(t, "nillable", schema.Fields[2].Name)
 		require.Equal(t, field.TypeString, schema.Fields[2].Info.Type)
@@ -216,7 +215,7 @@ func TestMarshalSchema(t *testing.T) {
 		require.False(t, schema.Edges[0].Inverse)
 		require.NotEmpty(t, schema.Edges[0].Annotations)
 		ant = schema.Edges[0].Annotations["order_config"].(map[string]any)
-		require.Equal(t, ant["FieldName"], "name")
+		require.Equal(t, "name", ant["FieldName"])
 
 		require.Equal(t, "children", schema.Edges[1].Name)
 		require.Equal(t, "parent_id", schema.Edges[1].StorageKey.Columns[0])
@@ -229,9 +228,9 @@ func TestMarshalSchema(t *testing.T) {
 		require.Equal(t, "parent_id", schema.Edges[1].Ref.StorageKey.Columns[0])
 
 		ant = schema.Edges[2].Annotations["order_config"].(map[string]any)
-		require.Equal(t, ant["FieldName"], "followers")
+		require.Equal(t, "followers", ant["FieldName"])
 		ant = schema.Edges[2].Ref.Annotations["order_config"].(map[string]any)
-		require.Equal(t, ant["FieldName"], "following")
+		require.Equal(t, "following", ant["FieldName"])
 
 		require.Equal(t, []string{"name", "address"}, schema.Indexes[0].Fields)
 		require.True(t, schema.Indexes[0].Unique)
@@ -338,10 +337,10 @@ func TestMarshalDefaults(t *testing.T) {
 	require.False(t, schema.Fields[4].Default)
 	require.True(t, schema.Fields[4].UpdateDefault)
 	require.True(t, schema.Fields[5].Default)
-	require.Equal(t, schema.Fields[5].DefaultKind, reflect.Func)
+	require.Equal(t, reflect.Func, schema.Fields[5].DefaultKind)
 	require.True(t, schema.Fields[6].Default)
 	require.True(t, schema.Fields[7].Default)
-	require.Equal(t, schema.Fields[8].DefaultKind, reflect.Func)
+	require.Equal(t, reflect.Func, schema.Fields[8].DefaultKind)
 }
 
 type TimeMixin struct {

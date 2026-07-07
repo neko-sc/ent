@@ -1,6 +1,5 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 package json
 
@@ -14,96 +13,21 @@ import (
 	"reflect"
 	"testing"
 
-	"entgo.io/ent/dialect"
-	"entgo.io/ent/dialect/sql"
-	"entgo.io/ent/dialect/sql/sqljson"
-	"entgo.io/ent/entc/integration/json/ent"
-	"entgo.io/ent/entc/integration/json/ent/migrate"
-	"entgo.io/ent/entc/integration/json/ent/schema"
-	"entgo.io/ent/entc/integration/json/ent/user"
+	"github.com/neko-sc/ent/dialect"
+	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/dialect/sql/sqljson"
+	"github.com/neko-sc/ent/entc/integration/json/ent"
+	"github.com/neko-sc/ent/entc/integration/json/ent/migrate"
+	"github.com/neko-sc/ent/entc/integration/json/ent/schema"
+	"github.com/neko-sc/ent/entc/integration/json/ent/user"
 
-	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/require"
 )
 
-func TestMySQL(t *testing.T) {
-	for version, port := range map[string]int{"56": 3306, "57": 3307, "8": 3308} {
-		t.Run(version, func(t *testing.T) {
-			db, err := sql.Open("mysql", fmt.Sprintf("root:pass@tcp(localhost:%d)/", port))
-			require.NoError(t, err)
-			defer db.Close()
-			ctx := context.Background()
-			err = db.Exec(ctx, "CREATE DATABASE IF NOT EXISTS json", []any{}, nil)
-			require.NoError(t, err, "creating database")
-			defer db.Exec(ctx, "DROP DATABASE IF EXISTS json", []any{}, nil)
-			client, err := ent.Open("mysql", fmt.Sprintf("root:pass@tcp(localhost:%d)/json", port))
-			require.NoError(t, err, "connecting to json database")
-			err = client.Schema.Create(context.Background(), migrate.WithGlobalUniqueID(true))
-			require.NoError(t, err)
-
-			URL(t, client)
-			Dirs(t, client)
-			Floats(t, client)
-			NetAddr(t, client)
-			RawMessage(t, client)
-			Any(t, client)
-			// Skip tests with JSON functions for old MySQL versions.
-			if version != "56" {
-				URLs(t, client)
-				Ints(t, client)
-				Strings(t, client)
-				IntsValidate(t, client)
-				FloatsValidate(t, client)
-				StringsValidate(t, client)
-				Predicates(t, client)
-				Order(t, client)
-			}
-			Scan(t, client)
-		})
-	}
-}
-
-func TestMaria(t *testing.T) {
-	for version, port := range map[string]int{"105": 4306, "102": 4307} {
-		t.Run(version, func(t *testing.T) {
-			db, err := sql.Open("mysql", fmt.Sprintf("root:pass@tcp(localhost:%d)/", port))
-			require.NoError(t, err)
-			defer db.Close()
-			ctx := context.Background()
-			err = db.Exec(ctx, "CREATE DATABASE IF NOT EXISTS json", []any{}, nil)
-			require.NoError(t, err, "creating database")
-			defer db.Exec(ctx, "DROP DATABASE IF EXISTS json", []any{}, nil)
-			client, err := ent.Open("mysql", fmt.Sprintf("root:pass@tcp(localhost:%d)/json", port))
-			require.NoError(t, err, "connecting to json database")
-			err = client.Schema.Create(context.Background(), migrate.WithGlobalUniqueID(true))
-			require.NoError(t, err)
-			// We run the migration twice to check that migration handles
-			// the JSON columns, since MariaDB stores them as longtext.
-			err = client.Schema.Create(context.Background(), migrate.WithGlobalUniqueID(true))
-			require.NoError(t, err)
-
-			URL(t, client)
-			Dirs(t, client)
-			Ints(t, client)
-			Floats(t, client)
-			Strings(t, client)
-			IntsValidate(t, client)
-			FloatsValidate(t, client)
-			StringsValidate(t, client)
-			NetAddr(t, client)
-			RawMessage(t, client)
-			Any(t, client)
-			Predicates(t, client)
-			Scan(t, client)
-			Order(t, client)
-		})
-	}
-}
-
 func TestPostgres(t *testing.T) {
-	for version, port := range map[string]int{"10": 5430, "11": 5431, "12": 5433, "13": 5434} {
+	for version, port := range map[string]int{"16": 5436, "17": 5437, "18": 5438} {
 		t.Run(version, func(t *testing.T) {
 			dsn := fmt.Sprintf("host=localhost port=%d user=postgres password=pass sslmode=disable", port)
 			db, err := sql.Open(dialect.Postgres, dsn)

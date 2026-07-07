@@ -1,6 +1,5 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 package schema
 
@@ -13,18 +12,18 @@ import (
 	"testing"
 	"time"
 
-	"entgo.io/ent/dialect"
-	"entgo.io/ent/dialect/sql"
-	"entgo.io/ent/dialect/sql/sqljson"
+	"github.com/neko-sc/ent/dialect"
+	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/dialect/sql/sqljson"
 
-	"ariga.io/atlas/sql/migrate"
 	"github.com/google/uuid"
+	"github.com/neko-sc/atlas/sql/migrate"
 	"github.com/stretchr/testify/require"
 )
 
 func TestWriteDriver(t *testing.T) {
 	b := &bytes.Buffer{}
-	w := NewWriteDriver(dialect.MySQL, b)
+	w := NewWriteDriver(dialect.Postgres, b)
 	ctx := context.Background()
 	tx, err := w.Tx(ctx)
 	require.NoError(t, err)
@@ -42,16 +41,16 @@ func TestWriteDriver(t *testing.T) {
 	require.Empty(t, lines[2], "file ends with blank line")
 
 	b.Reset()
-	query, args := sql.Update("users").Schema("test").Set("a", 1).Set("b", "a").Set("c", "'c'").Set("d", true).Where(sql.EQ("p", 0.2)).Query()
+	query, args := sql.Dialect(dialect.Postgres).Update("users").Schema("test").Set("a", 1).Set("b", "a").Set("c", "'c'").Set("d", true).Where(sql.EQ("p", 0.2)).Query()
 	err = w.Exec(ctx, query, args, nil)
 	require.NoError(t, err)
-	require.Equal(t, "UPDATE `test`.`users` SET `a` = 1, `b` = 'a', `c` = '''c''', `d` = 1 WHERE `p` = 0.2;\n", b.String())
+	require.Equal(t, "UPDATE \"test\".\"users\" SET \"a\" = 1, \"b\" = 'a', \"c\" = '''c''', \"d\" = 1 WHERE \"p\" = 0.2;\n", b.String())
 
 	b.Reset()
-	query, args = sql.Dialect(dialect.MySQL).Update("users").Schema("test").Set("a", "{}").Where(sqljson.ValueIsNull("a")).Query()
+	query, args = sql.Dialect(dialect.Postgres).Update("users").Schema("test").Set("a", "{}").Where(sqljson.ValueIsNull("a")).Query()
 	err = w.Exec(ctx, query, args, nil)
 	require.NoError(t, err)
-	require.Equal(t, "UPDATE `test`.`users` SET `a` = '{}' WHERE JSON_CONTAINS(`a`, 'null', '$');\n", b.String())
+	require.Equal(t, "UPDATE \"test\".\"users\" SET \"a\" = '{}' WHERE \"a\" = 'null'::jsonb;\n", b.String())
 
 	b.Reset()
 	w = NewWriteDriver(dialect.Postgres, b)
@@ -99,10 +98,10 @@ func TestDirWriter(t *testing.T) {
 		want     string
 	}{
 		{
-			dialect.MySQL,
+			dialect.Postgres,
 			[]string{
-				"UPDATE `test`.`users` SET `a` = ?",
-				"UPDATE `test`.`users` SET `b` = ?",
+				`UPDATE "test"."users" SET "a" = $1`,
+				`UPDATE "test"."users" SET "b" = $1`,
 			},
 			[]string{
 				"Comment 1.",
@@ -112,7 +111,7 @@ func TestDirWriter(t *testing.T) {
 				{1},
 				{2},
 			},
-			"-- Comment 1.\nUPDATE `test`.`users` SET `a` = 1;\n-- Comment 2.\nUPDATE `test`.`users` SET `b` = 2;\n",
+			"-- Comment 1.\nUPDATE \"test\".\"users\" SET \"a\" = 1;\n-- Comment 2.\nUPDATE \"test\".\"users\" SET \"b\" = 2;\n",
 		},
 		{
 			dialect.Postgres,

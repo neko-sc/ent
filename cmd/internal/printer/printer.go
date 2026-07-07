@@ -1,6 +1,5 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 package printer
 
@@ -11,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"entgo.io/ent/entc/gen"
+	"github.com/neko-sc/ent/entc/gen"
 
 	"github.com/olekukonko/tablewriter"
 	"github.com/olekukonko/tablewriter/tw"
@@ -72,7 +71,7 @@ func (p Config) node(t *gen.Type) {
 	for _, f := range append(id, t.Fields...) {
 		v := reflect.ValueOf(*f)
 		row := make([]string, len(header))
-		for i := 0; i < len(row)-1; i++ {
+		for i := range len(row) - 1 {
 			field := v.FieldByNameFunc(func(name string) bool {
 				// The first field is mapped from "Name" to "Field".
 				return name == "Name" && i == 0 || name == header[i]

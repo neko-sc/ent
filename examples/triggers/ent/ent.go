@@ -9,11 +9,11 @@ import (
 	"reflect"
 	"sync"
 
-	"entgo.io/ent"
-	"entgo.io/ent/dialect/sql"
-	"entgo.io/ent/dialect/sql/sqlgraph"
-	"entgo.io/ent/examples/triggers/ent/user"
-	"entgo.io/ent/examples/triggers/ent/userauditlog"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/examples/triggers/ent/user"
+	"github.com/neko-sc/ent/examples/triggers/ent/userauditlog"
 )
 
 // ent aliases to avoid import conflicts in user's code.

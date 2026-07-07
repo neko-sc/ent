@@ -1,6 +1,6 @@
 package schema
 
-import "entgo.io/ent"
+import "github.com/neko-sc/ent"
 
 // PC holds the schema definition for the PC entity.
 type PC struct {

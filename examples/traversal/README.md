@@ -1,6 +1,6 @@
 # Graph Traversal Example
 
-See example in https://entgo.io/docs/traversals
+Example demonstrating graph traversals with Ent.
 
 ### Generate Assets
 

@@ -7,11 +7,11 @@ import (
 	"errors"
 	"fmt"
 
-	"entgo.io/ent/dialect/sql"
-	"entgo.io/ent/dialect/sql/sqlgraph"
-	"entgo.io/ent/examples/domaintypes/ent/predicate"
-	"entgo.io/ent/examples/domaintypes/ent/user"
-	"entgo.io/ent/schema/field"
+	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/examples/domaintypes/ent/predicate"
+	"github.com/neko-sc/ent/examples/domaintypes/ent/user"
+	"github.com/neko-sc/ent/schema/field"
 )
 
 // UserUpdate is the builder for updating User entities.

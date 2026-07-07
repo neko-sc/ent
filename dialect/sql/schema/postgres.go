@@ -1,23 +1,24 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 package schema
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"maps"
 	"reflect"
 	"strconv"
 	"strings"
 
-	"entgo.io/ent/dialect"
-	"entgo.io/ent/dialect/sql"
-	"entgo.io/ent/schema/field"
+	"github.com/neko-sc/ent/dialect"
+	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/schema/field"
 
-	"ariga.io/atlas/sql/migrate"
-	"ariga.io/atlas/sql/postgres"
-	"ariga.io/atlas/sql/schema"
+	"github.com/neko-sc/atlas/sql/migrate"
+	"github.com/neko-sc/atlas/sql/postgres"
+	"github.com/neko-sc/atlas/sql/schema"
 )
 
 // Postgres adapter for Atlas migration engine.
@@ -42,7 +43,7 @@ func (d *Postgres) init(ctx context.Context) error {
 		if err := rows.Err(); err != nil {
 			return err
 		}
-		return fmt.Errorf("server_version_num variable was not found")
+		return errors.New("server_version_num variable was not found")
 	}
 	var version string
 	if err := rows.Scan(&version); err != nil {
@@ -180,7 +181,7 @@ func (d *Postgres) atIncrementC(t *schema.Table, c *schema.Column) {
 	// Skip marking this column as an identity in case it is
 	// serial type or a default was already defined for it.
 	if _, ok := c.Type.Type.(*postgres.SerialType); ok || c.Default != nil {
-		t.Attrs = removeAttr(t.Attrs, reflect.TypeOf(&postgres.Identity{}))
+		t.Attrs = removeAttr(t.Attrs, reflect.TypeFor[*postgres.Identity]())
 		return
 	}
 	id := &postgres.Identity{}
@@ -207,9 +208,7 @@ func indexOpClass(idx *Index) map[string]string {
 	if idx.Annotation.OpClass != "" && len(idx.Columns) == 1 {
 		opc[idx.Columns[0].Name] = idx.Annotation.OpClass
 	}
-	for column, op := range idx.Annotation.OpClassColumns {
-		opc[column] = op
-	}
+	maps.Copy(opc, idx.Annotation.OpClassColumns)
 	return opc
 }
 
@@ -224,7 +223,7 @@ func (d *Postgres) atIndex(idx1 *Index, t2 *schema.Table, idx2 *schema.Index) er
 		if v, ok := opc[c1.Name]; ok {
 			var op postgres.IndexOpClass
 			if err := op.UnmarshalText([]byte(v)); err != nil {
-				return fmt.Errorf("unmarshalling operator-class %q for column %q: %v", v, c1.Name, err)
+				return fmt.Errorf("unmarshalling operator-class %q for column %q: %w", v, c1.Name, err)
 			}
 			part.Attrs = append(part.Attrs, &op)
 		}

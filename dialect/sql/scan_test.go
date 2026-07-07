@@ -1,6 +1,5 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 package sql
 
@@ -175,10 +174,10 @@ func TestScanJSON(t *testing.T) {
 	require.Equal(t, "tmr", v1[1].V.S)
 	require.Equal(t, v1[1].V, *v1[1].P)
 	require.Equal(t, 0, v1[2].V.I)
-	require.Equal(t, "", v1[2].V.S)
+	require.Empty(t, v1[2].V.S)
 	require.Nil(t, v1[2].P)
 	require.Equal(t, 0, v1[3].V.I)
-	require.Equal(t, "", v1[3].V.S)
+	require.Empty(t, v1[3].V.S)
 	require.Nil(t, v1[3].P)
 
 	mock = sqlmock.NewRows([]string{"v", "p"}).
@@ -202,8 +201,8 @@ func TestScanJSON(t *testing.T) {
 		P *json.RawMessage `json:"p"`
 	}
 	require.NoError(t, ScanSlice(toRows(mock), &v3))
-	require.Equal(t, json.RawMessage("null"), v3[0].V)
-	require.Equal(t, json.RawMessage("{}"), *v3[0].P)
+	require.JSONEq(t, "null", string(v3[0].V))
+	require.JSONEq(t, "{}", string(*v3[0].P))
 	require.Equal(t, json.RawMessage(nil), v3[1].V)
 	require.Nil(t, v3[1].P)
 

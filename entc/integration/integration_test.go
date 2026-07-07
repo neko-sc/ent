@@ -1,6 +1,5 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 package integration
 
@@ -14,42 +13,39 @@ import (
 	"fmt"
 	"math"
 	"math/big"
-	"net"
 	"net/url"
 	"reflect"
 	"regexp"
 	"runtime"
 	"slices"
 	"sort"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
 
-	"entgo.io/ent/dialect"
-	"entgo.io/ent/dialect/sql"
-	sqlschema "entgo.io/ent/dialect/sql/schema"
-	"entgo.io/ent/dialect/sql/sqlgraph"
-	"entgo.io/ent/entc/integration/ent"
-	"entgo.io/ent/entc/integration/ent/card"
-	"entgo.io/ent/entc/integration/ent/enttest"
-	"entgo.io/ent/entc/integration/ent/exvaluescan"
-	"entgo.io/ent/entc/integration/ent/file"
-	"entgo.io/ent/entc/integration/ent/filetype"
-	"entgo.io/ent/entc/integration/ent/group"
-	"entgo.io/ent/entc/integration/ent/groupinfo"
-	"entgo.io/ent/entc/integration/ent/hook"
-	"entgo.io/ent/entc/integration/ent/item"
-	"entgo.io/ent/entc/integration/ent/license"
-	"entgo.io/ent/entc/integration/ent/migrate"
-	"entgo.io/ent/entc/integration/ent/node"
-	"entgo.io/ent/entc/integration/ent/pet"
-	"entgo.io/ent/entc/integration/ent/schema"
-	"entgo.io/ent/entc/integration/ent/schema/task"
-	enttask "entgo.io/ent/entc/integration/ent/task"
-	"entgo.io/ent/entc/integration/ent/user"
+	"github.com/neko-sc/ent/dialect"
+	"github.com/neko-sc/ent/dialect/sql"
+	sqlschema "github.com/neko-sc/ent/dialect/sql/schema"
+	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/ent"
+	"github.com/neko-sc/ent/entc/integration/ent/card"
+	"github.com/neko-sc/ent/entc/integration/ent/enttest"
+	"github.com/neko-sc/ent/entc/integration/ent/exvaluescan"
+	"github.com/neko-sc/ent/entc/integration/ent/file"
+	"github.com/neko-sc/ent/entc/integration/ent/filetype"
+	"github.com/neko-sc/ent/entc/integration/ent/group"
+	"github.com/neko-sc/ent/entc/integration/ent/groupinfo"
+	"github.com/neko-sc/ent/entc/integration/ent/hook"
+	"github.com/neko-sc/ent/entc/integration/ent/item"
+	"github.com/neko-sc/ent/entc/integration/ent/license"
+	"github.com/neko-sc/ent/entc/integration/ent/migrate"
+	"github.com/neko-sc/ent/entc/integration/ent/node"
+	"github.com/neko-sc/ent/entc/integration/ent/pet"
+	"github.com/neko-sc/ent/entc/integration/ent/schema"
+	"github.com/neko-sc/ent/entc/integration/ent/schema/task"
+	enttask "github.com/neko-sc/ent/entc/integration/ent/task"
+	"github.com/neko-sc/ent/entc/integration/ent/user"
 
-	"github.com/go-sql-driver/mysql"
 	"github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/mock"
@@ -69,52 +65,11 @@ func TestSQLite(t *testing.T) {
 	}
 }
 
-func TestMySQL(t *testing.T) {
-	for version, port := range map[string]int{"56": 3306, "57": 3307, "8": 3308} {
-		addr := net.JoinHostPort("localhost", strconv.Itoa(port))
-		t.Run(version, func(t *testing.T) {
-			t.Parallel()
-			client := enttest.Open(t, dialect.MySQL, fmt.Sprintf("root:pass@tcp(%s)/test?parseTime=True", addr), opts)
-			defer client.Close()
-			for _, tt := range tests {
-				name := runtime.FuncForPC(reflect.ValueOf(tt).Pointer()).Name()
-				t.Run(name[strings.LastIndex(name, ".")+1:], func(t *testing.T) {
-					drop(t, client)
-					tt(t, client)
-				})
-			}
-		})
-	}
-}
-
-func TestMaria(t *testing.T) {
-	for version, port := range map[string]int{"10.5": 4306, "10.2": 4307, "10.3": 4308} {
-		addr := net.JoinHostPort("localhost", strconv.Itoa(port))
-		t.Run(version, func(t *testing.T) {
-			t.Parallel()
-			client := enttest.Open(t, dialect.MySQL, fmt.Sprintf("root:pass@tcp(%s)/test?parseTime=True", addr), opts)
-			defer client.Close()
-			for _, tt := range tests {
-				name := runtime.FuncForPC(reflect.ValueOf(tt).Pointer()).Name()
-				t.Run(name[strings.LastIndex(name, ".")+1:], func(t *testing.T) {
-					drop(t, client)
-					tt(t, client)
-				})
-			}
-		})
-	}
-}
-
 func TestPostgres(t *testing.T) {
 	for version, port := range map[string]int{
-		"10": 5430,
-		"11": 5431,
-		"12": 5432,
-		"13": 5433,
-		"14": 5434,
-		"15": 5435,
 		"16": 5436,
 		"17": 5437,
+		"18": 5438,
 	} {
 		addr := fmt.Sprintf("host=localhost port=%d user=postgres dbname=test password=pass sslmode=disable", port)
 		t.Run(version, func(t *testing.T) {
@@ -396,45 +351,29 @@ func Upsert(t *testing.T, client *ent.Client) {
 	// Setting primary key manually.
 	a := client.Item.Create().SetID("A").SaveX(ctx)
 	require.Equal(t, "A", a.ID)
-	if strings.Contains(t.Name(), "MySQL") || strings.Contains(t.Name(), "Maria") {
-		// MySQL is skipped since it does not support the RETURNING clause. Maria is skipped
-		// as well, because there's no way to distinguish between MySQL and Maria at runtime.
-		client.Item.Create().SetID("A").OnConflict().Ignore().ExecX(ctx)
-		require.Equal(t, 1, client.Item.Query().CountX(ctx))
-		client.Item.Delete().ExecX(ctx)
+	aid := client.Item.Create().SetID("A").OnConflict(sql.ConflictColumns(item.FieldID)).Ignore().IDX(ctx)
+	require.Equal(t, a.ID, aid)
+	client.Item.Delete().ExecX(ctx)
 
-		// Primary key is set by a default function.
-		b := client.Item.Create().SetText("hello").SaveX(ctx)
-		require.NotZero(t, b.ID)
-		client.Item.Create().SetID(b.ID).SetText("world").OnConflict().UpdateNewValues().ExecX(ctx)
-		cb := client.Item.Query().OnlyX(ctx)
-		require.Equal(t, cb.ID, b.ID)
-		require.Equal(t, "world", cb.Text)
-	} else {
-		aid := client.Item.Create().SetID("A").OnConflict(sql.ConflictColumns(item.FieldID)).Ignore().IDX(ctx)
-		require.Equal(t, a.ID, aid)
-		client.Item.Delete().ExecX(ctx)
+	// Primary key is set by a default function.
+	b := client.Item.Create().SetText("hello").SaveX(ctx)
+	require.NotZero(t, b.ID)
+	bid := client.Item.Create().SetID(b.ID).SetText("hello").OnConflictColumns(item.FieldText).Ignore().IDX(ctx)
+	require.Equal(t, b.ID, bid)
+	bid = client.Item.Create().SetText("hello").OnConflictColumns(item.FieldText).UpdateNewValues().IDX(ctx)
+	require.Equal(t, bid, b.ID)
+	require.Equal(t, bid, client.Item.Query().OnlyIDX(ctx))
+	bid = client.Item.Create().SetID(bid).SetText("world").OnConflictColumns(item.FieldID).UpdateNewValues().IDX(ctx)
+	require.Equal(t, bid, b.ID)
+	b = client.Item.Query().OnlyX(ctx)
+	require.Equal(t, bid, b.ID)
+	require.Equal(t, "world", b.Text)
 
-		// Primary key is set by a default function.
-		b := client.Item.Create().SetText("hello").SaveX(ctx)
-		require.NotZero(t, b.ID)
-		bid := client.Item.Create().SetID(b.ID).SetText("hello").OnConflictColumns(item.FieldText).Ignore().IDX(ctx)
-		require.Equal(t, b.ID, bid)
-		bid = client.Item.Create().SetText("hello").OnConflictColumns(item.FieldText).UpdateNewValues().IDX(ctx)
-		require.Equal(t, bid, b.ID)
-		require.Equal(t, bid, client.Item.Query().OnlyIDX(ctx))
-		bid = client.Item.Create().SetID(bid).SetText("world").OnConflictColumns(item.FieldID).UpdateNewValues().IDX(ctx)
-		require.Equal(t, bid, b.ID)
-		b = client.Item.Query().OnlyX(ctx)
-		require.Equal(t, bid, b.ID)
-		require.Equal(t, "world", b.Text)
-
-		client.Item.CreateBulk(client.Item.Create().SetID(bid).SetText("hello")).
-			OnConflictColumns(item.FieldID).
-			Ignore().
-			ExecX(ctx)
-		require.Equal(t, bid, client.Item.Query().OnlyIDX(ctx))
-	}
+	client.Item.CreateBulk(client.Item.Create().SetID(bid).SetText("hello")).
+		OnConflictColumns(item.FieldID).
+		Ignore().
+		ExecX(ctx)
+	require.Equal(t, bid, client.Item.Query().OnlyIDX(ctx))
 
 	ts := time.Unix(1623279251, 0)
 	c1 := client.Card.Create().
@@ -443,35 +382,27 @@ func Upsert(t *testing.T, client *ent.Client) {
 		SetUpdateTime(ts).
 		SaveX(ctx)
 
-	// "DO UPDATE SET ... WHERE ..." does not support by MySQL.
-	if strings.Contains(t.Name(), "Postgres") || strings.Contains(t.Name(), "SQLite") {
-		err = client.Card.Create().
-			SetNumber(c1.Number).
-			OnConflict(
-				sql.ConflictColumns(card.FieldNumber),
-				sql.UpdateWhere(sql.NEQ(card.FieldCreateTime, ts)),
-			).
-			UpdateNewValues().
-			Exec(ctx)
-		// Only rows for which the "UpdateWhere" expression
-		// returns true will be updated. That is, none.
-		require.True(t, errors.Is(err, stdsql.ErrNoRows))
+	// "DO UPDATE SET ... WHERE ..." is supported by PostgreSQL and SQLite.
+	err = client.Card.Create().
+		SetNumber(c1.Number).
+		OnConflict(
+			sql.ConflictColumns(card.FieldNumber),
+			sql.UpdateWhere(sql.NEQ(card.FieldCreateTime, ts)),
+		).
+		UpdateNewValues().
+		Exec(ctx)
+	// Only rows for which the "UpdateWhere" expression
+	// returns true will be updated. That is, none.
+	require.True(t, errors.Is(err, stdsql.ErrNoRows))
 
-		id = client.Card.Create().
-			SetNumber(c1.Number).
-			OnConflict(
-				sql.ConflictColumns(card.FieldNumber),
-				sql.UpdateWhere(sql.EQ(card.FieldCreateTime, ts)),
-			).
-			UpdateNewValues().
-			IDX(ctx)
-	} else {
-		id = client.Card.Create().
-			SetNumber(c1.Number).
-			OnConflictColumns(card.FieldNumber).
-			UpdateNewValues().
-			IDX(ctx)
-	}
+	id = client.Card.Create().
+		SetNumber(c1.Number).
+		OnConflict(
+			sql.ConflictColumns(card.FieldNumber),
+			sql.UpdateWhere(sql.EQ(card.FieldCreateTime, ts)),
+		).
+		UpdateNewValues().
+		IDX(ctx)
 
 	// Ensure immutable fields were not changed during upsert.
 	c2 := client.Card.GetX(ctx, id)
@@ -1992,7 +1923,6 @@ func EagerLoading(t *testing.T, client *ent.Client) {
 	})
 
 	t.Run("LimitRows/O2M", func(t *testing.T) {
-		skip(t, "MySQL/5")
 		client.Pet.Delete().ExecX(ctx)
 		client.Pet.Create().SetName("nala").SetOwner(nati).ExecX(ctx)
 		client.Pet.Create().SetName("xabi3").SetOwner(a8m).ExecX(ctx)
@@ -2040,7 +1970,6 @@ func EagerLoading(t *testing.T, client *ent.Client) {
 	})
 
 	t.Run("LimitRows/M2M", func(t *testing.T) {
-		skip(t, "MySQL/5")
 		users := client.User.Query().WithGroups().Order(ent.Asc(user.FieldID)).AllX(ctx)
 		require.Len(users[0].Edges.Groups, 2)
 		require.Len(users[1].Edges.Groups, 1)
@@ -2148,16 +2077,10 @@ func NoSchemaChanges(t *testing.T, client *ent.Client) {
 		switch {
 		case strings.Contains(t.Name(), "SQLite"):
 			ok = append(ok, regexp.MustCompile("^PRAGMA foreign_keys = (off|on)$"))
-		case strings.Contains(t.Name(), "MySQL"), strings.Contains(t.Name(), "Maria"):
-			ok = append(ok, regexp.MustCompile("^ALTER TABLE `\\w+` AUTO_INCREMENT \\d+$"))
 		}
 		if !slices.ContainsFunc(ok, func(re *regexp.Regexp) bool {
 			return re.MatchString(stmt)
 		}) {
-			// MySQL 5.6 + 5.7, and MariaDB 10.x store auto-increment counter in memory. In cases the server is
-			// restarted, and there are no rows, the counter is reset. Atlas "fixes" this by setting the auto-increment
-			// value in those cases. Therefore, statements following the pattern
-			// "ALTER TABLE `<table>` AUTO_INCREMENT = <value>" are allowed.
 			t.Errorf("expect no statement to execute. got: %q", stmt)
 		}
 		return len(p), nil
@@ -2340,7 +2263,7 @@ func ConstraintChecks(t *testing.T, client *ent.Client) {
 }
 
 func Lock(t *testing.T, client *ent.Client) {
-	skip(t, "SQLite", "MySQL/5", "Maria/10.2")
+	skip(t, "SQLite")
 	ctx := context.Background()
 	xabi := client.Pet.Create().SetName("Xabi").SaveX(ctx)
 
@@ -2353,19 +2276,10 @@ func Lock(t *testing.T, client *ent.Client) {
 		require.NoError(t, err)
 		p1 := tx1.Pet.Query().Where(pet.ID(xabi.ID)).ForUpdate().OnlyX(ctx)
 		_, err = tx2.Pet.Query().Where(pet.ID(xabi.ID)).ForUpdate(sql.WithLockAction(sql.NoWait)).Only(ctx)
-		switch name := t.Name(); {
-		case strings.Contains(name, "Postgres"):
+		if strings.Contains(t.Name(), "Postgres") {
 			err := err.(*pq.Error)
 			require.EqualValues(t, "55P03", err.Code)
 			require.EqualValues(t, `could not obtain lock on row in relation "pet"`, err.Message)
-		case strings.Contains(name, "MySQL"):
-			err := err.(*mysql.MySQLError)
-			require.EqualValues(t, 3572, err.Number)
-			require.EqualValues(t, "Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set.", err.Message)
-		case strings.Contains(name, "Maria"):
-			err := err.(*mysql.MySQLError)
-			require.EqualValues(t, 1205, err.Number)
-			require.EqualValues(t, "Lock wait timeout exceeded; try restarting transaction", err.Message)
 		}
 		require.NoError(t, tx2.Rollback())
 		p1.Update().SetName("updated").ExecX(ctx)
@@ -2375,7 +2289,6 @@ func Lock(t *testing.T, client *ent.Client) {
 	})
 
 	t.Run("ForShare", func(t *testing.T) {
-		skip(t, "Maria")
 		tx1, err := client.Tx(ctx)
 		require.NoError(t, err)
 		tx2, err := client.Tx(ctx)

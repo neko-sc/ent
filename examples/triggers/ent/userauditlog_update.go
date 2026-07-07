@@ -7,11 +7,11 @@ import (
 	"errors"
 	"fmt"
 
-	"entgo.io/ent/dialect/sql"
-	"entgo.io/ent/dialect/sql/sqlgraph"
-	"entgo.io/ent/examples/triggers/ent/predicate"
-	"entgo.io/ent/examples/triggers/ent/userauditlog"
-	"entgo.io/ent/schema/field"
+	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/examples/triggers/ent/predicate"
+	"github.com/neko-sc/ent/examples/triggers/ent/userauditlog"
+	"github.com/neko-sc/ent/schema/field"
 )
 
 // UserAuditLogUpdate is the builder for updating UserAuditLog entities.

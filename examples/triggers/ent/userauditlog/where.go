@@ -3,8 +3,8 @@
 package userauditlog
 
 import (
-	"entgo.io/ent/dialect/sql"
-	"entgo.io/ent/examples/triggers/ent/predicate"
+	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/examples/triggers/ent/predicate"
 )
 
 // ID filters vertices based on their ID field.

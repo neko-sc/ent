@@ -10,13 +10,12 @@ import (
 	"strings"
 	"syscall"
 
-	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
 
-	"entgo.io/ent/dialect/sql"
-	"entgo.io/ent/dialect/sql/schema"
-	"entgo.io/ent/entc/gen"
+	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/dialect/sql/schema"
+	"github.com/neko-sc/ent/entc/gen"
 	"github.com/alecthomas/kong"
 )
 
@@ -27,7 +26,7 @@ type (
 	}
 	// GlobalID represents the 'entfix globalid' command.
 	GlobalID struct {
-		Dialect string `name:"dialect" help:"Database dialect" required:"" enum:"mysql,postgres,sqlite3"`
+		Dialect string `name:"dialect" help:"Database dialect" required:"" enum:"postgres,sqlite3"`
 		DSN     string `name:"dsn" help:"Data source name" required:""`
 		Path    string `name:"path" help:"Path to the generated ent code" required:""`
 	}
@@ -97,7 +96,7 @@ func (cmd *GlobalID) Run(ctx context.Context) error {
 	}
 	is := make(gen.IncrementStarts, len(ts))
 	for i, t := range ts {
-		is[t] = int64(i << 32)
+		is[t] = i << 32
 	}
 	if err := is.WriteToDisk(cmd.Path); err != nil {
 		return err

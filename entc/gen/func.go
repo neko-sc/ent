@@ -1,6 +1,5 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 package gen
 
@@ -18,7 +17,7 @@ import (
 	"text/template"
 	"unicode"
 
-	"entgo.io/ent/schema/field"
+	"github.com/neko-sc/ent/schema/field"
 
 	"github.com/go-openapi/inflect"
 )
@@ -143,7 +142,7 @@ func fieldOps(f *Field) (ops []Op) {
 
 // xrange generates a slice of len n.
 func xrange(n int) (a []int) {
-	for i := 0; i < n; i++ {
+	for i := range n {
 		a = append(a, i)
 	}
 	return
@@ -209,7 +208,7 @@ func snake(s string) string {
 		j int
 		b strings.Builder
 	)
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		r := rune(s[i])
 		// Put '_' if it is not a start or end of a word, current letter is uppercase,
 		// and previous is lowercase (cases like: "UserInfo"), or next letter is also
@@ -244,9 +243,11 @@ func receiver(s string) (r string) {
 	}
 	for i := 1; i < min; i++ {
 		r := parts[0][:i]
+		var rSb246 strings.Builder
 		for _, w := range parts[1:] {
-			r += w[:i]
+			rSb246.WriteString(w[:i])
 		}
+		r += rSb246.String()
 		if _, ok := importPkg[r]; !ok {
 			s = r
 			break
@@ -446,7 +447,7 @@ func isNil(v any) bool {
 	switch rv.Kind() {
 	case reflect.Invalid:
 		return true
-	case reflect.Chan, reflect.Func, reflect.Map, reflect.Ptr, reflect.UnsafePointer, reflect.Interface, reflect.Slice:
+	case reflect.Chan, reflect.Func, reflect.Map, reflect.Pointer, reflect.UnsafePointer, reflect.Interface, reflect.Slice:
 		return rv.IsNil()
 	default:
 		return false
@@ -455,7 +456,7 @@ func isNil(v any) bool {
 
 // indirect returns the item at the end of indirection.
 func indirect(v reflect.Value) reflect.Value {
-	for ; v.Kind() == reflect.Ptr || v.Kind() == reflect.Interface; v = v.Elem() {
+	for ; v.Kind() == reflect.Pointer || v.Kind() == reflect.Interface; v = v.Elem() {
 	}
 	return v
 }

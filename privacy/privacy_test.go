@@ -1,16 +1,14 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 package privacy_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
-	"entgo.io/ent"
-	"entgo.io/ent/privacy"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/privacy"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -18,7 +16,7 @@ import (
 func TestDecisionContext(t *testing.T) {
 	deny := privacy.DecisionContext(context.Background(), privacy.Deny)
 	err := privacy.Policies{}.EvalMutation(deny, nil)
-	assert.True(t, errors.Is(err, privacy.Deny))
+	assert.ErrorIs(t, err, privacy.Deny)
 
 	allow := privacy.DecisionContext(context.Background(), privacy.Allow)
 	err = privacy.Policies{}.EvalQuery(allow, nil)
@@ -26,14 +24,14 @@ func TestDecisionContext(t *testing.T) {
 
 	decision, ok := privacy.DecisionFromContext(deny)
 	assert.True(t, ok)
-	assert.True(t, errors.Is(decision, privacy.Deny))
+	assert.ErrorIs(t, decision, privacy.Deny)
 
 	pc := policyFunc(func(context.Context) error { panic("invalid") })
 	policy := privacy.NewPolicies(pc)
 	err = policy.EvalQuery(allow, nil)
 	assert.NoError(t, err)
 	err = policy.EvalMutation(deny, nil)
-	assert.True(t, errors.Is(err, privacy.Deny))
+	assert.ErrorIs(t, err, privacy.Deny)
 }
 
 func TestNewPolicies(t *testing.T) {

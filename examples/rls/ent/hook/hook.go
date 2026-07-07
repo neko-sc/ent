@@ -6,7 +6,7 @@ import (
 	"context"
 	"fmt"
 
-	"entgo.io/ent/examples/rls/ent"
+	"github.com/neko-sc/ent/examples/rls/ent"
 )
 
 // The TenantFunc type is an adapter to allow the use of ordinary

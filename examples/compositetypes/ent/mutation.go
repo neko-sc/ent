@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"sync"
 
-	"entgo.io/ent"
-	"entgo.io/ent/examples/compositetypes/ent/schema"
-	"entgo.io/ent/examples/compositetypes/ent/user"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/examples/compositetypes/ent/schema"
+	"github.com/neko-sc/ent/examples/compositetypes/ent/user"
 )
 
 const (

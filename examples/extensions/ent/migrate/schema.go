@@ -3,8 +3,8 @@
 package migrate
 
 import (
-	"entgo.io/ent/dialect/sql/schema"
-	"entgo.io/ent/schema/field"
+	"github.com/neko-sc/ent/dialect/sql/schema"
+	"github.com/neko-sc/ent/schema/field"
 )
 
 var (

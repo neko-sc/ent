@@ -1,6 +1,5 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 package load
 
@@ -9,11 +8,11 @@ import (
 	"fmt"
 	"reflect"
 
-	"entgo.io/ent"
-	"entgo.io/ent/schema"
-	"entgo.io/ent/schema/edge"
-	"entgo.io/ent/schema/field"
-	"entgo.io/ent/schema/index"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/schema"
+	"github.com/neko-sc/ent/schema/edge"
+	"github.com/neko-sc/ent/schema/field"
+	"github.com/neko-sc/ent/schema/index"
 )
 
 // Schema represents an ent.Schema that was loaded from a complied user package.
@@ -122,7 +121,7 @@ func NewEdge(ed *edge.Descriptor) *Edge {
 // NewField creates a loaded field from field descriptor.
 func NewField(fd *field.Descriptor) (*Field, error) {
 	if fd.Err != nil {
-		return nil, fmt.Errorf("field %q: %v", fd.Name, fd.Err)
+		return nil, fmt.Errorf("field %q: %w", fd.Name, fd.Err)
 	}
 	sf := &Field{
 		Name:             fd.Name,
@@ -504,7 +503,7 @@ func safePolicy(schema interface{ Policy() ent.Policy }) (policy ent.Policy, err
 }
 
 func indirect(t reflect.Type) reflect.Type {
-	for t.Kind() == reflect.Ptr {
+	for t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
 	return t

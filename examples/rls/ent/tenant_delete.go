@@ -5,11 +5,11 @@ package ent
 import (
 	"context"
 
-	"entgo.io/ent/dialect/sql"
-	"entgo.io/ent/dialect/sql/sqlgraph"
-	"entgo.io/ent/examples/rls/ent/predicate"
-	"entgo.io/ent/examples/rls/ent/tenant"
-	"entgo.io/ent/schema/field"
+	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/examples/rls/ent/predicate"
+	"github.com/neko-sc/ent/examples/rls/ent/tenant"
+	"github.com/neko-sc/ent/schema/field"
 )
 
 // TenantDelete is the builder for deleting a Tenant entity.

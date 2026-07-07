@@ -1,6 +1,5 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 package base
 
@@ -9,6 +8,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 
 	"golang.org/x/tools/go/packages"
 )
@@ -35,7 +35,7 @@ func PkgPath(config *packages.Config, target string) (string, error) {
 	}
 	// Try maximum 2 directories above the given
 	// target to find the root package or module.
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		pkgs, err := packages.Load(config, pathCheck)
 		if err != nil {
 			return "", fmt.Errorf("load package info: %w", err)
@@ -46,8 +46,8 @@ func PkgPath(config *packages.Config, target string) (string, error) {
 			continue
 		}
 		pkgPath := pkgs[0].PkgPath
-		for j := len(parts) - 1; j >= 0; j-- {
-			pkgPath = path.Join(pkgPath, parts[j])
+		for _, v := range slices.Backward(parts) {
+			pkgPath = path.Join(pkgPath, v)
 		}
 		return pkgPath, nil
 	}

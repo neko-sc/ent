@@ -1,6 +1,5 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 // Package load is the interface for loading an ent/schema package into a Go program.
 package load
@@ -27,7 +26,7 @@ import (
 	"text/template"
 	"time"
 
-	"entgo.io/ent"
+	"github.com/neko-sc/ent"
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/packages"
@@ -97,7 +96,7 @@ func (c *Config) Load() (*SchemaSpec, error) {
 	if err != nil {
 		return nil, err
 	}
-	for _, line := range strings.Split(out, "\n") {
+	for line := range strings.SplitSeq(out, "\n") {
 		schema, err := UnmarshalSchema([]byte(line))
 		if err != nil {
 			return nil, fmt.Errorf("entc/load: unmarshal schema %s: %w", line, err)
@@ -184,7 +183,7 @@ func (c *Config) cycleCause() (cause string) {
 	// Ignore reporting in case of parsing
 	// error, or there no packages to parse.
 	if err != nil || len(dir) == 0 {
-		return
+		return cause
 	}
 	// Find the package that contains the schema, or
 	// extract the first package if there is only one.
@@ -241,7 +240,7 @@ func (c *Config) cycleCause() (cause string) {
 	}
 	// No local declarations to report.
 	if len(locals) == 0 {
-		return
+		return cause
 	}
 	// Usage of local declarations by schema fields.
 	goTypes := make(map[string]bool)
@@ -268,7 +267,7 @@ func (c *Config) cycleCause() (cause string) {
 	if len(names) > 0 {
 		cause = fmt.Sprintf("To resolve this issue, move the custom types used by the generated code to a separate package: %s", strings.Join(names, ", "))
 	}
-	return
+	return cause
 }
 
 var (
@@ -329,7 +328,7 @@ func filename(pkg string) string {
 func gorun(target string, buildFlags []string) (string, error) {
 	s, err := gocmd("run", target, buildFlags)
 	if err != nil {
-		return "", fmt.Errorf("entc/load: %s", err)
+		return "", fmt.Errorf("entc/load: %w", err)
 	}
 	return s, nil
 }

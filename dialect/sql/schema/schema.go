@@ -1,6 +1,5 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 // Package schema contains all schema migration logic for SQL dialects.
 package schema
@@ -13,15 +12,14 @@ import (
 	"strings"
 	"sync"
 
-	"ariga.io/atlas/sql/migrate"
-	"ariga.io/atlas/sql/mysql"
-	"ariga.io/atlas/sql/postgres"
-	"ariga.io/atlas/sql/schema"
-	"ariga.io/atlas/sql/sqlite"
-	entdialect "entgo.io/ent/dialect"
-	"entgo.io/ent/dialect/entsql"
-	"entgo.io/ent/dialect/sql"
-	"entgo.io/ent/schema/field"
+	"github.com/neko-sc/atlas/sql/migrate"
+	"github.com/neko-sc/atlas/sql/postgres"
+	"github.com/neko-sc/atlas/sql/schema"
+	"github.com/neko-sc/atlas/sql/sqlite"
+	entdialect "github.com/neko-sc/ent/dialect"
+	"github.com/neko-sc/ent/dialect/entsql"
+	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/schema/field"
 )
 
 const (
@@ -409,18 +407,6 @@ func (c *Column) ScanDefault(value string) error {
 	return nil
 }
 
-// supportDefault reports if the column type supports default value.
-func (c Column) supportDefault() bool {
-	switch t := c.Type; t {
-	case field.TypeString, field.TypeEnum:
-		return c.Size < 1<<16 // not a text.
-	case field.TypeBool, field.TypeTime, field.TypeUUID:
-		return true
-	default:
-		return t.Numeric()
-	}
-}
-
 // scanTypeOr returns the scanning type or the given value.
 func (c *Column) scanTypeOr(t string) string {
 	if c.typ != "" {
@@ -502,7 +488,7 @@ func compareVersions(v1, v2 string) int {
 	return compare(pv1.patch, pv2.patch)
 }
 
-// version represents a parsed MySQL version.
+// version represents a parsed database version.
 type version struct {
 	major int
 	minor int
@@ -569,14 +555,6 @@ var drivers = func(v string) map[string]driver {
 			},
 			sqlite.DefaultDiff,
 			sqlite.DefaultPlan,
-		},
-		entdialect.MySQL: {
-			&MySQL{
-				version: v,
-				Driver:  nopDriver{dialect: entdialect.MySQL},
-			},
-			mysql.DefaultDiff,
-			mysql.DefaultPlan,
 		},
 		entdialect.Postgres: {
 			&Postgres{

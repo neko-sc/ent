@@ -1,6 +1,5 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 // Package gen is the interface for generating loaded schemas into a Go package.
 package gen
@@ -16,13 +15,14 @@ import (
 	"path/filepath"
 	"runtime"
 	"runtime/debug"
+	"slices"
 	"strconv"
 	"strings"
 	"text/template/parse"
 
-	"entgo.io/ent/dialect/sql/schema"
-	"entgo.io/ent/entc/load"
-	"entgo.io/ent/schema/field"
+	"github.com/neko-sc/ent/dialect/sql/schema"
+	"github.com/neko-sc/ent/entc/load"
+	"github.com/neko-sc/ent/schema/field"
 
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/tools/imports"
@@ -181,7 +181,7 @@ func NewGraph(c *Config, schemas ...*load.Schema) (g *Graph, err error) {
 	if c.Storage != nil && c.Storage.Init != nil {
 		check(c.Storage.Init(g), "storage driver init")
 	}
-	if enabled, _ := g.Config.FeatureEnabled(FeatureGlobalID.Name); enabled {
+	if enabled, _ := g.FeatureEnabled(FeatureGlobalID.Name); enabled {
 		if err := IncrementStartAnnotation(g); err != nil {
 			return nil, err
 		}
@@ -221,7 +221,7 @@ func (g *Graph) defaults() {
 		}
 	}
 	// Check that all nodes have the same type for the ID field.
-	for i := 0; i < len(idTypes)-1; i++ {
+	for i := range len(idTypes) - 1 {
 		if idTypes[i].Type != idTypes[i+1].Type {
 			return
 		}
@@ -232,8 +232,8 @@ func (g *Graph) defaults() {
 // Gen generates the artifacts for the graph.
 func (g *Graph) Gen() error {
 	var gen Generator = GenerateFunc(generate)
-	for i := len(g.Hooks) - 1; i >= 0; i-- {
-		gen = g.Hooks[i](gen)
+	for _, v := range slices.Backward(g.Hooks) {
+		gen = v(gen)
 	}
 	return gen.Generate(g)
 }
@@ -246,7 +246,7 @@ func generate(g *Graph) error {
 	)
 	templates, external = g.templates()
 	for _, n := range g.Nodes {
-		assets.addDir(filepath.Join(g.Config.Target, n.PackageDir()))
+		assets.addDir(filepath.Join(g.Target, n.PackageDir()))
 		for _, tmpl := range Templates {
 			if tmpl.Cond != nil && !tmpl.Cond(n) {
 				continue
@@ -255,7 +255,7 @@ func generate(g *Graph) error {
 			if err := templates.ExecuteTemplate(b, tmpl.Name, n); err != nil {
 				return fmt.Errorf("execute template %q: %w", tmpl.Name, err)
 			}
-			assets.add(filepath.Join(g.Config.Target, tmpl.Format(n)), b.Bytes())
+			assets.add(filepath.Join(g.Target, tmpl.Format(n)), b.Bytes())
 		}
 	}
 	for _, tmpl := range append(GraphTemplates, external...) {
@@ -263,13 +263,13 @@ func generate(g *Graph) error {
 			continue
 		}
 		if dir := filepath.Dir(tmpl.Format); dir != "." {
-			assets.addDir(filepath.Join(g.Config.Target, dir))
+			assets.addDir(filepath.Join(g.Target, dir))
 		}
 		b := bytes.NewBuffer(nil)
 		if err := templates.ExecuteTemplate(b, tmpl.Name, g); err != nil {
 			return fmt.Errorf("execute template %q: %w", tmpl.Name, err)
 		}
-		assets.add(filepath.Join(g.Config.Target, tmpl.Format), b.Bytes())
+		assets.add(filepath.Join(g.Target, tmpl.Format), b.Bytes())
 	}
 	for _, f := range allFeatures {
 		if f.cleanup == nil || g.featureEnabled(f) {
@@ -286,7 +286,7 @@ func generate(g *Graph) error {
 	}
 	// Cleanup nodes' assets and old template
 	// files that are not needed anymore.
-	cleanOldNodes(assets, g.Config.Target)
+	cleanOldNodes(assets, g.Target)
 	for _, n := range deletedTemplates {
 		if err := os.Remove(filepath.Join(g.Target, n)); err != nil && !os.IsNotExist(err) {
 			log.Printf("remove old file %s: %s\n", filepath.Join(g.Target, n), err)
@@ -783,7 +783,7 @@ func (g *Graph) Tables() (all []*schema.Table, err error) {
 	if err := ensureUniqueFKs(tables); err != nil {
 		return nil, err
 	}
-	return
+	return all, err
 }
 
 // Views returns all schema views
@@ -1010,9 +1010,9 @@ func (g *Graph) templates() (*Template, []GraphTemplate) {
 	return templates, external
 }
 
-// ModuleInfo returns the entgo.io/ent version.
+// ModuleInfo returns the github.com/neko-sc/ent version.
 func (Config) ModuleInfo() (m debug.Module) {
-	const pkg = "entgo.io/ent"
+	const pkg = "github.com/neko-sc/ent"
 	info, ok := debug.ReadBuildInfo()
 	if !ok {
 		return
@@ -1162,7 +1162,6 @@ func (a assets) format() error {
 	var wg errgroup.Group
 	wg.SetLimit(runtime.GOMAXPROCS(0))
 	for path, content := range a.files {
-		path, content := path, content
 		wg.Go(func() error {
 			src, err := imports.Process(path, content, nil)
 			if err != nil {

@@ -1,6 +1,5 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 package gen
 
@@ -12,11 +11,11 @@ import (
 	"slices"
 	"testing"
 
-	"entgo.io/ent/dialect/entsql"
-	"entgo.io/ent/dialect/sql/schema"
-	"entgo.io/ent/entc/load"
-	"entgo.io/ent/schema/edge"
-	"entgo.io/ent/schema/field"
+	"github.com/neko-sc/ent/dialect/entsql"
+	"github.com/neko-sc/ent/dialect/sql/schema"
+	"github.com/neko-sc/ent/entc/load"
+	"github.com/neko-sc/ent/schema/edge"
+	"github.com/neko-sc/ent/schema/field"
 
 	"github.com/stretchr/testify/require"
 )
@@ -436,15 +435,15 @@ func TestPosition(t *testing.T) {
 	ts, err := g.Tables()
 	require.NoError(t, err)
 	require.Len(t, ts, 5)
-	require.Equal(t, ts[0].Pos, "user.go:1")
-	require.Equal(t, ts[1].Pos, "pet.go:10")
-	require.Equal(t, ts[2].Pos, "car.go:100")
-	require.Equal(t, ts[3].Pos, "car_owner.go:1000") // edge schema has its own position
-	require.Equal(t, ts[4].Pos, "user.go:1")         // user owns the pet edge -> user position
+	require.Equal(t, "user.go:1", ts[0].Pos)
+	require.Equal(t, "pet.go:10", ts[1].Pos)
+	require.Equal(t, "car.go:100", ts[2].Pos)
+	require.Equal(t, "car_owner.go:1000", ts[3].Pos) // edge schema has its own position
+	require.Equal(t, "user.go:1", ts[4].Pos)         // user owns the pet edge -> user position
 	vs, err := g.Views()
 	require.NoError(t, err)
 	require.Len(t, vs, 1)
-	require.Equal(t, vs[0].Pos, "pet_view.go:10")
+	require.Equal(t, "pet_view.go:10", vs[0].Pos)
 }
 
 func TestMultiSchemaAnnotation(t *testing.T) {

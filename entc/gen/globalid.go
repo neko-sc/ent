@@ -1,6 +1,5 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 package gen
 
@@ -12,7 +11,7 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"entgo.io/ent/dialect/entsql"
+	"github.com/neko-sc/ent/dialect/entsql"
 )
 
 const incrementIdent = "const IncrementStarts"
@@ -46,7 +45,7 @@ func IncrementStartAnnotation(g *Graph) error {
 			matches = make([][]byte, 0, 2)
 			lines   = bytes.Split(buf, []byte("\n"))
 		)
-		for i := 0; i < len(lines); i++ {
+		for i := range lines {
 			if l := lines[i]; bytes.HasPrefix(l, []byte(incrementIdent)) {
 				matches = append(matches, l)
 			}

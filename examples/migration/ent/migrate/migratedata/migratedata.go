@@ -1,6 +1,5 @@
-// Copyright 2019-present Facebook Inc. All rights reserved.
-// This source code is licensed under the Apache 2.0 license found
-// in the LICENSE file in the root directory of this source tree.
+// Copyright 2019-2026 Facebook Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 //go:build migratedata_20221126185750
 
@@ -13,20 +12,20 @@ import (
 	"context"
 	"fmt"
 
-	"ariga.io/atlas/sql/migrate"
-	"entgo.io/ent/dialect"
-	"entgo.io/ent/dialect/sql"
-	"entgo.io/ent/dialect/sql/schema"
-	"entgo.io/ent/dialect/sql/sqljson"
-	"entgo.io/ent/examples/migration/ent"
-	"entgo.io/ent/examples/migration/ent/user"
+	"github.com/neko-sc/atlas/sql/migrate"
+	"github.com/neko-sc/ent/dialect"
+	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/dialect/sql/schema"
+	"github.com/neko-sc/ent/dialect/sql/sqljson"
+	"github.com/neko-sc/ent/examples/migration/ent"
+	"github.com/neko-sc/ent/examples/migration/ent/user"
 )
 
 // BackfillUserTags was used to generate the migration file '20221126185750_backfill_user_tags.sql'.
 // It exists here for documentation purpose only, and can be used as a reference for future data migrations.
 func BackfillUserTags(dir *migrate.LocalDir) error {
 	w := &schema.DirWriter{Dir: dir}
-	client := ent.NewClient(ent.Driver(schema.NewWriteDriver(dialect.MySQL, w)))
+	client := ent.NewClient(ent.Driver(schema.NewWriteDriver(dialect.Postgres, w)))
 
 	// Add defaults "foo" and "bar" tags for users without any.
 	err := client.User.
@@ -77,7 +76,7 @@ func BackfillUserTags(dir *migrate.LocalDir) error {
 // BackfillUnknown back-fills all empty users' names with the default value 'Unknown'.
 func BackfillUnknown(dir *migrate.LocalDir) error {
 	w := &schema.DirWriter{Dir: dir}
-	client := ent.NewClient(ent.Driver(schema.NewWriteDriver(dialect.MySQL, w)))
+	client := ent.NewClient(ent.Driver(schema.NewWriteDriver(dialect.Postgres, w)))
 
 	// Change all empty names to 'unknown'.
 	err := client.User.
@@ -101,7 +100,7 @@ func BackfillUnknown(dir *migrate.LocalDir) error {
 // SeedUsers add the initial users to the database.
 func SeedUsers(dir *migrate.LocalDir) error {
 	w := &schema.DirWriter{Dir: dir}
-	client := ent.NewClient(ent.Driver(schema.NewWriteDriver(dialect.MySQL, w)))
+	client := ent.NewClient(ent.Driver(schema.NewWriteDriver(dialect.Postgres, w)))
 
 	// The statement that generates the INSERT statement.
 	err := client.User.CreateBulk(

@@ -1,3 +1,3 @@
-## Using PostgreSQL Triggers in Ent Schema
+## Using PostgreSQL Row-Level Security in Ent Schema
 
-Read the full guide in: https://entgo.io/docs/migration/rls
+Example demonstrating PostgreSQL RLS policies with Ent migrations.
