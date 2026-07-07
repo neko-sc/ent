@@ -6,7 +6,7 @@ require (
 	github.com/DATA-DOG/go-sqlmock v1.5.0
 	github.com/go-openapi/inflect v0.19.0
 	github.com/google/uuid v1.3.0
-	github.com/mattn/go-sqlite3 v1.14.28
+	github.com/mattn/go-sqlite3 v1.14.47
 	github.com/neko-sc/atlas v0.1.0
 	github.com/olekukonko/tablewriter v1.1.3
 	github.com/spf13/cobra v1.7.0
