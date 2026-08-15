@@ -107,7 +107,7 @@ func (_m *Doc) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field text", values[i])
 			} else if value.Valid {
-				_m.Text = value.String
+				_m.Text = string(value.String)
 			}
 		case doc.ForeignKeys[0]:
 			if value, ok := values[i].(*sql.NullScanner); !ok {

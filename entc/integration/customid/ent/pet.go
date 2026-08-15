@@ -113,18 +113,18 @@ func (_m *Pet) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field id", values[i])
 			} else if value.Valid {
-				_m.ID = value.String
+				_m.ID = string(value.String)
 			}
 		case pet.ForeignKeys[0]:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field pet_best_friend", values[i])
 			} else if value.Valid {
 				_m.pet_best_friend = new(string)
-				*_m.pet_best_friend = value.String
+				*_m.pet_best_friend = string(value.String)
 			}
 		case pet.ForeignKeys[1]:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
-				return fmt.Errorf("unexpected type %T for edge-field user_pets", value)
+				return fmt.Errorf("unexpected type %T for field user_pets", values[i])
 			} else if value.Valid {
 				_m.user_pets = new(int)
 				*_m.user_pets = int(value.Int64)

@@ -73,7 +73,9 @@ func (_c *CarCreate) Mutation() *CarMutation {
 
 // Save creates the Car in the database.
 func (_c *CarCreate) Save(ctx context.Context) (*Car, error) {
-	_c.defaults()
+	if err := _c.defaults(); err != nil {
+		return nil, err
+	}
 	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
 }
 
@@ -100,11 +102,15 @@ func (_c *CarCreate) ExecX(ctx context.Context) {
 }
 
 // defaults sets the default values of the builder before save.
-func (_c *CarCreate) defaults() {
+func (_c *CarCreate) defaults() error {
 	if _, ok := _c.mutation.ID(); !ok {
+		if car.DefaultID == nil {
+			return fmt.Errorf("ent: uninitialized car.DefaultID (forgotten import ent/runtime?)")
+		}
 		v := car.DefaultID()
 		_c.mutation.SetID(v)
 	}
+	return nil
 }
 
 // check runs all checks and user-defined validators on the builder.

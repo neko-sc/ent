@@ -86,11 +86,11 @@ func (_m *Group) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case group.FieldID:
-			value, ok := values[i].(*sql.NullInt64)
-			if !ok {
-				return fmt.Errorf("unexpected type %T for field id", value)
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field id", values[i])
+			} else if value.Valid {
+				_m.ID = int(value.Int64)
 			}
-			_m.ID = int(value.Int64)
 		case group.FieldTenantID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field tenant_id", values[i])
@@ -101,7 +101,7 @@ func (_m *Group) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field name", values[i])
 			} else if value.Valid {
-				_m.Name = value.String
+				_m.Name = string(value.String)
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])

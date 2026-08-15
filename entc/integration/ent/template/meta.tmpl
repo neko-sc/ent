@@ -6,8 +6,8 @@ SPDX-License-Identifier: Apache-2.0
 {{/* A template for adding additional fields to specific types. */}}
 {{ define "meta/additional/enums" }}
 	{{- range $f := $.EnumFields }}
-		{{- if not $f.HasGoType }}
-			{{ $enum := trimPackage $f.Type.String $.Package }}
+		{{- if $f.DefinesEnumType }}
+			{{ $enum := trimPackage $f.GoType $.Package }}
 			{{ $receiver := receiver $f.BuilderField }}
 
 			// Ptr returns a new pointer to the enum value.

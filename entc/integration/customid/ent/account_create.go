@@ -68,7 +68,9 @@ func (_c *AccountCreate) Mutation() *AccountMutation {
 
 // Save creates the Account in the database.
 func (_c *AccountCreate) Save(ctx context.Context) (*Account, error) {
-	_c.defaults()
+	if err := _c.defaults(); err != nil {
+		return nil, err
+	}
 	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
 }
 
@@ -95,11 +97,15 @@ func (_c *AccountCreate) ExecX(ctx context.Context) {
 }
 
 // defaults sets the default values of the builder before save.
-func (_c *AccountCreate) defaults() {
+func (_c *AccountCreate) defaults() error {
 	if _, ok := _c.mutation.ID(); !ok {
+		if account.DefaultID == nil {
+			return fmt.Errorf("ent: uninitialized account.DefaultID (forgotten import ent/runtime?)")
+		}
 		v := account.DefaultID()
 		_c.mutation.SetID(v)
 	}
+	return nil
 }
 
 // check runs all checks and user-defined validators on the builder.

@@ -86,7 +86,7 @@ func (_m *Token) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field body", values[i])
 			} else if value.Valid {
-				_m.Body = value.String
+				_m.Body = string(value.String)
 			}
 		case token.ForeignKeys[0]:
 			if value, ok := values[i].(*sql.NullScanner); !ok {

@@ -119,19 +119,32 @@ func quote(v any) any {
 
 // fieldOps returns all predicate operations for a given field.
 func fieldOps(f *Field) (ops []Op) {
-	switch t := f.Type.Type; {
-	case f.HasGoType() && !f.ConvertedToBasic() && !f.Type.Valuer():
+	switch t := f.Type; {
 	case t == field.TypeJSON:
+	case t == field.TypeBytes:
+		if f.StorageComparable() && f.LogicalValueSupported() {
+			ops = enumOps
+		}
 	case t == field.TypeBool:
-		ops = boolOps
-	case t == field.TypeString && strings.ToLower(f.Name) != "id":
-		ops = stringOps
-		if f.HasGoType() && !f.ConvertedToBasic() && (f.Type.Valuer() || f.HasValueScanner()) {
+		if f.StorageComparable() {
+			ops = boolOps
+		}
+	case t == field.TypeString:
+		switch {
+		case strings.EqualFold(f.Name, "id"):
+			if f.StorageOrderable() && (f.ConvertedToBasic() || f.TypeValuer()) {
+				ops = numericOps
+			}
+		case f.StorageComparable() && (f.ConvertedToBasic() || f.HasValueScanner() || f.Semantic.Capabilities.LogicalProjection != ""):
+			ops = stringOps
+		case f.StorageOrderable() && f.TypeValuer():
 			ops = numericOps
 		}
-	case t == field.TypeEnum || f.IsEdgeField():
-		ops = enumOps
-	default:
+	case t == field.TypeEnum || t == field.TypeOther || f.IsEdgeField():
+		if f.StorageComparable() && f.LogicalValueSupported() {
+			ops = enumOps
+		}
+	case f.StorageOrderable() && f.LogicalValueSupported():
 		ops = numericOps
 	}
 	if f.Optional {

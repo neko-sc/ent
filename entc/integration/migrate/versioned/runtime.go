@@ -19,5 +19,11 @@ func init() {
 	// userDescName is the schema descriptor for name field.
 	userDescName := userFields[1].Descriptor()
 	// user.NameValidator is a validator for the "name" field. It is called by the builders before save.
-	user.NameValidator = userDescName.Validators[0].(func(string) error)
+	user.NameValidator = func(value string) error {
+		validators := userDescName.Validators
+		if err := validators[0].(func(string) error)(value); err != nil {
+			return err
+		}
+		return nil
+	}
 }

@@ -2035,7 +2035,7 @@ func (f *TweetTagFilter) Where(p entql.P) {
 	})
 }
 
-// WhereID applies the entql [16]byte predicate on the id field.
+// WhereID applies the entql [16]uint8 predicate on the id field.
 func (f *TweetTagFilter) WhereID(p entql.ValueP) {
 	f.Where(p.Field(tweettag.FieldID))
 }

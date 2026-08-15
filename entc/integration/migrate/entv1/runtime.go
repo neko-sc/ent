@@ -19,7 +19,13 @@ func init() {
 	// userDescName is the schema descriptor for name field.
 	userDescName := userFields[2].Descriptor()
 	// user.NameValidator is a validator for the "name" field. It is called by the builders before save.
-	user.NameValidator = userDescName.Validators[0].(func(string) error)
+	user.NameValidator = func(value string) error {
+		validators := userDescName.Validators
+		if err := validators[0].(func(string) error)(value); err != nil {
+			return err
+		}
+		return nil
+	}
 	// userDescOldToken is the schema descriptor for old_token field.
 	userDescOldToken := userFields[7].Descriptor()
 	// user.DefaultOldToken holds the default value on creation for the old_token field.
@@ -27,9 +33,21 @@ func init() {
 	// userDescBlob is the schema descriptor for blob field.
 	userDescBlob := userFields[8].Descriptor()
 	// user.BlobValidator is a validator for the "blob" field. It is called by the builders before save.
-	user.BlobValidator = userDescBlob.Validators[0].(func([]byte) error)
+	user.BlobValidator = func(value []byte) error {
+		validators := userDescBlob.Validators
+		if err := validators[0].(func([]uint8) error)(value); err != nil {
+			return err
+		}
+		return nil
+	}
 	// userDescWorkplace is the schema descriptor for workplace field.
 	userDescWorkplace := userFields[11].Descriptor()
 	// user.WorkplaceValidator is a validator for the "workplace" field. It is called by the builders before save.
-	user.WorkplaceValidator = userDescWorkplace.Validators[0].(func(string) error)
+	user.WorkplaceValidator = func(value string) error {
+		validators := userDescWorkplace.Validators
+		if err := validators[0].(func(string) error)(value); err != nil {
+			return err
+		}
+		return nil
+	}
 }

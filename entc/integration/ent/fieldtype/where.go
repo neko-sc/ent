@@ -294,8 +294,7 @@ func Sensitive(v []byte) predicate.FieldType {
 
 // IP applies equality check predicate on the "ip" field. It's identical to IPEQ.
 func IP(v net.IP) predicate.FieldType {
-	vc := []byte(v)
-	return predicate.FieldType(sql.FieldEQ(FieldIP, vc))
+	return predicate.FieldType(sql.FieldEQ(FieldIP, v))
 }
 
 // NullInt64 applies equality check predicate on the "null_int64" field. It's identical to NullInt64EQ.
@@ -1703,26 +1702,6 @@ func LinkOtherNotIn(vs ...*schema.Link) predicate.FieldType {
 	return predicate.FieldType(sql.FieldNotIn(FieldLinkOther, vs...))
 }
 
-// LinkOtherGT applies the GT predicate on the "link_other" field.
-func LinkOtherGT(v *schema.Link) predicate.FieldType {
-	return predicate.FieldType(sql.FieldGT(FieldLinkOther, v))
-}
-
-// LinkOtherGTE applies the GTE predicate on the "link_other" field.
-func LinkOtherGTE(v *schema.Link) predicate.FieldType {
-	return predicate.FieldType(sql.FieldGTE(FieldLinkOther, v))
-}
-
-// LinkOtherLT applies the LT predicate on the "link_other" field.
-func LinkOtherLT(v *schema.Link) predicate.FieldType {
-	return predicate.FieldType(sql.FieldLT(FieldLinkOther, v))
-}
-
-// LinkOtherLTE applies the LTE predicate on the "link_other" field.
-func LinkOtherLTE(v *schema.Link) predicate.FieldType {
-	return predicate.FieldType(sql.FieldLTE(FieldLinkOther, v))
-}
-
 // LinkOtherIsNil applies the IsNil predicate on the "link_other" field.
 func LinkOtherIsNil() predicate.FieldType {
 	return predicate.FieldType(sql.FieldIsNull(FieldLinkOther))
@@ -1751,26 +1730,6 @@ func LinkOtherFuncIn(vs ...*schema.Link) predicate.FieldType {
 // LinkOtherFuncNotIn applies the NotIn predicate on the "link_other_func" field.
 func LinkOtherFuncNotIn(vs ...*schema.Link) predicate.FieldType {
 	return predicate.FieldType(sql.FieldNotIn(FieldLinkOtherFunc, vs...))
-}
-
-// LinkOtherFuncGT applies the GT predicate on the "link_other_func" field.
-func LinkOtherFuncGT(v *schema.Link) predicate.FieldType {
-	return predicate.FieldType(sql.FieldGT(FieldLinkOtherFunc, v))
-}
-
-// LinkOtherFuncGTE applies the GTE predicate on the "link_other_func" field.
-func LinkOtherFuncGTE(v *schema.Link) predicate.FieldType {
-	return predicate.FieldType(sql.FieldGTE(FieldLinkOtherFunc, v))
-}
-
-// LinkOtherFuncLT applies the LT predicate on the "link_other_func" field.
-func LinkOtherFuncLT(v *schema.Link) predicate.FieldType {
-	return predicate.FieldType(sql.FieldLT(FieldLinkOtherFunc, v))
-}
-
-// LinkOtherFuncLTE applies the LTE predicate on the "link_other_func" field.
-func LinkOtherFuncLTE(v *schema.Link) predicate.FieldType {
-	return predicate.FieldType(sql.FieldLTE(FieldLinkOtherFunc, v))
 }
 
 // LinkOtherFuncIsNil applies the IsNil predicate on the "link_other_func" field.
@@ -1851,18 +1810,6 @@ func MACNotNil() predicate.FieldType {
 	return predicate.FieldType(sql.FieldNotNull(FieldMAC))
 }
 
-// MACEqualFold applies the EqualFold predicate on the "mac" field.
-func MACEqualFold(v schema.MAC) predicate.FieldType {
-	vc := v.String()
-	return predicate.FieldType(sql.FieldEqualFold(FieldMAC, vc))
-}
-
-// MACContainsFold applies the ContainsFold predicate on the "mac" field.
-func MACContainsFold(v schema.MAC) predicate.FieldType {
-	vc := v.String()
-	return predicate.FieldType(sql.FieldContainsFold(FieldMAC, vc))
-}
-
 // StringArrayEQ applies the EQ predicate on the "string_array" field.
 func StringArrayEQ(v schema.Strings) predicate.FieldType {
 	return predicate.FieldType(sql.FieldEQ(FieldStringArray, v))
@@ -1881,26 +1828,6 @@ func StringArrayIn(vs ...schema.Strings) predicate.FieldType {
 // StringArrayNotIn applies the NotIn predicate on the "string_array" field.
 func StringArrayNotIn(vs ...schema.Strings) predicate.FieldType {
 	return predicate.FieldType(sql.FieldNotIn(FieldStringArray, vs...))
-}
-
-// StringArrayGT applies the GT predicate on the "string_array" field.
-func StringArrayGT(v schema.Strings) predicate.FieldType {
-	return predicate.FieldType(sql.FieldGT(FieldStringArray, v))
-}
-
-// StringArrayGTE applies the GTE predicate on the "string_array" field.
-func StringArrayGTE(v schema.Strings) predicate.FieldType {
-	return predicate.FieldType(sql.FieldGTE(FieldStringArray, v))
-}
-
-// StringArrayLT applies the LT predicate on the "string_array" field.
-func StringArrayLT(v schema.Strings) predicate.FieldType {
-	return predicate.FieldType(sql.FieldLT(FieldStringArray, v))
-}
-
-// StringArrayLTE applies the LTE predicate on the "string_array" field.
-func StringArrayLTE(v schema.Strings) predicate.FieldType {
-	return predicate.FieldType(sql.FieldLTE(FieldStringArray, v))
 }
 
 // StringArrayIsNil applies the IsNil predicate on the "string_array" field.
@@ -2056,18 +1983,6 @@ func StringScannerNotNil() predicate.FieldType {
 	return predicate.FieldType(sql.FieldNotNull(FieldStringScanner))
 }
 
-// StringScannerEqualFold applies the EqualFold predicate on the "string_scanner" field.
-func StringScannerEqualFold(v schema.StringScanner) predicate.FieldType {
-	vc := string(v)
-	return predicate.FieldType(sql.FieldEqualFold(FieldStringScanner, vc))
-}
-
-// StringScannerContainsFold applies the ContainsFold predicate on the "string_scanner" field.
-func StringScannerContainsFold(v schema.StringScanner) predicate.FieldType {
-	vc := string(v)
-	return predicate.FieldType(sql.FieldContainsFold(FieldStringScanner, vc))
-}
-
 // DurationEQ applies the EQ predicate on the "duration" field.
 func DurationEQ(v time.Duration) predicate.FieldType {
 	vc := int64(v)
@@ -2082,7 +1997,7 @@ func DurationNEQ(v time.Duration) predicate.FieldType {
 
 // DurationIn applies the In predicate on the "duration" field.
 func DurationIn(vs ...time.Duration) predicate.FieldType {
-	v := make([]any, len(vs))
+	v := make([]int64, len(vs))
 	for i := range v {
 		v[i] = int64(vs[i])
 	}
@@ -2091,7 +2006,7 @@ func DurationIn(vs ...time.Duration) predicate.FieldType {
 
 // DurationNotIn applies the NotIn predicate on the "duration" field.
 func DurationNotIn(vs ...time.Duration) predicate.FieldType {
-	v := make([]any, len(vs))
+	v := make([]int64, len(vs))
 	for i := range v {
 		v[i] = int64(vs[i])
 	}
@@ -2146,7 +2061,7 @@ func DirNEQ(v http.Dir) predicate.FieldType {
 
 // DirIn applies the In predicate on the "dir" field.
 func DirIn(vs ...http.Dir) predicate.FieldType {
-	v := make([]any, len(vs))
+	v := make([]string, len(vs))
 	for i := range v {
 		v[i] = string(vs[i])
 	}
@@ -2155,7 +2070,7 @@ func DirIn(vs ...http.Dir) predicate.FieldType {
 
 // DirNotIn applies the NotIn predicate on the "dir" field.
 func DirNotIn(vs ...http.Dir) predicate.FieldType {
-	v := make([]any, len(vs))
+	v := make([]string, len(vs))
 	for i := range v {
 		v[i] = string(vs[i])
 	}
@@ -2204,18 +2119,6 @@ func DirHasSuffix(v http.Dir) predicate.FieldType {
 	return predicate.FieldType(sql.FieldHasSuffix(FieldDir, vc))
 }
 
-// DirEqualFold applies the EqualFold predicate on the "dir" field.
-func DirEqualFold(v http.Dir) predicate.FieldType {
-	vc := string(v)
-	return predicate.FieldType(sql.FieldEqualFold(FieldDir, vc))
-}
-
-// DirContainsFold applies the ContainsFold predicate on the "dir" field.
-func DirContainsFold(v http.Dir) predicate.FieldType {
-	vc := string(v)
-	return predicate.FieldType(sql.FieldContainsFold(FieldDir, vc))
-}
-
 // NdirEQ applies the EQ predicate on the "ndir" field.
 func NdirEQ(v http.Dir) predicate.FieldType {
 	vc := string(v)
@@ -2230,7 +2133,7 @@ func NdirNEQ(v http.Dir) predicate.FieldType {
 
 // NdirIn applies the In predicate on the "ndir" field.
 func NdirIn(vs ...http.Dir) predicate.FieldType {
-	v := make([]any, len(vs))
+	v := make([]string, len(vs))
 	for i := range v {
 		v[i] = string(vs[i])
 	}
@@ -2239,7 +2142,7 @@ func NdirIn(vs ...http.Dir) predicate.FieldType {
 
 // NdirNotIn applies the NotIn predicate on the "ndir" field.
 func NdirNotIn(vs ...http.Dir) predicate.FieldType {
-	v := make([]any, len(vs))
+	v := make([]string, len(vs))
 	for i := range v {
 		v[i] = string(vs[i])
 	}
@@ -2296,18 +2199,6 @@ func NdirIsNil() predicate.FieldType {
 // NdirNotNil applies the NotNil predicate on the "ndir" field.
 func NdirNotNil() predicate.FieldType {
 	return predicate.FieldType(sql.FieldNotNull(FieldNdir))
-}
-
-// NdirEqualFold applies the EqualFold predicate on the "ndir" field.
-func NdirEqualFold(v http.Dir) predicate.FieldType {
-	vc := string(v)
-	return predicate.FieldType(sql.FieldEqualFold(FieldNdir, vc))
-}
-
-// NdirContainsFold applies the ContainsFold predicate on the "ndir" field.
-func NdirContainsFold(v http.Dir) predicate.FieldType {
-	vc := string(v)
-	return predicate.FieldType(sql.FieldContainsFold(FieldNdir, vc))
 }
 
 // StrEQ applies the EQ predicate on the "str" field.
@@ -2378,18 +2269,6 @@ func StrNotNil() predicate.FieldType {
 	return predicate.FieldType(sql.FieldNotNull(FieldStr))
 }
 
-// StrEqualFold applies the EqualFold predicate on the "str" field.
-func StrEqualFold(v sql.NullString) predicate.FieldType {
-	vc := v.String
-	return predicate.FieldType(sql.FieldEqualFold(FieldStr, vc))
-}
-
-// StrContainsFold applies the ContainsFold predicate on the "str" field.
-func StrContainsFold(v sql.NullString) predicate.FieldType {
-	vc := v.String
-	return predicate.FieldType(sql.FieldContainsFold(FieldStr, vc))
-}
-
 // NullStrEQ applies the EQ predicate on the "null_str" field.
 func NullStrEQ(v *sql.NullString) predicate.FieldType {
 	return predicate.FieldType(sql.FieldEQ(FieldNullStr, v))
@@ -2456,18 +2335,6 @@ func NullStrIsNil() predicate.FieldType {
 // NullStrNotNil applies the NotNil predicate on the "null_str" field.
 func NullStrNotNil() predicate.FieldType {
 	return predicate.FieldType(sql.FieldNotNull(FieldNullStr))
-}
-
-// NullStrEqualFold applies the EqualFold predicate on the "null_str" field.
-func NullStrEqualFold(v *sql.NullString) predicate.FieldType {
-	vc := v.String
-	return predicate.FieldType(sql.FieldEqualFold(FieldNullStr, vc))
-}
-
-// NullStrContainsFold applies the ContainsFold predicate on the "null_str" field.
-func NullStrContainsFold(v *sql.NullString) predicate.FieldType {
-	vc := v.String
-	return predicate.FieldType(sql.FieldContainsFold(FieldNullStr, vc))
 }
 
 // LinkEQ applies the EQ predicate on the "link" field.
@@ -2538,18 +2405,6 @@ func LinkNotNil() predicate.FieldType {
 	return predicate.FieldType(sql.FieldNotNull(FieldLink))
 }
 
-// LinkEqualFold applies the EqualFold predicate on the "link" field.
-func LinkEqualFold(v schema.Link) predicate.FieldType {
-	vc := v.String()
-	return predicate.FieldType(sql.FieldEqualFold(FieldLink, vc))
-}
-
-// LinkContainsFold applies the ContainsFold predicate on the "link" field.
-func LinkContainsFold(v schema.Link) predicate.FieldType {
-	vc := v.String()
-	return predicate.FieldType(sql.FieldContainsFold(FieldLink, vc))
-}
-
 // NullLinkEQ applies the EQ predicate on the "null_link" field.
 func NullLinkEQ(v *schema.Link) predicate.FieldType {
 	return predicate.FieldType(sql.FieldEQ(FieldNullLink, v))
@@ -2616,18 +2471,6 @@ func NullLinkIsNil() predicate.FieldType {
 // NullLinkNotNil applies the NotNil predicate on the "null_link" field.
 func NullLinkNotNil() predicate.FieldType {
 	return predicate.FieldType(sql.FieldNotNull(FieldNullLink))
-}
-
-// NullLinkEqualFold applies the EqualFold predicate on the "null_link" field.
-func NullLinkEqualFold(v *schema.Link) predicate.FieldType {
-	vc := v.String()
-	return predicate.FieldType(sql.FieldEqualFold(FieldNullLink, vc))
-}
-
-// NullLinkContainsFold applies the ContainsFold predicate on the "null_link" field.
-func NullLinkContainsFold(v *schema.Link) predicate.FieldType {
-	vc := v.String()
-	return predicate.FieldType(sql.FieldContainsFold(FieldNullLink, vc))
 }
 
 // ActiveEQ applies the EQ predicate on the "active" field.
@@ -2764,26 +2607,6 @@ func RawDataNotIn(vs ...[]byte) predicate.FieldType {
 	return predicate.FieldType(sql.FieldNotIn(FieldRawData, vs...))
 }
 
-// RawDataGT applies the GT predicate on the "raw_data" field.
-func RawDataGT(v []byte) predicate.FieldType {
-	return predicate.FieldType(sql.FieldGT(FieldRawData, v))
-}
-
-// RawDataGTE applies the GTE predicate on the "raw_data" field.
-func RawDataGTE(v []byte) predicate.FieldType {
-	return predicate.FieldType(sql.FieldGTE(FieldRawData, v))
-}
-
-// RawDataLT applies the LT predicate on the "raw_data" field.
-func RawDataLT(v []byte) predicate.FieldType {
-	return predicate.FieldType(sql.FieldLT(FieldRawData, v))
-}
-
-// RawDataLTE applies the LTE predicate on the "raw_data" field.
-func RawDataLTE(v []byte) predicate.FieldType {
-	return predicate.FieldType(sql.FieldLTE(FieldRawData, v))
-}
-
 // RawDataIsNil applies the IsNil predicate on the "raw_data" field.
 func RawDataIsNil() predicate.FieldType {
 	return predicate.FieldType(sql.FieldIsNull(FieldRawData))
@@ -2814,26 +2637,6 @@ func SensitiveNotIn(vs ...[]byte) predicate.FieldType {
 	return predicate.FieldType(sql.FieldNotIn(FieldSensitive, vs...))
 }
 
-// SensitiveGT applies the GT predicate on the "sensitive" field.
-func SensitiveGT(v []byte) predicate.FieldType {
-	return predicate.FieldType(sql.FieldGT(FieldSensitive, v))
-}
-
-// SensitiveGTE applies the GTE predicate on the "sensitive" field.
-func SensitiveGTE(v []byte) predicate.FieldType {
-	return predicate.FieldType(sql.FieldGTE(FieldSensitive, v))
-}
-
-// SensitiveLT applies the LT predicate on the "sensitive" field.
-func SensitiveLT(v []byte) predicate.FieldType {
-	return predicate.FieldType(sql.FieldLT(FieldSensitive, v))
-}
-
-// SensitiveLTE applies the LTE predicate on the "sensitive" field.
-func SensitiveLTE(v []byte) predicate.FieldType {
-	return predicate.FieldType(sql.FieldLTE(FieldSensitive, v))
-}
-
 // SensitiveIsNil applies the IsNil predicate on the "sensitive" field.
 func SensitiveIsNil() predicate.FieldType {
 	return predicate.FieldType(sql.FieldIsNull(FieldSensitive))
@@ -2846,56 +2649,22 @@ func SensitiveNotNil() predicate.FieldType {
 
 // IPEQ applies the EQ predicate on the "ip" field.
 func IPEQ(v net.IP) predicate.FieldType {
-	vc := []byte(v)
-	return predicate.FieldType(sql.FieldEQ(FieldIP, vc))
+	return predicate.FieldType(sql.FieldEQ(FieldIP, v))
 }
 
 // IPNEQ applies the NEQ predicate on the "ip" field.
 func IPNEQ(v net.IP) predicate.FieldType {
-	vc := []byte(v)
-	return predicate.FieldType(sql.FieldNEQ(FieldIP, vc))
+	return predicate.FieldType(sql.FieldNEQ(FieldIP, v))
 }
 
 // IPIn applies the In predicate on the "ip" field.
 func IPIn(vs ...net.IP) predicate.FieldType {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = []byte(vs[i])
-	}
-	return predicate.FieldType(sql.FieldIn(FieldIP, v...))
+	return predicate.FieldType(sql.FieldIn(FieldIP, vs...))
 }
 
 // IPNotIn applies the NotIn predicate on the "ip" field.
 func IPNotIn(vs ...net.IP) predicate.FieldType {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = []byte(vs[i])
-	}
-	return predicate.FieldType(sql.FieldNotIn(FieldIP, v...))
-}
-
-// IPGT applies the GT predicate on the "ip" field.
-func IPGT(v net.IP) predicate.FieldType {
-	vc := []byte(v)
-	return predicate.FieldType(sql.FieldGT(FieldIP, vc))
-}
-
-// IPGTE applies the GTE predicate on the "ip" field.
-func IPGTE(v net.IP) predicate.FieldType {
-	vc := []byte(v)
-	return predicate.FieldType(sql.FieldGTE(FieldIP, vc))
-}
-
-// IPLT applies the LT predicate on the "ip" field.
-func IPLT(v net.IP) predicate.FieldType {
-	vc := []byte(v)
-	return predicate.FieldType(sql.FieldLT(FieldIP, vc))
-}
-
-// IPLTE applies the LTE predicate on the "ip" field.
-func IPLTE(v net.IP) predicate.FieldType {
-	vc := []byte(v)
-	return predicate.FieldType(sql.FieldLTE(FieldIP, vc))
+	return predicate.FieldType(sql.FieldNotIn(FieldIP, vs...))
 }
 
 // IPIsNil applies the IsNil predicate on the "ip" field.
@@ -2972,7 +2741,7 @@ func SchemaIntNEQ(v schema.Int) predicate.FieldType {
 
 // SchemaIntIn applies the In predicate on the "schema_int" field.
 func SchemaIntIn(vs ...schema.Int) predicate.FieldType {
-	v := make([]any, len(vs))
+	v := make([]int, len(vs))
 	for i := range v {
 		v[i] = int(vs[i])
 	}
@@ -2981,7 +2750,7 @@ func SchemaIntIn(vs ...schema.Int) predicate.FieldType {
 
 // SchemaIntNotIn applies the NotIn predicate on the "schema_int" field.
 func SchemaIntNotIn(vs ...schema.Int) predicate.FieldType {
-	v := make([]any, len(vs))
+	v := make([]int, len(vs))
 	for i := range v {
 		v[i] = int(vs[i])
 	}
@@ -3036,7 +2805,7 @@ func SchemaInt8NEQ(v schema.Int8) predicate.FieldType {
 
 // SchemaInt8In applies the In predicate on the "schema_int8" field.
 func SchemaInt8In(vs ...schema.Int8) predicate.FieldType {
-	v := make([]any, len(vs))
+	v := make([]int8, len(vs))
 	for i := range v {
 		v[i] = int8(vs[i])
 	}
@@ -3045,7 +2814,7 @@ func SchemaInt8In(vs ...schema.Int8) predicate.FieldType {
 
 // SchemaInt8NotIn applies the NotIn predicate on the "schema_int8" field.
 func SchemaInt8NotIn(vs ...schema.Int8) predicate.FieldType {
-	v := make([]any, len(vs))
+	v := make([]int8, len(vs))
 	for i := range v {
 		v[i] = int8(vs[i])
 	}
@@ -3100,7 +2869,7 @@ func SchemaInt64NEQ(v schema.Int64) predicate.FieldType {
 
 // SchemaInt64In applies the In predicate on the "schema_int64" field.
 func SchemaInt64In(vs ...schema.Int64) predicate.FieldType {
-	v := make([]any, len(vs))
+	v := make([]int64, len(vs))
 	for i := range v {
 		v[i] = int64(vs[i])
 	}
@@ -3109,7 +2878,7 @@ func SchemaInt64In(vs ...schema.Int64) predicate.FieldType {
 
 // SchemaInt64NotIn applies the NotIn predicate on the "schema_int64" field.
 func SchemaInt64NotIn(vs ...schema.Int64) predicate.FieldType {
-	v := make([]any, len(vs))
+	v := make([]int64, len(vs))
 	for i := range v {
 		v[i] = int64(vs[i])
 	}
@@ -3164,7 +2933,7 @@ func SchemaFloatNEQ(v schema.Float64) predicate.FieldType {
 
 // SchemaFloatIn applies the In predicate on the "schema_float" field.
 func SchemaFloatIn(vs ...schema.Float64) predicate.FieldType {
-	v := make([]any, len(vs))
+	v := make([]float64, len(vs))
 	for i := range v {
 		v[i] = float64(vs[i])
 	}
@@ -3173,7 +2942,7 @@ func SchemaFloatIn(vs ...schema.Float64) predicate.FieldType {
 
 // SchemaFloatNotIn applies the NotIn predicate on the "schema_float" field.
 func SchemaFloatNotIn(vs ...schema.Float64) predicate.FieldType {
-	v := make([]any, len(vs))
+	v := make([]float64, len(vs))
 	for i := range v {
 		v[i] = float64(vs[i])
 	}
@@ -3228,7 +2997,7 @@ func SchemaFloat32NEQ(v schema.Float32) predicate.FieldType {
 
 // SchemaFloat32In applies the In predicate on the "schema_float32" field.
 func SchemaFloat32In(vs ...schema.Float32) predicate.FieldType {
-	v := make([]any, len(vs))
+	v := make([]float32, len(vs))
 	for i := range v {
 		v[i] = float32(vs[i])
 	}
@@ -3237,7 +3006,7 @@ func SchemaFloat32In(vs ...schema.Float32) predicate.FieldType {
 
 // SchemaFloat32NotIn applies the NotIn predicate on the "schema_float32" field.
 func SchemaFloat32NotIn(vs ...schema.Float32) predicate.FieldType {
-	v := make([]any, len(vs))
+	v := make([]float32, len(vs))
 	for i := range v {
 		v[i] = float32(vs[i])
 	}
@@ -3330,30 +3099,30 @@ func NullFloatNotNil() predicate.FieldType {
 
 // RoleEQ applies the EQ predicate on the "role" field.
 func RoleEQ(v role.Role) predicate.FieldType {
-	vc := v
+	vc := string(v)
 	return predicate.FieldType(sql.FieldEQ(FieldRole, vc))
 }
 
 // RoleNEQ applies the NEQ predicate on the "role" field.
 func RoleNEQ(v role.Role) predicate.FieldType {
-	vc := v
+	vc := string(v)
 	return predicate.FieldType(sql.FieldNEQ(FieldRole, vc))
 }
 
 // RoleIn applies the In predicate on the "role" field.
 func RoleIn(vs ...role.Role) predicate.FieldType {
-	v := make([]any, len(vs))
+	v := make([]string, len(vs))
 	for i := range v {
-		v[i] = vs[i]
+		v[i] = string(vs[i])
 	}
 	return predicate.FieldType(sql.FieldIn(FieldRole, v...))
 }
 
 // RoleNotIn applies the NotIn predicate on the "role" field.
 func RoleNotIn(vs ...role.Role) predicate.FieldType {
-	v := make([]any, len(vs))
+	v := make([]string, len(vs))
 	for i := range v {
-		v[i] = vs[i]
+		v[i] = string(vs[i])
 	}
 	return predicate.FieldType(sql.FieldNotIn(FieldRole, v...))
 }
@@ -3518,26 +3287,6 @@ func PairNotIn(vs ...schema.Pair) predicate.FieldType {
 	return predicate.FieldType(sql.FieldNotIn(FieldPair, vs...))
 }
 
-// PairGT applies the GT predicate on the "pair" field.
-func PairGT(v schema.Pair) predicate.FieldType {
-	return predicate.FieldType(sql.FieldGT(FieldPair, v))
-}
-
-// PairGTE applies the GTE predicate on the "pair" field.
-func PairGTE(v schema.Pair) predicate.FieldType {
-	return predicate.FieldType(sql.FieldGTE(FieldPair, v))
-}
-
-// PairLT applies the LT predicate on the "pair" field.
-func PairLT(v schema.Pair) predicate.FieldType {
-	return predicate.FieldType(sql.FieldLT(FieldPair, v))
-}
-
-// PairLTE applies the LTE predicate on the "pair" field.
-func PairLTE(v schema.Pair) predicate.FieldType {
-	return predicate.FieldType(sql.FieldLTE(FieldPair, v))
-}
-
 // NilPairEQ applies the EQ predicate on the "nil_pair" field.
 func NilPairEQ(v *schema.Pair) predicate.FieldType {
 	return predicate.FieldType(sql.FieldEQ(FieldNilPair, v))
@@ -3556,26 +3305,6 @@ func NilPairIn(vs ...*schema.Pair) predicate.FieldType {
 // NilPairNotIn applies the NotIn predicate on the "nil_pair" field.
 func NilPairNotIn(vs ...*schema.Pair) predicate.FieldType {
 	return predicate.FieldType(sql.FieldNotIn(FieldNilPair, vs...))
-}
-
-// NilPairGT applies the GT predicate on the "nil_pair" field.
-func NilPairGT(v *schema.Pair) predicate.FieldType {
-	return predicate.FieldType(sql.FieldGT(FieldNilPair, v))
-}
-
-// NilPairGTE applies the GTE predicate on the "nil_pair" field.
-func NilPairGTE(v *schema.Pair) predicate.FieldType {
-	return predicate.FieldType(sql.FieldGTE(FieldNilPair, v))
-}
-
-// NilPairLT applies the LT predicate on the "nil_pair" field.
-func NilPairLT(v *schema.Pair) predicate.FieldType {
-	return predicate.FieldType(sql.FieldLT(FieldNilPair, v))
-}
-
-// NilPairLTE applies the LTE predicate on the "nil_pair" field.
-func NilPairLTE(v *schema.Pair) predicate.FieldType {
-	return predicate.FieldType(sql.FieldLTE(FieldNilPair, v))
 }
 
 // NilPairIsNil applies the IsNil predicate on the "nil_pair" field.
@@ -3644,18 +3373,6 @@ func VstringHasPrefix(v schema.VString) predicate.FieldType {
 func VstringHasSuffix(v schema.VString) predicate.FieldType {
 	vc := string(v)
 	return predicate.FieldType(sql.FieldHasSuffix(FieldVstring, vc))
-}
-
-// VstringEqualFold applies the EqualFold predicate on the "vstring" field.
-func VstringEqualFold(v schema.VString) predicate.FieldType {
-	vc := string(v)
-	return predicate.FieldType(sql.FieldEqualFold(FieldVstring, vc))
-}
-
-// VstringContainsFold applies the ContainsFold predicate on the "vstring" field.
-func VstringContainsFold(v schema.VString) predicate.FieldType {
-	vc := string(v)
-	return predicate.FieldType(sql.FieldContainsFold(FieldVstring, vc))
 }
 
 // TripleEQ applies the EQ predicate on the "triple" field.
@@ -3766,26 +3483,6 @@ func PasswordOtherIn(vs ...schema.Password) predicate.FieldType {
 // PasswordOtherNotIn applies the NotIn predicate on the "password_other" field.
 func PasswordOtherNotIn(vs ...schema.Password) predicate.FieldType {
 	return predicate.FieldType(sql.FieldNotIn(FieldPasswordOther, vs...))
-}
-
-// PasswordOtherGT applies the GT predicate on the "password_other" field.
-func PasswordOtherGT(v schema.Password) predicate.FieldType {
-	return predicate.FieldType(sql.FieldGT(FieldPasswordOther, v))
-}
-
-// PasswordOtherGTE applies the GTE predicate on the "password_other" field.
-func PasswordOtherGTE(v schema.Password) predicate.FieldType {
-	return predicate.FieldType(sql.FieldGTE(FieldPasswordOther, v))
-}
-
-// PasswordOtherLT applies the LT predicate on the "password_other" field.
-func PasswordOtherLT(v schema.Password) predicate.FieldType {
-	return predicate.FieldType(sql.FieldLT(FieldPasswordOther, v))
-}
-
-// PasswordOtherLTE applies the LTE predicate on the "password_other" field.
-func PasswordOtherLTE(v schema.Password) predicate.FieldType {
-	return predicate.FieldType(sql.FieldLTE(FieldPasswordOther, v))
 }
 
 // PasswordOtherIsNil applies the IsNil predicate on the "password_other" field.

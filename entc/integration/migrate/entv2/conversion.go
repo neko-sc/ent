@@ -65,64 +65,64 @@ func (_m *Conversion) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case conversion.FieldID:
-			value, ok := values[i].(*sql.NullInt64)
-			if !ok {
-				return fmt.Errorf("unexpected type %T for field id", value)
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field id", values[i])
+			} else if value.Valid {
+				_m.ID = int(value.Int64)
 			}
-			_m.ID = int(value.Int64)
 		case conversion.FieldName:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field name", values[i])
 			} else if value.Valid {
-				_m.Name = value.String
+				_m.Name = string(value.String)
 			}
 		case conversion.FieldInt8ToString:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field int8_to_string", values[i])
 			} else if value.Valid {
-				_m.Int8ToString = value.String
+				_m.Int8ToString = string(value.String)
 			}
 		case conversion.FieldUint8ToString:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field uint8_to_string", values[i])
 			} else if value.Valid {
-				_m.Uint8ToString = value.String
+				_m.Uint8ToString = string(value.String)
 			}
 		case conversion.FieldInt16ToString:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field int16_to_string", values[i])
 			} else if value.Valid {
-				_m.Int16ToString = value.String
+				_m.Int16ToString = string(value.String)
 			}
 		case conversion.FieldUint16ToString:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field uint16_to_string", values[i])
 			} else if value.Valid {
-				_m.Uint16ToString = value.String
+				_m.Uint16ToString = string(value.String)
 			}
 		case conversion.FieldInt32ToString:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field int32_to_string", values[i])
 			} else if value.Valid {
-				_m.Int32ToString = value.String
+				_m.Int32ToString = string(value.String)
 			}
 		case conversion.FieldUint32ToString:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field uint32_to_string", values[i])
 			} else if value.Valid {
-				_m.Uint32ToString = value.String
+				_m.Uint32ToString = string(value.String)
 			}
 		case conversion.FieldInt64ToString:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field int64_to_string", values[i])
 			} else if value.Valid {
-				_m.Int64ToString = value.String
+				_m.Int64ToString = string(value.String)
 			}
 		case conversion.FieldUint64ToString:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field uint64_to_string", values[i])
 			} else if value.Valid {
-				_m.Uint64ToString = value.String
+				_m.Uint64ToString = string(value.String)
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])

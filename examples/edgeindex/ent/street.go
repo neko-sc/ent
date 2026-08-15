@@ -76,20 +76,20 @@ func (_m *Street) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case street.FieldID:
-			value, ok := values[i].(*sql.NullInt64)
-			if !ok {
-				return fmt.Errorf("unexpected type %T for field id", value)
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field id", values[i])
+			} else if value.Valid {
+				_m.ID = int(value.Int64)
 			}
-			_m.ID = int(value.Int64)
 		case street.FieldName:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field name", values[i])
 			} else if value.Valid {
-				_m.Name = value.String
+				_m.Name = string(value.String)
 			}
 		case street.ForeignKeys[0]:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
-				return fmt.Errorf("unexpected type %T for edge-field city_streets", value)
+				return fmt.Errorf("unexpected type %T for field city_streets", values[i])
 			} else if value.Valid {
 				_m.city_streets = new(int)
 				*_m.city_streets = int(value.Int64)

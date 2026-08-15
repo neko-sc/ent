@@ -91,11 +91,11 @@ func (_m *Node) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case node.FieldID:
-			value, ok := values[i].(*sql.NullInt64)
-			if !ok {
-				return fmt.Errorf("unexpected type %T for field id", value)
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field id", values[i])
+			} else if value.Valid {
+				_m.ID = int(value.Int64)
 			}
-			_m.ID = int(value.Int64)
 		case node.FieldValue:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field value", values[i])
@@ -107,11 +107,11 @@ func (_m *Node) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field updated_at", values[i])
 			} else if value.Valid {
 				_m.UpdatedAt = new(time.Time)
-				*_m.UpdatedAt = value.Time
+				*_m.UpdatedAt = time.Time(value.Time)
 			}
 		case node.ForeignKeys[0]:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
-				return fmt.Errorf("unexpected type %T for edge-field node_next", value)
+				return fmt.Errorf("unexpected type %T for field node_next", values[i])
 			} else if value.Valid {
 				_m.node_next = new(int)
 				*_m.node_next = int(value.Int64)

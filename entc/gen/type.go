@@ -4,7 +4,6 @@
 package gen
 
 import (
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,6 +11,7 @@ import (
 	"go/types"
 	"path"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"unicode"
@@ -54,7 +54,8 @@ type (
 		foreignKeys map[string]struct{}
 		// Annotations that were defined for the field in the schema.
 		// The mapping is from the Annotation.Name() to a JSON decoded object.
-		Annotations Annotations
+		Annotations     Annotations
+		semanticImports []Import
 		// EdgeSchema indicates that this type (schema) is being used as an "edge schema".
 		// The To and From fields holds references to the edges that go "through" this type.
 		EdgeSchema struct {
@@ -70,8 +71,10 @@ type (
 		typ *Type
 		// Name is the name of this field in the database schema.
 		Name string
-		// Type holds the type information of the field.
-		Type *field.TypeInfo
+		// Type holds the logical field family.
+		Type field.Type
+		// Semantic holds compiler-authored type information for typed fields.
+		Semantic *load.FieldType
 		// Unique indicate if this field is a unique field.
 		Unique bool
 		// Optional indicates is this field is optional on create.
@@ -89,8 +92,10 @@ type (
 		Immutable bool
 		// StructTag of the field. default to "json".
 		StructTag string
-		// Validators holds the number of validators the field have.
+		// Validators holds the number of validators the field has.
 		Validators int
+		// ValidatorKinds identifies each validator's accepted value in fluent call order.
+		ValidatorKinds []field.ValidatorKind
 		// Position info of the field.
 		Position *load.Position
 		// UserDefined indicates that this field was defined explicitly by the user in
@@ -98,7 +103,9 @@ type (
 		UserDefined bool
 		// Annotations that were defined for the field in the schema.
 		// The mapping is from the Annotation.Name() to a JSON decoded object.
-		Annotations Annotations
+		Annotations  Annotations
+		semanticType string
+		baseType     string
 		// referenced foreign-key.
 		fk *ForeignKey
 	}
@@ -207,9 +214,12 @@ type (
 
 // NewType creates a new type and its fields from the given schema.
 func NewType(c *Config, schema *load.Schema) (*Type, error) {
-	idType := c.IDType
-	if idType == nil {
-		idType = defaultIDType
+	idType := field.TypeInt
+	if c.IDType != nil {
+		idType = *c.IDType
+	}
+	if !idType.Valid() {
+		return nil, fmt.Errorf("invalid id type %q", idType)
 	}
 	typ := &Type{
 		Config:      c,
@@ -229,6 +239,7 @@ func NewType(c *Config, schema *load.Schema) (*Type, error) {
 				Name: "id",
 			},
 			Type:      idType,
+			Semantic:  builtinFieldType(idType),
 			StructTag: structTag("id", ""),
 		}
 	}
@@ -237,22 +248,27 @@ func NewType(c *Config, schema *load.Schema) (*Type, error) {
 	}
 	for _, f := range schema.Fields {
 		tf := &Field{
-			cfg:           c,
-			def:           f,
-			typ:           typ,
-			Name:          f.Name,
-			Type:          f.Info,
-			Unique:        f.Unique,
-			Position:      f.Position,
-			Nillable:      f.Nillable,
-			Optional:      f.Optional,
-			Default:       f.Default,
-			UpdateDefault: f.UpdateDefault,
-			Immutable:     f.Immutable,
-			StructTag:     structTag(f.Name, f.Tag),
-			Validators:    f.Validators,
-			UserDefined:   true,
-			Annotations:   f.Annotations,
+			cfg:            c,
+			def:            f,
+			typ:            typ,
+			Name:           f.Name,
+			Type:           f.Type,
+			Semantic:       f.Semantic,
+			Unique:         f.Unique,
+			Position:       f.Position,
+			Nillable:       f.Nillable,
+			Optional:       f.Optional,
+			Default:        f.Default,
+			UpdateDefault:  f.UpdateDefault,
+			Immutable:      f.Immutable,
+			StructTag:      structTag(f.Name, f.Tag),
+			Validators:     f.Validators,
+			ValidatorKinds: append([]field.ValidatorKind(nil), f.ValidatorKinds...),
+			UserDefined:    true,
+			Annotations:    f.Annotations,
+		}
+		if err := validateFieldSemantic(tf.Name, tf.Type, tf.Semantic); err != nil {
+			return nil, err
 		}
 		if err := typ.checkField(tf, f); err != nil {
 			return nil, err
@@ -268,7 +284,128 @@ func NewType(c *Config, schema *load.Schema) (*Type, error) {
 			typ.fields[f.Name] = tf
 		}
 	}
+	if typ.ID != nil {
+		if err := validateFieldSemantic(typ.ID.Name, typ.ID.Type, typ.ID.Semantic); err != nil {
+			return nil, err
+		}
+	}
 	return typ, nil
+}
+
+func validateFieldSemantic(name string, logical field.Type, semantic *load.FieldType) error {
+	if !logical.Valid() {
+		return fmt.Errorf("field %q has invalid logical type %q", name, logical)
+	}
+	if semantic == nil {
+		return fmt.Errorf("field %q is missing semantic type metadata", name)
+	}
+	if semantic.Base == nil {
+		return fmt.Errorf("field %q semantic type is missing its logical base", name)
+	}
+	if _, err := semantic.Base.ID(); err != nil {
+		return fmt.Errorf("field %q semantic logical base: %w", name, err)
+	}
+	if semantic.Representation == nil {
+		return fmt.Errorf("field %q semantic type is missing its representation", name)
+	}
+	id, err := semantic.Representation.ID()
+	if err != nil {
+		return fmt.Errorf("field %q semantic representation: %w", name, err)
+	}
+	if semantic.ID != id {
+		return fmt.Errorf("field %q semantic type identity mismatch", name)
+	}
+	if semantic.Logical != fieldLogicalType(logical) {
+		return fmt.Errorf("field %q semantic logical type %q does not match %q", name, semantic.Logical, logical)
+	}
+	return nil
+}
+
+func fieldLogicalType(typ field.Type) load.LogicalType {
+	switch typ {
+	case field.TypeBool:
+		return load.LogicalTypeBool
+	case field.TypeTime:
+		return load.LogicalTypeTime
+	case field.TypeJSON:
+		return load.LogicalTypeJSON
+	case field.TypeUUID:
+		return load.LogicalTypeUUID
+	case field.TypeBytes:
+		return load.LogicalTypeBytes
+	case field.TypeEnum:
+		return load.LogicalTypeEnum
+	case field.TypeString:
+		return load.LogicalTypeString
+	case field.TypeInt8, field.TypeInt16, field.TypeInt32, field.TypeInt, field.TypeInt64:
+		return load.LogicalTypeInt
+	case field.TypeUint8, field.TypeUint16, field.TypeUint32, field.TypeUint, field.TypeUint64:
+		return load.LogicalTypeUint
+	case field.TypeFloat32, field.TypeFloat64:
+		return load.LogicalTypeFloat
+	case field.TypeOther:
+		return load.LogicalTypeOther
+	default:
+		return ""
+	}
+}
+
+func builtinFieldType(logical field.Type) *load.FieldType {
+	semantic, err := load.FieldTypeOf(logical, builtinTypeExpr(logical))
+	if err != nil {
+		panic(err)
+	}
+	semantic.Capabilities.AssignableToLogical = true
+	semantic.Capabilities.ConvertibleToLogical = true
+	semantic.Capabilities.Comparable = logical != field.TypeBytes && logical != field.TypeJSON
+	semantic.Capabilities.Nillable = logical == field.TypeBytes || logical == field.TypeJSON
+	return semantic
+}
+
+func builtinTypeExpr(logical field.Type) *load.TypeExpression {
+	basic := func(kind load.BasicKind) *load.TypeExpression {
+		return &load.TypeExpression{Kind: load.TypeKindBasic, Basic: kind}
+	}
+	switch logical {
+	case field.TypeBool:
+		return basic(load.BasicKindBool)
+	case field.TypeString, field.TypeEnum:
+		return basic(load.BasicKindString)
+	case field.TypeInt:
+		return basic(load.BasicKindInt)
+	case field.TypeInt8:
+		return basic(load.BasicKindInt8)
+	case field.TypeInt16:
+		return basic(load.BasicKindInt16)
+	case field.TypeInt32:
+		return basic(load.BasicKindInt32)
+	case field.TypeInt64:
+		return basic(load.BasicKindInt64)
+	case field.TypeUint:
+		return basic(load.BasicKindUint)
+	case field.TypeUint8:
+		return basic(load.BasicKindUint8)
+	case field.TypeUint16:
+		return basic(load.BasicKindUint16)
+	case field.TypeUint32:
+		return basic(load.BasicKindUint32)
+	case field.TypeUint64:
+		return basic(load.BasicKindUint64)
+	case field.TypeFloat32:
+		return basic(load.BasicKindFloat32)
+	case field.TypeFloat64:
+		return basic(load.BasicKindFloat64)
+	case field.TypeBytes, field.TypeJSON:
+		return &load.TypeExpression{Kind: load.TypeKindSlice, Element: basic(load.BasicKindUint8)}
+	case field.TypeTime:
+		return &load.TypeExpression{Kind: load.TypeKindNamed, Named: &load.TypeName{Package: load.Package{Path: "time", Name: "time"}, Name: "Time"}}
+	case field.TypeUUID:
+		return &load.TypeExpression{Kind: load.TypeKindArray, Length: 16, Element: basic(load.BasicKindUint8)}
+	case field.TypeOther:
+		return &load.TypeExpression{Kind: load.TypeKindInterface}
+	default:
+		panic(fmt.Sprintf("unsupported built-in ID type %s", logical))
+	}
 }
 
 // IsView indicates if the type (schema) is a view.
@@ -423,7 +560,7 @@ func (t Type) HasNumeric() bool {
 // HasUpdateCheckers reports if this type has any checkers to run on update(one).
 func (t Type) HasUpdateCheckers() bool {
 	for _, f := range t.Fields {
-		if (f.Validators > 0 || f.IsEnum()) && !f.Immutable {
+		if (f.Validators > 0 || f.IsEnum() || f.TypeValidator()) && !f.Immutable {
 			return true
 		}
 	}
@@ -712,12 +849,19 @@ func (t *Type) setupFKs() error {
 		if !e.OwnFK() {
 			owner, refid = e.Type, t.ID
 		}
+		if refid == nil {
+			return fmt.Errorf("edge %q references a type without a single-field id", e.Name)
+		}
+		if err := validateFieldSemantic(refid.Name, refid.Type, refid.Semantic); err != nil {
+			return fmt.Errorf("edge %q foreign key: %w", e.Name, err)
+		}
 		fk := &ForeignKey{
 			Edge: e,
 			Field: &Field{
 				typ:         owner,
 				Name:        builderField(e.Rel.Column()),
 				Type:        refid.Type,
+				Semantic:    refid.Semantic,
 				Nillable:    true,
 				Optional:    true,
 				Unique:      e.Unique,
@@ -778,7 +922,7 @@ func (t *Type) setupFieldEdge(fk *ForeignKey, fkOwner *Edge, fkName string) erro
 	case tf.HasValueScanner():
 		return fmt.Errorf("edge-field %q cannot have an external ValueScanner", fkName)
 	}
-	if t1, t2 := tf.Type.Type, fkOwner.Type.ID.Type.Type; t1 != t2 {
+	if t1, t2 := tf.Type, fkOwner.Type.ID.Type; t1 != t2 {
 		return fmt.Errorf("mismatch field type between edge field %q and id of type %q (%s != %s)", fkName, fkOwner.Type.Name, t1, t2)
 	}
 	fk.UserDefined = true
@@ -1021,7 +1165,7 @@ func (t *Type) checkField(tf *Field, f *load.Field) (err error) {
 	switch ant := tf.EntSQL(); {
 	case f.Name == "":
 		err = fmt.Errorf("field name cannot be empty")
-	case f.Info == nil || !f.Info.Valid():
+	case f.Semantic == nil || !f.Type.Valid():
 		err = fmt.Errorf("invalid type for field %s", f.Name)
 	case f.Unique && f.Default && f.DefaultKind != reflect.Func:
 		err = fmt.Errorf("unique field %q cannot have default value", f.Name)
@@ -1029,13 +1173,10 @@ func (t *Type) checkField(tf *Field, f *load.Field) (err error) {
 		err = fmt.Errorf("field %q redeclared for type %q", f.Name, t.Name)
 	case f.Sensitive && f.Tag != "":
 		err = fmt.Errorf("sensitive field %q cannot have struct tags", f.Name)
-	case f.Info.Type == field.TypeEnum:
-		if tf.Enums, err = tf.enums(f); err == nil && !tf.HasGoType() {
-			// Enum types should be named as follows: typepkg.Field.
-			f.Info.Ident = fmt.Sprintf("%s.%s", t.PackageDir(), pascal(f.Name))
-		}
-	case tf.Validators > 0 && !tf.ConvertedToBasic() && f.Info.Type != field.TypeJSON:
-		err = fmt.Errorf("GoType %q for field %q must be converted to the basic %q type for validators", tf.Type, f.Name, tf.Type.Type)
+	case f.Type == field.TypeEnum:
+		tf.Enums, err = tf.enums(f)
+	case tf.HasLogicalValidators() && tf.Semantic.Capabilities.LogicalProjection == "" && !tf.ConvertedToBasic():
+		err = fmt.Errorf("semantic field %q representation cannot encode its logical base for family validators", f.Name)
 	case ant != nil && ant.Default != "" && (ant.DefaultExpr != "" || ant.DefaultExprs != nil):
 		err = fmt.Errorf("field %q cannot have both default value and default expression annotations", f.Name)
 	case tf.HasValueScanner() && tf.IsJSON():
@@ -1059,6 +1200,11 @@ func (t Type) UnexportedForeignKeys() []*ForeignKey {
 // aliases adds package aliases (local names) for all type-packages that
 // their import identifier conflicts with user-defined packages (i.e. GoType).
 func aliases(g *Graph) {
+	for _, node := range g.Nodes {
+		if err := node.renderSemanticTypes(); err != nil {
+			panic(graphError{fmt.Sprintf("render semantic types for %q: %s", node.Name, err)})
+		}
+	}
 	mayAlias := make(map[string]*Type)
 	for _, n := range g.Nodes {
 		if pkg := n.PackageDir(); importPkg[pkg] != "" {
@@ -1068,23 +1214,116 @@ func aliases(g *Graph) {
 			mayAlias[n.PackageDir()] = n
 		}
 	}
-	for _, n := range g.Nodes {
-		for _, f := range n.Fields {
-			if !f.HasGoType() {
-				continue
-			}
-			name := f.Type.PkgName
-			if name == "" && f.Type.PkgPath != "" {
-				name = path.Base(f.Type.PkgPath)
-			}
-			// A user-defined type already uses the
-			// package local name.
-			if n, ok := mayAlias[name]; ok {
-				// By default, a package named "pet" will be named as "entpet".
-				n.alias = path.Base(g.Package) + name
+}
+
+func (t *Type) renderSemanticTypes() error {
+	current := load.Package{Path: path.Join(t.Config.Package, t.PackageDir()), Name: t.PackageDir()}
+	renderer, err := t.semanticRenderer(current)
+	if err != nil {
+		return err
+	}
+	t.semanticImports = renderer.Imports()
+	for _, field := range t.semanticFields() {
+		if field.DefinesEnumType() {
+			field.semanticType = t.PackageDir() + "." + field.StructField()
+		} else if field.semanticType, err = renderer.Render(field.Semantic.Representation); err != nil {
+			return fmt.Errorf("field %q representation: %w", field.Name, err)
+		}
+		if field.baseType, err = renderer.Render(field.Semantic.Base); err != nil {
+			return fmt.Errorf("field %q logical base: %w", field.Name, err)
+		}
+	}
+	return nil
+}
+
+func (t Type) semanticFields() []*Field {
+	fields := append([]*Field(nil), t.Fields...)
+	if t.HasOneFieldID() {
+		fields = append(fields, t.ID)
+	}
+	for _, foreignKey := range t.UnexportedForeignKeys() {
+		fields = append(fields, foreignKey.Field)
+	}
+	return fields
+}
+
+func (t Type) semanticRenderer(current load.Package) (*TypeRenderer, error) {
+	renderer := NewTypeRenderer(current, current.Name)
+	for _, field := range t.semanticFields() {
+		if err := renderer.Add(field.Semantic.Representation, field.Semantic.Base); err != nil {
+			return nil, fmt.Errorf("field %q: %w", field.Name, err)
+		}
+	}
+	if current.Path == path.Join(t.Config.Package, t.PackageDir()) {
+		for _, edge := range t.EdgesWithID() {
+			if err := renderer.Add(edge.Type.ID.Semantic.Representation); err != nil {
+				return nil, fmt.Errorf("edge %q id: %w", edge.Name, err)
 			}
 		}
 	}
+	return renderer, nil
+}
+
+// SemanticImports returns deterministic semantic imports for this type package.
+func (t Type) SemanticImports() []Import {
+	return t.semanticImports
+}
+
+// ClientDependencies holds jointly rendered dependency types and imports for
+// the generated client.
+type ClientDependencies struct {
+	Dependencies Dependencies
+	Imports      []Import
+}
+
+// ClientDependencies renders all dependency types using one import namespace.
+func (g Graph) ClientDependencies() (*ClientDependencies, error) {
+	data := &ClientDependencies{}
+	if g.Annotations != nil {
+		data.Dependencies, _ = g.Annotations[(Dependencies{}).Name()].(Dependencies)
+	}
+	if len(data.Dependencies) == 0 {
+		return data, nil
+	}
+	generatedNames := make([]string, 0, len(g.Nodes)+2)
+	generatedNames = append(generatedNames, path.Base(g.Package), "migrate")
+	for _, node := range g.Nodes {
+		generatedNames = append(generatedNames, node.Package())
+	}
+	renderer := NewTypeRenderer(load.Package{Path: g.Package, Name: path.Base(g.Package)}, generatedNames...)
+	for _, dependency := range data.Dependencies {
+		if err := renderer.Add(dependency.Type); err != nil {
+			return nil, fmt.Errorf("dependency %q: %w", dependency.Field, err)
+		}
+	}
+	for _, dependency := range data.Dependencies {
+		var err error
+		if dependency.RenderedType, err = renderer.Render(dependency.Type); err != nil {
+			return nil, fmt.Errorf("dependency %q: %w", dependency.Field, err)
+		}
+	}
+	data.Imports = renderer.Imports()
+	return data, nil
+}
+
+// RuntimeSemanticImports returns deterministic semantic imports for runtime stitching.
+func (g Graph) RuntimeSemanticImports(currentPackage string) []Import {
+	generatedPackages := make([]string, 0, len(g.Nodes)+1)
+	generatedPackages = append(generatedPackages, currentPackage)
+	for _, node := range g.Nodes {
+		generatedPackages = append(generatedPackages, node.PackageDir())
+	}
+	renderer := NewTypeRenderer(load.Package{Path: path.Join(g.Package, currentPackage), Name: currentPackage}, generatedPackages...)
+	for _, node := range g.Nodes {
+		for _, field := range node.semanticFields() {
+			if field.Default || field.UpdateDefault || field.Validators > 0 || field.HasValueScanner() {
+				if err := renderer.Add(field.Semantic.Representation, field.Semantic.Base); err != nil {
+					panic(err)
+				}
+			}
+		}
+	}
+	return renderer.Imports()
 }
 
 // sqlComment returns the SQL database comment for the node (table), if defined and enabled.
@@ -1105,6 +1344,77 @@ func (t Type) sqlComment() string {
 // Constant returns the constant name of the field.
 func (f Field) Constant() string {
 	return "Field" + pascal(f.Name)
+}
+
+// GoType returns the generated representation type for this field.
+func (f Field) GoType() string {
+	if f.semanticType == "" {
+		panic(fmt.Sprintf("field %q semantic type was not rendered", f.Name))
+	}
+	return f.semanticType
+}
+
+// BaseType returns the logical field-family type used by base validators.
+func (f Field) BaseType() string {
+	return f.baseType
+}
+
+// TypeConst returns the schema field.Type constant suffix.
+func (f Field) TypeConst() string { return f.Type.ConstName() }
+
+// TypeNillable reports whether the representation itself accepts nil.
+func (f Field) TypeNillable() bool { return f.Semantic.Capabilities.Nillable }
+
+// TypeNumeric reports whether the logical field family is numeric.
+func (f Field) TypeNumeric() bool { return f.Type.Numeric() }
+
+// TypeComparable reports whether representation values are comparable in Go.
+func (f Field) TypeComparable() bool { return f.Semantic.Capabilities.Comparable }
+
+// StorageComparable reports whether the logical storage family supports SQL equality predicates.
+func (f Field) StorageComparable() bool {
+	return !f.IsJSON()
+}
+
+// StorageOrderable reports whether the logical storage family supports SQL ordering.
+func (f Field) StorageOrderable() bool {
+	switch f.Type {
+	case field.TypeBool, field.TypeTime, field.TypeUUID, field.TypeEnum, field.TypeString:
+		return true
+	default:
+		return f.Type.Numeric()
+	}
+}
+
+// TypeValuer reports whether the representation implements driver.Valuer.
+func (f Field) TypeValuer() bool { return f.Semantic.Capabilities.Valuer }
+
+// TypeValueScanner reports whether the representation implements Scanner and Valuer.
+func (f Field) TypeValueScanner() bool {
+	return f.Semantic.Capabilities.Scanner && f.Semantic.Capabilities.Valuer
+}
+
+// TypeNullableScanner reports whether a pointer representation uses its pointee
+// as the direct scanner and therefore needs an explicit SQL validity wrapper.
+func (f Field) TypeNullableScanner() bool {
+	return f.Semantic.Capabilities.NullableScanner
+}
+
+// TypeValidator reports whether the representation has Validate() error.
+func (f Field) TypeValidator() bool { return f.Semantic.Capabilities.Validator }
+
+// TypeStringer reports whether the representation implements fmt.Stringer.
+func (f Field) TypeStringer() bool { return f.Semantic.Capabilities.Stringer }
+
+// HasLogicalValidators reports whether logical family validators were attached.
+func (f Field) HasLogicalValidators() bool {
+	return slices.Contains(f.ValidatorKinds, field.ValidatorLogical)
+}
+
+// ValidatorUsesLogicalValue reports whether the validator at the given index
+// accepts the logical field-family value rather than its Go representation.
+func (f Field) ValidatorUsesLogicalValue(index int) bool {
+	return f.ValidatorKinds[index] == field.ValidatorLogical
 }
 
 // DefaultName returns the variable name of the default value of this field.
@@ -1178,9 +1488,18 @@ func (f Field) EnumName(enum string) string {
 	return pascal(f.Name) + enum
 }
 
-// Validator returns the validator name.
+// Validator returns the user validator name.
 func (f Field) Validator() string {
 	return pascal(f.Name) + "Validator"
+}
+
+// EnumValidator returns the enum-membership validator name. Enum fields without
+// user validators retain the established generated name.
+func (f Field) EnumValidator() string {
+	if f.Validators == 0 {
+		return f.Validator()
+	}
+	return pascal(f.Name) + "ValuesValidator"
 }
 
 // EntSQL returns the EntSQL annotation if exists.
@@ -1191,9 +1510,8 @@ func (f Field) EntSQL() *entsql.Annotation {
 // mutMethods returns the method names of mutation interface.
 var mutMethods = func() map[string]bool {
 	names := map[string]bool{"Client": true, "Tx": true, "Where": true, "SetOp": true}
-	t := reflect.TypeOf(new(ent.Mutation)).Elem()
-	for i := 0; i < t.NumMethod(); i++ {
-		names[t.Method(i).Name] = true
+	for method := range reflect.TypeFor[ent.Mutation]().Methods() {
+		names[method.Name] = true
 	}
 	return names
 }()
@@ -1323,34 +1641,34 @@ func (f Field) RequiredFor() (dialects []string) {
 }
 
 // IsBool returns true if the field is a bool field.
-func (f Field) IsBool() bool { return f.Type != nil && f.Type.Type == field.TypeBool }
+func (f Field) IsBool() bool { return f.Type == field.TypeBool }
 
 // IsBytes returns true if the field is a bytes field.
-func (f Field) IsBytes() bool { return f.Type != nil && f.Type.Type == field.TypeBytes }
+func (f Field) IsBytes() bool { return f.Type == field.TypeBytes }
 
 // IsTime returns true if the field is a timestamp field.
-func (f Field) IsTime() bool { return f.Type != nil && f.Type.Type == field.TypeTime }
+func (f Field) IsTime() bool { return f.Type == field.TypeTime }
 
 // IsJSON returns true if the field is a JSON field.
-func (f Field) IsJSON() bool { return f.Type != nil && f.Type.Type == field.TypeJSON }
+func (f Field) IsJSON() bool { return f.Type == field.TypeJSON }
 
 // IsOther returns true if the field is an Other field.
-func (f Field) IsOther() bool { return f.Type != nil && f.Type.Type == field.TypeOther }
+func (f Field) IsOther() bool { return f.Type == field.TypeOther }
 
 // IsString returns true if the field is a string field.
-func (f Field) IsString() bool { return f.Type != nil && f.Type.Type == field.TypeString }
+func (f Field) IsString() bool { return f.Type == field.TypeString }
 
 // IsUUID returns true if the field is a UUID field.
-func (f Field) IsUUID() bool { return f.Type != nil && f.Type.Type == field.TypeUUID }
+func (f Field) IsUUID() bool { return f.Type == field.TypeUUID }
 
 // IsInt returns true if the field is an int field.
-func (f Field) IsInt() bool { return f.Type != nil && f.Type.Type == field.TypeInt }
+func (f Field) IsInt() bool { return f.Type == field.TypeInt }
 
 // IsInt64 returns true if the field is an int64 field.
-func (f Field) IsInt64() bool { return f.Type != nil && f.Type.Type == field.TypeInt64 }
+func (f Field) IsInt64() bool { return f.Type == field.TypeInt64 }
 
 // IsEnum returns true if the field is an enum field.
-func (f Field) IsEnum() bool { return f.Type != nil && f.Type.Type == field.TypeEnum }
+func (f Field) IsEnum() bool { return f.Type == field.TypeEnum }
 
 // IsEdgeField reports if the given field is an edge-field (i.e. a foreign-key)
 // that was referenced by one of the edges.
@@ -1392,19 +1710,24 @@ func (f Field) Comment() string {
 // NillableValue reports if the field holds a Go value (not a pointer), but the field is nillable.
 // It's used by the templates to prefix values with pointer operators (e.g. &intValue or *intValue).
 func (f Field) NillableValue() bool {
-	return f.Nillable && !f.Type.RType.IsPtr()
+	return f.Nillable && !f.TypeNillable()
 }
 
-// ScanType returns the Go type that is used for `rows.Scan`.
+// ScanType returns the Go type used by rows.Scan.
 func (f Field) ScanType() string {
-	if f.Type.ValueScanner() {
-		if f.Nillable && !f.standardNullType() {
+	if f.TypeValueScanner() {
+		if f.Nillable && (!f.TypeNillable() || f.TypeNullableScanner()) {
 			return "sql.NullScanner"
 		}
-		return f.Type.RType.String()
+		return strings.TrimPrefix(f.GoType(), "*")
 	}
-	switch f.Type.Type {
-	case field.TypeJSON, field.TypeBytes:
+	switch f.Type {
+	case field.TypeJSON:
+		return "[]byte"
+	case field.TypeBytes:
+		if f.TypeNillable() {
+			return f.GoType()
+		}
 		return "[]byte"
 	case field.TypeString, field.TypeEnum:
 		return "sql.NullString"
@@ -1412,13 +1735,13 @@ func (f Field) ScanType() string {
 		return "sql.NullBool"
 	case field.TypeTime:
 		return "sql.NullTime"
-	case field.TypeInt, field.TypeInt8, field.TypeInt16, field.TypeInt32, field.TypeInt64,
-		field.TypeUint, field.TypeUint8, field.TypeUint16, field.TypeUint32, field.TypeUint64:
+	case field.TypeInt, field.TypeInt8, field.TypeInt16, field.TypeInt32, field.TypeInt64, field.TypeUint, field.TypeUint8, field.TypeUint16, field.TypeUint32, field.TypeUint64:
 		return "sql.NullInt64"
 	case field.TypeFloat32, field.TypeFloat64:
 		return "sql.NullFloat64"
+	default:
+		return f.GoType()
 	}
-	return f.Type.String()
 }
 
 // HasValueScanner reports if any of the fields has (an external) ValueScanner.
@@ -1475,86 +1798,58 @@ func (f Field) FromValueFunc() (string, error) {
 	return fmt.Sprintf("%s.ValueScanner.%s.FromValue", f.typ.Package(), f.StructField()), nil
 }
 
-// NewScanType returns an expression for creating a new object
-// to be used by the `rows.Scan` method. A sql.Scanner or a
-// nillable-type supported by the SQL driver (e.g. []byte).
+// NewScanType returns an expression for creating a rows.Scan destination.
 func (f Field) NewScanType() string {
-	if f.Type.ValueScanner() {
-		expr := fmt.Sprintf("new(%s)", f.Type.RType.String())
-		if f.Nillable && !f.standardNullType() {
+	if f.TypeValueScanner() {
+		expr := fmt.Sprintf("new(%s)", strings.TrimPrefix(f.GoType(), "*"))
+		if f.Nillable && (!f.TypeNillable() || f.TypeNullableScanner()) {
 			expr = fmt.Sprintf("&sql.NullScanner{S: %s}", expr)
 		}
 		return expr
 	}
-	expr := f.Type.String()
-	switch f.Type.Type {
-	case field.TypeJSON, field.TypeBytes:
-		expr = "[]byte"
-	case field.TypeString, field.TypeEnum:
-		expr = "sql.NullString"
-	case field.TypeBool:
-		expr = "sql.NullBool"
-	case field.TypeTime:
-		expr = "sql.NullTime"
-	case field.TypeInt, field.TypeInt8, field.TypeInt16, field.TypeInt32, field.TypeInt64,
-		field.TypeUint, field.TypeUint8, field.TypeUint16, field.TypeUint32, field.TypeUint64:
-		expr = "sql.NullInt64"
-	case field.TypeFloat32, field.TypeFloat64:
-		expr = "sql.NullFloat64"
+	if f.IsOther() || f.IsBytes() && f.TypeNillable() {
+		return fmt.Sprintf("new(%s)", strings.TrimPrefix(f.GoType(), "*"))
 	}
-	return fmt.Sprintf("new(%s)", expr)
+	return fmt.Sprintf("new(%s)", f.ScanType())
 }
 
-// ScanTypeField extracts the nullable type field (if exists) from the given receiver.
-// It also does the type conversion if needed.
-func (f Field) ScanTypeField(rec string) string {
-	expr := rec
-	if f.Type.ValueScanner() {
-		if !f.Type.RType.IsPtr() {
-			expr = "*" + expr
+// ScanTypeField extracts and converts a scanned nullable value.
+func (f Field) ScanTypeField(receiver string) string {
+	if f.TypeValueScanner() {
+		if f.Nillable && f.TypeNullableScanner() {
+			return fmt.Sprintf("%s.S.(*%s)", receiver, strings.TrimPrefix(f.GoType(), "*"))
 		}
-		if f.Nillable && !f.standardNullType() {
-			return fmt.Sprintf("%s.S.(*%s)", expr, f.Type.RType.String())
+		if f.Nillable && !f.TypeNillable() {
+			return fmt.Sprintf("*%s.S.(*%s)", receiver, f.GoType())
 		}
-		return expr
+		if !f.TypeNillable() {
+			return "*" + receiver
+		}
+		return receiver
 	}
-	switch f.Type.Type {
+	if (f.IsBytes() || f.IsOther()) && f.TypeNillable() {
+		return "*" + receiver
+	}
+	switch f.Type {
 	case field.TypeEnum:
-		expr = fmt.Sprintf("%s(%s.String)", f.Type, rec)
-	case field.TypeString, field.TypeBool, field.TypeInt64, field.TypeFloat64:
-		expr = f.goType(fmt.Sprintf("%s.%s", rec, strings.Title(f.Type.Type.String())))
+		return fmt.Sprintf("%s(%s.String)", f.GoType(), receiver)
+	case field.TypeString:
+		return f.goType(receiver + ".String")
+	case field.TypeBool:
+		return f.goType(receiver + ".Bool")
+	case field.TypeInt64:
+		return f.goType(receiver + ".Int64")
+	case field.TypeFloat64:
+		return f.goType(receiver + ".Float64")
 	case field.TypeTime:
-		expr = fmt.Sprintf("%s.Time", rec)
+		return f.goType(fmt.Sprintf("%s.Time", receiver))
 	case field.TypeFloat32:
-		expr = fmt.Sprintf("%s(%s.Float64)", f.Type, rec)
-	case field.TypeInt, field.TypeInt8, field.TypeInt16, field.TypeInt32,
-		field.TypeUint, field.TypeUint8, field.TypeUint16, field.TypeUint32, field.TypeUint64:
-		expr = fmt.Sprintf("%s(%s.Int64)", f.Type, rec)
+		return f.goType(fmt.Sprintf("%s.Float64", receiver))
+	case field.TypeInt, field.TypeInt8, field.TypeInt16, field.TypeInt32, field.TypeUint, field.TypeUint8, field.TypeUint16, field.TypeUint32, field.TypeUint64:
+		return f.goType(fmt.Sprintf("%s.Int64", receiver))
+	default:
+		return receiver
 	}
-	return expr
-}
-
-// standardNullType reports if the field is one of the standard SQL types.
-func (f Field) standardNullType() bool {
-	for _, t := range []reflect.Type{
-		nullBoolType,
-		nullBoolPType,
-		nullFloatType,
-		nullFloatPType,
-		nullInt32Type,
-		nullInt32PType,
-		nullInt64Type,
-		nullInt64PType,
-		nullTimeType,
-		nullTimePType,
-		nullStringType,
-		nullStringPType,
-	} {
-		if f.Type.RType.TypeEqual(t) {
-			return true
-		}
-	}
-	return false
 }
 
 // Column returns the table column. It sets it as a primary key (auto_increment)
@@ -1562,7 +1857,7 @@ func (f Field) standardNullType() bool {
 func (f Field) Column() *schema.Column {
 	c := &schema.Column{
 		Name:     f.StorageKey(),
-		Type:     f.Type.Type,
+		Type:     f.Type,
 		Unique:   f.Unique,
 		Nullable: f.Optional,
 		Size:     f.size(),
@@ -1570,7 +1865,7 @@ func (f Field) Column() *schema.Column {
 		Comment:  f.sqlComment(),
 	}
 	switch {
-	case f.Default && (f.Type.Numeric() || f.Type.Type == field.TypeBool):
+	case f.Default && (f.Type.Numeric() || f.Type == field.TypeBool):
 		c.Default = f.DefaultValue()
 	case f.Default && (f.IsString() || f.IsEnum()):
 		if s, ok := f.DefaultValue().(string); ok {
@@ -1627,15 +1922,15 @@ func (f Field) size() int64 {
 func (f Field) PK() *schema.Column {
 	c := &schema.Column{
 		Name:      f.StorageKey(),
-		Type:      f.Type.Type,
+		Type:      f.Type,
 		Key:       schema.PrimaryKey,
 		Comment:   f.sqlComment(),
-		Increment: f.incremental(f.Type.Type.Integer()),
+		Increment: f.incremental(f.Type.Integer()),
 	}
 	// If the PK was defined by the user, and it is UUID or string.
 	if f.UserDefined && !f.Type.Numeric() {
 		c.Increment = false
-		c.Type = f.Type.Type
+		c.Type = f.Type
 		c.Unique = f.Unique
 		if f.def != nil && f.def.Size != nil {
 			c.Size = *f.def.Size
@@ -1695,39 +1990,54 @@ func (f Field) StorageKey() string {
 	return snake(f.Name)
 }
 
-// HasGoType indicate if a basic field (like string or bool)
-// has a custom GoType.
-func (f Field) HasGoType() bool {
-	return f.Type != nil && f.Type.RType != nil
+// DefinesEnumType reports whether this field's enum type is declared by the generator.
+func (f Field) DefinesEnumType() bool {
+	return f.IsEnum() && f.Semantic.Representation.Kind == load.TypeKindBasic
+}
+
+// RepresentationIsBase reports whether the field representation has the canonical
+// identity of its logical base type.
+func (f Field) RepresentationIsBase() bool {
+	baseID, err := f.Semantic.Base.ID()
+	if err != nil {
+		panic(err)
+	}
+	return f.Semantic.ID == baseID
 }
 
 // ConvertedToBasic indicates if the Go type of the field
 // can be converted to basic type (string, int, etc.).
 func (f Field) ConvertedToBasic() bool {
-	return !f.HasGoType() || f.BasicType("ident") != ""
+	return f.Semantic.Capabilities.AssignableToLogical || f.Semantic.Capabilities.ConvertibleToLogical
 }
 
-// SignedType returns the "signed type version" of the field type.
-// This behavior is required for supporting addition/subtraction
-// in mutations for unsigned types.
-func (f Field) SignedType() (*field.TypeInfo, error) {
+// LogicalValueSupported reports whether representation values can be encoded for logical storage predicates.
+func (f Field) LogicalValueSupported() bool {
+	return f.ConvertedToBasic() || f.Semantic.Capabilities.LogicalProjection != "" || f.TypeValuer() || f.HasValueScanner()
+}
+
+// MutationAddType returns the operand type for numeric mutation additions.
+// Represented numeric fields preserve their Go type. Unsigned fields use the
+// corresponding signed logical base so subtraction remains expressible.
+func (f Field) MutationAddType() (string, error) {
 	if !f.SupportsMutationAdd() {
-		return nil, fmt.Errorf("field %q does not support MutationAdd", f.Name)
+		return "", fmt.Errorf("field %q does not support MutationAdd", f.Name)
 	}
-	t := *f.Type
-	switch f.Type.Type {
+	if f.Semantic.Logical != load.LogicalTypeUint || f.implementsAdder() {
+		return f.GoType(), nil
+	}
+	switch f.Type {
 	case field.TypeUint8:
-		t.Type = field.TypeInt8
+		return field.TypeInt8.String(), nil
 	case field.TypeUint16:
-		t.Type = field.TypeInt16
+		return field.TypeInt16.String(), nil
 	case field.TypeUint32:
-		t.Type = field.TypeInt32
+		return field.TypeInt32.String(), nil
 	case field.TypeUint64:
-		t.Type = field.TypeInt64
-	case field.TypeUint:
-		t.Type = field.TypeInt
+		return field.TypeInt64.String(), nil
+	default:
+		return field.TypeInt.String(), nil
 	}
-	return &t, nil
 }
 
 // SupportsMutationAdd reports if the field supports the mutation "Add(T) T" interface.
@@ -1753,103 +2063,34 @@ func (f Field) MutationAddAssignExpr(ident1, ident2 string) (string, error) {
 	return fmt.Sprintf(expr, ident1, ident2), nil
 }
 
-func (f Field) implementsAdder() bool {
-	if !f.HasGoType() {
-		return false
-	}
-	// If the custom GoType supports the "Add(T) T" interface.
-	m, ok := f.Type.RType.Methods["Add"]
-	if !ok || len(m.In) != 1 && len(m.Out) != 1 {
-		return false
-	}
-	return rtypeEqual(f.Type.RType, m.In[0]) && rtypeEqual(f.Type.RType, m.Out[0])
-}
-
-func rtypeEqual(t1, t2 *field.RType) bool {
-	return t1.Kind == t2.Kind && t1.Ident == t2.Ident && t1.PkgPath == t2.PkgPath
-}
+func (f Field) implementsAdder() bool { return f.Semantic.Capabilities.Adder }
 
 // SupportsMutationAppend reports if the field supports the mutation append operation.
 func (f Field) SupportsMutationAppend() bool {
-	return f.IsJSON() && f.Type.RType != nil && f.Type.RType.Kind == reflect.Slice
+	return f.IsJSON() && f.Semantic.Capabilities.Underlying != nil && f.Semantic.Capabilities.Underlying.Kind == load.TypeKindSlice
 }
 
-var (
-	nullBoolType    = reflect.TypeOf(sql.NullBool{})
-	nullBoolPType   = reflect.TypeOf((*sql.NullBool)(nil))
-	nullFloatType   = reflect.TypeOf(sql.NullFloat64{})
-	nullFloatPType  = reflect.TypeOf((*sql.NullFloat64)(nil))
-	nullInt32Type   = reflect.TypeOf(sql.NullInt32{})
-	nullInt32PType  = reflect.TypeOf((*sql.NullInt32)(nil))
-	nullInt64Type   = reflect.TypeOf(sql.NullInt64{})
-	nullInt64PType  = reflect.TypeOf((*sql.NullInt64)(nil))
-	nullTimeType    = reflect.TypeOf(sql.NullTime{})
-	nullTimePType   = reflect.TypeOf((*sql.NullTime)(nil))
-	nullStringType  = reflect.TypeOf(sql.NullString{})
-	nullStringPType = reflect.TypeOf((*sql.NullString)(nil))
-)
-
-// BasicType returns a Go expression for the given identifier
-// to convert it to a basic type. For example:
-//
-//	v (http.Dir)		=> string(v)
-//	v (fmt.Stringer)	=> v.String()
-//	v (sql.NullString)	=> v.String
-func (f Field) BasicType(ident string) (expr string) {
-	if !f.HasGoType() {
-		return ident
+// BasicType returns an expression that projects a representation to its logical base.
+func (f Field) BasicType(identifier string) string {
+	if f.Semantic.Capabilities.AssignableToLogical {
+		return identifier
 	}
-	t, rt := f.Type, f.Type.RType
-	switch t.Type {
-	case field.TypeEnum:
-		expr = ident
-	case field.TypeBool:
-		switch {
-		case rt.Kind == reflect.Bool:
-			expr = fmt.Sprintf("bool(%s)", ident)
-		case rt.TypeEqual(nullBoolType) || rt.TypeEqual(nullBoolPType):
-			expr = fmt.Sprintf("%s.Bool", ident)
-		}
-	case field.TypeBytes:
-		switch rt.Kind {
-		case reflect.Slice:
-			expr = fmt.Sprintf("[]byte(%s)", ident)
-		case reflect.Array:
-			expr = ident + "[:]"
-		}
-	case field.TypeTime:
-		switch {
-		case rt.TypeEqual(nullTimeType) || rt.TypeEqual(nullTimePType):
-			expr = fmt.Sprintf("%s.Time", ident)
-		case rt.Kind == reflect.Struct:
-			expr = fmt.Sprintf("time.Time(%s)", ident)
-		}
-	case field.TypeString:
-		switch {
-		case rt.Kind == reflect.String:
-			expr = fmt.Sprintf("string(%s)", ident)
-		case t.Stringer():
-			expr = fmt.Sprintf("%s.String()", ident)
-		case rt.TypeEqual(nullStringType) || rt.TypeEqual(nullStringPType):
-			expr = fmt.Sprintf("%s.String", ident)
-		}
-	case field.TypeJSON:
-		expr = ident
-	default:
-		if t.Numeric() && rt.Kind >= reflect.Int && rt.Kind <= reflect.Float64 {
-			expr = fmt.Sprintf("%s(%s)", rt.Kind, ident)
-		}
+	if f.Semantic.Capabilities.ConvertibleToLogical {
+		return fmt.Sprintf("%s(%s)", f.BaseType(), identifier)
 	}
-	return expr
+	if projection := f.Semantic.Capabilities.LogicalProjection; projection != "" {
+		if strings.HasPrefix(projection, "[") {
+			return identifier + projection
+		}
+		return fmt.Sprintf("%s.%s", identifier, projection)
+	}
+	return ""
 }
 
-// goType returns the Go expression for the given basic-type
-// identifier to covert it to the custom Go type.
-func (f Field) goType(ident string) string {
-	if !f.HasGoType() {
-		return ident
-	}
-	return fmt.Sprintf("%s(%s)", f.Type, ident)
+// goType returns the Go expression for the given logical scan value in the
+// field representation.
+func (f Field) goType(identifier string) string {
+	return fmt.Sprintf("%s(%s)", f.GoType(), identifier)
 }
 
 func (f Field) enums(lf *load.Field) ([]Enum, error) {
@@ -1864,17 +2105,22 @@ func (f Field) enums(lf *load.Field) ([]Enum, error) {
 			return nil, fmt.Errorf("%q field value cannot be empty", f.Name)
 		case values[value]:
 			return nil, fmt.Errorf("duplicate values %q for enum field %q", value, f.Name)
-		case !token.IsIdentifier(name) && !f.HasGoType():
+		case !token.IsIdentifier(name) && f.DefinesEnumType():
 			return nil, fmt.Errorf("enum %q does not have a valid Go identifier (%q)", value, name)
 		default:
 			values[value] = true
 			enums = append(enums, Enum{Name: name, Value: value})
 		}
 	}
-	if value := lf.DefaultValue; value != nil {
-		if value, ok := value.(string); !ok || !values[value] {
-			return nil, fmt.Errorf("invalid default value for enum field %q", f.Name)
-		}
+	if lf.DefaultValue == nil {
+		return enums, nil
+	}
+	value, ok := lf.DefaultValue.(string)
+	if !ok {
+		return nil, fmt.Errorf("enum field %q default cannot be represented as a string enum value", f.Name)
+	}
+	if !values[value] {
+		return nil, fmt.Errorf("invalid default value for enum field %q", f.Name)
 	}
 	return enums, nil
 }
@@ -1882,7 +2128,7 @@ func (f Field) enums(lf *load.Field) ([]Enum, error) {
 // Ops returns all predicate operations of the field.
 func (f *Field) Ops() []Op {
 	ops := fieldOps(f)
-	if (f.Name != "id" || !f.HasGoType()) && f.cfg != nil && f.cfg.Storage.Ops != nil {
+	if f.cfg != nil && f.cfg.Storage.Ops != nil {
 		ops = append(ops, f.cfg.Storage.Ops(f)...)
 	}
 	return ops

@@ -38,9 +38,9 @@ import (
 	"github.com/neko-sc/ent/entc/integration/ent/role"
 	"github.com/neko-sc/ent/entc/integration/ent/schema"
 	schemadir "github.com/neko-sc/ent/entc/integration/ent/schema/dir"
-	"github.com/neko-sc/ent/entc/integration/ent/schema/task"
+	task2 "github.com/neko-sc/ent/entc/integration/ent/schema/task"
 	"github.com/neko-sc/ent/entc/integration/ent/spec"
-	enttask "github.com/neko-sc/ent/entc/integration/ent/task"
+	"github.com/neko-sc/ent/entc/integration/ent/task"
 	"github.com/neko-sc/ent/entc/integration/ent/user"
 )
 
@@ -4163,7 +4163,7 @@ func (m *SpecMutation) OldField(ctx context.Context, name string) (ent.Value, er
 
 // TaskMutation represents an operation that mutates the Task nodes in the graph.
 type TaskMutation struct {
-	enttask.Mutation
+	task.Mutation
 	config
 	id       *int
 	done     bool
@@ -4178,7 +4178,7 @@ type taskOption func(*TaskMutation)
 // newTaskMutation creates new mutation for the Task entity.
 func newTaskMutation(c config, op Op, opts ...taskOption) *TaskMutation {
 	m := &TaskMutation{
-		Mutation: *enttask.NewMutation(op),
+		Mutation: *task.NewMutation(op),
 		config:   c,
 	}
 	for _, opt := range opts {
@@ -4269,7 +4269,7 @@ func (m *TaskMutation) IDs(ctx context.Context) ([]int, error) {
 // OldPriority returns the old "priority" field's value of the Task entity.
 // If the Task object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *TaskMutation) OldPriority(ctx context.Context) (v task.Priority, err error) {
+func (m *TaskMutation) OldPriority(ctx context.Context) (v task2.Priority, err error) {
 	if !m.Op().Is(OpUpdateOne) {
 		return v, errors.New("OldPriority is only allowed on UpdateOne operations")
 	}
@@ -4286,7 +4286,7 @@ func (m *TaskMutation) OldPriority(ctx context.Context) (v task.Priority, err er
 // OldPriorities returns the old "priorities" field's value of the Task entity.
 // If the Task object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *TaskMutation) OldPriorities(ctx context.Context) (v map[string]task.Priority, err error) {
+func (m *TaskMutation) OldPriorities(ctx context.Context) (v map[string]task2.Priority, err error) {
 	if !m.Op().Is(OpUpdateOne) {
 		return v, errors.New("OldPriorities is only allowed on UpdateOne operations")
 	}
@@ -4407,21 +4407,21 @@ func (m *TaskMutation) OldOp(ctx context.Context) (v string, err error) {
 // database failed.
 func (m *TaskMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
 	switch name {
-	case enttask.FieldPriority:
+	case task.FieldPriority:
 		return m.OldPriority(ctx)
-	case enttask.FieldPriorities:
+	case task.FieldPriorities:
 		return m.OldPriorities(ctx)
-	case enttask.FieldCreatedAt:
+	case task.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
-	case enttask.FieldName:
+	case task.FieldName:
 		return m.OldName(ctx)
-	case enttask.FieldOwner:
+	case task.FieldOwner:
 		return m.OldOwner(ctx)
-	case enttask.FieldOrder:
+	case task.FieldOrder:
 		return m.OldOrder(ctx)
-	case enttask.FieldOrderOption:
+	case task.FieldOrderOption:
 		return m.OldOrderOption(ctx)
-	case enttask.FieldOp:
+	case task.FieldOp:
 		return m.OldOp(ctx)
 	}
 	return nil, fmt.Errorf("unknown Task field %s", name)

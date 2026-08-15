@@ -84,7 +84,7 @@ func (Card) Fields() []ent.Field {
 			Optional().
 			Comment("Exact name written on card"),
 		field.Time("created_at").
-			Default(time.Now),
+			DefaultFunc(time.Now),
 		field.String("in_hook").
 			Comment("InHook is a mandatory field that is set by the hook."),
 		field.Time("expired_at").

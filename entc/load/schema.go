@@ -5,8 +5,10 @@ package load
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 
 	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/schema"
@@ -40,7 +42,8 @@ type Position struct {
 // Field represents an ent.Field that was loaded from a complied user package.
 type Field struct {
 	Name             string                  `json:"name,omitempty"`
-	Info             *field.TypeInfo         `json:"type,omitempty"`
+	Type             field.Type              `json:"type"`
+	Semantic         *FieldType              `json:"semantic_type"`
 	ValueScanner     bool                    `json:"value_scanner,omitempty"`
 	Tag              string                  `json:"tag,omitempty"`
 	Size             *int64                  `json:"size,omitempty"`
@@ -54,6 +57,7 @@ type Field struct {
 	UpdateDefault    bool                    `json:"update_default,omitempty"`
 	Immutable        bool                    `json:"immutable,omitempty"`
 	Validators       int                     `json:"validators,omitempty"`
+	ValidatorKinds   []field.ValidatorKind   `json:"validator_kinds,omitempty"`
 	StorageKey       string                  `json:"storage_key,omitempty"`
 	Position         *Position               `json:"position,omitempty"`
 	Sensitive        bool                    `json:"sensitive,omitempty"`
@@ -118,25 +122,32 @@ func NewEdge(ed *edge.Descriptor) *Edge {
 	return ne
 }
 
+// TypeResolver resolves an opaque runtime key to compiler-authored field metadata.
+type TypeResolver func(reflect.Type, field.Type) (*FieldType, error)
+
 // NewField creates a loaded field from field descriptor.
-func NewField(fd *field.Descriptor) (*Field, error) {
+func NewField(fd *field.Descriptor, resolver TypeResolver) (*Field, error) {
 	if fd.Err != nil {
 		return nil, fmt.Errorf("field %q: %w", fd.Name, fd.Err)
 	}
 	sf := &Field{
-		Name:             fd.Name,
-		Info:             fd.Info,
-		ValueScanner:     fd.ValueScanner != nil,
-		Tag:              fd.Tag,
-		Enums:            fd.Enums,
-		Unique:           fd.Unique,
-		Nillable:         fd.Nillable,
-		Optional:         fd.Optional,
-		Default:          fd.Default != nil,
-		UpdateDefault:    fd.UpdateDefault != nil,
-		Immutable:        fd.Immutable,
-		StorageKey:       fd.StorageKey,
-		Validators:       len(fd.Validators),
+		Name:          fd.Name,
+		Type:          fd.Type,
+		ValueScanner:  fd.ValueScanner != nil,
+		Tag:           fd.Tag,
+		Enums:         fd.Enums,
+		Unique:        fd.Unique,
+		Nillable:      fd.Nillable,
+		Optional:      fd.Optional,
+		Default:       fd.Default != nil,
+		UpdateDefault: fd.UpdateDefault != nil,
+		Immutable:     fd.Immutable,
+		StorageKey:    fd.StorageKey,
+		Validators:    len(fd.Validators),
+		ValidatorKinds: append(
+			[]field.ValidatorKind(nil),
+			fd.ValidatorKinds...,
+		),
 		Sensitive:        fd.Sensitive,
 		SchemaType:       fd.SchemaType,
 		Annotations:      make(map[string]any),
@@ -147,8 +158,25 @@ func NewField(fd *field.Descriptor) (*Field, error) {
 	for _, at := range fd.Annotations {
 		sf.addAnnotation(at)
 	}
-	if sf.Info == nil {
-		return nil, fmt.Errorf("missing type info for field %q", sf.Name)
+	if fd.RuntimeType == nil {
+		return nil, fmt.Errorf("field %q: missing semantic runtime type", sf.Name)
+	}
+	var resolveError error
+	if sf.Semantic, resolveError = resolver(fd.RuntimeType, fd.Type); resolveError != nil {
+		return nil, fmt.Errorf("field %q: %w", sf.Name, resolveError)
+	}
+	if sf.Semantic == nil {
+		return nil, fmt.Errorf("field %q: resolver returned no semantic type", sf.Name)
+	}
+	sf.Semantic.Storage.Dialects = sf.SchemaType
+	if len(sf.ValidatorKinds) != sf.Validators {
+		return nil, fmt.Errorf("field %q: validator metadata count does not match validators", sf.Name)
+	}
+	if slices.Contains(sf.ValidatorKinds, field.ValidatorLogical) && sf.Semantic.Capabilities.LogicalProjection == "" && !sf.Semantic.Capabilities.ConvertibleToLogical {
+		return nil, fmt.Errorf("field %q: representation cannot encode its logical base for family validators", sf.Name)
+	}
+	if err := validateFieldRepresentation(sf); err != nil {
+		return nil, fmt.Errorf("field %q: %w", sf.Name, err)
 	}
 	if size := int64(fd.Size); size != 0 {
 		sf.Size = &size
@@ -162,6 +190,26 @@ func NewField(fd *field.Descriptor) (*Field, error) {
 		sf.DefaultValue = fd.Default
 	}
 	return sf, nil
+}
+
+func validateFieldRepresentation(loadedField *Field) error {
+	capabilities := loadedField.Semantic.Capabilities
+	if loadedField.ValueScanner || loadedField.Type == field.TypeJSON {
+		return nil
+	}
+	if capabilities.Scanner && capabilities.Valuer {
+		return nil
+	}
+	if capabilities.Scanner != capabilities.Valuer {
+		return errors.New("representation must implement both Scanner and Valuer or provide an external Codec")
+	}
+	if loadedField.Type == field.TypeOther {
+		return errors.New("representation requires Scanner and Valuer or an external Codec")
+	}
+	if (capabilities.AssignableToLogical || capabilities.ConvertibleToLogical || capabilities.LogicalProjection != "") && capabilities.LogicalReverseConvertible {
+		return nil
+	}
+	return fmt.Errorf("representation cannot round-trip logical %s; use a reverse-convertible representation, Scanner and Valuer, or an external Codec", loadedField.Type)
 }
 
 // NewIndex creates an loaded index from index descriptor.
@@ -181,14 +229,17 @@ func NewIndex(idx *index.Descriptor) *Index {
 
 // MarshalSchema encodes the ent.Schema interface into a JSON
 // that can be decoded into the Schema objects declared above.
-func MarshalSchema(schema ent.Interface) (b []byte, err error) {
+func MarshalSchema(schema ent.Interface, resolver TypeResolver) (b []byte, err error) {
+	if resolver == nil {
+		return nil, errors.New("semantic runtime type has no resolver")
+	}
 	s := &Schema{
 		Config:      schema.Config(),
 		Name:        indirect(reflect.TypeOf(schema)).Name(),
 		Annotations: make(map[string]any),
 	}
 	_, s.View = schema.(ent.Viewer)
-	if err := s.loadMixin(schema); err != nil {
+	if err := s.loadMixin(schema, resolver); err != nil {
 		return nil, fmt.Errorf("schema %q: %w", s.Name, err)
 	}
 	// Schema annotations override mixed-in annotations.
@@ -198,7 +249,7 @@ func MarshalSchema(schema ent.Interface) (b []byte, err error) {
 		}
 		s.addAnnotation(at)
 	}
-	if err := s.loadFields(schema); err != nil {
+	if err := s.loadFields(schema, resolver); err != nil {
 		return nil, fmt.Errorf("schema %q: %w", s.Name, err)
 	}
 	edges, err := safeEdges(schema)
@@ -242,7 +293,7 @@ func UnmarshalSchema(buf []byte) (*Schema, error) {
 }
 
 // loadMixin loads mixin to schema from ent.Interface.
-func (s *Schema) loadMixin(schema ent.Interface) error {
+func (s *Schema) loadMixin(schema ent.Interface, resolver TypeResolver) error {
 	mixin, err := safeMixin(schema)
 	if err != nil {
 		return err
@@ -254,7 +305,7 @@ func (s *Schema) loadMixin(schema ent.Interface) error {
 			return fmt.Errorf("mixin %q: %w", name, err)
 		}
 		for j, f := range fields {
-			sf, err := NewField(f.Descriptor())
+			sf, err := NewField(f.Descriptor(), resolver)
 			if err != nil {
 				return fmt.Errorf("mixin %q: %w", name, err)
 			}
@@ -319,13 +370,13 @@ func (s *Schema) loadMixin(schema ent.Interface) error {
 }
 
 // loadFields loads field to schema from ent.Interface.
-func (s *Schema) loadFields(schema ent.Interface) error {
+func (s *Schema) loadFields(schema ent.Interface, resolver TypeResolver) error {
 	fields, err := safeFields(schema)
 	if err != nil {
 		return err
 	}
 	for i, f := range fields {
-		sf, err := NewField(f.Descriptor())
+		sf, err := NewField(f.Descriptor(), resolver)
 		if err != nil {
 			return err
 		}
@@ -409,14 +460,14 @@ func addAnnotation(annotations map[string]any, an schema.Annotation) {
 }
 
 func (f *Field) defaults() error {
-	if !f.Default || !f.Info.Numeric() || f.DefaultKind == reflect.Func {
+	if !f.Default || !f.Type.Numeric() || f.DefaultKind == reflect.Func {
 		return nil
 	}
 	n, ok := f.DefaultValue.(float64)
 	if !ok {
 		return fmt.Errorf("unexpected default value type for field: %q", f.Name)
 	}
-	switch t := f.Info.Type; {
+	switch t := f.Type; {
 	case t >= field.TypeInt8 && t <= field.TypeInt64:
 		f.DefaultValue = int64(n)
 	case t >= field.TypeUint8 && t <= field.TypeUint64:

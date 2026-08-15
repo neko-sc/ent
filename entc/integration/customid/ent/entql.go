@@ -651,8 +651,8 @@ func (f *AccountFilter) Where(p entql.P) {
 	})
 }
 
-// WhereID applies the entql other predicate on the id field.
-func (f *AccountFilter) WhereID(p entql.OtherP) {
+// WhereID applies the entql any predicate on the id field.
+func (f *AccountFilter) WhereID(p entql.ValueP) {
 	f.Where(p.Field(account.FieldID))
 }
 
@@ -710,12 +710,12 @@ func (f *BlobFilter) Where(p entql.P) {
 	})
 }
 
-// WhereID applies the entql [16]byte predicate on the id field.
+// WhereID applies the entql [16]uint8 predicate on the id field.
 func (f *BlobFilter) WhereID(p entql.ValueP) {
 	f.Where(p.Field(blob.FieldID))
 }
 
-// WhereUUID applies the entql [16]byte predicate on the uuid field.
+// WhereUUID applies the entql [16]uint8 predicate on the uuid field.
 func (f *BlobFilter) WhereUUID(p entql.ValueP) {
 	f.Where(p.Field(blob.FieldUUID))
 }
@@ -807,12 +807,12 @@ func (f *BlobLinkFilter) WhereCreatedAt(p entql.TimeP) {
 	f.Where(p.Field(bloblink.FieldCreatedAt))
 }
 
-// WhereBlobID applies the entql [16]byte predicate on the blob_id field.
+// WhereBlobID applies the entql [16]uint8 predicate on the blob_id field.
 func (f *BlobLinkFilter) WhereBlobID(p entql.ValueP) {
 	f.Where(p.Field(bloblink.FieldBlobID))
 }
 
-// WhereLinkID applies the entql [16]byte predicate on the link_id field.
+// WhereLinkID applies the entql [16]uint8 predicate on the link_id field.
 func (f *BlobLinkFilter) WhereLinkID(p entql.ValueP) {
 	f.Where(p.Field(bloblink.FieldLinkID))
 }
@@ -949,7 +949,7 @@ func (f *DeviceFilter) Where(p entql.P) {
 	})
 }
 
-// WhereID applies the entql []byte predicate on the id field.
+// WhereID applies the entql []uint8 predicate on the id field.
 func (f *DeviceFilter) WhereID(p entql.BytesP) {
 	f.Where(p.Field(device.FieldID))
 }
@@ -1226,12 +1226,12 @@ func (f *LinkFilter) Where(p entql.P) {
 	})
 }
 
-// WhereID applies the entql [16]byte predicate on the id field.
+// WhereID applies the entql [16]uint8 predicate on the id field.
 func (f *LinkFilter) WhereID(p entql.ValueP) {
 	f.Where(p.Field(link.FieldID))
 }
 
-// WhereLinkInformation applies the entql json.RawMessage predicate on the link_information field.
+// WhereLinkInformation applies the entql []uint8 predicate on the link_information field.
 func (f *LinkFilter) WhereLinkInformation(p entql.BytesP) {
 	f.Where(p.Field(link.FieldLinkInformation))
 }
@@ -1271,7 +1271,7 @@ func (f *MixinIDFilter) Where(p entql.P) {
 	})
 }
 
-// WhereID applies the entql [16]byte predicate on the id field.
+// WhereID applies the entql [16]uint8 predicate on the id field.
 func (f *MixinIDFilter) WhereID(p entql.ValueP) {
 	f.Where(p.Field(mixinid.FieldID))
 }
@@ -1394,8 +1394,8 @@ func (f *OtherFilter) Where(p entql.P) {
 	})
 }
 
-// WhereID applies the entql other predicate on the id field.
-func (f *OtherFilter) WhereID(p entql.OtherP) {
+// WhereID applies the entql any predicate on the id field.
+func (f *OtherFilter) WhereID(p entql.ValueP) {
 	f.Where(p.Field(other.FieldID))
 }
 
@@ -1570,7 +1570,7 @@ func (f *SessionFilter) Where(p entql.P) {
 	})
 }
 
-// WhereID applies the entql []byte predicate on the id field.
+// WhereID applies the entql []uint8 predicate on the id field.
 func (f *SessionFilter) WhereID(p entql.BytesP) {
 	f.Where(p.Field(session.FieldID))
 }
@@ -1624,8 +1624,8 @@ func (f *TokenFilter) Where(p entql.P) {
 	})
 }
 
-// WhereID applies the entql other predicate on the id field.
-func (f *TokenFilter) WhereID(p entql.OtherP) {
+// WhereID applies the entql any predicate on the id field.
+func (f *TokenFilter) WhereID(p entql.ValueP) {
 	f.Where(p.Field(token.FieldID))
 }
 

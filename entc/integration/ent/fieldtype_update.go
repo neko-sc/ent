@@ -1348,7 +1348,9 @@ func (_u *FieldTypeUpdate) Mutation() *FieldTypeMutation {
 
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (_u *FieldTypeUpdate) Save(ctx context.Context) (int, error) {
-	_u.defaults()
+	if err := _u.defaults(); err != nil {
+		return 0, err
+	}
 	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
 }
 
@@ -1375,19 +1377,29 @@ func (_u *FieldTypeUpdate) ExecX(ctx context.Context) {
 }
 
 // defaults sets the default values of the builder before save.
-func (_u *FieldTypeUpdate) defaults() {
+func (_u *FieldTypeUpdate) defaults() error {
 	if _, ok := _u.mutation.Int64(); !ok {
+		if fieldtype.UpdateDefaultInt64 == nil {
+			return fmt.Errorf("ent: uninitialized fieldtype.UpdateDefaultInt64 (forgotten import ent/runtime?)")
+		}
 		v := fieldtype.UpdateDefaultInt64()
 		_u.mutation.SetInt64(v)
 	}
 	if _, ok := _u.mutation.Duration(); !ok && !_u.mutation.DurationCleared() {
+		if fieldtype.UpdateDefaultDuration == nil {
+			return fmt.Errorf("ent: uninitialized fieldtype.UpdateDefaultDuration (forgotten import ent/runtime?)")
+		}
 		v := fieldtype.UpdateDefaultDuration()
 		_u.mutation.SetDuration(v)
 	}
 	if _, ok := _u.mutation.DeletedAt(); !ok && !_u.mutation.DeletedAtCleared() {
+		if fieldtype.UpdateDefaultDeletedAt == nil {
+			return fmt.Errorf("ent: uninitialized fieldtype.UpdateDefaultDeletedAt (forgotten import ent/runtime?)")
+		}
 		v := fieldtype.UpdateDefaultDeletedAt()
 		_u.mutation.SetDeletedAt(v)
 	}
+	return nil
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -1403,17 +1415,17 @@ func (_u *FieldTypeUpdate) check() error {
 		}
 	}
 	if v, ok := _u.mutation.MAC(); ok {
-		if err := fieldtype.MACValidator(v.String()); err != nil {
+		if err := fieldtype.MACValidator(v); err != nil {
 			return &ValidationError{Name: "mac", err: fmt.Errorf(`ent: validator failed for field "FieldType.mac": %w`, err)}
 		}
 	}
 	if v, ok := _u.mutation.Ndir(); ok {
-		if err := fieldtype.NdirValidator(string(v)); err != nil {
+		if err := fieldtype.NdirValidator(v); err != nil {
 			return &ValidationError{Name: "ndir", err: fmt.Errorf(`ent: validator failed for field "FieldType.ndir": %w`, err)}
 		}
 	}
 	if v, ok := _u.mutation.Link(); ok {
-		if err := fieldtype.LinkValidator(v.String()); err != nil {
+		if err := fieldtype.LinkValidator(v); err != nil {
 			return &ValidationError{Name: "link", err: fmt.Errorf(`ent: validator failed for field "FieldType.link": %w`, err)}
 		}
 	}
@@ -1423,7 +1435,7 @@ func (_u *FieldTypeUpdate) check() error {
 		}
 	}
 	if v, ok := _u.mutation.IP(); ok {
-		if err := fieldtype.IPValidator([]byte(v)); err != nil {
+		if err := fieldtype.IPValidator(v); err != nil {
 			return &ValidationError{Name: "ip", err: fmt.Errorf(`ent: validator failed for field "FieldType.ip": %w`, err)}
 		}
 	}
@@ -3261,7 +3273,9 @@ func (_u *FieldTypeUpdateOne) Select(field string, fields ...string) *FieldTypeU
 
 // Save executes the query and returns the updated FieldType entity.
 func (_u *FieldTypeUpdateOne) Save(ctx context.Context) (*FieldType, error) {
-	_u.defaults()
+	if err := _u.defaults(); err != nil {
+		return nil, err
+	}
 	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
 }
 
@@ -3288,19 +3302,29 @@ func (_u *FieldTypeUpdateOne) ExecX(ctx context.Context) {
 }
 
 // defaults sets the default values of the builder before save.
-func (_u *FieldTypeUpdateOne) defaults() {
+func (_u *FieldTypeUpdateOne) defaults() error {
 	if _, ok := _u.mutation.Int64(); !ok {
+		if fieldtype.UpdateDefaultInt64 == nil {
+			return fmt.Errorf("ent: uninitialized fieldtype.UpdateDefaultInt64 (forgotten import ent/runtime?)")
+		}
 		v := fieldtype.UpdateDefaultInt64()
 		_u.mutation.SetInt64(v)
 	}
 	if _, ok := _u.mutation.Duration(); !ok && !_u.mutation.DurationCleared() {
+		if fieldtype.UpdateDefaultDuration == nil {
+			return fmt.Errorf("ent: uninitialized fieldtype.UpdateDefaultDuration (forgotten import ent/runtime?)")
+		}
 		v := fieldtype.UpdateDefaultDuration()
 		_u.mutation.SetDuration(v)
 	}
 	if _, ok := _u.mutation.DeletedAt(); !ok && !_u.mutation.DeletedAtCleared() {
+		if fieldtype.UpdateDefaultDeletedAt == nil {
+			return fmt.Errorf("ent: uninitialized fieldtype.UpdateDefaultDeletedAt (forgotten import ent/runtime?)")
+		}
 		v := fieldtype.UpdateDefaultDeletedAt()
 		_u.mutation.SetDeletedAt(v)
 	}
+	return nil
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -3316,17 +3340,17 @@ func (_u *FieldTypeUpdateOne) check() error {
 		}
 	}
 	if v, ok := _u.mutation.MAC(); ok {
-		if err := fieldtype.MACValidator(v.String()); err != nil {
+		if err := fieldtype.MACValidator(v); err != nil {
 			return &ValidationError{Name: "mac", err: fmt.Errorf(`ent: validator failed for field "FieldType.mac": %w`, err)}
 		}
 	}
 	if v, ok := _u.mutation.Ndir(); ok {
-		if err := fieldtype.NdirValidator(string(v)); err != nil {
+		if err := fieldtype.NdirValidator(v); err != nil {
 			return &ValidationError{Name: "ndir", err: fmt.Errorf(`ent: validator failed for field "FieldType.ndir": %w`, err)}
 		}
 	}
 	if v, ok := _u.mutation.Link(); ok {
-		if err := fieldtype.LinkValidator(v.String()); err != nil {
+		if err := fieldtype.LinkValidator(v); err != nil {
 			return &ValidationError{Name: "link", err: fmt.Errorf(`ent: validator failed for field "FieldType.link": %w`, err)}
 		}
 	}
@@ -3336,7 +3360,7 @@ func (_u *FieldTypeUpdateOne) check() error {
 		}
 	}
 	if v, ok := _u.mutation.IP(); ok {
-		if err := fieldtype.IPValidator([]byte(v)); err != nil {
+		if err := fieldtype.IPValidator(v); err != nil {
 			return &ValidationError{Name: "ip", err: fmt.Errorf(`ent: validator failed for field "FieldType.ip": %w`, err)}
 		}
 	}

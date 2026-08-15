@@ -13,14 +13,13 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strconv"
 	"strings"
 	"text/template"
 	"text/template/parse"
 
+	"github.com/neko-sc/ent/entc/load"
 	"github.com/neko-sc/ent/schema"
-	"github.com/neko-sc/ent/schema/field"
 )
 
 type (
@@ -386,7 +385,9 @@ type (
 		//
 		Field string
 		// Type defines the type identifier. For example, `*http.Client`.
-		Type *field.TypeInfo
+		Type *load.TypeExpression
+		// RenderedType is the Go source form of Type.
+		RenderedType string
 		// Option defines the name of the config option.
 		// It defaults to the field name.
 		Option string
@@ -430,20 +431,25 @@ func (d *Dependency) Build() error {
 }
 
 func (d *Dependency) defaultName() (string, error) {
-	var pkg, name string
-	switch parts := strings.Split(strings.TrimLeft(d.Type.Ident, "[]*"), "."); len(parts) {
-	case 1:
-		name = parts[0]
-	case 2:
-		name = parts[1]
-		// Avoid stuttering.
-		if !strings.EqualFold(parts[0], name) {
-			pkg = parts[0]
-		}
-	default:
-		return "", fmt.Errorf("entc/gen: unexpected number of parts: %q", parts)
+	typ := d.Type
+	pluralName := false
+	for typ.Kind == load.TypeKindPointer || typ.Kind == load.TypeKindSlice || typ.Kind == load.TypeKindArray {
+		pluralName = pluralName || typ.Kind == load.TypeKindSlice || typ.Kind == load.TypeKindArray
+		typ = typ.Element
 	}
-	if r := d.Type.RType; r != nil && (r.Kind == reflect.Array || r.Kind == reflect.Slice) {
+	var pkg, name string
+	switch typ.Kind {
+	case load.TypeKindNamed:
+		name = typ.Named.Name
+		if !strings.EqualFold(typ.Named.Package.Name, name) {
+			pkg = typ.Named.Package.Name
+		}
+	case load.TypeKindBasic:
+		name = string(typ.Basic)
+	default:
+		return "", fmt.Errorf("entc/gen: dependency type %q has no default field name", typ.Kind)
+	}
+	if pluralName {
 		name = plural(name)
 	}
 	return pascal(pkg) + pascal(name), nil

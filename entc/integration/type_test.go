@@ -99,7 +99,7 @@ func Types(t *testing.T, client *ent.Client) {
 	require.Equal("localhost", ft.Link.String())
 	require.Equal("localhost", ft.LinkOther.String())
 	require.Equal("localhost", ft.NullLink.String())
-	require.Equal(net.IP("127.0.0.1").String(), ft.IP.String())
+	require.Equal(net.ParseIP("127.0.0.1"), ft.IP)
 	mac, err := net.ParseMAC("3b:b3:6b:3c:10:79")
 	require.Equal(role.Admin, ft.Role)
 	require.Equal(role.High, ft.Priority)
@@ -208,6 +208,9 @@ func Types(t *testing.T, client *ent.Client) {
 	require.EqualValues(100, ft.Duration, "UpdateDefault sets the value to 100ns")
 	require.False(ft.DeletedAt.Time.IsZero())
 
+	defaultTask := client.Task.Create().SaveX(ctx)
+	require.Equal(task.PriorityMid, defaultTask.Priority)
+
 	err = client.Task.CreateBulk(
 		client.Task.Create().SetPriority(task.PriorityLow),
 		client.Task.Create().SetPriority(task.PriorityMid),
@@ -216,6 +219,11 @@ func Types(t *testing.T, client *ent.Client) {
 	require.NoError(err)
 	err = client.Task.Create().SetPriority(task.Priority(10)).Exec(ctx)
 	require.Error(err)
+	err = client.Task.Update().SetPriority(task.Priority(10)).Exec(ctx)
+	require.Error(err)
+	err = defaultTask.Update().SetPriority(task.Priority(10)).Exec(ctx)
+	require.Error(err)
+	client.Task.DeleteOne(defaultTask).ExecX(ctx)
 
 	tasks := client.Task.Query().Order(ent.Asc(enttask.FieldPriority)).AllX(ctx)
 	require.Equal(task.PriorityLow, tasks[0].Priority)

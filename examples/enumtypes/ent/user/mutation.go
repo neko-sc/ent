@@ -35,8 +35,8 @@ func (m *Mutation) Predicates() []predicate.User {
 }
 
 // SetStatus sets the "status" field.
-func (m *Mutation) SetStatus(u Status) {
-	m.status = &u
+func (m *Mutation) SetStatus(s Status) {
+	m.status = &s
 }
 
 // Status returns the value of the "status" field in the mutation.

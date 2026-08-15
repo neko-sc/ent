@@ -13,19 +13,30 @@ SPDX-License-Identifier: Apache-2.0
 
 {{ template "import" $ }}
 
+{{ $pkgPrefix := print $.Package "." }}
+
 {{ if .HasOneFieldID }}
 	// ID filters vertices based on their ID field.
-	func ID(id {{ $.ID.Type }}) predicate.{{ $.Name }} {
+	func ID(id {{ $.ID.GoType }}) predicate.{{ $.Name }} {
+		{{- $arg := "id" }}
 		{{- if and $.ID.HasValueScanner (eq $.Storage.Name "sql") }}
 			vc, err := ValueScanner.{{ $.ID.StructField }}.Value(id)
+			{{- $arg = "vc" }}
 			return predicate.{{ $.Name }}OrErr(
-				{{- with extend $ "Arg" "vc" -}}
+				{{- with extend $ "Arg" $arg -}}
 					{{- $tmpl := printf "dialect/%s/predicate/id" $.Storage }}
 					{{- xtemplate $tmpl . -}}
 				{{- end -}}, err)
 		{{- else }}
+			{{- if not $.ID.TypeValuer }}
+				{{- $projection := $.ID.BasicType $arg }}
+				{{- if and $projection (ne $projection $arg) }}
+					vc := {{ $projection }}
+					{{- $arg = "vc" }}
+				{{- end }}
+			{{- end }}
 			return predicate.{{ $.Name }}(
-				{{- with extend $ "Arg" "id" -}}
+				{{- with extend $ "Arg" $arg -}}
 					{{- $tmpl := printf "dialect/%s/predicate/id" $.Storage }}
 					{{- xtemplate $tmpl . -}}
 				{{- end -}}
@@ -38,7 +49,7 @@ SPDX-License-Identifier: Apache-2.0
 		{{ $stringOp := eq $op.Name "EqualFold" "Contains" "ContainsFold" "HasPrefix" "HasSuffix" }}
 		{{ $func := printf "ID%s" $op.Name }}
 		// {{ $func }} applies the {{ $op.Name }} predicate on the ID field.
-		func {{ $func }}({{ $arg }} {{ if $op.Variadic }}...{{ end }}{{ $.ID.Type }}) predicate.{{ $.Name }} {
+		func {{ $func }}({{ $arg }} {{ if $op.Variadic }}...{{ end }}{{ $.ID.GoType }}) predicate.{{ $.Name }} {
 			{{- if and (eq $.Storage.Name "sql") $.ID.HasValueScanner (or $op.Variadic (not $op.Niladic)) }}
 				{{- if $op.Variadic }}
 					var (
@@ -68,6 +79,23 @@ SPDX-License-Identifier: Apache-2.0
 						{{- xtemplate $tmpl . }}
 					{{- end }}, err)
 			{{- else }}
+				{{- $project := and (not $op.Niladic) (or $stringOp (not $.ID.TypeValuer)) }}
+				{{- if and $project $op.Variadic }}
+					{{- $projection := $.ID.BasicType (printf "%s[i]" $arg) }}
+					{{- if and $projection (ne $projection (printf "%s[i]" $arg)) }}
+						v := make([]{{ $.ID.BaseType }}, len({{ $arg }}))
+						for i := range v {
+							v[i] = {{ $projection }}
+						}
+						{{- $arg = "v" }}
+					{{- end }}
+				{{- else if $project }}
+					{{- $projection := $.ID.BasicType $arg }}
+					{{- if and $projection (ne $projection $arg) }}
+						vc := {{ $projection }}
+						{{- $arg = "vc" }}
+					{{- end }}
+				{{- end }}
 				return predicate.{{ $.Name }}(
 					{{- with extend $ "Arg" $arg "Op" $op "Storage" $.Storage -}}
 						{{ $tmpl := printf "dialect/%s/predicate/id/ops" $.Storage }}
@@ -83,12 +111,12 @@ SPDX-License-Identifier: Apache-2.0
 	{{ $func := $f.StructField }}
 	{{/* JSON cannot be compared using "=" and Enum has a type defined with the field name */}}
 	{{ $hasP := not (or $f.IsJSON $f.IsEnum) }}
-	{{ $comparable := or $f.ConvertedToBasic $f.Type.Valuer }}
+	{{ $comparable := and $f.StorageComparable $f.LogicalValueSupported }}
 	{{ $undeclared := (and (ne $func "Label") (ne $func "OrderOption") (ne $func "Hooks") (ne $func "Policy") (ne $func "Table") (ne $func "FieldID")) }}
 	{{- if and $hasP $comparable $undeclared }}
 		{{ $arg := "v" }}
 		// {{ $func }} applies equality check predicate on the {{ quote $f.Name }} field. It's identical to {{ $func }}EQ.
-		func {{ $func }}({{ $arg }} {{ $f.Type }}) predicate.{{ $.Name }} {
+		func {{ $func }}({{ $arg }} {{ replace $f.GoType $pkgPrefix "" }}) predicate.{{ $.Name }} {
 			{{- if $f.HasValueScanner }}
 				vc, err := ValueScanner.{{ $f.StructField }}.Value({{ $arg }})
 				{{- $arg = "vc" }}
@@ -98,9 +126,12 @@ SPDX-License-Identifier: Apache-2.0
 						{{- xtemplate $tmpl . }}
 					{{- end }}, err)
 			{{- else }}
-				{{- if and $f.HasGoType (not $f.Type.Valuer) }}
-					vc := {{ $f.BasicType "v" }}
-					{{- $arg = "vc" }}
+				{{- if not $f.TypeValuer }}
+					{{- $projection := $f.BasicType $arg }}
+					{{- if and $projection (ne $projection $arg) }}
+						vc := {{ $projection }}
+						{{- $arg = "vc" }}
+					{{- end }}
 				{{- end }}
 				return predicate.{{ $.Name }}(
 					{{- with extend $ "Arg" $arg "Field" $f -}}
@@ -118,7 +149,7 @@ SPDX-License-Identifier: Apache-2.0
 		{{ $arg := "v" }}{{ if $op.Variadic }}{{ $arg = "vs" }}{{ end }}
 		{{ $stringOp := eq $op.Name "EqualFold" "Contains" "ContainsFold" "HasPrefix" "HasSuffix" }}
 		{{ $func := print $f.StructField $op.Name }}
-		{{ $type := $f.Type.String }}{{ if $f.IsEnum }}{{ $type = trimPackage $type $.Package }}{{ end }}
+		{{ $type := replace $f.GoType $pkgPrefix "" }}
 		// {{ $func }} applies the {{ $op.Name }} predicate on the {{ quote $f.Name }} field.
 		func {{ $func }}({{ if not $op.Niladic }}{{ $arg }} {{ if $op.Variadic }}...{{ end }}{{ $type }}{{ end }}) predicate.{{ $.Name }} {
 			{{- if and $f.HasValueScanner (or $op.Variadic (not $op.Niladic)) }}
@@ -150,15 +181,20 @@ SPDX-License-Identifier: Apache-2.0
 						{{- xtemplate $tmpl . }}
 					{{- end }}, err)
 			{{- else }}
-				{{- if and $f.HasGoType (or $stringOp (not $f.Type.Valuer)) }}
-					{{- if $op.Variadic }}
-						v := make([]any, len({{ $arg }}))
+				{{- $project := and (not $op.Niladic) (or $stringOp (not $f.TypeValuer)) }}
+				{{- if and $project $op.Variadic }}
+					{{- $projection := $f.BasicType (printf "%s[i]" $arg) }}
+					{{- if and $projection (ne $projection (printf "%s[i]" $arg)) }}
+						v := make([]{{ $f.BaseType }}, len({{ $arg }}))
 						for i := range v {
-							v[i] = {{ $f.BasicType (printf "%s[i]" $arg) }}
+							v[i] = {{ $projection }}
 						}
 						{{- $arg = "v" }}
-					{{- else if not $op.Niladic }}
-						vc := {{ $f.BasicType "v" }}
+					{{- end }}
+				{{- else if $project }}
+					{{- $projection := $f.BasicType $arg }}
+					{{- if and $projection (ne $projection $arg) }}
+						vc := {{ $projection }}
 						{{- $arg = "vc" }}
 					{{- end }}
 				{{- end }}

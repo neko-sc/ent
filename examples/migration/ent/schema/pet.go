@@ -4,12 +4,12 @@
 package schema
 
 import (
+	"github.com/google/uuid"
 	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/entsql"
 	"github.com/neko-sc/ent/schema/edge"
 	"github.com/neko-sc/ent/schema/field"
 	"github.com/neko-sc/ent/schema/index"
-	"github.com/google/uuid"
 )
 
 // Pet holds the schema definition for the Pet entity.
@@ -20,12 +20,12 @@ type Pet struct {
 // Fields of the Pet.
 func (Pet) Fields() []ent.Field {
 	return []ent.Field{
-		field.UUID("id", uuid.Nil).
-			Default(uuid.New),
+		field.UUID[uuid.UUID]("id").
+			DefaultFunc(uuid.New),
 		field.String("name"),
 		field.Float("age"),
 		field.Float("weight"),
-		field.UUID("best_friend_id", uuid.Nil).
+		field.UUID[uuid.UUID]("best_friend_id").
 			Annotations(
 				entsql.Default(uuid.Nil.String()),
 			),

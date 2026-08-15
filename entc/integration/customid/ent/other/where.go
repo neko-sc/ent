@@ -36,26 +36,6 @@ func IDNotIn(ids ...sid.ID) predicate.Other {
 	return predicate.Other(sql.FieldNotIn(FieldID, ids...))
 }
 
-// IDGT applies the GT predicate on the ID field.
-func IDGT(id sid.ID) predicate.Other {
-	return predicate.Other(sql.FieldGT(FieldID, id))
-}
-
-// IDGTE applies the GTE predicate on the ID field.
-func IDGTE(id sid.ID) predicate.Other {
-	return predicate.Other(sql.FieldGTE(FieldID, id))
-}
-
-// IDLT applies the LT predicate on the ID field.
-func IDLT(id sid.ID) predicate.Other {
-	return predicate.Other(sql.FieldLT(FieldID, id))
-}
-
-// IDLTE applies the LTE predicate on the ID field.
-func IDLTE(id sid.ID) predicate.Other {
-	return predicate.Other(sql.FieldLTE(FieldID, id))
-}
-
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.Other) predicate.Other {
 	return predicate.Other(sql.AndPredicates(predicates...))

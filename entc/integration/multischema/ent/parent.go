@@ -90,16 +90,16 @@ func (_m *Parent) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case parent.FieldID:
-			value, ok := values[i].(*sql.NullInt64)
-			if !ok {
-				return fmt.Errorf("unexpected type %T for field id", value)
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field id", values[i])
+			} else if value.Valid {
+				_m.ID = int(value.Int64)
 			}
-			_m.ID = int(value.Int64)
 		case parent.FieldByAdoption:
 			if value, ok := values[i].(*sql.NullBool); !ok {
 				return fmt.Errorf("unexpected type %T for field by_adoption", values[i])
 			} else if value.Valid {
-				_m.ByAdoption = value.Bool
+				_m.ByAdoption = bool(value.Bool)
 			}
 		case parent.FieldUserID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {

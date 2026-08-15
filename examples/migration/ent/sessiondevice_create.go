@@ -99,7 +99,9 @@ func (_c *SessionDeviceCreate) Mutation() *SessionDeviceMutation {
 
 // Save creates the SessionDevice in the database.
 func (_c *SessionDeviceCreate) Save(ctx context.Context) (*SessionDevice, error) {
-	_c.defaults()
+	if err := _c.defaults(); err != nil {
+		return nil, err
+	}
 	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
 }
 
@@ -126,11 +128,15 @@ func (_c *SessionDeviceCreate) ExecX(ctx context.Context) {
 }
 
 // defaults sets the default values of the builder before save.
-func (_c *SessionDeviceCreate) defaults() {
+func (_c *SessionDeviceCreate) defaults() error {
 	if _, ok := _c.mutation.ID(); !ok {
+		if sessiondevice.DefaultID == nil {
+			return fmt.Errorf("ent: uninitialized sessiondevice.DefaultID (forgotten import ent/runtime?)")
+		}
 		v := sessiondevice.DefaultID()
 		_c.mutation.SetID(v)
 	}
+	return nil
 }
 
 // check runs all checks and user-defined validators on the builder.

@@ -24,7 +24,7 @@ import (
 	"github.com/neko-sc/ent/entc/integration/ent/pet"
 	"github.com/neko-sc/ent/entc/integration/ent/predicate"
 	"github.com/neko-sc/ent/entc/integration/ent/spec"
-	enttask "github.com/neko-sc/ent/entc/integration/ent/task"
+	"github.com/neko-sc/ent/entc/integration/ent/task"
 	"github.com/neko-sc/ent/entc/integration/ent/user"
 
 	"github.com/neko-sc/ent/dialect/sql"
@@ -367,23 +367,23 @@ var schemaGraph = func() *sqlgraph.Schema {
 	}
 	graph.Nodes[17] = &sqlgraph.Node{
 		NodeSpec: sqlgraph.NodeSpec{
-			Table:   enttask.Table,
-			Columns: enttask.Columns,
+			Table:   task.Table,
+			Columns: task.Columns,
 			ID: &sqlgraph.FieldSpec{
 				Type:   field.TypeInt,
-				Column: enttask.FieldID,
+				Column: task.FieldID,
 			},
 		},
 		Type: "Task",
 		Fields: map[string]*sqlgraph.FieldSpec{
-			enttask.FieldPriority:    {Type: field.TypeInt, Column: enttask.FieldPriority},
-			enttask.FieldPriorities:  {Type: field.TypeJSON, Column: enttask.FieldPriorities},
-			enttask.FieldCreatedAt:   {Type: field.TypeTime, Column: enttask.FieldCreatedAt},
-			enttask.FieldName:        {Type: field.TypeString, Column: enttask.FieldName},
-			enttask.FieldOwner:       {Type: field.TypeString, Column: enttask.FieldOwner},
-			enttask.FieldOrder:       {Type: field.TypeInt, Column: enttask.FieldOrder},
-			enttask.FieldOrderOption: {Type: field.TypeInt, Column: enttask.FieldOrderOption},
-			enttask.FieldOp:          {Type: field.TypeString, Column: enttask.FieldOp},
+			task.FieldPriority:    {Type: field.TypeInt, Column: task.FieldPriority},
+			task.FieldPriorities:  {Type: field.TypeJSON, Column: task.FieldPriorities},
+			task.FieldCreatedAt:   {Type: field.TypeTime, Column: task.FieldCreatedAt},
+			task.FieldName:        {Type: field.TypeString, Column: task.FieldName},
+			task.FieldOwner:       {Type: field.TypeString, Column: task.FieldOwner},
+			task.FieldOrder:       {Type: field.TypeInt, Column: task.FieldOrder},
+			task.FieldOrderOption: {Type: field.TypeInt, Column: task.FieldOrderOption},
+			task.FieldOp:          {Type: field.TypeString, Column: task.FieldOp},
 		},
 	}
 	graph.Nodes[18] = &sqlgraph.Node{
@@ -977,7 +977,7 @@ func (f *CommentFilter) WhereTable(p entql.StringP) {
 	f.Where(p.Field(comment.FieldTable))
 }
 
-// WhereDir applies the entql json.RawMessage predicate on the dir field.
+// WhereDir applies the entql []uint8 predicate on the dir field.
 func (f *CommentFilter) WhereDir(p entql.BytesP) {
 	f.Where(p.Field(comment.FieldDir))
 }
@@ -1032,7 +1032,7 @@ func (f *ExValueScanFilter) WhereBinary(p entql.StringP) {
 	f.Where(p.Field(exvaluescan.FieldBinary))
 }
 
-// WhereBinaryBytes applies the entql []byte predicate on the binary_bytes field.
+// WhereBinaryBytes applies the entql []uint8 predicate on the binary_bytes field.
 func (f *ExValueScanFilter) WhereBinaryBytes(p entql.BytesP) {
 	f.Where(p.Field(exvaluescan.FieldBinaryBytes))
 }
@@ -1242,13 +1242,13 @@ func (f *FieldTypeFilter) WhereDecimal(p entql.Float64P) {
 	f.Where(p.Field(fieldtype.FieldDecimal))
 }
 
-// WhereLinkOther applies the entql other predicate on the link_other field.
-func (f *FieldTypeFilter) WhereLinkOther(p entql.OtherP) {
+// WhereLinkOther applies the entql any predicate on the link_other field.
+func (f *FieldTypeFilter) WhereLinkOther(p entql.ValueP) {
 	f.Where(p.Field(fieldtype.FieldLinkOther))
 }
 
-// WhereLinkOtherFunc applies the entql other predicate on the link_other_func field.
-func (f *FieldTypeFilter) WhereLinkOtherFunc(p entql.OtherP) {
+// WhereLinkOtherFunc applies the entql any predicate on the link_other_func field.
+func (f *FieldTypeFilter) WhereLinkOtherFunc(p entql.ValueP) {
 	f.Where(p.Field(fieldtype.FieldLinkOtherFunc))
 }
 
@@ -1257,8 +1257,8 @@ func (f *FieldTypeFilter) WhereMAC(p entql.StringP) {
 	f.Where(p.Field(fieldtype.FieldMAC))
 }
 
-// WhereStringArray applies the entql other predicate on the string_array field.
-func (f *FieldTypeFilter) WhereStringArray(p entql.OtherP) {
+// WhereStringArray applies the entql any predicate on the string_array field.
+func (f *FieldTypeFilter) WhereStringArray(p entql.ValueP) {
 	f.Where(p.Field(fieldtype.FieldStringArray))
 }
 
@@ -1327,17 +1327,17 @@ func (f *FieldTypeFilter) WhereDeletedAt(p entql.TimeP) {
 	f.Where(p.Field(fieldtype.FieldDeletedAt))
 }
 
-// WhereRawData applies the entql []byte predicate on the raw_data field.
+// WhereRawData applies the entql []uint8 predicate on the raw_data field.
 func (f *FieldTypeFilter) WhereRawData(p entql.BytesP) {
 	f.Where(p.Field(fieldtype.FieldRawData))
 }
 
-// WhereSensitive applies the entql []byte predicate on the sensitive field.
+// WhereSensitive applies the entql []uint8 predicate on the sensitive field.
 func (f *FieldTypeFilter) WhereSensitive(p entql.BytesP) {
 	f.Where(p.Field(fieldtype.FieldSensitive))
 }
 
-// WhereIP applies the entql []byte predicate on the ip field.
+// WhereIP applies the entql []uint8 predicate on the ip field.
 func (f *FieldTypeFilter) WhereIP(p entql.BytesP) {
 	f.Where(p.Field(fieldtype.FieldIP))
 }
@@ -1387,27 +1387,27 @@ func (f *FieldTypeFilter) WherePriority(p entql.StringP) {
 	f.Where(p.Field(fieldtype.FieldPriority))
 }
 
-// WhereOptionalUUID applies the entql [16]byte predicate on the optional_uuid field.
+// WhereOptionalUUID applies the entql [16]uint8 predicate on the optional_uuid field.
 func (f *FieldTypeFilter) WhereOptionalUUID(p entql.ValueP) {
 	f.Where(p.Field(fieldtype.FieldOptionalUUID))
 }
 
-// WhereNillableUUID applies the entql [16]byte predicate on the nillable_uuid field.
+// WhereNillableUUID applies the entql [16]uint8 predicate on the nillable_uuid field.
 func (f *FieldTypeFilter) WhereNillableUUID(p entql.ValueP) {
 	f.Where(p.Field(fieldtype.FieldNillableUUID))
 }
 
-// WhereStrings applies the entql json.RawMessage predicate on the strings field.
+// WhereStrings applies the entql []uint8 predicate on the strings field.
 func (f *FieldTypeFilter) WhereStrings(p entql.BytesP) {
 	f.Where(p.Field(fieldtype.FieldStrings))
 }
 
-// WherePair applies the entql []byte predicate on the pair field.
+// WherePair applies the entql []uint8 predicate on the pair field.
 func (f *FieldTypeFilter) WherePair(p entql.BytesP) {
 	f.Where(p.Field(fieldtype.FieldPair))
 }
 
-// WhereNilPair applies the entql []byte predicate on the nil_pair field.
+// WhereNilPair applies the entql []uint8 predicate on the nil_pair field.
 func (f *FieldTypeFilter) WhereNilPair(p entql.BytesP) {
 	f.Where(p.Field(fieldtype.FieldNilPair))
 }
@@ -1427,8 +1427,8 @@ func (f *FieldTypeFilter) WhereBigInt(p entql.IntP) {
 	f.Where(p.Field(fieldtype.FieldBigInt))
 }
 
-// WherePasswordOther applies the entql other predicate on the password_other field.
-func (f *FieldTypeFilter) WherePasswordOther(p entql.OtherP) {
+// WherePasswordOther applies the entql any predicate on the password_other field.
+func (f *FieldTypeFilter) WherePasswordOther(p entql.ValueP) {
 	f.Where(p.Field(fieldtype.FieldPasswordOther))
 }
 
@@ -2111,7 +2111,7 @@ func (f *PetFilter) WhereName(p entql.StringP) {
 	f.Where(p.Field(pet.FieldName))
 }
 
-// WhereUUID applies the entql [16]byte predicate on the uuid field.
+// WhereUUID applies the entql [16]uint8 predicate on the uuid field.
 func (f *PetFilter) WhereUUID(p entql.ValueP) {
 	f.Where(p.Field(pet.FieldUUID))
 }
@@ -2250,47 +2250,47 @@ func (f *TaskFilter) Where(p entql.P) {
 
 // WhereID applies the entql int predicate on the id field.
 func (f *TaskFilter) WhereID(p entql.IntP) {
-	f.Where(p.Field(enttask.FieldID))
+	f.Where(p.Field(task.FieldID))
 }
 
 // WherePriority applies the entql int predicate on the priority field.
 func (f *TaskFilter) WherePriority(p entql.IntP) {
-	f.Where(p.Field(enttask.FieldPriority))
+	f.Where(p.Field(task.FieldPriority))
 }
 
-// WherePriorities applies the entql json.RawMessage predicate on the priorities field.
+// WherePriorities applies the entql []uint8 predicate on the priorities field.
 func (f *TaskFilter) WherePriorities(p entql.BytesP) {
-	f.Where(p.Field(enttask.FieldPriorities))
+	f.Where(p.Field(task.FieldPriorities))
 }
 
 // WhereCreatedAt applies the entql time.Time predicate on the created_at field.
 func (f *TaskFilter) WhereCreatedAt(p entql.TimeP) {
-	f.Where(p.Field(enttask.FieldCreatedAt))
+	f.Where(p.Field(task.FieldCreatedAt))
 }
 
 // WhereName applies the entql string predicate on the name field.
 func (f *TaskFilter) WhereName(p entql.StringP) {
-	f.Where(p.Field(enttask.FieldName))
+	f.Where(p.Field(task.FieldName))
 }
 
 // WhereOwner applies the entql string predicate on the owner field.
 func (f *TaskFilter) WhereOwner(p entql.StringP) {
-	f.Where(p.Field(enttask.FieldOwner))
+	f.Where(p.Field(task.FieldOwner))
 }
 
 // WhereOrder applies the entql int predicate on the order field.
 func (f *TaskFilter) WhereOrder(p entql.IntP) {
-	f.Where(p.Field(enttask.FieldOrder))
+	f.Where(p.Field(task.FieldOrder))
 }
 
 // WhereOrderOption applies the entql int predicate on the order_option field.
 func (f *TaskFilter) WhereOrderOption(p entql.IntP) {
-	f.Where(p.Field(enttask.FieldOrderOption))
+	f.Where(p.Field(task.FieldOrderOption))
 }
 
 // WhereOp applies the entql string predicate on the op field.
 func (f *TaskFilter) WhereOp(p entql.StringP) {
-	f.Where(p.Field(enttask.FieldOp))
+	f.Where(p.Field(task.FieldOp))
 }
 
 // addPredicate implements the predicateAdder interface.

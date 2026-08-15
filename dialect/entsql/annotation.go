@@ -316,7 +316,7 @@ func Default(literal string) *Annotation {
 // default values.Note that using this option overrides the default behavior of
 // the code-generation.
 //
-//	field.UUID("id", uuid.Nil).
+//	field.UUID[uuid.UUID]("id").
 //		Default(uuid.New).
 //		Annotations(
 //			entsql.DefaultExpr("uuid_generate_v4()"),
@@ -330,7 +330,7 @@ func DefaultExpr(expr string) *Annotation {
 // DefaultExprs specifies an expression default value for the annotated
 // column per dialect. See, DefaultExpr for full doc.
 //
-//	field.UUID("id", uuid.Nil).
+//	field.UUID[uuid.UUID]("id").
 //		Default(uuid.New).
 //		Annotations(
 //			entsql.DefaultExprs(map[string]string{

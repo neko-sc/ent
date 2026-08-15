@@ -20,7 +20,7 @@ type UserGroup struct {
 func (UserGroup) Fields() []ent.Field {
 	return []ent.Field{
 		field.Time("joined_at").
-			Default(time.Now),
+			DefaultFunc(time.Now),
 		field.Int("user_id"),
 		field.Int("group_id"),
 	}

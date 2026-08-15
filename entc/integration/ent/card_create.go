@@ -130,7 +130,9 @@ func (_c *CardCreate) Mutation() *CardMutation {
 
 // Save creates the Card in the database.
 func (_c *CardCreate) Save(ctx context.Context) (*Card, error) {
-	_c.defaults()
+	if err := _c.defaults(); err != nil {
+		return nil, err
+	}
 	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
 }
 
@@ -157,12 +159,18 @@ func (_c *CardCreate) ExecX(ctx context.Context) {
 }
 
 // defaults sets the default values of the builder before save.
-func (_c *CardCreate) defaults() {
+func (_c *CardCreate) defaults() error {
 	if _, ok := _c.mutation.CreateTime(); !ok {
+		if card.DefaultCreateTime == nil {
+			return fmt.Errorf("ent: uninitialized card.DefaultCreateTime (forgotten import ent/runtime?)")
+		}
 		v := card.DefaultCreateTime()
 		_c.mutation.SetCreateTime(v)
 	}
 	if _, ok := _c.mutation.UpdateTime(); !ok {
+		if card.DefaultUpdateTime == nil {
+			return fmt.Errorf("ent: uninitialized card.DefaultUpdateTime (forgotten import ent/runtime?)")
+		}
 		v := card.DefaultUpdateTime()
 		_c.mutation.SetUpdateTime(v)
 	}
@@ -170,6 +178,7 @@ func (_c *CardCreate) defaults() {
 		v := card.DefaultBalance
 		_c.mutation.SetBalance(v)
 	}
+	return nil
 }
 
 // check runs all checks and user-defined validators on the builder.

@@ -618,8 +618,8 @@ func (_q *PetQuery) loadFriends(ctx context.Context, query *PetQuery, nodes []*P
 				return append([]any{new(sql.NullString)}, values...), nil
 			}
 			spec.Assign = func(columns []string, values []any) error {
-				outValue := values[0].(*sql.NullString).String
-				inValue := values[1].(*sql.NullString).String
+				outValue := string(values[0].(*sql.NullString).String)
+				inValue := string(values[1].(*sql.NullString).String)
 				if nids[inValue] == nil {
 					nids[inValue] = map[*Pet]struct{}{byID[outValue]: {}}
 					return assign(columns[1:], values[1:])

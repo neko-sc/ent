@@ -59,7 +59,9 @@ func (_c *ItemCreate) Mutation() *ItemMutation {
 
 // Save creates the Item in the database.
 func (_c *ItemCreate) Save(ctx context.Context) (*Item, error) {
-	_c.defaults()
+	if err := _c.defaults(); err != nil {
+		return nil, err
+	}
 	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
 }
 
@@ -86,11 +88,15 @@ func (_c *ItemCreate) ExecX(ctx context.Context) {
 }
 
 // defaults sets the default values of the builder before save.
-func (_c *ItemCreate) defaults() {
+func (_c *ItemCreate) defaults() error {
 	if _, ok := _c.mutation.ID(); !ok {
+		if item.DefaultID == nil {
+			return fmt.Errorf("ent: uninitialized item.DefaultID (forgotten import ent/runtime?)")
+		}
 		v := item.DefaultID()
 		_c.mutation.SetID(v)
 	}
+	return nil
 }
 
 // check runs all checks and user-defined validators on the builder.

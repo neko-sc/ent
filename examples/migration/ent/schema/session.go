@@ -1,13 +1,13 @@
 package schema
 
 import (
+	"github.com/google/uuid"
 	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/entsql"
 	"github.com/neko-sc/ent/schema"
 	"github.com/neko-sc/ent/schema/edge"
 	"github.com/neko-sc/ent/schema/field"
 	"github.com/neko-sc/ent/schema/index"
-	"github.com/google/uuid"
 )
 
 // Session holds the schema definition for the Session entity.
@@ -18,8 +18,8 @@ type Session struct {
 // Fields of the Session.
 func (Session) Fields() []ent.Field {
 	return []ent.Field{
-		field.UUID("id", uuid.Nil).
-			Default(uuid.New),
+		field.UUID[uuid.UUID]("id").
+			DefaultFunc(uuid.New),
 		field.Bool("active").
 			Default(false),
 		field.Time("issued_at"),
@@ -27,9 +27,9 @@ func (Session) Fields() []ent.Field {
 			Optional(),
 		field.String("token").
 			Optional(),
-		field.JSON("method", map[string]any{}).
+		field.JSON[map[string]any]("method").
 			Optional(),
-		field.UUID("device_id", uuid.Nil).
+		field.UUID[uuid.UUID]("device_id").
 			Optional(),
 	}
 }
@@ -70,8 +70,8 @@ type SessionDevice struct {
 // Fields of the SessionDevice.
 func (SessionDevice) Fields() []ent.Field {
 	return []ent.Field{
-		field.UUID("id", uuid.Nil).
-			Default(uuid.New),
+		field.UUID[uuid.UUID]("id").
+			DefaultFunc(uuid.New),
 		field.String("ip_address").
 			MaxLen(50),
 		field.String("user_agent").

@@ -14,47 +14,62 @@ import (
 
 // ID filters vertices based on their ID field.
 func ID(id schema.NoteID) predicate.Note {
-	return predicate.Note(sql.FieldEQ(FieldID, id))
+	vc := string(id)
+	return predicate.Note(sql.FieldEQ(FieldID, vc))
 }
 
 // IDEQ applies the EQ predicate on the ID field.
 func IDEQ(id schema.NoteID) predicate.Note {
-	return predicate.Note(sql.FieldEQ(FieldID, id))
+	vc := string(id)
+	return predicate.Note(sql.FieldEQ(FieldID, vc))
 }
 
 // IDNEQ applies the NEQ predicate on the ID field.
 func IDNEQ(id schema.NoteID) predicate.Note {
-	return predicate.Note(sql.FieldNEQ(FieldID, id))
+	vc := string(id)
+	return predicate.Note(sql.FieldNEQ(FieldID, vc))
 }
 
 // IDIn applies the In predicate on the ID field.
 func IDIn(ids ...schema.NoteID) predicate.Note {
-	return predicate.Note(sql.FieldIn(FieldID, ids...))
+	v := make([]string, len(ids))
+	for i := range v {
+		v[i] = string(ids[i])
+	}
+	return predicate.Note(sql.FieldIn(FieldID, v...))
 }
 
 // IDNotIn applies the NotIn predicate on the ID field.
 func IDNotIn(ids ...schema.NoteID) predicate.Note {
-	return predicate.Note(sql.FieldNotIn(FieldID, ids...))
+	v := make([]string, len(ids))
+	for i := range v {
+		v[i] = string(ids[i])
+	}
+	return predicate.Note(sql.FieldNotIn(FieldID, v...))
 }
 
 // IDGT applies the GT predicate on the ID field.
 func IDGT(id schema.NoteID) predicate.Note {
-	return predicate.Note(sql.FieldGT(FieldID, id))
+	vc := string(id)
+	return predicate.Note(sql.FieldGT(FieldID, vc))
 }
 
 // IDGTE applies the GTE predicate on the ID field.
 func IDGTE(id schema.NoteID) predicate.Note {
-	return predicate.Note(sql.FieldGTE(FieldID, id))
+	vc := string(id)
+	return predicate.Note(sql.FieldGTE(FieldID, vc))
 }
 
 // IDLT applies the LT predicate on the ID field.
 func IDLT(id schema.NoteID) predicate.Note {
-	return predicate.Note(sql.FieldLT(FieldID, id))
+	vc := string(id)
+	return predicate.Note(sql.FieldLT(FieldID, vc))
 }
 
 // IDLTE applies the LTE predicate on the ID field.
 func IDLTE(id schema.NoteID) predicate.Note {
-	return predicate.Note(sql.FieldLTE(FieldID, id))
+	vc := string(id)
+	return predicate.Note(sql.FieldLTE(FieldID, vc))
 }
 
 // Text applies equality check predicate on the "text" field. It's identical to TextEQ.

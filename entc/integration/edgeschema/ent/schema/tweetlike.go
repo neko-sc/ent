@@ -28,7 +28,7 @@ func (TweetLike) Annotations() []schema.Annotation {
 func (TweetLike) Fields() []ent.Field {
 	return []ent.Field{
 		field.Time("liked_at").
-			Default(time.Now),
+			DefaultFunc(time.Now),
 		field.Int("user_id"),
 		field.Int("tweet_id"),
 	}

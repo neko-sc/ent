@@ -62,8 +62,8 @@ func (m *Mutation) ResetName() {
 }
 
 // SetType sets the "type" field.
-func (m *Mutation) SetType(f Type) {
-	m._type = &f
+func (m *Mutation) SetType(t Type) {
+	m._type = &t
 }
 
 // GetType returns the value of the "type" field in the mutation.
@@ -81,8 +81,8 @@ func (m *Mutation) ResetType() {
 }
 
 // SetState sets the "state" field.
-func (m *Mutation) SetState(f State) {
-	m.state = &f
+func (m *Mutation) SetState(s State) {
+	m.state = &s
 }
 
 // State returns the value of the "state" field in the mutation.

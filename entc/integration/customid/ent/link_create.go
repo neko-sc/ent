@@ -53,7 +53,9 @@ func (_c *LinkCreate) Mutation() *LinkMutation {
 
 // Save creates the Link in the database.
 func (_c *LinkCreate) Save(ctx context.Context) (*Link, error) {
-	_c.defaults()
+	if err := _c.defaults(); err != nil {
+		return nil, err
+	}
 	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
 }
 
@@ -80,15 +82,19 @@ func (_c *LinkCreate) ExecX(ctx context.Context) {
 }
 
 // defaults sets the default values of the builder before save.
-func (_c *LinkCreate) defaults() {
+func (_c *LinkCreate) defaults() error {
 	if _, ok := _c.mutation.LinkInformation(); !ok {
 		v := link.DefaultLinkInformation
 		_c.mutation.SetLinkInformation(v)
 	}
 	if _, ok := _c.mutation.ID(); !ok {
+		if link.DefaultID == nil {
+			return fmt.Errorf("ent: uninitialized link.DefaultID (forgotten import ent/runtime?)")
+		}
 		v := link.DefaultID()
 		_c.mutation.SetID(v)
 	}
+	return nil
 }
 
 // check runs all checks and user-defined validators on the builder.

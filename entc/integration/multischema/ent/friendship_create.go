@@ -81,7 +81,9 @@ func (_c *FriendshipCreate) Mutation() *FriendshipMutation {
 
 // Save creates the Friendship in the database.
 func (_c *FriendshipCreate) Save(ctx context.Context) (*Friendship, error) {
-	_c.defaults()
+	if err := _c.defaults(); err != nil {
+		return nil, err
+	}
 	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
 }
 
@@ -108,15 +110,19 @@ func (_c *FriendshipCreate) ExecX(ctx context.Context) {
 }
 
 // defaults sets the default values of the builder before save.
-func (_c *FriendshipCreate) defaults() {
+func (_c *FriendshipCreate) defaults() error {
 	if _, ok := _c.mutation.Weight(); !ok {
 		v := friendship.DefaultWeight
 		_c.mutation.SetWeight(v)
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
+		if friendship.DefaultCreatedAt == nil {
+			return fmt.Errorf("ent: uninitialized friendship.DefaultCreatedAt (forgotten import ent/runtime?)")
+		}
 		v := friendship.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
 	}
+	return nil
 }
 
 // check runs all checks and user-defined validators on the builder.

@@ -81,26 +81,26 @@ func (_m *Card) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case card.FieldID:
-			value, ok := values[i].(*sql.NullInt64)
-			if !ok {
-				return fmt.Errorf("unexpected type %T for field id", value)
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field id", values[i])
+			} else if value.Valid {
+				_m.ID = int(value.Int64)
 			}
-			_m.ID = int(value.Int64)
 		case card.FieldExpired:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field expired", values[i])
 			} else if value.Valid {
-				_m.Expired = value.Time
+				_m.Expired = time.Time(value.Time)
 			}
 		case card.FieldNumber:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field number", values[i])
 			} else if value.Valid {
-				_m.Number = value.String
+				_m.Number = string(value.String)
 			}
 		case card.ForeignKeys[0]:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
-				return fmt.Errorf("unexpected type %T for edge-field user_card", value)
+				return fmt.Errorf("unexpected type %T for field user_card", values[i])
 			} else if value.Valid {
 				_m.user_card = new(int)
 				*_m.user_card = int(value.Int64)

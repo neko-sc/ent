@@ -1183,8 +1183,8 @@ func (m *Mutation) ResetOptionalUint64() {
 }
 
 // SetState sets the "state" field.
-func (m *Mutation) SetState(f State) {
-	m.state = &f
+func (m *Mutation) SetState(s State) {
+	m.state = &s
 }
 
 // State returns the value of the "state" field in the mutation.

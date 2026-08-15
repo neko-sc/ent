@@ -13,8 +13,8 @@ import (
 
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
-	"github.com/neko-sc/ent/entc/integration/ent/schema/task"
-	enttask "github.com/neko-sc/ent/entc/integration/ent/task"
+	task2 "github.com/neko-sc/ent/entc/integration/ent/schema/task"
+	"github.com/neko-sc/ent/entc/integration/ent/task"
 	"github.com/neko-sc/ent/schema/field"
 )
 
@@ -27,13 +27,13 @@ type TaskCreate struct {
 }
 
 // SetPriority sets the "priority" field.
-func (_c *TaskCreate) SetPriority(v task.Priority) *TaskCreate {
+func (_c *TaskCreate) SetPriority(v task2.Priority) *TaskCreate {
 	_c.mutation.SetPriority(v)
 	return _c
 }
 
 // SetNillablePriority sets the "priority" field if the given value is not nil.
-func (_c *TaskCreate) SetNillablePriority(v *task.Priority) *TaskCreate {
+func (_c *TaskCreate) SetNillablePriority(v *task2.Priority) *TaskCreate {
 	if v != nil {
 		_c.SetPriority(*v)
 	}
@@ -41,7 +41,7 @@ func (_c *TaskCreate) SetNillablePriority(v *task.Priority) *TaskCreate {
 }
 
 // SetPriorities sets the "priorities" field.
-func (_c *TaskCreate) SetPriorities(v map[string]task.Priority) *TaskCreate {
+func (_c *TaskCreate) SetPriorities(v map[string]task2.Priority) *TaskCreate {
 	_c.mutation.SetPriorities(v)
 	return _c
 }
@@ -137,7 +137,9 @@ func (_c *TaskCreate) Mutation() *TaskMutation {
 
 // Save creates the Task in the database.
 func (_c *TaskCreate) Save(ctx context.Context) (*Task, error) {
-	_c.defaults()
+	if err := _c.defaults(); err != nil {
+		return nil, err
+	}
 	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
 }
 
@@ -164,19 +166,23 @@ func (_c *TaskCreate) ExecX(ctx context.Context) {
 }
 
 // defaults sets the default values of the builder before save.
-func (_c *TaskCreate) defaults() {
+func (_c *TaskCreate) defaults() error {
 	if _, ok := _c.mutation.Priority(); !ok {
-		v := enttask.DefaultPriority
+		v := task.DefaultPriority
 		_c.mutation.SetPriority(v)
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
-		v := enttask.DefaultCreatedAt()
+		if task.DefaultCreatedAt == nil {
+			return fmt.Errorf("ent: uninitialized task.DefaultCreatedAt (forgotten import ent/runtime?)")
+		}
+		v := task.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
 	}
 	if _, ok := _c.mutation.GetOp(); !ok {
-		v := enttask.DefaultOp
+		v := task.DefaultOp
 		_c.mutation.SetOpField(v)
 	}
+	return nil
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -196,7 +202,7 @@ func (_c *TaskCreate) check() error {
 		return &ValidationError{Name: "op", err: errors.New(`ent: missing required field "Task.op"`)}
 	}
 	if v, ok := _c.mutation.GetOp(); ok {
-		if err := enttask.OpValidator(v); err != nil {
+		if err := task.OpValidator(v); err != nil {
 			return &ValidationError{Name: "op", err: fmt.Errorf(`ent: validator failed for field "Task.op": %w`, err)}
 		}
 	}
@@ -224,39 +230,39 @@ func (_c *TaskCreate) sqlSave(ctx context.Context) (*Task, error) {
 func (_c *TaskCreate) createSpec() (*Task, *sqlgraph.CreateSpec) {
 	var (
 		_node = &Task{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(enttask.Table, sqlgraph.NewFieldSpec(enttask.FieldID, field.TypeInt))
+		_spec = sqlgraph.NewCreateSpec(task.Table, sqlgraph.NewFieldSpec(task.FieldID, field.TypeInt))
 	)
 	_spec.OnConflict = _c.conflict
 	if value, ok := _c.mutation.Priority(); ok {
-		_spec.SetField(enttask.FieldPriority, field.TypeInt, value)
+		_spec.SetField(task.FieldPriority, field.TypeInt, value)
 		_node.Priority = value
 	}
 	if value, ok := _c.mutation.Priorities(); ok {
-		_spec.SetField(enttask.FieldPriorities, field.TypeJSON, value)
+		_spec.SetField(task.FieldPriorities, field.TypeJSON, value)
 		_node.Priorities = value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
-		_spec.SetField(enttask.FieldCreatedAt, field.TypeTime, value)
+		_spec.SetField(task.FieldCreatedAt, field.TypeTime, value)
 		_node.CreatedAt = &value
 	}
 	if value, ok := _c.mutation.Name(); ok {
-		_spec.SetField(enttask.FieldName, field.TypeString, value)
+		_spec.SetField(task.FieldName, field.TypeString, value)
 		_node.Name = value
 	}
 	if value, ok := _c.mutation.Owner(); ok {
-		_spec.SetField(enttask.FieldOwner, field.TypeString, value)
+		_spec.SetField(task.FieldOwner, field.TypeString, value)
 		_node.Owner = value
 	}
 	if value, ok := _c.mutation.Order(); ok {
-		_spec.SetField(enttask.FieldOrder, field.TypeInt, value)
+		_spec.SetField(task.FieldOrder, field.TypeInt, value)
 		_node.Order = value
 	}
 	if value, ok := _c.mutation.OrderOption(); ok {
-		_spec.SetField(enttask.FieldOrderOption, field.TypeInt, value)
+		_spec.SetField(task.FieldOrderOption, field.TypeInt, value)
 		_node.OrderOption = value
 	}
 	if value, ok := _c.mutation.GetOp(); ok {
-		_spec.SetField(enttask.FieldOp, field.TypeString, value)
+		_spec.SetField(task.FieldOp, field.TypeString, value)
 		_node.Op = value
 	}
 	return _node, _spec
@@ -312,134 +318,134 @@ type (
 )
 
 // SetPriority sets the "priority" field.
-func (u *TaskUpsert) SetPriority(v task.Priority) *TaskUpsert {
-	u.Set(enttask.FieldPriority, v)
+func (u *TaskUpsert) SetPriority(v task2.Priority) *TaskUpsert {
+	u.Set(task.FieldPriority, v)
 	return u
 }
 
 // UpdatePriority sets the "priority" field to the value that was provided on create.
 func (u *TaskUpsert) UpdatePriority() *TaskUpsert {
-	u.SetExcluded(enttask.FieldPriority)
+	u.SetExcluded(task.FieldPriority)
 	return u
 }
 
 // AddPriority adds v to the "priority" field.
-func (u *TaskUpsert) AddPriority(v task.Priority) *TaskUpsert {
-	u.Add(enttask.FieldPriority, v)
+func (u *TaskUpsert) AddPriority(v task2.Priority) *TaskUpsert {
+	u.Add(task.FieldPriority, v)
 	return u
 }
 
 // SetPriorities sets the "priorities" field.
-func (u *TaskUpsert) SetPriorities(v map[string]task.Priority) *TaskUpsert {
-	u.Set(enttask.FieldPriorities, v)
+func (u *TaskUpsert) SetPriorities(v map[string]task2.Priority) *TaskUpsert {
+	u.Set(task.FieldPriorities, v)
 	return u
 }
 
 // UpdatePriorities sets the "priorities" field to the value that was provided on create.
 func (u *TaskUpsert) UpdatePriorities() *TaskUpsert {
-	u.SetExcluded(enttask.FieldPriorities)
+	u.SetExcluded(task.FieldPriorities)
 	return u
 }
 
 // ClearPriorities clears the value of the "priorities" field.
 func (u *TaskUpsert) ClearPriorities() *TaskUpsert {
-	u.SetNull(enttask.FieldPriorities)
+	u.SetNull(task.FieldPriorities)
 	return u
 }
 
 // SetName sets the "name" field.
 func (u *TaskUpsert) SetName(v string) *TaskUpsert {
-	u.Set(enttask.FieldName, v)
+	u.Set(task.FieldName, v)
 	return u
 }
 
 // UpdateName sets the "name" field to the value that was provided on create.
 func (u *TaskUpsert) UpdateName() *TaskUpsert {
-	u.SetExcluded(enttask.FieldName)
+	u.SetExcluded(task.FieldName)
 	return u
 }
 
 // ClearName clears the value of the "name" field.
 func (u *TaskUpsert) ClearName() *TaskUpsert {
-	u.SetNull(enttask.FieldName)
+	u.SetNull(task.FieldName)
 	return u
 }
 
 // SetOwner sets the "owner" field.
 func (u *TaskUpsert) SetOwner(v string) *TaskUpsert {
-	u.Set(enttask.FieldOwner, v)
+	u.Set(task.FieldOwner, v)
 	return u
 }
 
 // UpdateOwner sets the "owner" field to the value that was provided on create.
 func (u *TaskUpsert) UpdateOwner() *TaskUpsert {
-	u.SetExcluded(enttask.FieldOwner)
+	u.SetExcluded(task.FieldOwner)
 	return u
 }
 
 // ClearOwner clears the value of the "owner" field.
 func (u *TaskUpsert) ClearOwner() *TaskUpsert {
-	u.SetNull(enttask.FieldOwner)
+	u.SetNull(task.FieldOwner)
 	return u
 }
 
 // SetOrder sets the "order" field.
 func (u *TaskUpsert) SetOrder(v int) *TaskUpsert {
-	u.Set(enttask.FieldOrder, v)
+	u.Set(task.FieldOrder, v)
 	return u
 }
 
 // UpdateOrder sets the "order" field to the value that was provided on create.
 func (u *TaskUpsert) UpdateOrder() *TaskUpsert {
-	u.SetExcluded(enttask.FieldOrder)
+	u.SetExcluded(task.FieldOrder)
 	return u
 }
 
 // AddOrder adds v to the "order" field.
 func (u *TaskUpsert) AddOrder(v int) *TaskUpsert {
-	u.Add(enttask.FieldOrder, v)
+	u.Add(task.FieldOrder, v)
 	return u
 }
 
 // ClearOrder clears the value of the "order" field.
 func (u *TaskUpsert) ClearOrder() *TaskUpsert {
-	u.SetNull(enttask.FieldOrder)
+	u.SetNull(task.FieldOrder)
 	return u
 }
 
 // SetOrderOption sets the "order_option" field.
 func (u *TaskUpsert) SetOrderOption(v int) *TaskUpsert {
-	u.Set(enttask.FieldOrderOption, v)
+	u.Set(task.FieldOrderOption, v)
 	return u
 }
 
 // UpdateOrderOption sets the "order_option" field to the value that was provided on create.
 func (u *TaskUpsert) UpdateOrderOption() *TaskUpsert {
-	u.SetExcluded(enttask.FieldOrderOption)
+	u.SetExcluded(task.FieldOrderOption)
 	return u
 }
 
 // AddOrderOption adds v to the "order_option" field.
 func (u *TaskUpsert) AddOrderOption(v int) *TaskUpsert {
-	u.Add(enttask.FieldOrderOption, v)
+	u.Add(task.FieldOrderOption, v)
 	return u
 }
 
 // ClearOrderOption clears the value of the "order_option" field.
 func (u *TaskUpsert) ClearOrderOption() *TaskUpsert {
-	u.SetNull(enttask.FieldOrderOption)
+	u.SetNull(task.FieldOrderOption)
 	return u
 }
 
 // SetOp sets the "op" field.
 func (u *TaskUpsert) SetOp(v string) *TaskUpsert {
-	u.Set(enttask.FieldOp, v)
+	u.Set(task.FieldOp, v)
 	return u
 }
 
 // UpdateOp sets the "op" field to the value that was provided on create.
 func (u *TaskUpsert) UpdateOp() *TaskUpsert {
-	u.SetExcluded(enttask.FieldOp)
+	u.SetExcluded(task.FieldOp)
 	return u
 }
 
@@ -455,7 +461,7 @@ func (u *TaskUpsertOne) UpdateNewValues() *TaskUpsertOne {
 	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
 	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
 		if _, exists := u.create.mutation.CreatedAt(); exists {
-			s.SetIgnore(enttask.FieldCreatedAt)
+			s.SetIgnore(task.FieldCreatedAt)
 		}
 	}))
 	return u
@@ -489,14 +495,14 @@ func (u *TaskUpsertOne) Update(set func(*TaskUpsert)) *TaskUpsertOne {
 }
 
 // SetPriority sets the "priority" field.
-func (u *TaskUpsertOne) SetPriority(v task.Priority) *TaskUpsertOne {
+func (u *TaskUpsertOne) SetPriority(v task2.Priority) *TaskUpsertOne {
 	return u.Update(func(s *TaskUpsert) {
 		s.SetPriority(v)
 	})
 }
 
 // AddPriority adds v to the "priority" field.
-func (u *TaskUpsertOne) AddPriority(v task.Priority) *TaskUpsertOne {
+func (u *TaskUpsertOne) AddPriority(v task2.Priority) *TaskUpsertOne {
 	return u.Update(func(s *TaskUpsert) {
 		s.AddPriority(v)
 	})
@@ -510,7 +516,7 @@ func (u *TaskUpsertOne) UpdatePriority() *TaskUpsertOne {
 }
 
 // SetPriorities sets the "priorities" field.
-func (u *TaskUpsertOne) SetPriorities(v map[string]task.Priority) *TaskUpsertOne {
+func (u *TaskUpsertOne) SetPriorities(v map[string]task2.Priority) *TaskUpsertOne {
 	return u.Update(func(s *TaskUpsert) {
 		s.SetPriorities(v)
 	})
@@ -819,7 +825,7 @@ func (u *TaskUpsertBulk) UpdateNewValues() *TaskUpsertBulk {
 	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
 		for _, b := range u.create.builders {
 			if _, exists := b.mutation.CreatedAt(); exists {
-				s.SetIgnore(enttask.FieldCreatedAt)
+				s.SetIgnore(task.FieldCreatedAt)
 			}
 		}
 	}))
@@ -854,14 +860,14 @@ func (u *TaskUpsertBulk) Update(set func(*TaskUpsert)) *TaskUpsertBulk {
 }
 
 // SetPriority sets the "priority" field.
-func (u *TaskUpsertBulk) SetPriority(v task.Priority) *TaskUpsertBulk {
+func (u *TaskUpsertBulk) SetPriority(v task2.Priority) *TaskUpsertBulk {
 	return u.Update(func(s *TaskUpsert) {
 		s.SetPriority(v)
 	})
 }
 
 // AddPriority adds v to the "priority" field.
-func (u *TaskUpsertBulk) AddPriority(v task.Priority) *TaskUpsertBulk {
+func (u *TaskUpsertBulk) AddPriority(v task2.Priority) *TaskUpsertBulk {
 	return u.Update(func(s *TaskUpsert) {
 		s.AddPriority(v)
 	})
@@ -875,7 +881,7 @@ func (u *TaskUpsertBulk) UpdatePriority() *TaskUpsertBulk {
 }
 
 // SetPriorities sets the "priorities" field.
-func (u *TaskUpsertBulk) SetPriorities(v map[string]task.Priority) *TaskUpsertBulk {
+func (u *TaskUpsertBulk) SetPriorities(v map[string]task2.Priority) *TaskUpsertBulk {
 	return u.Update(func(s *TaskUpsert) {
 		s.SetPriorities(v)
 	})

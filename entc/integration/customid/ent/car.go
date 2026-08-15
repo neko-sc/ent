@@ -82,35 +82,35 @@ func (_m *Car) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case car.FieldID:
-			value, ok := values[i].(*sql.NullInt64)
-			if !ok {
-				return fmt.Errorf("unexpected type %T for field id", value)
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field id", values[i])
+			} else if value.Valid {
+				_m.ID = int(value.Int64)
 			}
-			_m.ID = int(value.Int64)
 		case car.FieldBeforeID:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
 				return fmt.Errorf("unexpected type %T for field before_id", values[i])
 			} else if value.Valid {
-				_m.BeforeID = value.Float64
+				_m.BeforeID = float64(value.Float64)
 			}
 		case car.FieldAfterID:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
 				return fmt.Errorf("unexpected type %T for field after_id", values[i])
 			} else if value.Valid {
-				_m.AfterID = value.Float64
+				_m.AfterID = float64(value.Float64)
 			}
 		case car.FieldModel:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field model", values[i])
 			} else if value.Valid {
-				_m.Model = value.String
+				_m.Model = string(value.String)
 			}
 		case car.ForeignKeys[0]:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field pet_cars", values[i])
 			} else if value.Valid {
 				_m.pet_cars = new(string)
-				*_m.pet_cars = value.String
+				*_m.pet_cars = string(value.String)
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])

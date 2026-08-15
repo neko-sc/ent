@@ -18,8 +18,7 @@ type IntSID struct {
 // Fields of the IntSid.
 func (IntSID) Fields() []ent.Field {
 	return []ent.Field{
-		field.Int64("id").
-			GoType(sid.New()).
+		field.Int64As[sid.ID]("id").
 			Unique().
 			Immutable(),
 	}

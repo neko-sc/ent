@@ -81,7 +81,7 @@ func (_m *Car) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field number", values[i])
 			} else if value.Valid {
-				_m.Number = value.String
+				_m.Number = string(value.String)
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])

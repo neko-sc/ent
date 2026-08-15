@@ -2,8 +2,20 @@
 
 package ent
 
+import (
+	"github.com/neko-sc/ent/examples/compositetypes/ent/schema"
+	"github.com/neko-sc/ent/examples/compositetypes/ent/user"
+
+	"github.com/neko-sc/ent/schema/field"
+)
+
 // The init function reads all schema descriptors with runtime code
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
+	userFields := schema.User{}.Fields()
+	_ = userFields
+	// userDescAddress is the schema descriptor for address field.
+	userDescAddress := userFields[0].Descriptor()
+	user.ValueScanner.Address = userDescAddress.ValueScanner.(field.TypeValueScanner[*schema.Address])
 }

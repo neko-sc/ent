@@ -45,7 +45,7 @@ func (_m *PetUserName) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field name", values[i])
 			} else if value.Valid {
-				_m.Name = value.String
+				_m.Name = string(value.String)
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])

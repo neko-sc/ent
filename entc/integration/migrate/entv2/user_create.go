@@ -333,7 +333,9 @@ func (_c *UserCreate) Mutation() *UserMutation {
 
 // Save creates the User in the database.
 func (_c *UserCreate) Save(ctx context.Context) (*User, error) {
-	_c.defaults()
+	if err := _c.defaults(); err != nil {
+		return nil, err
+	}
 	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
 }
 
@@ -360,7 +362,7 @@ func (_c *UserCreate) ExecX(ctx context.Context) {
 }
 
 // defaults sets the default values of the builder before save.
-func (_c *UserCreate) defaults() {
+func (_c *UserCreate) defaults() error {
 	if _, ok := _c.mutation.MixedString(); !ok {
 		v := user.DefaultMixedString
 		_c.mutation.SetMixedString(v)
@@ -378,6 +380,9 @@ func (_c *UserCreate) defaults() {
 		_c.mutation.SetPhone(v)
 	}
 	if _, ok := _c.mutation.Buffer(); !ok {
+		if user.DefaultBuffer == nil {
+			return fmt.Errorf("entv2: uninitialized user.DefaultBuffer (forgotten import entv2/runtime?)")
+		}
 		v := user.DefaultBuffer()
 		_c.mutation.SetBuffer(v)
 	}
@@ -386,6 +391,9 @@ func (_c *UserCreate) defaults() {
 		_c.mutation.SetTitle(v)
 	}
 	if _, ok := _c.mutation.NewToken(); !ok {
+		if user.DefaultNewToken == nil {
+			return fmt.Errorf("entv2: uninitialized user.DefaultNewToken (forgotten import entv2/runtime?)")
+		}
 		v := user.DefaultNewToken()
 		_c.mutation.SetNewToken(v)
 	}
@@ -394,13 +402,20 @@ func (_c *UserCreate) defaults() {
 		_c.mutation.SetState(v)
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
+		if user.DefaultCreatedAt == nil {
+			return fmt.Errorf("entv2: uninitialized user.DefaultCreatedAt (forgotten import entv2/runtime?)")
+		}
 		v := user.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
 	}
 	if _, ok := _c.mutation.DropOptional(); !ok {
+		if user.DefaultDropOptional == nil {
+			return fmt.Errorf("entv2: uninitialized user.DefaultDropOptional (forgotten import entv2/runtime?)")
+		}
 		v := user.DefaultDropOptional()
 		_c.mutation.SetDropOptional(v)
 	}
+	return nil
 }
 
 // check runs all checks and user-defined validators on the builder.

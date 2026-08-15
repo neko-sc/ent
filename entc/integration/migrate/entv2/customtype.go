@@ -56,28 +56,28 @@ func (_m *CustomType) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case customtype.FieldID:
-			value, ok := values[i].(*sql.NullInt64)
-			if !ok {
-				return fmt.Errorf("unexpected type %T for field id", value)
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field id", values[i])
+			} else if value.Valid {
+				_m.ID = int(value.Int64)
 			}
-			_m.ID = int(value.Int64)
 		case customtype.FieldCustom:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field custom", values[i])
 			} else if value.Valid {
-				_m.Custom = value.String
+				_m.Custom = string(value.String)
 			}
 		case customtype.FieldTz0:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field tz0", values[i])
 			} else if value.Valid {
-				_m.Tz0 = value.Time
+				_m.Tz0 = time.Time(value.Time)
 			}
 		case customtype.FieldTz3:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field tz3", values[i])
 			} else if value.Valid {
-				_m.Tz3 = value.Time
+				_m.Tz3 = time.Time(value.Time)
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])

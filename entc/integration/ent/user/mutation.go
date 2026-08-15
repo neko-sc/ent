@@ -339,8 +339,8 @@ func (m *Mutation) ResetPassword() {
 }
 
 // SetRole sets the "role" field.
-func (m *Mutation) SetRole(u Role) {
-	m.role = &u
+func (m *Mutation) SetRole(r Role) {
+	m.role = &r
 }
 
 // Role returns the value of the "role" field in the mutation.
@@ -358,8 +358,8 @@ func (m *Mutation) ResetRole() {
 }
 
 // SetEmployment sets the "employment" field.
-func (m *Mutation) SetEmployment(u Employment) {
-	m.employment = &u
+func (m *Mutation) SetEmployment(e Employment) {
+	m.employment = &e
 }
 
 // Employment returns the value of the "employment" field in the mutation.

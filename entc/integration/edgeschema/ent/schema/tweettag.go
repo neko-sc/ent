@@ -6,10 +6,10 @@ package schema
 import (
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/schema/edge"
 	"github.com/neko-sc/ent/schema/field"
-	"github.com/google/uuid"
 )
 
 // TweetTag holds the schema definition for the TweetTag entity.
@@ -20,10 +20,10 @@ type TweetTag struct {
 // Fields of the TweetTag.
 func (TweetTag) Fields() []ent.Field {
 	return []ent.Field{
-		field.UUID("id", uuid.UUID{}).
-			Default(uuid.New),
+		field.UUID[uuid.UUID]("id").
+			DefaultFunc(uuid.New),
 		field.Time("added_at").
-			Default(time.Now),
+			DefaultFunc(time.Now),
 		field.Int("tag_id"),
 		field.Int("tweet_id"),
 	}

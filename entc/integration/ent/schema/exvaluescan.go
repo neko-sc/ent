@@ -25,25 +25,20 @@ type ExValueScan struct {
 // Fields of the ExValueScan.
 func (ExValueScan) Fields() []ent.Field {
 	return []ent.Field{
-		field.String("binary").
-			GoType(&url.URL{}).
-			ValueScanner(field.BinaryValueScanner[*url.URL]{}),
-		field.Bytes("binary_bytes").
-			GoType(&url.URL{}).
-			ValueScanner(field.BinaryValueScanner[*url.URL]{}),
-		field.String("binary_optional").
+		field.StringAs[*url.URL]("binary").
+			Codec(field.BinaryValueScanner[*url.URL]{}),
+		field.BytesAs[*url.URL]("binary_bytes").
+			Codec(field.BinaryValueScanner[*url.URL]{}),
+		field.StringAs[*url.URL]("binary_optional").
 			Optional().
-			GoType(&url.URL{}).
-			ValueScanner(field.BinaryValueScanner[*url.URL]{}),
-		field.String("text").
-			GoType(&big.Int{}).
-			ValueScanner(field.TextValueScanner[*big.Int]{}),
-		field.String("text_optional").
+			Codec(field.BinaryValueScanner[*url.URL]{}),
+		field.StringAs[*big.Int]("text").
+			Codec(field.TextValueScanner[*big.Int]{}),
+		field.StringAs[*big.Int]("text_optional").
 			Optional().
-			GoType(&big.Int{}).
-			ValueScanner(field.TextValueScanner[*big.Int]{}),
+			Codec(field.TextValueScanner[*big.Int]{}),
 		field.String("base64").
-			ValueScanner(field.ValueScannerFunc[string, *sql.NullString]{
+			Codec(field.ValueScannerFunc[string, *sql.NullString]{
 				V: func(s string) (driver.Value, error) {
 					return base64.StdEncoding.EncodeToString([]byte(s)), nil
 				},
@@ -59,12 +54,12 @@ func (ExValueScan) Fields() []ent.Field {
 				},
 			}),
 		field.String("custom").
-			ValueScanner(PrefixedHex{
+			Codec(PrefixedHex{
 				prefix: "0x",
 			}),
 		field.String("custom_optional").
 			Optional().
-			ValueScanner(PrefixedHex{
+			Codec(PrefixedHex{
 				prefix: "0X",
 			}),
 	}

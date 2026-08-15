@@ -81,7 +81,9 @@ func (_c *DeviceCreate) Mutation() *DeviceMutation {
 
 // Save creates the Device in the database.
 func (_c *DeviceCreate) Save(ctx context.Context) (*Device, error) {
-	_c.defaults()
+	if err := _c.defaults(); err != nil {
+		return nil, err
+	}
 	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
 }
 
@@ -108,17 +110,21 @@ func (_c *DeviceCreate) ExecX(ctx context.Context) {
 }
 
 // defaults sets the default values of the builder before save.
-func (_c *DeviceCreate) defaults() {
+func (_c *DeviceCreate) defaults() error {
 	if _, ok := _c.mutation.ID(); !ok {
+		if device.DefaultID == nil {
+			return fmt.Errorf("ent: uninitialized device.DefaultID (forgotten import ent/runtime?)")
+		}
 		v := device.DefaultID()
 		_c.mutation.SetID(v)
 	}
+	return nil
 }
 
 // check runs all checks and user-defined validators on the builder.
 func (_c *DeviceCreate) check() error {
 	if v, ok := _c.mutation.ID(); ok {
-		if err := device.IDValidator(v[:]); err != nil {
+		if err := device.IDValidator(v); err != nil {
 			return &ValidationError{Name: "id", err: fmt.Errorf(`ent: validator failed for field "Device.id": %w`, err)}
 		}
 	}

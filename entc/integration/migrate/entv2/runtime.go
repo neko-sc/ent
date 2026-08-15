@@ -32,7 +32,13 @@ func init() {
 	// userDescNickname is the schema descriptor for nickname field.
 	userDescNickname := userFields[5].Descriptor()
 	// user.NicknameValidator is a validator for the "nickname" field. It is called by the builders before save.
-	user.NicknameValidator = userDescNickname.Validators[0].(func(string) error)
+	user.NicknameValidator = func(value string) error {
+		validators := userDescNickname.Validators
+		if err := validators[0].(func(string) error)(value); err != nil {
+			return err
+		}
+		return nil
+	}
 	// userDescPhone is the schema descriptor for phone field.
 	userDescPhone := userFields[6].Descriptor()
 	// user.DefaultPhone holds the default value on creation for the phone field.
@@ -52,7 +58,13 @@ func init() {
 	// userDescBlob is the schema descriptor for blob field.
 	userDescBlob := userFields[11].Descriptor()
 	// user.BlobValidator is a validator for the "blob" field. It is called by the builders before save.
-	user.BlobValidator = userDescBlob.Validators[0].(func([]byte) error)
+	user.BlobValidator = func(value []byte) error {
+		validators := userDescBlob.Validators
+		if err := validators[0].(func([]uint8) error)(value); err != nil {
+			return err
+		}
+		return nil
+	}
 	// userDescCreatedAt is the schema descriptor for created_at field.
 	userDescCreatedAt := userFields[18].Descriptor()
 	// user.DefaultCreatedAt holds the default value on creation for the created_at field.

@@ -20,8 +20,13 @@ type User struct {
 // Fields of the User.
 func (User) Fields() []ent.Field {
 	return []ent.Field{
-		field.String("address").
-			GoType(&Address{}).
+		field.StringAs[*Address]("address").
+			Codec(field.ValueScannerFunc[*Address, *Address]{
+				V: (*Address).Value,
+				S: func(address *Address) (*Address, error) {
+					return address, nil
+				},
+			}).
 			SchemaType(map[string]string{
 				dialect.Postgres: "address",
 			}),
@@ -32,10 +37,8 @@ type Address struct {
 	Street, City string
 }
 
-var _ field.ValueScanner = (*Address)(nil)
-
 // Scan implements the database/sql.Scanner interface.
-func (a *Address) Scan(v interface{}) (err error) {
+func (a *Address) Scan(v any) (err error) {
 	switch v := v.(type) {
 	case nil:
 	case string:

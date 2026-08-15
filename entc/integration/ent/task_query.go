@@ -15,7 +15,7 @@ import (
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/entc/integration/ent/predicate"
-	enttask "github.com/neko-sc/ent/entc/integration/ent/task"
+	"github.com/neko-sc/ent/entc/integration/ent/task"
 	"github.com/neko-sc/ent/schema/field"
 )
 
@@ -23,7 +23,7 @@ import (
 type TaskQuery struct {
 	config
 	ctx        *QueryContext
-	order      []enttask.OrderOption
+	order      []task.OrderOption
 	inters     []Interceptor
 	predicates []predicate.Task
 	modifiers  []func(*sql.Selector)
@@ -58,7 +58,7 @@ func (_q *TaskQuery) Unique(unique bool) *TaskQuery {
 }
 
 // Order specifies how the records should be ordered.
-func (_q *TaskQuery) Order(o ...enttask.OrderOption) *TaskQuery {
+func (_q *TaskQuery) Order(o ...task.OrderOption) *TaskQuery {
 	_q.order = append(_q.order, o...)
 	return _q
 }
@@ -71,7 +71,7 @@ func (_q *TaskQuery) First(ctx context.Context) (*Task, error) {
 		return nil, err
 	}
 	if len(nodes) == 0 {
-		return nil, &NotFoundError{enttask.Label}
+		return nil, &NotFoundError{task.Label}
 	}
 	return nodes[0], nil
 }
@@ -93,7 +93,7 @@ func (_q *TaskQuery) FirstID(ctx context.Context) (id int, err error) {
 		return
 	}
 	if len(ids) == 0 {
-		err = &NotFoundError{enttask.Label}
+		err = &NotFoundError{task.Label}
 		return
 	}
 	return ids[0], nil
@@ -120,9 +120,9 @@ func (_q *TaskQuery) Only(ctx context.Context) (*Task, error) {
 	case 1:
 		return nodes[0], nil
 	case 0:
-		return nil, &NotFoundError{enttask.Label}
+		return nil, &NotFoundError{task.Label}
 	default:
-		return nil, &NotSingularError{enttask.Label}
+		return nil, &NotSingularError{task.Label}
 	}
 }
 
@@ -147,9 +147,9 @@ func (_q *TaskQuery) OnlyID(ctx context.Context) (id int, err error) {
 	case 1:
 		id = ids[0]
 	case 0:
-		err = &NotFoundError{enttask.Label}
+		err = &NotFoundError{task.Label}
 	default:
-		err = &NotSingularError{enttask.Label}
+		err = &NotSingularError{task.Label}
 	}
 	return
 }
@@ -188,7 +188,7 @@ func (_q *TaskQuery) IDs(ctx context.Context) (ids []int, err error) {
 		_q.Unique(true)
 	}
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryIDs)
-	if err = _q.Select(enttask.FieldID).Scan(ctx, &ids); err != nil {
+	if err = _q.Select(task.FieldID).Scan(ctx, &ids); err != nil {
 		return nil, err
 	}
 	return ids, nil
@@ -252,7 +252,7 @@ func (_q *TaskQuery) Clone() *TaskQuery {
 	return &TaskQuery{
 		config:     _q.config,
 		ctx:        _q.ctx.Clone(),
-		order:      append([]enttask.OrderOption{}, _q.order...),
+		order:      append([]task.OrderOption{}, _q.order...),
 		inters:     append([]Interceptor{}, _q.inters...),
 		predicates: append([]predicate.Task{}, _q.predicates...),
 		// clone intermediate query.
@@ -268,19 +268,19 @@ func (_q *TaskQuery) Clone() *TaskQuery {
 // Example:
 //
 //	var v []struct {
-//		Priority task.Priority `json:"priority,omitempty"`
+//		Priority task2.Priority `json:"priority,omitempty"`
 //		Count int `json:"count,omitempty"`
 //	}
 //
 //	client.Task.Query().
-//		GroupBy(enttask.FieldPriority).
+//		GroupBy(task.FieldPriority).
 //		Aggregate(ent.Count()).
 //		Scan(ctx, &v)
 func (_q *TaskQuery) GroupBy(field string, fields ...string) *TaskGroupBy {
 	_q.ctx.Fields = append([]string{field}, fields...)
 	grbuild := &TaskGroupBy{build: _q}
 	grbuild.flds = &_q.ctx.Fields
-	grbuild.label = enttask.Label
+	grbuild.label = task.Label
 	grbuild.scan = grbuild.Scan
 	return grbuild
 }
@@ -291,16 +291,16 @@ func (_q *TaskQuery) GroupBy(field string, fields ...string) *TaskGroupBy {
 // Example:
 //
 //	var v []struct {
-//		Priority task.Priority `json:"priority,omitempty"`
+//		Priority task2.Priority `json:"priority,omitempty"`
 //	}
 //
 //	client.Task.Query().
-//		Select(enttask.FieldPriority).
+//		Select(task.FieldPriority).
 //		Scan(ctx, &v)
 func (_q *TaskQuery) Select(fields ...string) *TaskSelect {
 	_q.ctx.Fields = append(_q.ctx.Fields, fields...)
 	sbuild := &TaskSelect{TaskQuery: _q}
-	sbuild.label = enttask.Label
+	sbuild.label = task.Label
 	sbuild.flds, sbuild.scan = &_q.ctx.Fields, sbuild.Scan
 	return sbuild
 }
@@ -322,7 +322,7 @@ func (_q *TaskQuery) prepareQuery(ctx context.Context) error {
 		}
 	}
 	for _, f := range _q.ctx.Fields {
-		if !enttask.ValidColumn(f) {
+		if !task.ValidColumn(f) {
 			return &ValidationError{Name: f, err: fmt.Errorf("ent: invalid field %q for query", f)}
 		}
 	}
@@ -377,7 +377,7 @@ func (_q *TaskQuery) sqlCount(ctx context.Context) (int, error) {
 }
 
 func (_q *TaskQuery) querySpec() *sqlgraph.QuerySpec {
-	_spec := sqlgraph.NewQuerySpec(enttask.Table, enttask.Columns, sqlgraph.NewFieldSpec(enttask.FieldID, field.TypeInt))
+	_spec := sqlgraph.NewQuerySpec(task.Table, task.Columns, sqlgraph.NewFieldSpec(task.FieldID, field.TypeInt))
 	_spec.From = _q.sql
 	if unique := _q.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
@@ -386,9 +386,9 @@ func (_q *TaskQuery) querySpec() *sqlgraph.QuerySpec {
 	}
 	if fields := _q.ctx.Fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
-		_spec.Node.Columns = append(_spec.Node.Columns, enttask.FieldID)
+		_spec.Node.Columns = append(_spec.Node.Columns, task.FieldID)
 		for i := range fields {
-			if fields[i] != enttask.FieldID {
+			if fields[i] != task.FieldID {
 				_spec.Node.Columns = append(_spec.Node.Columns, fields[i])
 			}
 		}
@@ -418,10 +418,10 @@ func (_q *TaskQuery) querySpec() *sqlgraph.QuerySpec {
 
 func (_q *TaskQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	builder := sql.Dialect(_q.driver.Dialect())
-	t1 := builder.Table(enttask.Table)
+	t1 := builder.Table(task.Table)
 	columns := _q.ctx.Fields
 	if len(columns) == 0 {
-		columns = enttask.Columns
+		columns = task.Columns
 	}
 	selector := builder.Select(t1.Columns(columns...)...).From(t1)
 	if _q.sql != nil {

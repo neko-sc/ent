@@ -95,16 +95,16 @@ func (_m *Rental) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case rental.FieldID:
-			value, ok := values[i].(*sql.NullInt64)
-			if !ok {
-				return fmt.Errorf("unexpected type %T for field id", value)
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field id", values[i])
+			} else if value.Valid {
+				_m.ID = int(value.Int64)
 			}
-			_m.ID = int(value.Int64)
 		case rental.FieldDate:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field date", values[i])
 			} else if value.Valid {
-				_m.Date = value.Time
+				_m.Date = time.Time(value.Time)
 			}
 		case rental.FieldUserID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {

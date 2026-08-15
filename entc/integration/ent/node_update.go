@@ -128,7 +128,9 @@ func (_u *NodeUpdate) ClearNext() *NodeUpdate {
 
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (_u *NodeUpdate) Save(ctx context.Context) (int, error) {
-	_u.defaults()
+	if err := _u.defaults(); err != nil {
+		return 0, err
+	}
 	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
 }
 
@@ -155,11 +157,15 @@ func (_u *NodeUpdate) ExecX(ctx context.Context) {
 }
 
 // defaults sets the default values of the builder before save.
-func (_u *NodeUpdate) defaults() {
+func (_u *NodeUpdate) defaults() error {
 	if _, ok := _u.mutation.UpdatedAt(); !ok && !_u.mutation.UpdatedAtCleared() {
+		if node.UpdateDefaultUpdatedAt == nil {
+			return fmt.Errorf("ent: uninitialized node.UpdateDefaultUpdatedAt (forgotten import ent/runtime?)")
+		}
 		v := node.UpdateDefaultUpdatedAt()
 		_u.mutation.SetUpdatedAt(v)
 	}
+	return nil
 }
 
 // Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
@@ -381,7 +387,9 @@ func (_u *NodeUpdateOne) Select(field string, fields ...string) *NodeUpdateOne {
 
 // Save executes the query and returns the updated Node entity.
 func (_u *NodeUpdateOne) Save(ctx context.Context) (*Node, error) {
-	_u.defaults()
+	if err := _u.defaults(); err != nil {
+		return nil, err
+	}
 	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
 }
 
@@ -408,11 +416,15 @@ func (_u *NodeUpdateOne) ExecX(ctx context.Context) {
 }
 
 // defaults sets the default values of the builder before save.
-func (_u *NodeUpdateOne) defaults() {
+func (_u *NodeUpdateOne) defaults() error {
 	if _, ok := _u.mutation.UpdatedAt(); !ok && !_u.mutation.UpdatedAtCleared() {
+		if node.UpdateDefaultUpdatedAt == nil {
+			return fmt.Errorf("ent: uninitialized node.UpdateDefaultUpdatedAt (forgotten import ent/runtime?)")
+		}
 		v := node.UpdateDefaultUpdatedAt()
 		_u.mutation.SetUpdatedAt(v)
 	}
+	return nil
 }
 
 // Modify adds a statement modifier for attaching custom logic to the UPDATE statement.

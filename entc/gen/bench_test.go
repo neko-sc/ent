@@ -22,7 +22,7 @@ func BenchmarkGraph_Gen(b *testing.B) {
 	require.NoError(b, err)
 	graph, err := entc.LoadGraph("../integration/ent/schema", &gen.Config{
 		Storage: storage,
-		IDType:  &field.TypeInfo{Type: field.TypeInt},
+		IDType:  new(field.TypeInt),
 		Target:  target,
 		Package: "github.com/neko-sc/ent/entc/integration/ent",
 		Templates: []*gen.Template{

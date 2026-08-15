@@ -20,13 +20,25 @@ func init() {
 	// groupDescName is the schema descriptor for name field.
 	groupDescName := groupFields[0].Descriptor()
 	// group.NameValidator is a validator for the "name" field. It is called by the builders before save.
-	group.NameValidator = groupDescName.Validators[0].(func(string) error)
+	group.NameValidator = func(value string) error {
+		validators := groupDescName.Validators
+		if err := validators[0].(func(string) error)(value); err != nil {
+			return err
+		}
+		return nil
+	}
 	userFields := schema.User{}.Fields()
 	_ = userFields
 	// userDescAge is the schema descriptor for age field.
 	userDescAge := userFields[0].Descriptor()
 	// user.AgeValidator is a validator for the "age" field. It is called by the builders before save.
-	user.AgeValidator = userDescAge.Validators[0].(func(int) error)
+	user.AgeValidator = func(value int) error {
+		validators := userDescAge.Validators
+		if err := validators[0].(func(int) error)(value); err != nil {
+			return err
+		}
+		return nil
+	}
 	// userDescName is the schema descriptor for name field.
 	userDescName := userFields[1].Descriptor()
 	// user.DefaultName holds the default value on creation for the name field.

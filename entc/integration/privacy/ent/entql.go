@@ -202,7 +202,7 @@ func (f *TaskFilter) WhereStatus(p entql.StringP) {
 	f.Where(p.Field(task.FieldStatus))
 }
 
-// WhereUUID applies the entql [16]byte predicate on the uuid field.
+// WhereUUID applies the entql [16]uint8 predicate on the uuid field.
 func (f *TaskFilter) WhereUUID(p entql.ValueP) {
 	f.Where(p.Field(task.FieldUUID))
 }

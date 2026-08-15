@@ -18,12 +18,12 @@ type Other struct {
 // Fields of the Other.
 func (Other) Fields() []ent.Field {
 	return []ent.Field{
-		field.Other("id", sid.ID("")).
+		field.Other[sid.ID]("id").
 			SchemaType(map[string]string{
 				dialect.Postgres: "bigint",
 				dialect.SQLite:   "integer",
 			}).
-			Default(sid.New).
+			DefaultFunc(sid.New).
 			Immutable(),
 	}
 }

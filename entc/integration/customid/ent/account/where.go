@@ -37,26 +37,6 @@ func IDNotIn(ids ...sid.ID) predicate.Account {
 	return predicate.Account(sql.FieldNotIn(FieldID, ids...))
 }
 
-// IDGT applies the GT predicate on the ID field.
-func IDGT(id sid.ID) predicate.Account {
-	return predicate.Account(sql.FieldGT(FieldID, id))
-}
-
-// IDGTE applies the GTE predicate on the ID field.
-func IDGTE(id sid.ID) predicate.Account {
-	return predicate.Account(sql.FieldGTE(FieldID, id))
-}
-
-// IDLT applies the LT predicate on the ID field.
-func IDLT(id sid.ID) predicate.Account {
-	return predicate.Account(sql.FieldLT(FieldID, id))
-}
-
-// IDLTE applies the LTE predicate on the ID field.
-func IDLTE(id sid.ID) predicate.Account {
-	return predicate.Account(sql.FieldLTE(FieldID, id))
-}
-
 // Email applies equality check predicate on the "email" field. It's identical to EmailEQ.
 func Email(v string) predicate.Account {
 	return predicate.Account(sql.FieldEQ(FieldEmail, v))

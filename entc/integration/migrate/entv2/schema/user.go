@@ -15,8 +15,8 @@ import (
 	"github.com/neko-sc/ent/schema/index"
 	"github.com/neko-sc/ent/schema/mixin"
 
-	"github.com/neko-sc/atlas/sql/postgres"
 	"github.com/google/uuid"
+	"github.com/neko-sc/atlas/sql/postgres"
 )
 
 type Mixin struct {
@@ -112,7 +112,7 @@ func (User) Fields() []ent.Field {
 			})),
 		// add a new column with generated values by the database.
 		field.Time("created_at").
-			Default(time.Now).
+			DefaultFunc(time.Now).
 			Annotations(&entsql.Annotation{
 				Default: "CURRENT_TIMESTAMP",
 			}),
@@ -154,8 +154,7 @@ func (User) Indexes() []ent.Index {
 			Annotations(entsql.Desc()),
 		index.Fields("nickname").
 			Annotations(
-				entsql.IndexTypes(map[string]string{
-				}),
+				entsql.IndexTypes(map[string]string{}),
 			),
 		// For PostgreSQL, we can include in the index non-key columns.
 		index.Fields("workplace").

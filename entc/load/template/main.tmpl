@@ -9,11 +9,83 @@ package main
 
 import (
 	"os"
-	"bytes"
 	{{ template "imports" }}
+	{{ .Registry.Imports }}
 
+	entload "github.com/neko-sc/ent/entc/load"
 	entschema {{ printf "%q" .Package }}
 )
+
+type FieldType = entload.FieldType
+type TypeExpression = entload.TypeExpression
+type TypeID = entload.TypeID
+type TypeCapabilities = entload.TypeCapabilities
+type TypeCompatibility = entload.TypeCompatibility
+
+var FieldTypeOf = entload.FieldTypeOf
+
+type typeMetadata struct {
+	Expression    *TypeExpression               `json:"expression"`
+	Capabilities  TypeCapabilities              `json:"capabilities"`
+	Compatibility map[string]TypeCompatibility  `json:"compatibility"`
+}
+
+type typeEntry struct {
+	id         TypeID
+	expression string
+	metadata   typeMetadata
+}
+
+type fieldTypeKey struct {
+	runtime reflect.Type
+	logical field.Type
+}
+
+func decodeTypes(typesByRuntime map[reflect.Type]typeEntry) error {
+	for runtime, entry := range typesByRuntime {
+		if err := json.Unmarshal([]byte(entry.expression), &entry.metadata); err != nil {
+			return err
+		}
+		entry.expression = ""
+		typesByRuntime[runtime] = entry
+	}
+	return nil
+}
+
+func resolveType(typesByRuntime map[reflect.Type]typeEntry, cache map[fieldTypeKey]*FieldType, runtime reflect.Type, logical field.Type) (*FieldType, error) {
+	key := fieldTypeKey{runtime: runtime, logical: logical}
+	if semantic, ok := cache[key]; ok {
+		result := *semantic
+		return &result, nil
+	}
+	entry, ok := typesByRuntime[runtime]
+	if !ok {
+		return nil, fmt.Errorf("semantic runtime type %s for logical field type %s was not collected by the compiler", runtime, logical)
+	}
+	semantic, err := FieldTypeOf(logical, entry.metadata.Expression)
+	if err != nil {
+		return nil, err
+	}
+	if semantic.ID != entry.id {
+		return nil, fmt.Errorf("semantic type registry identity mismatch: expected %s, got %s", entry.id, semantic.ID)
+	}
+	semantic.Capabilities = entry.metadata.Capabilities
+	if compatibility, ok := entry.metadata.Compatibility[logical.String()]; ok {
+		semantic.Capabilities.AssignableToLogical = compatibility.Assignable
+		semantic.Capabilities.ConvertibleToLogical = compatibility.Convertible
+		semantic.Capabilities.LogicalReverseConvertible = compatibility.ReverseConvertible
+		semantic.Capabilities.LogicalProjection = compatibility.Projection
+	} else if baseID, err := semantic.Base.ID(); err != nil {
+		return nil, err
+	} else if baseID == semantic.ID {
+		semantic.Capabilities.AssignableToLogical = true
+		semantic.Capabilities.ConvertibleToLogical = true
+		semantic.Capabilities.LogicalReverseConvertible = true
+	}
+	cache[key] = semantic
+	result := *semantic
+	return &result, nil
+}
 
 var schemas = []ent.Interface{
 	{{- range $name := .Names }}
@@ -21,16 +93,25 @@ var schemas = []ent.Interface{
 	{{- end }}
 }
 
+var typesByRuntime = map[reflect.Type]typeEntry{
+	{{ .Registry.Entries }}
+}
+
 func main() {
-	var lines [][]byte
+	if err := decodeTypes(typesByRuntime); err != nil {
+		fail(err)
+	}
+	cache := make(map[fieldTypeKey]*FieldType)
 	for _, schema := range schemas {
-		b, err := MarshalSchema(schema)
+		b, err := MarshalSchema(schema, func(runtime reflect.Type, logical field.Type) (*FieldType, error) {
+			return resolveType(typesByRuntime, cache, runtime, logical)
+		})
 		if err != nil {
 			fail(err)
 		}
-		lines = append(lines, b)
+		os.Stdout.Write(b)
+		os.Stdout.Write([]byte("\n"))
 	}
-	os.Stdout.Write(bytes.Join(lines, []byte("\n")))
 }
 
 func fail(err error) {

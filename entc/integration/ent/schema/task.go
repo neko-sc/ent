@@ -21,13 +21,12 @@ type Task struct {
 // Fields of the Task.
 func (Task) Fields() []ent.Field {
 	return []ent.Field{
-		field.Int("priority").
-			GoType(task.Priority(0)).
-			Default(int(task.PriorityMid)),
-		field.JSON("priorities", map[string]task.Priority{}).
+		field.IntAs[task.Priority]("priority").
+			Default(task.PriorityMid),
+		field.JSON[map[string]task.Priority]("priorities").
 			Optional(),
 		field.Time("created_at").
-			Default(time.Now).
+			DefaultFunc(time.Now).
 			Immutable().
 			Nillable(),
 		field.String("name").

@@ -5,6 +5,8 @@ package load
 
 import (
 	"context"
+	"database/sql"
+	"database/sql/driver"
 	"encoding/json"
 	"math"
 	"net/http"
@@ -22,6 +24,20 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
+
+func marshalSchema(t *testing.T, schema ent.Interface) ([]byte, error) {
+	t.Helper()
+	return MarshalSchema(schema, func(_ reflect.Type, logical field.Type) (*FieldType, error) {
+		semantic, err := FieldTypeOf(logical, logicalTypeExpression(logical))
+		if err != nil {
+			return nil, err
+		}
+		semantic.Capabilities.AssignableToLogical = true
+		semantic.Capabilities.ConvertibleToLogical = true
+		semantic.Capabilities.LogicalReverseConvertible = true
+		return semantic, nil
+	})
+}
 
 type OrderConfig struct {
 	FieldName string
@@ -101,9 +117,9 @@ func (User) Fields() []ent.Field {
 		field.String("sensitive").
 			Sensitive(),
 		field.Time("creation_time").
-			Default(time.Now),
-		field.UUID("uuid", uuid.UUID{}).
-			Default(uuid.New),
+			DefaultFunc(time.Now),
+		field.UUID[uuid.UUID]("uuid").
+			DefaultFunc(uuid.New),
 		field.Int("parent_id").
 			Optional(),
 	}
@@ -151,9 +167,151 @@ func (Group) Edges() []ent.Edge {
 	}
 }
 
+func TestNewField_RejectsUnsupportedRepresentations(t *testing.T) {
+	tests := []struct {
+		name         string
+		descriptor   *field.Descriptor
+		capabilities TypeCapabilities
+		error        string
+	}{
+		{
+			name:       "primitive struct",
+			descriptor: field.StringAs[struct{}]("value").Descriptor(),
+			error:      `field "value": representation cannot round-trip logical string; use a reverse-convertible representation, Scanner and Valuer, or an external Codec`,
+		},
+		{
+			name:       "projection only enum",
+			descriptor: field.EnumAs[struct{}]("priority").Values("low", "high").Descriptor(),
+			capabilities: TypeCapabilities{
+				Stringer:          true,
+				LogicalProjection: "String()",
+			},
+			error: `field "priority": representation cannot round-trip logical string; use a reverse-convertible representation, Scanner and Valuer, or an external Codec`,
+		},
+		{
+			name:       "scanner without valuer",
+			descriptor: field.StringAs[struct{}]("value").Descriptor(),
+			capabilities: TypeCapabilities{
+				Scanner: true,
+			},
+			error: `field "value": representation must implement both Scanner and Valuer or provide an external Codec`,
+		},
+		{
+			name:       "other without codec",
+			descriptor: field.Other[struct{}]("value").SchemaType(map[string]string{"sqlite3": "text"}).Descriptor(),
+			error:      `field "value": representation requires Scanner and Valuer or an external Codec`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := NewField(tt.descriptor, func(_ reflect.Type, logical field.Type) (*FieldType, error) {
+				semantic, semanticError := FieldTypeOf(logical, &TypeExpression{Kind: TypeKindStruct})
+				if semanticError != nil {
+					return nil, semanticError
+				}
+				semantic.Capabilities = tt.capabilities
+				return semantic, nil
+			})
+			require.EqualError(t, err, tt.error)
+		})
+	}
+}
+
+func TestNewField_AcceptsSupportedRepresentations(t *testing.T) {
+	tests := []struct {
+		name         string
+		descriptor   *field.Descriptor
+		capabilities TypeCapabilities
+	}{
+		{
+			name:       "defined scalar",
+			descriptor: field.StringAs[typedSchemaString]("value").Descriptor(),
+			capabilities: TypeCapabilities{
+				ConvertibleToLogical:      true,
+				LogicalReverseConvertible: true,
+			},
+		},
+		{
+			name:       "byte array projection",
+			descriptor: field.BytesAs[[16]byte]("value").Descriptor(),
+			capabilities: TypeCapabilities{
+				LogicalProjection:         "[:]",
+				LogicalReverseConvertible: true,
+			},
+		},
+		{
+			name:       "native scanner valuer",
+			descriptor: field.StringAs[struct{}]("value").Descriptor(),
+			capabilities: TypeCapabilities{
+				Scanner: true,
+				Valuer:  true,
+			},
+		},
+		{
+			name:       "json builtin",
+			descriptor: field.JSON[struct{}]("value").Descriptor(),
+		},
+		{
+			name:       "external codec",
+			descriptor: field.StringAs[struct{}]("value").Codec(typedSchemaCodec{}).Descriptor(),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			loaded, err := NewField(tt.descriptor, func(_ reflect.Type, logical field.Type) (*FieldType, error) {
+				semantic, semanticError := FieldTypeOf(logical, &TypeExpression{Kind: TypeKindStruct})
+				if semanticError != nil {
+					return nil, semanticError
+				}
+				semantic.Capabilities = tt.capabilities
+				return semantic, nil
+			})
+			require.NoError(t, err)
+			require.NotNil(t, loaded)
+		})
+	}
+}
+
+func TestNewField_ValidatorKindsPreserveOrder(t *testing.T) {
+	descriptor := field.StringAs[typedSchemaString]("value").
+		Validate(func(typedSchemaString) error { return nil }).
+		MinLen(1).
+		Validate(func(typedSchemaString) error { return nil }).
+		Descriptor()
+	loaded, err := NewField(descriptor, func(_ reflect.Type, logical field.Type) (*FieldType, error) {
+		representation, semanticError := TypeExpressionFor[typedSchemaString]()
+		if semanticError != nil {
+			return nil, semanticError
+		}
+		semantic, semanticError := FieldTypeOf(logical, representation)
+		if semanticError != nil {
+			return nil, semanticError
+		}
+		semantic.Capabilities.ConvertibleToLogical = true
+		semantic.Capabilities.LogicalReverseConvertible = true
+		return semantic, nil
+	})
+	require.NoError(t, err)
+	require.Equal(t, []field.ValidatorKind{
+		field.ValidatorRepresentation,
+		field.ValidatorLogical,
+		field.ValidatorRepresentation,
+	}, loaded.ValidatorKinds)
+}
+
+type typedSchemaString string
+
+type typedSchemaCodec struct{}
+
+func (typedSchemaCodec) Value(struct{}) (driver.Value, error) { return nil, nil }
+func (typedSchemaCodec) ScanValue() field.ValueScanner        { return new(sql.NullString) }
+func (typedSchemaCodec) FromValue(driver.Value) (struct{}, error) {
+	return struct{}{}, nil
+}
+
 func TestMarshalSchema(t *testing.T) {
 	for _, u := range []ent.Interface{User{}, &User{}} {
-		buf, err := MarshalSchema(u)
+		buf, err := marshalSchema(t, u)
 		require.NoError(t, err)
 
 		schema, err := UnmarshalSchema(buf)
@@ -165,48 +323,47 @@ func TestMarshalSchema(t *testing.T) {
 
 		require.Len(t, schema.Fields, 9)
 		require.Equal(t, "age", schema.Fields[0].Name)
-		require.Equal(t, field.TypeInt, schema.Fields[0].Info.Type)
+		require.Equal(t, field.TypeInt, schema.Fields[0].Type)
 
 		require.Equal(t, "name", schema.Fields[1].Name)
-		require.Equal(t, field.TypeString, schema.Fields[1].Info.Type)
+		require.Equal(t, field.TypeString, schema.Fields[1].Type)
 		require.Equal(t, "unknown", schema.Fields[1].DefaultValue)
 		require.NotEmpty(t, schema.Fields[1].Annotations)
 		ant = schema.Fields[1].Annotations["order_config"].(map[string]any)
 		require.Equal(t, "name", ant["FieldName"])
 
 		require.Equal(t, "nillable", schema.Fields[2].Name)
-		require.Equal(t, field.TypeString, schema.Fields[2].Info.Type)
+		require.Equal(t, field.TypeString, schema.Fields[2].Type)
 		require.True(t, schema.Fields[2].Nillable)
 		require.False(t, schema.Fields[2].Optional)
 		require.False(t, schema.Fields[2].Sensitive)
 
 		require.Equal(t, "optional", schema.Fields[3].Name)
-		require.Equal(t, field.TypeString, schema.Fields[3].Info.Type)
+		require.Equal(t, field.TypeString, schema.Fields[3].Type)
 		require.False(t, schema.Fields[3].Nillable)
 		require.True(t, schema.Fields[3].Optional)
 
 		require.Equal(t, "state", schema.Fields[4].Name)
-		require.Equal(t, field.TypeEnum, schema.Fields[4].Info.Type)
+		require.Equal(t, field.TypeEnum, schema.Fields[4].Type)
 		require.Equal(t, "on", schema.Fields[4].Enums[0].V)
 		require.Equal(t, "off", schema.Fields[4].Enums[1].V)
 
 		require.Equal(t, "sensitive", schema.Fields[5].Name)
-		require.Equal(t, field.TypeString, schema.Fields[5].Info.Type)
+		require.Equal(t, field.TypeString, schema.Fields[5].Type)
 		require.True(t, schema.Fields[5].Sensitive)
 		require.Equal(t, reflect.Invalid, schema.Fields[5].DefaultKind)
 
 		require.Equal(t, "creation_time", schema.Fields[6].Name)
-		require.Equal(t, field.TypeTime, schema.Fields[6].Info.Type)
+		require.Equal(t, field.TypeTime, schema.Fields[6].Type)
 		require.Nil(t, schema.Fields[6].DefaultValue)
 		require.Equal(t, reflect.Func, schema.Fields[6].DefaultKind)
 
 		require.Equal(t, "uuid", schema.Fields[7].Name)
-		require.Equal(t, field.TypeUUID, schema.Fields[7].Info.Type)
+		require.Equal(t, field.TypeUUID, schema.Fields[7].Type)
 		require.True(t, schema.Fields[7].Default)
-		require.Equal(t, "github.com/google/uuid", schema.Fields[7].Info.PkgPath)
 
 		require.Equal(t, "parent_id", schema.Fields[8].Name)
-		require.Equal(t, field.TypeInt, schema.Fields[8].Info.Type)
+		require.Equal(t, field.TypeInt, schema.Fields[8].Type)
 		require.True(t, schema.Fields[8].Optional)
 
 		require.Len(t, schema.Edges, 3)
@@ -257,27 +414,10 @@ func (InvalidEdge) Edges() []ent.Edge {
 	}
 }
 
-type InvalidUUID struct {
-	ent.Schema
-}
-
-func (InvalidUUID) Fields() []ent.Field {
-	return []ent.Field{
-		field.UUID("invalid", uuid.New()).
-			Default(time.Now),
-	}
-}
-
 func TestMarshalFails(t *testing.T) {
-	i1 := InvalidEdge{}
-	buf, err := MarshalSchema(i1)
+	buf, err := marshalSchema(t, InvalidEdge{})
 	require.Error(t, err)
 	require.Nil(t, buf)
-
-	i2 := InvalidUUID{}
-	buf, err = MarshalSchema(i2)
-	require.Nil(t, buf)
-	require.EqualError(t, err, `schema "InvalidUUID": field "invalid": expect type (func() uuid.UUID) for uuid default value`)
 }
 
 type WithDefaults struct {
@@ -303,7 +443,7 @@ func (WithDefaults) Fields() []ent.Field {
 			}),
 		field.Float("balance").
 			Default(0),
-		field.JSON("dirs", []http.Dir{}).
+		field.JSON[[]http.Dir]("dirs").
 			Default([]http.Dir{"/tmp"}),
 		field.Float("float_default_func").
 			DefaultFunc(func() float64 {
@@ -322,7 +462,7 @@ func (WithDefaults) Indexes() []ent.Index {
 
 func TestMarshalDefaults(t *testing.T) {
 	d := WithDefaults{}
-	buf, err := MarshalSchema(d)
+	buf, err := marshalSchema(t, d)
 	require.NoError(t, err)
 
 	schema := &Schema{}
@@ -351,9 +491,9 @@ func (TimeMixin) Fields() []ent.Field {
 	return []ent.Field{
 		field.Time("created_at").
 			Immutable().
-			Default(time.Now),
+			DefaultFunc(time.Now),
 		field.Time("updated_at").
-			Default(time.Now).
+			DefaultFunc(time.Now).
 			UpdateDefault(time.Now),
 	}
 }
@@ -446,7 +586,7 @@ func (WithMixin) Policy() ent.Policy {
 
 func TestMarshalMixin(t *testing.T) {
 	d := WithMixin{}
-	buf, err := MarshalSchema(d)
+	buf, err := marshalSchema(t, d)
 	require.NoError(t, err)
 
 	schema := &Schema{}

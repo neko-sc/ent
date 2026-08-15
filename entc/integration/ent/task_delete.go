@@ -11,9 +11,8 @@ import (
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/entc/integration/ent/predicate"
+	"github.com/neko-sc/ent/entc/integration/ent/task"
 	"github.com/neko-sc/ent/schema/field"
-
-	enttask "github.com/neko-sc/ent/entc/integration/ent/task"
 )
 
 // TaskDelete is the builder for deleting a Task entity.
@@ -44,7 +43,7 @@ func (_d *TaskDelete) ExecX(ctx context.Context) int {
 }
 
 func (_d *TaskDelete) sqlExec(ctx context.Context) (int, error) {
-	_spec := sqlgraph.NewDeleteSpec(enttask.Table, sqlgraph.NewFieldSpec(enttask.FieldID, field.TypeInt))
+	_spec := sqlgraph.NewDeleteSpec(task.Table, sqlgraph.NewFieldSpec(task.FieldID, field.TypeInt))
 	if ps := _d.mutation.Predicates(); len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
@@ -78,7 +77,7 @@ func (_d *TaskDeleteOne) Exec(ctx context.Context) error {
 	case err != nil:
 		return err
 	case n == 0:
-		return &NotFoundError{enttask.Label}
+		return &NotFoundError{task.Label}
 	default:
 		return nil
 	}

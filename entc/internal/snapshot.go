@@ -6,14 +6,20 @@ package internal
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 
 	"github.com/neko-sc/ent/entc/gen"
 	"github.com/neko-sc/ent/entc/load"
 )
+
+// ErrStaleSnapshot marks a snapshot whose serialized representation is no
+// longer compatible with the current generator.
+var ErrStaleSnapshot = errors.New("stale schema snapshot")
 
 // Snapshot describes the schema snapshot restore.
 type Snapshot struct {
@@ -73,9 +79,16 @@ func (s *Snapshot) parseSnapshot(buf []byte) (*gen.Snapshot, error) {
 	if err != nil {
 		return nil, err
 	}
+	var header struct{ Version int }
+	if err := json.Unmarshal(line, &header); err != nil {
+		return nil, fmt.Errorf("%w: unmarshal snapshot header: %w", ErrStaleSnapshot, err)
+	}
+	if header.Version != 2 {
+		return nil, fmt.Errorf("%w: unsupported schema snapshot version %d", ErrStaleSnapshot, header.Version)
+	}
 	local := &gen.Snapshot{}
 	if err := json.Unmarshal(line, &local); err != nil {
-		return nil, fmt.Errorf("unmarshal snapshot %v: %w", local, err)
+		return nil, fmt.Errorf("%w: unmarshal snapshot: %v", ErrStaleSnapshot, err)
 	}
 	if !conflict || len(matches) == 1 {
 		return local, nil
@@ -87,9 +100,14 @@ func (s *Snapshot) parseSnapshot(buf []byte) (*gen.Snapshot, error) {
 	}
 	other := &gen.Snapshot{}
 	if err := json.Unmarshal(line, &other); err != nil {
-		return nil, fmt.Errorf("unmarshal snapshot %v: %w", local, err)
+		return nil, fmt.Errorf("%w: unmarshal conflicting snapshot: %v", ErrStaleSnapshot, err)
 	}
-	merge(local, other)
+	if other.Version != 2 {
+		return nil, fmt.Errorf("%w: unsupported schema snapshot version %d", ErrStaleSnapshot, other.Version)
+	}
+	if err := merge(local, other); err != nil {
+		return nil, err
+	}
 	return local, nil
 }
 
@@ -106,13 +124,15 @@ func (s *Snapshot) addFeatures(snap *gen.Snapshot) {
 	for _, feat := range s.Config.Features {
 		delete(add, feat.Name)
 	}
-	for _, feat := range add {
-		s.Config.Features = append(s.Config.Features, feat)
+	for _, feat := range gen.AllFeatures {
+		if _, ok := add[feat.Name]; ok {
+			s.Config.Features = append(s.Config.Features, feat)
+		}
 	}
 }
 
 // merge the "other"/"upstream" snapshot to the "local" version.
-func merge(local, other *gen.Snapshot) {
+func merge(local, other *gen.Snapshot) error {
 	if local.Schema == "" {
 		local.Schema = other.Schema
 	}
@@ -129,7 +149,9 @@ func merge(local, other *gen.Snapshot) {
 		case !ok:
 			local.Schemas = append(local.Schemas, schema)
 		default:
-			mergeSchema(match, schema)
+			if err := mergeSchema(match, schema); err != nil {
+				return fmt.Errorf("merge schema %q: %w", schema.Name, err)
+			}
 		}
 	}
 	// Merge codegen features.
@@ -142,11 +164,12 @@ func merge(local, other *gen.Snapshot) {
 			local.Features = append(local.Features, feat)
 		}
 	}
+	return nil
 }
 
 // mergeSchema merges to "local" the additional information in
 // the "other" schema, that may be necessary for code-generation.
-func mergeSchema(local, other *load.Schema) {
+func mergeSchema(local, other *load.Schema) error {
 	if local.Config.Table == "" {
 		local.Config.Table = other.Config.Table
 	}
@@ -167,7 +190,9 @@ func mergeSchema(local, other *load.Schema) {
 		case !ok:
 			local.Fields = append(local.Fields, f)
 		default:
-			mergeField(match, f)
+			if err := mergeField(match, f); err != nil {
+				return err
+			}
 		}
 	}
 	edges := make(map[string]*load.Edge, len(local.Edges))
@@ -182,11 +207,18 @@ func mergeSchema(local, other *load.Schema) {
 			mergeEdge(match, e)
 		}
 	}
+	return nil
 }
 
 // mergeField merges to "local" the additional information in
 // the "other" field, that may be necessary for code-generation.
-func mergeField(local, other *load.Field) {
+func mergeField(local, other *load.Field) error {
+	if local.Type != other.Type {
+		return fmt.Errorf("field %q has conflicting logical types %q and %q", local.Name, local.Type, other.Type)
+	}
+	if !reflect.DeepEqual(local.Semantic, other.Semantic) {
+		return fmt.Errorf("field %q has conflicting semantic type metadata", local.Name)
+	}
 	if local.Annotations == nil && other.Annotations != nil {
 		local.Annotations = make(map[string]any)
 	}
@@ -198,6 +230,7 @@ func mergeField(local, other *load.Field) {
 	if !local.Immutable && other.Immutable {
 		local.Immutable = other.Immutable
 	}
+	return nil
 }
 
 // mergeEdge merges to "local" the additional information in

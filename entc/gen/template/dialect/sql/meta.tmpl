@@ -113,7 +113,7 @@ func ValidColumn(column string) bool {
 		}
 	{{ end }}
 	{{- range $f := $.Fields }}
-		{{- if $f.Type.Comparable }}
+		{{- if $f.StorageOrderable }}
 			// {{ $f.OrderName }} orders the results by the {{ $f.Name }} field.
 			func {{ $f.OrderName }}(opts ...sql.OrderTermOption) OrderOption {
 				return sql.OrderByField({{ $f.Constant }}, opts...).ToFunc()

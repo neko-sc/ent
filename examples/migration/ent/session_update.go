@@ -102,7 +102,7 @@ func (_u *SessionUpdate) ClearToken() *SessionUpdate {
 }
 
 // SetMethod sets the "method" field.
-func (_u *SessionUpdate) SetMethod(v map[string]interface{}) *SessionUpdate {
+func (_u *SessionUpdate) SetMethod(v map[string]any) *SessionUpdate {
 	_u.mutation.SetMethod(v)
 	return _u
 }
@@ -327,7 +327,7 @@ func (_u *SessionUpdateOne) ClearToken() *SessionUpdateOne {
 }
 
 // SetMethod sets the "method" field.
-func (_u *SessionUpdateOne) SetMethod(v map[string]interface{}) *SessionUpdateOne {
+func (_u *SessionUpdateOne) SetMethod(v map[string]any) *SessionUpdateOne {
 	_u.mutation.SetMethod(v)
 	return _u
 }

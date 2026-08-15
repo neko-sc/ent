@@ -69,7 +69,9 @@ func (_c *RentalCreate) Mutation() *RentalMutation {
 
 // Save creates the Rental in the database.
 func (_c *RentalCreate) Save(ctx context.Context) (*Rental, error) {
-	_c.defaults()
+	if err := _c.defaults(); err != nil {
+		return nil, err
+	}
 	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
 }
 
@@ -96,11 +98,15 @@ func (_c *RentalCreate) ExecX(ctx context.Context) {
 }
 
 // defaults sets the default values of the builder before save.
-func (_c *RentalCreate) defaults() {
+func (_c *RentalCreate) defaults() error {
 	if _, ok := _c.mutation.Date(); !ok {
+		if rental.DefaultDate == nil {
+			return fmt.Errorf("ent: uninitialized rental.DefaultDate (forgotten import ent/runtime?)")
+		}
 		v := rental.DefaultDate()
 		_c.mutation.SetDate(v)
 	}
+	return nil
 }
 
 // check runs all checks and user-defined validators on the builder.

@@ -4,11 +4,11 @@
 package schema
 
 import (
+	"github.com/google/uuid"
 	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/schema/field"
 	"github.com/neko-sc/ent/schema/index"
 	"github.com/neko-sc/ent/schema/mixin"
-	"github.com/google/uuid"
 )
 
 // BaseMixin holds the schema definition for the BaseMixin entity.
@@ -19,7 +19,7 @@ type BaseMixin struct {
 // Fields of the Mixin.
 func (BaseMixin) Fields() []ent.Field {
 	return []ent.Field{
-		field.UUID("id", uuid.UUID{}).Default(uuid.New),
+		field.UUID[uuid.UUID]("id").DefaultFunc(uuid.New),
 		field.String("some_field"),
 	}
 }

@@ -795,7 +795,9 @@ func (_c *FieldTypeCreate) Mutation() *FieldTypeMutation {
 
 // Save creates the FieldType in the database.
 func (_c *FieldTypeCreate) Save(ctx context.Context) (*FieldType, error) {
-	_c.defaults()
+	if err := _c.defaults(); err != nil {
+		return nil, err
+	}
 	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
 }
 
@@ -822,32 +824,50 @@ func (_c *FieldTypeCreate) ExecX(ctx context.Context) {
 }
 
 // defaults sets the default values of the builder before save.
-func (_c *FieldTypeCreate) defaults() {
+func (_c *FieldTypeCreate) defaults() error {
 	if _, ok := _c.mutation.LinkOther(); !ok {
 		v := fieldtype.DefaultLinkOther
 		_c.mutation.SetLinkOther(v)
 	}
 	if _, ok := _c.mutation.LinkOtherFunc(); !ok {
+		if fieldtype.DefaultLinkOtherFunc == nil {
+			return fmt.Errorf("ent: uninitialized fieldtype.DefaultLinkOtherFunc (forgotten import ent/runtime?)")
+		}
 		v := fieldtype.DefaultLinkOtherFunc()
 		_c.mutation.SetLinkOtherFunc(v)
 	}
 	if _, ok := _c.mutation.Dir(); !ok {
+		if fieldtype.DefaultDir == nil {
+			return fmt.Errorf("ent: uninitialized fieldtype.DefaultDir (forgotten import ent/runtime?)")
+		}
 		v := fieldtype.DefaultDir()
 		_c.mutation.SetDir(v)
 	}
 	if _, ok := _c.mutation.Str(); !ok {
+		if fieldtype.DefaultStr == nil {
+			return fmt.Errorf("ent: uninitialized fieldtype.DefaultStr (forgotten import ent/runtime?)")
+		}
 		v := fieldtype.DefaultStr()
 		_c.mutation.SetStr(v)
 	}
 	if _, ok := _c.mutation.NullStr(); !ok {
+		if fieldtype.DefaultNullStr == nil {
+			return fmt.Errorf("ent: uninitialized fieldtype.DefaultNullStr (forgotten import ent/runtime?)")
+		}
 		v := fieldtype.DefaultNullStr()
 		_c.mutation.SetNullStr(v)
 	}
 	if _, ok := _c.mutation.DeletedAt(); !ok {
+		if fieldtype.DefaultDeletedAt == nil {
+			return fmt.Errorf("ent: uninitialized fieldtype.DefaultDeletedAt (forgotten import ent/runtime?)")
+		}
 		v := fieldtype.DefaultDeletedAt()
 		_c.mutation.SetDeletedAt(v)
 	}
 	if _, ok := _c.mutation.IP(); !ok {
+		if fieldtype.DefaultIP == nil {
+			return fmt.Errorf("ent: uninitialized fieldtype.DefaultIP (forgotten import ent/runtime?)")
+		}
 		v := fieldtype.DefaultIP()
 		_c.mutation.SetIP(v)
 	}
@@ -856,17 +876,27 @@ func (_c *FieldTypeCreate) defaults() {
 		_c.mutation.SetRole(v)
 	}
 	if _, ok := _c.mutation.Pair(); !ok {
+		if fieldtype.DefaultPair == nil {
+			return fmt.Errorf("ent: uninitialized fieldtype.DefaultPair (forgotten import ent/runtime?)")
+		}
 		v := fieldtype.DefaultPair()
 		_c.mutation.SetPair(v)
 	}
 	if _, ok := _c.mutation.Vstring(); !ok {
+		if fieldtype.DefaultVstring == nil {
+			return fmt.Errorf("ent: uninitialized fieldtype.DefaultVstring (forgotten import ent/runtime?)")
+		}
 		v := fieldtype.DefaultVstring()
 		_c.mutation.SetVstring(v)
 	}
 	if _, ok := _c.mutation.Triple(); !ok {
+		if fieldtype.DefaultTriple == nil {
+			return fmt.Errorf("ent: uninitialized fieldtype.DefaultTriple (forgotten import ent/runtime?)")
+		}
 		v := fieldtype.DefaultTriple()
 		_c.mutation.SetTriple(v)
 	}
+	return nil
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -897,7 +927,7 @@ func (_c *FieldTypeCreate) check() error {
 		}
 	}
 	if v, ok := _c.mutation.MAC(); ok {
-		if err := fieldtype.MACValidator(v.String()); err != nil {
+		if err := fieldtype.MACValidator(v); err != nil {
 			return &ValidationError{Name: "mac", err: fmt.Errorf(`ent: validator failed for field "FieldType.mac": %w`, err)}
 		}
 	}
@@ -905,12 +935,12 @@ func (_c *FieldTypeCreate) check() error {
 		return &ValidationError{Name: "dir", err: errors.New(`ent: missing required field "FieldType.dir"`)}
 	}
 	if v, ok := _c.mutation.Ndir(); ok {
-		if err := fieldtype.NdirValidator(string(v)); err != nil {
+		if err := fieldtype.NdirValidator(v); err != nil {
 			return &ValidationError{Name: "ndir", err: fmt.Errorf(`ent: validator failed for field "FieldType.ndir": %w`, err)}
 		}
 	}
 	if v, ok := _c.mutation.Link(); ok {
-		if err := fieldtype.LinkValidator(v.String()); err != nil {
+		if err := fieldtype.LinkValidator(v); err != nil {
 			return &ValidationError{Name: "link", err: fmt.Errorf(`ent: validator failed for field "FieldType.link": %w`, err)}
 		}
 	}
@@ -920,7 +950,7 @@ func (_c *FieldTypeCreate) check() error {
 		}
 	}
 	if v, ok := _c.mutation.IP(); ok {
-		if err := fieldtype.IPValidator([]byte(v)); err != nil {
+		if err := fieldtype.IPValidator(v); err != nil {
 			return &ValidationError{Name: "ip", err: fmt.Errorf(`ent: validator failed for field "FieldType.ip": %w`, err)}
 		}
 	}

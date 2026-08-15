@@ -8,6 +8,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"strings"
@@ -16,7 +17,6 @@ import (
 	"github.com/neko-sc/ent/entc"
 	"github.com/neko-sc/ent/entc/gen"
 	"github.com/neko-sc/ent/schema"
-	"github.com/neko-sc/ent/schema/field"
 )
 
 func main() {
@@ -29,14 +29,11 @@ func main() {
 	opts := []entc.Option{
 		entc.Extensions(ex),
 		entc.Dependency(
-			entc.DependencyType(&http.Client{}),
+			entc.DependencyType[*http.Client](),
 		),
 		entc.Dependency(
 			entc.DependencyName("Writer"),
-			entc.DependencyTypeInfo(&field.TypeInfo{
-				Ident:   "io.Writer",
-				PkgPath: "io",
-			}),
+			entc.DependencyType[io.Writer](),
 		),
 	}
 	err = entc.Generate("./schema", &gen.Config{

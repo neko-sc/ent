@@ -568,26 +568,6 @@ func BufferNotIn(vs ...[]byte) predicate.User {
 	return predicate.User(sql.FieldNotIn(FieldBuffer, vs...))
 }
 
-// BufferGT applies the GT predicate on the "buffer" field.
-func BufferGT(v []byte) predicate.User {
-	return predicate.User(sql.FieldGT(FieldBuffer, v))
-}
-
-// BufferGTE applies the GTE predicate on the "buffer" field.
-func BufferGTE(v []byte) predicate.User {
-	return predicate.User(sql.FieldGTE(FieldBuffer, v))
-}
-
-// BufferLT applies the LT predicate on the "buffer" field.
-func BufferLT(v []byte) predicate.User {
-	return predicate.User(sql.FieldLT(FieldBuffer, v))
-}
-
-// BufferLTE applies the LTE predicate on the "buffer" field.
-func BufferLTE(v []byte) predicate.User {
-	return predicate.User(sql.FieldLTE(FieldBuffer, v))
-}
-
 // BufferIsNil applies the IsNil predicate on the "buffer" field.
 func BufferIsNil() predicate.User {
 	return predicate.User(sql.FieldIsNull(FieldBuffer))
@@ -821,26 +801,6 @@ func BlobIn(vs ...[]byte) predicate.User {
 // BlobNotIn applies the NotIn predicate on the "blob" field.
 func BlobNotIn(vs ...[]byte) predicate.User {
 	return predicate.User(sql.FieldNotIn(FieldBlob, vs...))
-}
-
-// BlobGT applies the GT predicate on the "blob" field.
-func BlobGT(v []byte) predicate.User {
-	return predicate.User(sql.FieldGT(FieldBlob, v))
-}
-
-// BlobGTE applies the GTE predicate on the "blob" field.
-func BlobGTE(v []byte) predicate.User {
-	return predicate.User(sql.FieldGTE(FieldBlob, v))
-}
-
-// BlobLT applies the LT predicate on the "blob" field.
-func BlobLT(v []byte) predicate.User {
-	return predicate.User(sql.FieldLT(FieldBlob, v))
-}
-
-// BlobLTE applies the LTE predicate on the "blob" field.
-func BlobLTE(v []byte) predicate.User {
-	return predicate.User(sql.FieldLTE(FieldBlob, v))
 }
 
 // BlobIsNil applies the IsNil predicate on the "blob" field.

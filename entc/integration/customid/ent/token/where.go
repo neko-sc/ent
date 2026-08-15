@@ -37,26 +37,6 @@ func IDNotIn(ids ...sid.ID) predicate.Token {
 	return predicate.Token(sql.FieldNotIn(FieldID, ids...))
 }
 
-// IDGT applies the GT predicate on the ID field.
-func IDGT(id sid.ID) predicate.Token {
-	return predicate.Token(sql.FieldGT(FieldID, id))
-}
-
-// IDGTE applies the GTE predicate on the ID field.
-func IDGTE(id sid.ID) predicate.Token {
-	return predicate.Token(sql.FieldGTE(FieldID, id))
-}
-
-// IDLT applies the LT predicate on the ID field.
-func IDLT(id sid.ID) predicate.Token {
-	return predicate.Token(sql.FieldLT(FieldID, id))
-}
-
-// IDLTE applies the LTE predicate on the ID field.
-func IDLTE(id sid.ID) predicate.Token {
-	return predicate.Token(sql.FieldLTE(FieldID, id))
-}
-
 // Body applies equality check predicate on the "body" field. It's identical to BodyEQ.
 func Body(v string) predicate.Token {
 	return predicate.Token(sql.FieldEQ(FieldBody, v))

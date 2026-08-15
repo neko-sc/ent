@@ -70,7 +70,10 @@ func (_c *UserCreate) sqlSave(ctx context.Context) (*User, error) {
 	if err := _c.check(); err != nil {
 		return nil, err
 	}
-	_node, _spec := _c.createSpec()
+	_node, _spec, err := _c.createSpec()
+	if err != nil {
+		return nil, err
+	}
 	if err := sqlgraph.CreateNode(ctx, _c.driver, _spec); err != nil {
 		if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
@@ -84,16 +87,20 @@ func (_c *UserCreate) sqlSave(ctx context.Context) (*User, error) {
 	return _node, nil
 }
 
-func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
+func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec, error) {
 	var (
 		_node = &User{config: _c.config}
 		_spec = sqlgraph.NewCreateSpec(user.Table, sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt))
 	)
 	if value, ok := _c.mutation.Address(); ok {
-		_spec.SetField(user.FieldAddress, field.TypeString, value)
+		vv, err := user.ValueScanner.Address.Value(value)
+		if err != nil {
+			return nil, nil, err
+		}
+		_spec.SetField(user.FieldAddress, field.TypeString, vv)
 		_node.Address = value
 	}
-	return _node, _spec
+	return _node, _spec, nil
 }
 
 // UserCreateBulk is the builder for creating many User entities in bulk.
@@ -124,7 +131,10 @@ func (_c *UserCreateBulk) Save(ctx context.Context) ([]*User, error) {
 				}
 				builder.mutation = mutation
 				var err error
-				nodes[i], specs[i] = builder.createSpec()
+				nodes[i], specs[i], err = builder.createSpec()
+				if err != nil {
+					return nil, err
+				}
 				if i < len(mutators)-1 {
 					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
 				} else {

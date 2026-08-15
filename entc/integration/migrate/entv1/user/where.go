@@ -591,26 +591,6 @@ func BlobNotIn(vs ...[]byte) predicate.User {
 	return predicate.User(sql.FieldNotIn(FieldBlob, vs...))
 }
 
-// BlobGT applies the GT predicate on the "blob" field.
-func BlobGT(v []byte) predicate.User {
-	return predicate.User(sql.FieldGT(FieldBlob, v))
-}
-
-// BlobGTE applies the GTE predicate on the "blob" field.
-func BlobGTE(v []byte) predicate.User {
-	return predicate.User(sql.FieldGTE(FieldBlob, v))
-}
-
-// BlobLT applies the LT predicate on the "blob" field.
-func BlobLT(v []byte) predicate.User {
-	return predicate.User(sql.FieldLT(FieldBlob, v))
-}
-
-// BlobLTE applies the LTE predicate on the "blob" field.
-func BlobLTE(v []byte) predicate.User {
-	return predicate.User(sql.FieldLTE(FieldBlob, v))
-}
-
 // BlobIsNil applies the IsNil predicate on the "blob" field.
 func BlobIsNil() predicate.User {
 	return predicate.User(sql.FieldIsNull(FieldBlob))

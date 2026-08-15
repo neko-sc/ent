@@ -37,10 +37,10 @@ func ({{ $receiver }} *{{ $builder }}) sqlSave(ctx context.Context) (_node {{ if
 	{{- end }}
 	_spec := sqlgraph.NewUpdateSpec({{ $.Package }}.Table, {{ $.Package }}.Columns,
 		{{- if $.HasOneFieldID -}}
-			sqlgraph.NewFieldSpec({{ $.Package }}.{{ $.ID.Constant }}, field.{{ $.ID.Type.ConstName }})
+			sqlgraph.NewFieldSpec({{ $.Package }}.{{ $.ID.Constant }}, field.{{ $.ID.TypeConst }})
 		{{- else -}}
 			{{- range $id := $.EdgeSchema.ID -}}
-				sqlgraph.NewFieldSpec({{ $.Package }}.{{ $id.Constant }}, field.{{ $id.Type.ConstName }}),
+				sqlgraph.NewFieldSpec({{ $.Package }}.{{ $id.Constant }}, field.{{ $id.TypeConst }}),
 			{{- end -}}
 		{{- end }})
 	{{- if $one }}
@@ -104,9 +104,9 @@ func ({{ $receiver }} *{{ $builder }}) sqlSave(ctx context.Context) (_node {{ if
 						if err != nil {
 							return {{ $zero }}, err
 						}
-						_spec.SetField({{ $.Package }}.{{ $f.Constant }}, field.{{ $f.Type.ConstName }}, vv)
+						_spec.SetField({{ $.Package }}.{{ $f.Constant }}, field.{{ $f.TypeConst }}, vv)
 					{{- else }}
-						_spec.SetField({{ $.Package }}.{{ $f.Constant }}, field.{{ $f.Type.ConstName }}, value)
+						_spec.SetField({{ $.Package }}.{{ $f.Constant }}, field.{{ $f.TypeConst }}, value)
 					{{- end }}
 				}
 				{{- if $f.SupportsMutationAdd }}
@@ -116,9 +116,9 @@ func ({{ $receiver }} *{{ $builder }}) sqlSave(ctx context.Context) (_node {{ if
 							if err != nil {
 								return {{ $zero }}, err
 							}
-							_spec.AddField({{ $.Package }}.{{ $f.Constant }}, field.{{ $f.Type.ConstName }}, vv)
+							_spec.AddField({{ $.Package }}.{{ $f.Constant }}, field.{{ $f.TypeConst }}, vv)
 						{{- else }}
-							_spec.AddField({{ $.Package }}.{{ $f.Constant }}, field.{{ $f.Type.ConstName }}, value)
+							_spec.AddField({{ $.Package }}.{{ $f.Constant }}, field.{{ $f.TypeConst }}, value)
 						{{- end }}
 					}
 				{{- end }}
@@ -132,7 +132,7 @@ func ({{ $receiver }} *{{ $builder }}) sqlSave(ctx context.Context) (_node {{ if
 			{{- end }}
 			{{- if $f.Optional }}
 				if {{ $mutation }}.{{ $f.StructField }}Cleared() {
-					_spec.ClearField({{ $.Package }}.{{ $f.Constant }}, field.{{ $f.Type.ConstName }})
+					_spec.ClearField({{ $.Package }}.{{ $f.Constant }}, field.{{ $f.TypeConst }})
 				}
 			{{- end }}
 	{{- end }}
@@ -200,7 +200,7 @@ func ({{ $receiver }} *{{ $builder }}) sqlSave(ctx context.Context) (_node {{ if
 		Columns: {{ if $e.M2M }}{{ $.Package }}.{{ $e.PKConstant }}{{ else }}[]string{ {{ $.Package }}.{{ $e.ColumnConstant }} }{{ end }},
 		Bidi: {{ $e.Bidi }},
 		Target: &sqlgraph.EdgeTarget{
-			IDSpec: sqlgraph.NewFieldSpec({{ $e.Type.Package }}.{{ $e.Type.ID.Constant }}, field.{{ $e.Type.ID.Type.ConstName }}),
+			IDSpec: sqlgraph.NewFieldSpec({{ $e.Type.Package }}.{{ $e.Type.ID.Constant }}, field.{{ $e.Type.ID.TypeConst }}),
 		},
 	}
 	{{- /* Allow mutating the sqlgraph.EdgeSpec by ent extensions or user templates.*/}}

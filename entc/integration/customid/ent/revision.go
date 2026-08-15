@@ -48,7 +48,7 @@ func (_m *Revision) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field id", values[i])
 			} else if value.Valid {
-				_m.ID = value.String
+				_m.ID = string(value.String)
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])

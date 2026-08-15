@@ -256,19 +256,19 @@ var (
 	// DefaultLinkOtherFunc holds the default value on creation for the "link_other_func" field.
 	DefaultLinkOtherFunc func() *schema.Link
 	// MACValidator is a validator for the "mac" field. It is called by the builders before save.
-	MACValidator func(string) error
+	MACValidator func(schema.MAC) error
 	// UpdateDefaultDuration holds the default value on update for the "duration" field.
 	UpdateDefaultDuration func() time.Duration
 	// DefaultDir holds the default value on creation for the "dir" field.
 	DefaultDir func() http.Dir
 	// NdirValidator is a validator for the "ndir" field. It is called by the builders before save.
-	NdirValidator func(string) error
+	NdirValidator func(http.Dir) error
 	// DefaultStr holds the default value on creation for the "str" field.
 	DefaultStr func() sql.NullString
 	// DefaultNullStr holds the default value on creation for the "null_str" field.
 	DefaultNullStr func() *sql.NullString
 	// LinkValidator is a validator for the "link" field. It is called by the builders before save.
-	LinkValidator func(string) error
+	LinkValidator func(schema.Link) error
 	// DefaultDeletedAt holds the default value on creation for the "deleted_at" field.
 	DefaultDeletedAt func() *sql.NullTime
 	// UpdateDefaultDeletedAt holds the default value on update for the "deleted_at" field.
@@ -278,7 +278,7 @@ var (
 	// DefaultIP holds the default value on creation for the "ip" field.
 	DefaultIP func() net.IP
 	// IPValidator is a validator for the "ip" field. It is called by the builders before save.
-	IPValidator func([]byte) error
+	IPValidator func(net.IP) error
 	// DefaultPair holds the default value on creation for the "pair" field.
 	DefaultPair func() schema.Pair
 	// DefaultVstring holds the default value on creation for the "vstring" field.
@@ -314,7 +314,7 @@ const DefaultRole role.Role = "READ"
 
 // RoleValidator is a validator for the "role" field enum values. It is called by the builders before save.
 func RoleValidator(r role.Role) error {
-	switch r {
+	switch string(r) {
 	case "ADMIN", "OWNER", "USER", "READ", "WRITE", "READ+WRITE":
 		return nil
 	default:
@@ -475,24 +475,9 @@ func ByDecimal(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDecimal, opts...).ToFunc()
 }
 
-// ByLinkOther orders the results by the link_other field.
-func ByLinkOther(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldLinkOther, opts...).ToFunc()
-}
-
-// ByLinkOtherFunc orders the results by the link_other_func field.
-func ByLinkOtherFunc(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldLinkOtherFunc, opts...).ToFunc()
-}
-
 // ByMAC orders the results by the mac field.
 func ByMAC(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldMAC, opts...).ToFunc()
-}
-
-// ByStringArray orders the results by the string_array field.
-func ByStringArray(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldStringArray, opts...).ToFunc()
 }
 
 // ByPassword orders the results by the password field.
@@ -628,11 +613,6 @@ func ByTriple(opts ...sql.OrderTermOption) OrderOption {
 // ByBigInt orders the results by the big_int field.
 func ByBigInt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldBigInt, opts...).ToFunc()
-}
-
-// ByPasswordOther orders the results by the password_other field.
-func ByPasswordOther(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldPasswordOther, opts...).ToFunc()
 }
 
 // Ptr returns a new pointer to the enum value.

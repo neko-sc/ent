@@ -64,7 +64,9 @@ func (_c *TokenCreate) Mutation() *TokenMutation {
 
 // Save creates the Token in the database.
 func (_c *TokenCreate) Save(ctx context.Context) (*Token, error) {
-	_c.defaults()
+	if err := _c.defaults(); err != nil {
+		return nil, err
+	}
 	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
 }
 
@@ -91,11 +93,15 @@ func (_c *TokenCreate) ExecX(ctx context.Context) {
 }
 
 // defaults sets the default values of the builder before save.
-func (_c *TokenCreate) defaults() {
+func (_c *TokenCreate) defaults() error {
 	if _, ok := _c.mutation.ID(); !ok {
+		if token.DefaultID == nil {
+			return fmt.Errorf("ent: uninitialized token.DefaultID (forgotten import ent/runtime?)")
+		}
 		v := token.DefaultID()
 		_c.mutation.SetID(v)
 	}
+	return nil
 }
 
 // check runs all checks and user-defined validators on the builder.

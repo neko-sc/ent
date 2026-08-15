@@ -13,8 +13,8 @@ import (
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/entc/integration/ent/predicate"
-	"github.com/neko-sc/ent/entc/integration/ent/schema/task"
-	enttask "github.com/neko-sc/ent/entc/integration/ent/task"
+	task2 "github.com/neko-sc/ent/entc/integration/ent/schema/task"
+	"github.com/neko-sc/ent/entc/integration/ent/task"
 	"github.com/neko-sc/ent/schema/field"
 )
 
@@ -33,14 +33,14 @@ func (_u *TaskUpdate) Where(ps ...predicate.Task) *TaskUpdate {
 }
 
 // SetPriority sets the "priority" field.
-func (_u *TaskUpdate) SetPriority(v task.Priority) *TaskUpdate {
+func (_u *TaskUpdate) SetPriority(v task2.Priority) *TaskUpdate {
 	_u.mutation.ResetPriority()
 	_u.mutation.SetPriority(v)
 	return _u
 }
 
 // SetNillablePriority sets the "priority" field if the given value is not nil.
-func (_u *TaskUpdate) SetNillablePriority(v *task.Priority) *TaskUpdate {
+func (_u *TaskUpdate) SetNillablePriority(v *task2.Priority) *TaskUpdate {
 	if v != nil {
 		_u.SetPriority(*v)
 	}
@@ -48,13 +48,13 @@ func (_u *TaskUpdate) SetNillablePriority(v *task.Priority) *TaskUpdate {
 }
 
 // AddPriority adds value to the "priority" field.
-func (_u *TaskUpdate) AddPriority(v task.Priority) *TaskUpdate {
+func (_u *TaskUpdate) AddPriority(v task2.Priority) *TaskUpdate {
 	_u.mutation.AddPriority(v)
 	return _u
 }
 
 // SetPriorities sets the "priorities" field.
-func (_u *TaskUpdate) SetPriorities(v map[string]task.Priority) *TaskUpdate {
+func (_u *TaskUpdate) SetPriorities(v map[string]task2.Priority) *TaskUpdate {
 	_u.mutation.SetPriorities(v)
 	return _u
 }
@@ -213,7 +213,7 @@ func (_u *TaskUpdate) check() error {
 		}
 	}
 	if v, ok := _u.mutation.GetOp(); ok {
-		if err := enttask.OpValidator(v); err != nil {
+		if err := task.OpValidator(v); err != nil {
 			return &ValidationError{Name: "op", err: fmt.Errorf(`ent: validator failed for field "Task.op": %w`, err)}
 		}
 	}
@@ -230,7 +230,7 @@ func (_u *TaskUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if err := _u.check(); err != nil {
 		return _node, err
 	}
-	_spec := sqlgraph.NewUpdateSpec(enttask.Table, enttask.Columns, sqlgraph.NewFieldSpec(enttask.FieldID, field.TypeInt))
+	_spec := sqlgraph.NewUpdateSpec(task.Table, task.Columns, sqlgraph.NewFieldSpec(task.FieldID, field.TypeInt))
 	if ps := _u.mutation.Predicates(); len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
@@ -239,54 +239,54 @@ func (_u *TaskUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 	}
 	if value, ok := _u.mutation.Priority(); ok {
-		_spec.SetField(enttask.FieldPriority, field.TypeInt, value)
+		_spec.SetField(task.FieldPriority, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.AddedPriority(); ok {
-		_spec.AddField(enttask.FieldPriority, field.TypeInt, value)
+		_spec.AddField(task.FieldPriority, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.Priorities(); ok {
-		_spec.SetField(enttask.FieldPriorities, field.TypeJSON, value)
+		_spec.SetField(task.FieldPriorities, field.TypeJSON, value)
 	}
 	if _u.mutation.PrioritiesCleared() {
-		_spec.ClearField(enttask.FieldPriorities, field.TypeJSON)
+		_spec.ClearField(task.FieldPriorities, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.Name(); ok {
-		_spec.SetField(enttask.FieldName, field.TypeString, value)
+		_spec.SetField(task.FieldName, field.TypeString, value)
 	}
 	if _u.mutation.NameCleared() {
-		_spec.ClearField(enttask.FieldName, field.TypeString)
+		_spec.ClearField(task.FieldName, field.TypeString)
 	}
 	if value, ok := _u.mutation.Owner(); ok {
-		_spec.SetField(enttask.FieldOwner, field.TypeString, value)
+		_spec.SetField(task.FieldOwner, field.TypeString, value)
 	}
 	if _u.mutation.OwnerCleared() {
-		_spec.ClearField(enttask.FieldOwner, field.TypeString)
+		_spec.ClearField(task.FieldOwner, field.TypeString)
 	}
 	if value, ok := _u.mutation.Order(); ok {
-		_spec.SetField(enttask.FieldOrder, field.TypeInt, value)
+		_spec.SetField(task.FieldOrder, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.AddedOrder(); ok {
-		_spec.AddField(enttask.FieldOrder, field.TypeInt, value)
+		_spec.AddField(task.FieldOrder, field.TypeInt, value)
 	}
 	if _u.mutation.OrderCleared() {
-		_spec.ClearField(enttask.FieldOrder, field.TypeInt)
+		_spec.ClearField(task.FieldOrder, field.TypeInt)
 	}
 	if value, ok := _u.mutation.OrderOption(); ok {
-		_spec.SetField(enttask.FieldOrderOption, field.TypeInt, value)
+		_spec.SetField(task.FieldOrderOption, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.AddedOrderOption(); ok {
-		_spec.AddField(enttask.FieldOrderOption, field.TypeInt, value)
+		_spec.AddField(task.FieldOrderOption, field.TypeInt, value)
 	}
 	if _u.mutation.OrderOptionCleared() {
-		_spec.ClearField(enttask.FieldOrderOption, field.TypeInt)
+		_spec.ClearField(task.FieldOrderOption, field.TypeInt)
 	}
 	if value, ok := _u.mutation.GetOp(); ok {
-		_spec.SetField(enttask.FieldOp, field.TypeString, value)
+		_spec.SetField(task.FieldOp, field.TypeString, value)
 	}
 	_spec.AddModifiers(_u.modifiers...)
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
-			err = &NotFoundError{enttask.Label}
+			err = &NotFoundError{task.Label}
 		} else if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}
@@ -306,14 +306,14 @@ type TaskUpdateOne struct {
 }
 
 // SetPriority sets the "priority" field.
-func (_u *TaskUpdateOne) SetPriority(v task.Priority) *TaskUpdateOne {
+func (_u *TaskUpdateOne) SetPriority(v task2.Priority) *TaskUpdateOne {
 	_u.mutation.ResetPriority()
 	_u.mutation.SetPriority(v)
 	return _u
 }
 
 // SetNillablePriority sets the "priority" field if the given value is not nil.
-func (_u *TaskUpdateOne) SetNillablePriority(v *task.Priority) *TaskUpdateOne {
+func (_u *TaskUpdateOne) SetNillablePriority(v *task2.Priority) *TaskUpdateOne {
 	if v != nil {
 		_u.SetPriority(*v)
 	}
@@ -321,13 +321,13 @@ func (_u *TaskUpdateOne) SetNillablePriority(v *task.Priority) *TaskUpdateOne {
 }
 
 // AddPriority adds value to the "priority" field.
-func (_u *TaskUpdateOne) AddPriority(v task.Priority) *TaskUpdateOne {
+func (_u *TaskUpdateOne) AddPriority(v task2.Priority) *TaskUpdateOne {
 	_u.mutation.AddPriority(v)
 	return _u
 }
 
 // SetPriorities sets the "priorities" field.
-func (_u *TaskUpdateOne) SetPriorities(v map[string]task.Priority) *TaskUpdateOne {
+func (_u *TaskUpdateOne) SetPriorities(v map[string]task2.Priority) *TaskUpdateOne {
 	_u.mutation.SetPriorities(v)
 	return _u
 }
@@ -499,7 +499,7 @@ func (_u *TaskUpdateOne) check() error {
 		}
 	}
 	if v, ok := _u.mutation.GetOp(); ok {
-		if err := enttask.OpValidator(v); err != nil {
+		if err := task.OpValidator(v); err != nil {
 			return &ValidationError{Name: "op", err: fmt.Errorf(`ent: validator failed for field "Task.op": %w`, err)}
 		}
 	}
@@ -516,7 +516,7 @@ func (_u *TaskUpdateOne) sqlSave(ctx context.Context) (_node *Task, err error) {
 	if err := _u.check(); err != nil {
 		return _node, err
 	}
-	_spec := sqlgraph.NewUpdateSpec(enttask.Table, enttask.Columns, sqlgraph.NewFieldSpec(enttask.FieldID, field.TypeInt))
+	_spec := sqlgraph.NewUpdateSpec(task.Table, task.Columns, sqlgraph.NewFieldSpec(task.FieldID, field.TypeInt))
 	id, ok := _u.mutation.ID()
 	if !ok {
 		return nil, &ValidationError{Name: "id", err: errors.New(`ent: missing "Task.id" for update`)}
@@ -524,12 +524,12 @@ func (_u *TaskUpdateOne) sqlSave(ctx context.Context) (_node *Task, err error) {
 	_spec.Node.ID.Value = id
 	if fields := _u.fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
-		_spec.Node.Columns = append(_spec.Node.Columns, enttask.FieldID)
+		_spec.Node.Columns = append(_spec.Node.Columns, task.FieldID)
 		for _, f := range fields {
-			if !enttask.ValidColumn(f) {
+			if !task.ValidColumn(f) {
 				return nil, &ValidationError{Name: f, err: fmt.Errorf("ent: invalid field %q for query", f)}
 			}
-			if f != enttask.FieldID {
+			if f != task.FieldID {
 				_spec.Node.Columns = append(_spec.Node.Columns, f)
 			}
 		}
@@ -542,49 +542,49 @@ func (_u *TaskUpdateOne) sqlSave(ctx context.Context) (_node *Task, err error) {
 		}
 	}
 	if value, ok := _u.mutation.Priority(); ok {
-		_spec.SetField(enttask.FieldPriority, field.TypeInt, value)
+		_spec.SetField(task.FieldPriority, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.AddedPriority(); ok {
-		_spec.AddField(enttask.FieldPriority, field.TypeInt, value)
+		_spec.AddField(task.FieldPriority, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.Priorities(); ok {
-		_spec.SetField(enttask.FieldPriorities, field.TypeJSON, value)
+		_spec.SetField(task.FieldPriorities, field.TypeJSON, value)
 	}
 	if _u.mutation.PrioritiesCleared() {
-		_spec.ClearField(enttask.FieldPriorities, field.TypeJSON)
+		_spec.ClearField(task.FieldPriorities, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.Name(); ok {
-		_spec.SetField(enttask.FieldName, field.TypeString, value)
+		_spec.SetField(task.FieldName, field.TypeString, value)
 	}
 	if _u.mutation.NameCleared() {
-		_spec.ClearField(enttask.FieldName, field.TypeString)
+		_spec.ClearField(task.FieldName, field.TypeString)
 	}
 	if value, ok := _u.mutation.Owner(); ok {
-		_spec.SetField(enttask.FieldOwner, field.TypeString, value)
+		_spec.SetField(task.FieldOwner, field.TypeString, value)
 	}
 	if _u.mutation.OwnerCleared() {
-		_spec.ClearField(enttask.FieldOwner, field.TypeString)
+		_spec.ClearField(task.FieldOwner, field.TypeString)
 	}
 	if value, ok := _u.mutation.Order(); ok {
-		_spec.SetField(enttask.FieldOrder, field.TypeInt, value)
+		_spec.SetField(task.FieldOrder, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.AddedOrder(); ok {
-		_spec.AddField(enttask.FieldOrder, field.TypeInt, value)
+		_spec.AddField(task.FieldOrder, field.TypeInt, value)
 	}
 	if _u.mutation.OrderCleared() {
-		_spec.ClearField(enttask.FieldOrder, field.TypeInt)
+		_spec.ClearField(task.FieldOrder, field.TypeInt)
 	}
 	if value, ok := _u.mutation.OrderOption(); ok {
-		_spec.SetField(enttask.FieldOrderOption, field.TypeInt, value)
+		_spec.SetField(task.FieldOrderOption, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.AddedOrderOption(); ok {
-		_spec.AddField(enttask.FieldOrderOption, field.TypeInt, value)
+		_spec.AddField(task.FieldOrderOption, field.TypeInt, value)
 	}
 	if _u.mutation.OrderOptionCleared() {
-		_spec.ClearField(enttask.FieldOrderOption, field.TypeInt)
+		_spec.ClearField(task.FieldOrderOption, field.TypeInt)
 	}
 	if value, ok := _u.mutation.GetOp(); ok {
-		_spec.SetField(enttask.FieldOp, field.TypeString, value)
+		_spec.SetField(task.FieldOp, field.TypeString, value)
 	}
 	_spec.AddModifiers(_u.modifiers...)
 	_node = &Task{config: _u.config}
@@ -592,7 +592,7 @@ func (_u *TaskUpdateOne) sqlSave(ctx context.Context) (_node *Task, err error) {
 	_spec.ScanValues = _node.scanValues
 	if err = sqlgraph.UpdateNode(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
-			err = &NotFoundError{enttask.Label}
+			err = &NotFoundError{task.Label}
 		} else if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}

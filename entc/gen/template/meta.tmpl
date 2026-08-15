@@ -44,9 +44,9 @@ const (
 	{{ xtemplate $tmpl $ }}
 {{ end }}
 
-{{/* Has at least one field (not enum) with default value */}}
+{{/* Has at least one field whose default is initialized by runtime stitching. */}}
 {{ $fields := $.Fields }}{{ if $.HasOneFieldID }}{{ if $.ID.UserDefined }}{{ $fields = append $fields $.ID }}{{ end }}{{ end }}
-{{ $hasDefault := false }}{{ range $f := $fields }}{{ if and $f.Default (not $f.IsEnum) }}{{ $hasDefault = true }}{{ end }}{{ end }}
+{{ $hasDefault := false }}{{ range $f := $fields }}{{ if and $f.Default (or (not $f.IsEnum) $f.DefaultFunc) }}{{ $hasDefault = true }}{{ end }}{{ end }}
 
 {{/* Generate global variables for hooks, validators and policy checkers */}}
 {{ if or $hasDefault $.HasUpdateDefault $.HasValidators $.NumHooks $.NumPolicy $.NumInterceptors $.HasValueScanner }}
@@ -74,24 +74,21 @@ const (
 		{{- end }}
 		{{- $fields := $.Fields }}{{ if $.HasOneFieldID }}{{ if $.ID.UserDefined }}{{ $fields = append $fields $.ID }}{{ end }}{{ end }}
 		{{- range $f := $fields }}
-			{{- if and $f.Default (not $f.IsEnum) }}
+			{{- $goType := $f.GoType }}{{ if $f.DefinesEnumType }}{{ $goType = trimPackage $goType $.Package }}{{ end }}
+			{{- if and $f.Default (or (not $f.IsEnum) $f.DefaultFunc) }}
 				{{- $default := $f.DefaultName }}
 				// {{ $default }} holds the default value on creation for the "{{ $f.Name }}" field.
-				{{ $default }} {{ if $f.DefaultFunc }}func() {{ end }}{{ $f.Type }}
+				{{ $default }} {{ if $f.DefaultFunc }}func() {{ end }}{{ $goType }}
 			{{- end }}
 			{{- if $f.UpdateDefault }}
 				{{- $default := $f.UpdateDefaultName }}
 				// {{ $default }} holds the default value on update for the "{{ $f.Name }}" field.
-				{{ $default }} func() {{ $f.Type }}
+				{{ $default }} func() {{ $goType }}
 			{{- end }}
 			{{- with $f.Validators }}
 				{{- $name := $f.Validator }}
-				{{- $type := $f.Type.Type.String }}
-				{{- if $f.IsJSON }}
-					{{- $type = $f.Type.String }}
-				{{- end }}
 				// {{ $name }} is a validator for the "{{ $f.Name }}" field. It is called by the builders before save.
-				{{ $name }} {{ printf "func (%s) error" $type }}
+				{{ $name }} func({{ $f.GoType }}) error
 			{{- end }}
 		{{- end }}
 		{{- if $.HasValueScanner }}
@@ -101,7 +98,7 @@ const (
 			{{- range $f := $fields }}
 				{{- $idscan := and $.HasOneFieldID (eq $f.Name $.ID.Name) }}
 				{{- if and $f.HasValueScanner (or (not $idscan) (eq $.Storage.Name "sql")) }}
-					{{ $f.StructField }} field.TypeValueScanner[{{ $f.Type }}]
+					{{ $f.StructField }} field.TypeValueScanner[{{ $f.GoType }}]
 				{{- end }}
 			{{- end }}
 		}
@@ -111,20 +108,16 @@ const (
 
 {{/* define custom type for enum fields */}}
 {{ range $f := $.EnumFields }}
-	{{ $enum := $f.Type }}
+	{{ $enum := $f.GoType }}
 	{{ $receiver := receiver $f.BuilderField }}
-	{{ if $f.HasGoType }}
-		{{ if $f.Default }}
-			const {{ $f.DefaultName }} {{ $enum }} = "{{ $f.DefaultValue }}"
-		{{ end }}
-	{{ else }}
+	{{ if $f.DefinesEnumType }}
 		{{/* Omit the package name from the type. */}}
-		{{ $enum = trimPackage $f.Type.String $.Package }}
+		{{ $enum = trimPackage $f.GoType $.Package }}
 		// {{ $enum }} defines the type for the "{{ $f.Name }}" enum field.
 		type {{ $enum }} string
 
-		{{- if $f.Default }}
-			{{- /*  Find the enum that holds the default value. */ -}}
+		{{- if and $f.Default (not $f.DefaultFunc) }}
+			{{- /* Find the enum that holds the default value. */ -}}
 			{{- range $e := $f.Enums }}
 				{{- if eq $e.Value $f.DefaultValue }}
 					// {{ $e.Name }} is the default value of the {{ $enum }} enum.
@@ -143,14 +136,15 @@ const (
 		func ({{ $receiver }} {{ $enum }}) String() string {
 			return string({{ $receiver }})
 		}
+	{{ else if and $f.Default (not $f.DefaultFunc) }}
+		const {{ $f.DefaultName }} {{ $enum }} = "{{ $f.DefaultValue }}"
 	{{ end }}
 
-
-	{{ $name := $f.Validator }}
+	{{ $name := $f.EnumValidator }}
 	// {{ $name }} is a validator for the "{{ $f.Name }}" field enum values. It is called by the builders before save.
 	func {{ $name }}({{ $receiver }} {{ $enum }}) error {
-		switch {{ $receiver }}{{ if $f.Type.Stringer }}.String(){{ end }} {
-			case {{ range $i, $e := $f.Enums }}{{ if ne $i 0 }},{{ end }}{{ if $f.HasGoType }}"{{ $e.Value }}"{{ else }}{{ $e.Name }}{{ end }}{{ end }}:
+		switch {{ if $f.DefinesEnumType }}{{ $receiver }}{{ else }}{{ $f.BasicType $receiver }}{{ end }} {
+			case {{ range $i, $e := $f.Enums }}{{ if ne $i 0 }},{{ end }}{{ if $f.DefinesEnumType }}{{ $e.Name }}{{ else }}"{{ $e.Value }}"{{ end }}{{ end }}:
 				return nil
 			default:
 				return fmt.Errorf("{{ $.Package }}: invalid enum value for {{ $f.Name }} field: %q", {{ $receiver }})

@@ -57,7 +57,7 @@ type AttachedFile struct {
 func (AttachedFile) Fields() []ent.Field {
 	return []ent.Field{
 		field.Time("attach_time").
-			Default(time.Now),
+			DefaultFunc(time.Now),
 		field.Int("f_id"),
 		field.Int("proc_id"),
 	}

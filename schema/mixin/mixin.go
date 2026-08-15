@@ -50,7 +50,7 @@ type CreateTime struct{ Schema }
 func (CreateTime) Fields() []ent.Field {
 	return []ent.Field{
 		field.Time("create_time").
-			Default(time.Now).
+			DefaultFunc(time.Now).
 			Immutable(),
 	}
 }
@@ -65,7 +65,7 @@ type UpdateTime struct{ Schema }
 func (UpdateTime) Fields() []ent.Field {
 	return []ent.Field{
 		field.Time("update_time").
-			Default(time.Now).
+			DefaultFunc(time.Now).
 			UpdateDefault(time.Now),
 	}
 }

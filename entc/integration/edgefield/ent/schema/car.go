@@ -4,10 +4,10 @@
 package schema
 
 import (
+	"github.com/google/uuid"
 	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/schema/edge"
 	"github.com/neko-sc/ent/schema/field"
-	"github.com/google/uuid"
 )
 
 // Car holds the schema definition for the Car entity.
@@ -18,8 +18,8 @@ type Car struct {
 // Fields of the Car.
 func (Car) Fields() []ent.Field {
 	return []ent.Field{
-		field.UUID("id", uuid.UUID{}).
-			Default(uuid.New),
+		field.UUID[uuid.UUID]("id").
+			DefaultFunc(uuid.New),
 		field.String("number").
 			Optional(),
 	}

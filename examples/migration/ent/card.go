@@ -95,34 +95,34 @@ func (_m *Card) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case card.FieldID:
-			value, ok := values[i].(*sql.NullInt64)
-			if !ok {
-				return fmt.Errorf("unexpected type %T for field id", value)
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field id", values[i])
+			} else if value.Valid {
+				_m.ID = int(value.Int64)
 			}
-			_m.ID = int(value.Int64)
 		case card.FieldType:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field type", values[i])
 			} else if value.Valid {
-				_m.Type = value.String
+				_m.Type = string(value.String)
 			}
 		case card.FieldNumberHash:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field number_hash", values[i])
 			} else if value.Valid {
-				_m.NumberHash = value.String
+				_m.NumberHash = string(value.String)
 			}
 		case card.FieldCvvHash:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field cvv_hash", values[i])
 			} else if value.Valid {
-				_m.CvvHash = value.String
+				_m.CvvHash = string(value.String)
 			}
 		case card.FieldExpiresAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field expires_at", values[i])
 			} else if value.Valid {
-				_m.ExpiresAt = value.Time
+				_m.ExpiresAt = time.Time(value.Time)
 			}
 		case card.FieldOwnerID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {

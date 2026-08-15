@@ -70,7 +70,9 @@ func (_c *UserTweetCreate) Mutation() *UserTweetMutation {
 
 // Save creates the UserTweet in the database.
 func (_c *UserTweetCreate) Save(ctx context.Context) (*UserTweet, error) {
-	_c.defaults()
+	if err := _c.defaults(); err != nil {
+		return nil, err
+	}
 	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
 }
 
@@ -97,11 +99,15 @@ func (_c *UserTweetCreate) ExecX(ctx context.Context) {
 }
 
 // defaults sets the default values of the builder before save.
-func (_c *UserTweetCreate) defaults() {
+func (_c *UserTweetCreate) defaults() error {
 	if _, ok := _c.mutation.CreatedAt(); !ok {
+		if usertweet.DefaultCreatedAt == nil {
+			return fmt.Errorf("ent: uninitialized usertweet.DefaultCreatedAt (forgotten import ent/runtime?)")
+		}
 		v := usertweet.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
 	}
+	return nil
 }
 
 // check runs all checks and user-defined validators on the builder.

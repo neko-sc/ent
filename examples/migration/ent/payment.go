@@ -88,11 +88,11 @@ func (_m *Payment) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case payment.FieldID:
-			value, ok := values[i].(*sql.NullInt64)
-			if !ok {
-				return fmt.Errorf("unexpected type %T for field id", value)
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field id", values[i])
+			} else if value.Valid {
+				_m.ID = int(value.Int64)
 			}
-			_m.ID = int(value.Int64)
 		case payment.FieldCardID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field card_id", values[i])
@@ -103,7 +103,7 @@ func (_m *Payment) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
 				return fmt.Errorf("unexpected type %T for field amount", values[i])
 			} else if value.Valid {
-				_m.Amount = value.Float64
+				_m.Amount = float64(value.Float64)
 			}
 		case payment.FieldCurrency:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -115,13 +115,13 @@ func (_m *Payment) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field time", values[i])
 			} else if value.Valid {
-				_m.Time = value.Time
+				_m.Time = time.Time(value.Time)
 			}
 		case payment.FieldDescription:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field description", values[i])
 			} else if value.Valid {
-				_m.Description = value.String
+				_m.Description = string(value.String)
 			}
 		case payment.FieldStatus:
 			if value, ok := values[i].(*sql.NullString); !ok {

@@ -23,18 +23,18 @@ type User struct {
 // Fields of the User.
 func (User) Fields() []ent.Field {
 	return []ent.Field{
-		field.JSON("t", &T{}).
+		field.JSON[*T]("t").
 			Optional(),
-		field.JSON("url", &url.URL{}).
+		field.JSON[*url.URL]("url").
 			Optional(),
-		field.JSON("URLs", []*url.URL{}).
+		field.JSON[[]*url.URL]("URLs").
 			StorageKey("urls").
 			StructTag(`json:"urls,omitempty"`).
 			Optional(),
-		field.JSON("raw", json.RawMessage{}).
+		field.JSON[json.RawMessage]("raw").
 			Optional(),
-		field.JSON("dirs", []http.Dir{}).
-			Default(func() []http.Dir {
+		field.JSON[[]http.Dir]("dirs").
+			DefaultFunc(func() []http.Dir {
 				return []http.Dir{"/tmp"}
 			}),
 		field.Ints("ints").
@@ -53,7 +53,7 @@ func (User) Fields() []ent.Field {
 		field.Strings("strings_validate").
 			Optional().
 			Validate(validate[string]),
-		field.JSON("addr", Addr{}).
+		field.JSON[Addr]("addr").
 			Sensitive().
 			Optional(),
 		field.Any("unknown").

@@ -95,8 +95,7 @@ func (FieldType) Fields() []ent.Field { //nolint:funlen
 
 		field.Text("text").
 			Optional().
-			SchemaType(map[string]string{
-			}),
+			SchemaType(map[string]string{}),
 		field.Time("datetime").
 			Optional().
 			SchemaType(map[string]string{
@@ -107,31 +106,30 @@ func (FieldType) Fields() []ent.Field { //nolint:funlen
 			SchemaType(map[string]string{
 				dialect.Postgres: "numeric",
 			}),
-		field.Other("link_other", &Link{}).
+		field.Other[*Link]("link_other").
 			SchemaType(map[string]string{
 				dialect.Postgres: "varchar",
 				dialect.SQLite:   "varchar(255)",
 			}).
 			Optional().
 			Default(DefaultLink()),
-		field.Other("link_other_func", &Link{}).
+		field.Other[*Link]("link_other_func").
 			SchemaType(map[string]string{
 				dialect.Postgres: "varchar",
 				dialect.SQLite:   "varchar(255)",
 			}).
 			Optional().
-			Default(DefaultLink),
-		field.String("mac").
+			DefaultFunc(DefaultLink),
+		field.StringAs[MAC]("mac").
 			Optional().
-			GoType(MAC{}).
 			SchemaType(map[string]string{
 				dialect.Postgres: "macaddr",
 			}).
-			Validate(func(s string) error {
-				_, err := net.ParseMAC(s)
+			Validate(func(mac MAC) error {
+				_, err := net.ParseMAC(mac.String())
 				return err
 			}),
-		field.Other("string_array", Strings{}).
+		field.Other[Strings]("string_array").
 			Optional().
 			SchemaType(map[string]string{
 				dialect.Postgres: "text[]",
@@ -140,68 +138,55 @@ func (FieldType) Fields() []ent.Field { //nolint:funlen
 		field.String("password").
 			Optional().
 			Sensitive().
-			SchemaType(map[string]string{
-			}),
+			SchemaType(map[string]string{}),
 
 		// ----------------------------------------------------------------------------
 		// Custom Go types
 
-		field.String("string_scanner").
-			GoType(StringScanner("")).
+		field.StringAs[StringScanner]("string_scanner").
 			Nillable().
 			Optional(),
-		field.Int64("duration").
-			GoType(time.Duration(0)).
+		field.Int64As[time.Duration]("duration").
 			UpdateDefault(func() time.Duration {
 				return time.Duration(100)
 			}).
 			Optional(),
-		field.String("dir").
-			GoType(http.Dir("dir")).
+		field.StringAs[http.Dir]("dir").
 			DefaultFunc(func() http.Dir {
 				return "unknown"
 			}),
-		field.String("ndir").
+		field.StringAs[http.Dir]("ndir").
 			Optional().
 			Nillable().
-			NotEmpty().
-			GoType(http.Dir("ndir")),
-		field.String("str").
+			NotEmpty(),
+		field.StringAs[sql.NullString]("str").
 			Optional().
-			GoType(sql.NullString{}).
 			DefaultFunc(func() sql.NullString {
 				return sql.NullString{String: "default", Valid: true}
 			}),
-		field.String("null_str").
+		field.StringAs[*sql.NullString]("null_str").
 			Optional().
 			Nillable().
-			GoType(&sql.NullString{}).
 			DefaultFunc(func() *sql.NullString {
 				return &sql.NullString{String: "default", Valid: true}
 			}),
-		field.String("link").
+		field.StringAs[Link]("link").
 			Optional().
-			NotEmpty().
-			GoType(Link{}),
-		field.String("null_link").
+			NotEmpty(),
+		field.StringAs[*Link]("null_link").
 			Optional().
-			Nillable().
-			GoType(&Link{}),
-		field.Bool("active").
+			Nillable(),
+		field.BoolAs[Status]("active").
+			Optional(),
+		field.BoolAs[Status]("null_active").
 			Optional().
-			GoType(Status(false)),
-		field.Bool("null_active").
+			Nillable(),
+		field.BoolAs[*sql.NullBool]("deleted").
 			Optional().
-			Nillable().
-			GoType(Status(false)),
-		field.Bool("deleted").
+			Nillable(),
+		field.TimeAs[*sql.NullTime]("deleted_at").
 			Optional().
-			Nillable().
-			GoType(&sql.NullBool{}),
-		field.Time("deleted_at").
-			Optional().
-			GoType(&sql.NullTime{}).
-			Default(func() *sql.NullTime {
+			DefaultFunc(func() *sql.NullTime {
 				return &sql.NullTime{Time: time.Now(), Valid: true}
 			}).
 			UpdateDefault(func() *sql.NullTime {
@@ -214,75 +199,62 @@ func (FieldType) Fields() []ent.Field { //nolint:funlen
 		field.Bytes("sensitive").
 			Optional().
 			Sensitive(),
-		field.Bytes("ip").
+		field.BytesAs[net.IP]("ip").
 			Optional().
-			GoType(net.IP("127.0.0.1")).
 			DefaultFunc(func() net.IP {
-				return net.IP("127.0.0.1")
+				return net.ParseIP("127.0.0.1")
 			}).
-			Validate(func(i []byte) error {
-				if net.ParseIP(string(i)) == nil {
-					return fmt.Errorf("ent/schema: invalid ip %q", string(i))
+			Validate(func(ip net.IP) error {
+				if ip.To16() == nil {
+					return fmt.Errorf("ent/schema: invalid ip %q", ip)
 				}
 				return nil
 			}),
-		field.Int("null_int64").
-			Optional().
-			GoType(&sql.NullInt64{}),
-		field.Int("schema_int").
-			Optional().
-			GoType(Int(0)),
-		field.Int8("schema_int8").
-			Optional().
-			GoType(Int8(0)),
-		field.Int64("schema_int64").
-			Optional().
-			GoType(Int64(0)),
-		field.Float("schema_float").
-			Optional().
-			GoType(Float64(0)),
-		field.Float32("schema_float32").
-			Optional().
-			GoType(Float32(0)),
-		field.Float("null_float").
-			Optional().
-			GoType(&sql.NullFloat64{}),
-		field.Enum("role").
-			Default(string(role.Read)).
-			GoType(role.Role("role")),
-		field.Enum("priority").
-			Optional().
-			GoType(role.Priority(0)),
-		field.UUID("optional_uuid", uuid.UUID{}).
+		field.IntAs[*sql.NullInt64]("null_int64").
 			Optional(),
-		field.UUID("nillable_uuid", uuid.UUID{}).
+		field.IntAs[Int]("schema_int").
+			Optional(),
+		field.Int8As[Int8]("schema_int8").
+			Optional(),
+		field.Int64As[Int64]("schema_int64").
+			Optional(),
+		field.FloatAs[Float64]("schema_float").
+			Optional(),
+		field.Float32As[Float32]("schema_float32").
+			Optional(),
+		field.FloatAs[*sql.NullFloat64]("null_float").
+			Optional(),
+		field.EnumAs[role.Role]("role").
+			Values(role.Role("").Values()...).
+			Default(role.Read),
+		field.EnumAs[role.Priority]("priority").
+			Values(role.Priority(0).Values()...).
+			Optional(),
+		field.UUID[uuid.UUID]("optional_uuid").
+			Optional(),
+		field.UUID[uuid.UUID]("nillable_uuid").
 			Optional().
 			Nillable(),
 		field.Strings("strings").
 			Optional(),
-		field.Bytes("pair").
-			GoType(Pair{}).
+		field.BytesAs[Pair]("pair").
 			DefaultFunc(func() Pair {
 				return Pair{K: []byte("K"), V: []byte("V")}
 			}),
-		field.Bytes("nil_pair").
-			GoType(&Pair{}).
+		field.BytesAs[*Pair]("nil_pair").
 			Optional().
 			Nillable(),
-		field.String("vstring").
-			GoType(VString("")).
+		field.StringAs[VString]("vstring").
 			DefaultFunc(func() VString {
 				return "value scanner string"
 			}),
-		field.String("triple").
-			GoType(Triple{}).
+		field.StringAs[Triple]("triple").
 			DefaultFunc(func() Triple {
 				return Triple{E: [3]string{"A", "B", "C"}}
 			}),
-		field.Int("big_int").
-			Optional().
-			GoType(BigInt{}),
-		field.Other("password_other", Password("")).
+		field.IntAs[BigInt]("big_int").
+			Optional(),
+		field.Other[Password]("password_other").
 			Optional().
 			Sensitive().
 			SchemaType(map[string]string{

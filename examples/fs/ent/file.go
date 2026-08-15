@@ -89,22 +89,22 @@ func (_m *File) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case file.FieldID:
-			value, ok := values[i].(*sql.NullInt64)
-			if !ok {
-				return fmt.Errorf("unexpected type %T for field id", value)
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field id", values[i])
+			} else if value.Valid {
+				_m.ID = int(value.Int64)
 			}
-			_m.ID = int(value.Int64)
 		case file.FieldName:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field name", values[i])
 			} else if value.Valid {
-				_m.Name = value.String
+				_m.Name = string(value.String)
 			}
 		case file.FieldDeleted:
 			if value, ok := values[i].(*sql.NullBool); !ok {
 				return fmt.Errorf("unexpected type %T for field deleted", values[i])
 			} else if value.Valid {
-				_m.Deleted = value.Bool
+				_m.Deleted = bool(value.Bool)
 			}
 		case file.FieldParentID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {

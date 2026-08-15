@@ -53,28 +53,28 @@ func (_m *Media) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case media.FieldID:
-			value, ok := values[i].(*sql.NullInt64)
-			if !ok {
-				return fmt.Errorf("unexpected type %T for field id", value)
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field id", values[i])
+			} else if value.Valid {
+				_m.ID = int(value.Int64)
 			}
-			_m.ID = int(value.Int64)
 		case media.FieldSource:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field source", values[i])
 			} else if value.Valid {
-				_m.Source = value.String
+				_m.Source = string(value.String)
 			}
 		case media.FieldSourceURI:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field source_uri", values[i])
 			} else if value.Valid {
-				_m.SourceURI = value.String
+				_m.SourceURI = string(value.String)
 			}
 		case media.FieldText:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field text", values[i])
 			} else if value.Valid {
-				_m.Text = value.String
+				_m.Text = string(value.String)
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])

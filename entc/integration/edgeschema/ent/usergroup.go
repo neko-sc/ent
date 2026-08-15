@@ -92,16 +92,16 @@ func (_m *UserGroup) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case usergroup.FieldID:
-			value, ok := values[i].(*sql.NullInt64)
-			if !ok {
-				return fmt.Errorf("unexpected type %T for field id", value)
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field id", values[i])
+			} else if value.Valid {
+				_m.ID = int(value.Int64)
 			}
-			_m.ID = int(value.Int64)
 		case usergroup.FieldJoinedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field joined_at", values[i])
 			} else if value.Valid {
-				_m.JoinedAt = value.Time
+				_m.JoinedAt = time.Time(value.Time)
 			}
 		case usergroup.FieldUserID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {

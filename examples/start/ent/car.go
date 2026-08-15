@@ -81,26 +81,26 @@ func (_m *Car) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case car.FieldID:
-			value, ok := values[i].(*sql.NullInt64)
-			if !ok {
-				return fmt.Errorf("unexpected type %T for field id", value)
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field id", values[i])
+			} else if value.Valid {
+				_m.ID = int(value.Int64)
 			}
-			_m.ID = int(value.Int64)
 		case car.FieldModel:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field model", values[i])
 			} else if value.Valid {
-				_m.Model = value.String
+				_m.Model = string(value.String)
 			}
 		case car.FieldRegisteredAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field registered_at", values[i])
 			} else if value.Valid {
-				_m.RegisteredAt = value.Time
+				_m.RegisteredAt = time.Time(value.Time)
 			}
 		case car.ForeignKeys[0]:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
-				return fmt.Errorf("unexpected type %T for edge-field user_cars", value)
+				return fmt.Errorf("unexpected type %T for field user_cars", values[i])
 			} else if value.Valid {
 				_m.user_cars = new(int)
 				*_m.user_cars = int(value.Int64)

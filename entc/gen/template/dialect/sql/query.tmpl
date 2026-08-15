@@ -112,8 +112,8 @@ func ({{ $receiver }} *{{ $builder }}) sqlAll(ctx context.Context, hooks ...quer
 	func ({{ $receiver }} *{{ $builder }}) load{{ $e.StructField }}(ctx context.Context, query *{{ $e.Type.QueryName }}, nodes []*{{ $.Name }}, init func(*{{ $.Name }}), assign func(*{{ $.Name }}, *{{ $e.Type.Name }})) error {
 		{{- if $e.M2M }}
 			edgeIDs := make([]driver.Value, len(nodes))
-			byID := make(map[{{ $.ID.Type }}]*{{ $.Name }})
-			nids := make(map[{{ $e.Type.ID.Type }}]map[*{{ $.Name }}]struct{})
+			byID := make(map[{{ $.ID.GoType }}]*{{ $.Name }})
+			nids := make(map[{{ $e.Type.ID.GoType }}]map[*{{ $.Name }}]struct{})
 			for i, node := range nodes {
 				{{- if $.ID.HasValueScanner }}
 					vv, err := {{ $.ID.ValueFunc }}(node.ID)
@@ -169,7 +169,7 @@ func ({{ $receiver }} *{{ $builder }}) sqlAll(ctx context.Context, hooks ...quer
 					}
 					spec.Assign = func(columns []string, values []any) error {
 						{{- if $.ID.HasValueScanner }}
-							var outValue {{ $.ID.Type }}
+							var outValue {{ $.ID.GoType }}
 							{{- with extend $ "Arg" "values[0]" "Field" $.ID "ScanType" $out "Ident" "outValue" }}
 								{{ template "dialect/sql/query/eagerloading/m2massign" . }}
 							{{- end }}
@@ -177,7 +177,7 @@ func ({{ $receiver }} *{{ $builder }}) sqlAll(ctx context.Context, hooks ...quer
 							outValue := {{- with extend $ "Arg" "values[0]" "Field" $.ID "ScanType" $out }}{{ template "dialect/sql/query/eagerloading/m2massignexpr" . }}{{- end }}
 						{{- end }}
 						{{- if $e.Type.ID.HasValueScanner }}
-							var inValue {{ $e.Type.ID.Type }}
+							var inValue {{ $e.Type.ID.GoType }}
 							{{- with extend $ "Arg" "values[1]" "Field" $e.Type.ID "ScanType" $in "Ident" "inValue" }}
 								{{ template "dialect/sql/query/eagerloading/m2massign" . }}
 							{{- end }}
@@ -207,8 +207,8 @@ func ({{ $receiver }} *{{ $builder }}) sqlAll(ctx context.Context, hooks ...quer
 				}
 			}
 		{{- else if $e.OwnFK }}
-			ids := make([]{{ $e.Type.ID.Type }}, 0, len(nodes))
-			nodeids := make(map[{{ $e.Type.ID.Type }}][]*{{ $.Name }})
+			ids := make([]{{ $e.Type.ID.GoType }}, 0, len(nodes))
+			nodeids := make(map[{{ $e.Type.ID.GoType }}][]*{{ $.Name }})
 			for i := range nodes {
 				{{- $fk := $e.ForeignKey }}
 				{{- if $fk.Field.Nillable }}
@@ -241,7 +241,7 @@ func ({{ $receiver }} *{{ $builder }}) sqlAll(ctx context.Context, hooks ...quer
 			}
 		{{- else }}
 			fks := make([]driver.Value, 0, len(nodes))
-			nodeids := make(map[{{ $.ID.Type }}]*{{ $.Name }})
+			nodeids := make(map[{{ $.ID.GoType }}]*{{ $.Name }})
 			for i := range nodes {
 				{{- if $.ID.HasValueScanner }}
 					vv, err := {{ $.ID.ValueFunc }}(nodes[i].ID)
@@ -317,7 +317,7 @@ func ({{ $receiver }} *{{ $builder }}) sqlCount(ctx context.Context) (int, error
 }
 
 func ({{ $receiver }} *{{ $builder }}) querySpec() *sqlgraph.QuerySpec {
-	_spec := sqlgraph.NewQuerySpec({{ $.Package }}.Table, {{ $.Package }}.Columns, {{ if $.HasOneFieldID }}sqlgraph.NewFieldSpec({{ $.Package }}.{{ $.ID.Constant }}, field.{{ $.ID.Type.ConstName }}){{ else }}nil{{ end }})
+	_spec := sqlgraph.NewQuerySpec({{ $.Package }}.Table, {{ $.Package }}.Columns, {{ if $.HasOneFieldID }}sqlgraph.NewFieldSpec({{ $.Package }}.{{ $.ID.Constant }}, field.{{ $.ID.TypeConst }}){{ else }}nil{{ end }})
 	{{- /* Setup any intermediate queries if exist (traversal path). */}}
 	_spec.From = {{ $receiver }}.sql
 	if unique := {{ $receiver }}.ctx.Unique; unique != nil {

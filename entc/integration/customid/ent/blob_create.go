@@ -108,7 +108,9 @@ func (_c *BlobCreate) Mutation() *BlobMutation {
 
 // Save creates the Blob in the database.
 func (_c *BlobCreate) Save(ctx context.Context) (*Blob, error) {
-	_c.defaults()
+	if err := _c.defaults(); err != nil {
+		return nil, err
+	}
 	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
 }
 
@@ -135,8 +137,11 @@ func (_c *BlobCreate) ExecX(ctx context.Context) {
 }
 
 // defaults sets the default values of the builder before save.
-func (_c *BlobCreate) defaults() {
+func (_c *BlobCreate) defaults() error {
 	if _, ok := _c.mutation.UUID(); !ok {
+		if blob.DefaultUUID == nil {
+			return fmt.Errorf("ent: uninitialized blob.DefaultUUID (forgotten import ent/runtime?)")
+		}
 		v := blob.DefaultUUID()
 		_c.mutation.SetUUID(v)
 	}
@@ -145,9 +150,13 @@ func (_c *BlobCreate) defaults() {
 		_c.mutation.SetCount(v)
 	}
 	if _, ok := _c.mutation.ID(); !ok {
+		if blob.DefaultID == nil {
+			return fmt.Errorf("ent: uninitialized blob.DefaultID (forgotten import ent/runtime?)")
+		}
 		v := blob.DefaultID()
 		_c.mutation.SetID(v)
 	}
+	return nil
 }
 
 // check runs all checks and user-defined validators on the builder.

@@ -108,19 +108,19 @@ func (_m *Pet) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field name", values[i])
 			} else if value.Valid {
-				_m.Name = value.String
+				_m.Name = string(value.String)
 			}
 		case pet.FieldAge:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
 				return fmt.Errorf("unexpected type %T for field age", values[i])
 			} else if value.Valid {
-				_m.Age = value.Float64
+				_m.Age = float64(value.Float64)
 			}
 		case pet.FieldWeight:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
 				return fmt.Errorf("unexpected type %T for field weight", values[i])
 			} else if value.Valid {
-				_m.Weight = value.Float64
+				_m.Weight = float64(value.Float64)
 			}
 		case pet.FieldBestFriendID:
 			if value, ok := values[i].(*uuid.UUID); !ok {

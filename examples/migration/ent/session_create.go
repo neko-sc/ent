@@ -74,7 +74,7 @@ func (_c *SessionCreate) SetNillableToken(v *string) *SessionCreate {
 }
 
 // SetMethod sets the "method" field.
-func (_c *SessionCreate) SetMethod(v map[string]interface{}) *SessionCreate {
+func (_c *SessionCreate) SetMethod(v map[string]any) *SessionCreate {
 	_c.mutation.SetMethod(v)
 	return _c
 }
@@ -119,7 +119,9 @@ func (_c *SessionCreate) Mutation() *SessionMutation {
 
 // Save creates the Session in the database.
 func (_c *SessionCreate) Save(ctx context.Context) (*Session, error) {
-	_c.defaults()
+	if err := _c.defaults(); err != nil {
+		return nil, err
+	}
 	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
 }
 
@@ -146,15 +148,19 @@ func (_c *SessionCreate) ExecX(ctx context.Context) {
 }
 
 // defaults sets the default values of the builder before save.
-func (_c *SessionCreate) defaults() {
+func (_c *SessionCreate) defaults() error {
 	if _, ok := _c.mutation.Active(); !ok {
 		v := session.DefaultActive
 		_c.mutation.SetActive(v)
 	}
 	if _, ok := _c.mutation.ID(); !ok {
+		if session.DefaultID == nil {
+			return fmt.Errorf("ent: uninitialized session.DefaultID (forgotten import ent/runtime?)")
+		}
 		v := session.DefaultID()
 		_c.mutation.SetID(v)
 	}
+	return nil
 }
 
 // check runs all checks and user-defined validators on the builder.

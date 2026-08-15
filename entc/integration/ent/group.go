@@ -125,29 +125,29 @@ func (_m *Group) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case group.FieldID:
-			value, ok := values[i].(*sql.NullInt64)
-			if !ok {
-				return fmt.Errorf("unexpected type %T for field id", value)
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field id", values[i])
+			} else if value.Valid {
+				_m.ID = int(value.Int64)
 			}
-			_m.ID = int(value.Int64)
 		case group.FieldActive:
 			if value, ok := values[i].(*sql.NullBool); !ok {
 				return fmt.Errorf("unexpected type %T for field active", values[i])
 			} else if value.Valid {
-				_m.Active = value.Bool
+				_m.Active = bool(value.Bool)
 			}
 		case group.FieldExpire:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field expire", values[i])
 			} else if value.Valid {
-				_m.Expire = value.Time
+				_m.Expire = time.Time(value.Time)
 			}
 		case group.FieldType:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field type", values[i])
 			} else if value.Valid {
 				_m.Type = new(string)
-				*_m.Type = value.String
+				*_m.Type = string(value.String)
 			}
 		case group.FieldMaxUsers:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -159,11 +159,11 @@ func (_m *Group) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field name", values[i])
 			} else if value.Valid {
-				_m.Name = value.String
+				_m.Name = string(value.String)
 			}
 		case group.ForeignKeys[0]:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
-				return fmt.Errorf("unexpected type %T for edge-field group_info", value)
+				return fmt.Errorf("unexpected type %T for field group_info", values[i])
 			} else if value.Valid {
 				_m.group_info = new(int)
 				*_m.group_info = int(value.Int64)

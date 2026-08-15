@@ -81,28 +81,28 @@ func (_m *User) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case user.FieldID:
-			value, ok := values[i].(*sql.NullInt64)
-			if !ok {
-				return fmt.Errorf("unexpected type %T for field id", value)
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field id", values[i])
+			} else if value.Valid {
+				_m.ID = int(value.Int64)
 			}
-			_m.ID = int(value.Int64)
 		case user.FieldAge:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
 				return fmt.Errorf("unexpected type %T for field age", values[i])
 			} else if value.Valid {
-				_m.Age = value.Float64
+				_m.Age = float64(value.Float64)
 			}
 		case user.FieldFirstName:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field first_name", values[i])
 			} else if value.Valid {
-				_m.FirstName = value.String
+				_m.FirstName = string(value.String)
 			}
 		case user.FieldLastName:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field last_name", values[i])
 			} else if value.Valid {
-				_m.LastName = value.String
+				_m.LastName = string(value.String)
 			}
 		case user.FieldTags:
 			if value, ok := values[i].(*[]byte); !ok {

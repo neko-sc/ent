@@ -39,7 +39,13 @@ func init() {
 	// taskDescTitle is the schema descriptor for title field.
 	taskDescTitle := taskFields[0].Descriptor()
 	// task.TitleValidator is a validator for the "title" field. It is called by the builders before save.
-	task.TitleValidator = taskDescTitle.Validators[0].(func(string) error)
+	task.TitleValidator = func(value string) error {
+		validators := taskDescTitle.Validators
+		if err := validators[0].(func(string) error)(value); err != nil {
+			return err
+		}
+		return nil
+	}
 	teamMixin := schema.Team{}.Mixin()
 	team.Policy = privacy.NewPolicies(teamMixin[0], schema.Team{})
 	team.Hooks[0] = func(next ent.Mutator) ent.Mutator {
@@ -55,7 +61,13 @@ func init() {
 	// teamDescName is the schema descriptor for name field.
 	teamDescName := teamFields[0].Descriptor()
 	// team.NameValidator is a validator for the "name" field. It is called by the builders before save.
-	team.NameValidator = teamDescName.Validators[0].(func(string) error)
+	team.NameValidator = func(value string) error {
+		validators := teamDescName.Validators
+		if err := validators[0].(func(string) error)(value); err != nil {
+			return err
+		}
+		return nil
+	}
 	userMixin := schema.User{}.Mixin()
 	user.Policy = privacy.NewPolicies(userMixin[0], userMixin[1], schema.User{})
 	user.Hooks[0] = func(next ent.Mutator) ent.Mutator {
@@ -71,7 +83,13 @@ func init() {
 	// userDescName is the schema descriptor for name field.
 	userDescName := userFields[0].Descriptor()
 	// user.NameValidator is a validator for the "name" field. It is called by the builders before save.
-	user.NameValidator = userDescName.Validators[0].(func(string) error)
+	user.NameValidator = func(value string) error {
+		validators := userDescName.Validators
+		if err := validators[0].(func(string) error)(value); err != nil {
+			return err
+		}
+		return nil
+	}
 }
 
 const (

@@ -4,6 +4,8 @@ package user
 
 import (
 	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/examples/compositetypes/ent/schema"
+	"github.com/neko-sc/ent/schema/field"
 )
 
 const (
@@ -32,6 +34,13 @@ func ValidColumn(column string) bool {
 	}
 	return false
 }
+
+var (
+	// ValueScanner of all User fields.
+	ValueScanner struct {
+		Address field.TypeValueScanner[*schema.Address]
+	}
+)
 
 // OrderOption defines the ordering options for the User queries.
 type OrderOption func(*sql.Selector)

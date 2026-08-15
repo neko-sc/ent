@@ -23,7 +23,7 @@ SPDX-License-Identifier: Apache-2.0
 {{ range $f := $fields }}
 	{{ $func := print "Set" $f.StructField }}
 	// {{ $func }} sets the "{{ $f.Name }}" field.
-	func ({{ $receiver }} *{{ $builder }}) {{ $func }}(v {{ $f.Type }}) *{{ $builder }} {
+	func ({{ $receiver }} *{{ $builder }}) {{ $func }}(v {{ $f.GoType }}) *{{ $builder }} {
 		{{- /* setting numeric type override previous calls to Add. */}}
 		{{- if and $updater $f.SupportsMutationAdd }}
 			{{ $receiver }}.mutation.{{ $f.MutationReset }}()
@@ -37,9 +37,9 @@ SPDX-License-Identifier: Apache-2.0
 	{{ $nillableU := and $updater (not $f.UpdateDefault) }}
 	{{ $nillableFunc := print "SetNillable" $f.StructField }}
 	{{ $skipNillable := false }}{{ range $fields }}{{ if and (ne .Name $f.Name) (eq .MutationSet $nillableFunc) }}{{ $skipNillable = true }}{{ break }}{{ end }}{{ end }}
-	{{ if and (not $f.Type.Nillable) (not $skipNillable) (or $nillableC $nillableU) }}
+	{{ if and (not $f.TypeNillable) (not $skipNillable) (or $nillableC $nillableU) }}
 		// {{ $nillableFunc }} sets the "{{ $f.Name }}" field if the given value is not nil.
-		func ({{ $receiver }} *{{ $builder }}) {{ $nillableFunc }}(v *{{ $f.Type }}) *{{ $builder }} {
+		func ({{ $receiver }} *{{ $builder }}) {{ $nillableFunc }}(v *{{ $f.GoType }}) *{{ $builder }} {
 			if v != nil {
 				{{ $receiver }}.{{ $func }}(*v)
 			}
@@ -49,7 +49,7 @@ SPDX-License-Identifier: Apache-2.0
 
 	{{ if and $updater $f.SupportsMutationAdd }}
 		// {{ $f.MutationAdd }} adds value to the "{{ $f.Name }}" field.
-		func ({{ $receiver }} *{{ $builder }}) {{ $f.MutationAdd }}(v {{ $f.SignedType }}) *{{ $builder }} {
+		func ({{ $receiver }} *{{ $builder }}) {{ $f.MutationAdd }}(v {{ $f.MutationAddType }}) *{{ $builder }} {
 			{{ $receiver }}.mutation.{{ $f.MutationAdd }}(v)
 			return {{ $receiver }}
 		}
@@ -57,7 +57,7 @@ SPDX-License-Identifier: Apache-2.0
 
 	{{ if and $updater $f.SupportsMutationAppend }}
 		// {{ $f.MutationAppend }} appends value to the "{{ $f.Name }}" field.
-		func ({{ $receiver }} *{{ $builder }}) {{ $f.MutationAppend }}(v {{ $f.Type }}) *{{ $builder }} {
+		func ({{ $receiver }} *{{ $builder }}) {{ $f.MutationAppend }}(v {{ $f.GoType }}) *{{ $builder }} {
 			{{ $receiver }}.mutation.{{ $f.MutationAppend }}(v)
 			return {{ $receiver }}
 		}
@@ -83,7 +83,7 @@ SPDX-License-Identifier: Apache-2.0
 	{{ $withSetter := not $e.HasFieldSetter }}
 	{{ if $withSetter }}
 		// {{ $idsFunc }} {{ $op }}s the "{{ $e.Name }}" edge to the {{ $e.Type.Name }} entity by ID{{ if not $e.Unique }}s{{ end }}.
-		func ({{ $receiver }} *{{ $builder }}) {{ $idsFunc }}({{ if $e.Unique }}id{{ else }}ids ...{{ end }} {{ $e.Type.ID.Type }}) *{{ $builder }} {
+		func ({{ $receiver }} *{{ $builder }}) {{ $idsFunc }}({{ if $e.Unique }}id{{ else }}ids ...{{ end }} {{ $e.Type.ID.GoType }}) *{{ $builder }} {
 			{{ $receiver }}.mutation.{{ $idsFunc }}({{ if $e.Unique }}id{{ else }}ids ...{{ end }})
 			return {{ $receiver }}
 		}
@@ -91,7 +91,7 @@ SPDX-License-Identifier: Apache-2.0
 	{{ if and $e.Unique $e.Optional $withSetter }}
 		{{ $nillableIDsFunc := print "SetNillable" $e.StructField "ID" }}
 		// {{ $nillableIDsFunc }} sets the "{{ $e.Name }}" edge to the {{ $e.Type.Name }} entity by ID if the given value is not nil.
-		func ({{ $receiver }} *{{ $builder }}) {{ $nillableIDsFunc }}(id *{{ $e.Type.ID.Type }}) *{{ $builder }} {
+		func ({{ $receiver }} *{{ $builder }}) {{ $nillableIDsFunc }}(id *{{ $e.Type.ID.GoType }}) *{{ $builder }} {
 			if id != nil {
 				{{ $receiver}} = {{ $receiver }}.{{ $idsFunc }}(*id)
 			}
@@ -104,7 +104,7 @@ SPDX-License-Identifier: Apache-2.0
 		{{ if $e.Unique -}}
 			return {{ $receiver }}.{{ $idsFunc }}(v.ID)
 		{{- else -}}
-			ids := make([]{{ $e.Type.ID.Type }}, len(v))
+			ids := make([]{{ $e.Type.ID.GoType }}, len(v))
 			for i := range v {
 				ids[i] = v[i].ID
 			}

@@ -93,7 +93,7 @@ func (_m *RoleUser) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
 			} else if value.Valid {
-				_m.CreatedAt = value.Time
+				_m.CreatedAt = time.Time(value.Time)
 			}
 		case roleuser.FieldRoleID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {

@@ -35,7 +35,7 @@ import (
 	"github.com/neko-sc/ent/entc/integration/ent/pc"
 	"github.com/neko-sc/ent/entc/integration/ent/pet"
 	"github.com/neko-sc/ent/entc/integration/ent/spec"
-	enttask "github.com/neko-sc/ent/entc/integration/ent/task"
+	"github.com/neko-sc/ent/entc/integration/ent/task"
 	"github.com/neko-sc/ent/entc/integration/ent/user"
 
 	stdsql "database/sql"
@@ -2897,13 +2897,13 @@ func NewTaskClient(c config) *TaskClient {
 }
 
 // Use adds a list of mutation hooks to the hooks stack.
-// A call to `Use(f, g, h)` equals to `enttask.Hooks(f(g(h())))`.
+// A call to `Use(f, g, h)` equals to `task.Hooks(f(g(h())))`.
 func (c *TaskClient) Use(hooks ...Hook) {
 	c.hooks.Task = append(c.hooks.Task, hooks...)
 }
 
 // Intercept adds a list of query interceptors to the interceptors stack.
-// A call to `Intercept(f, g, h)` equals to `enttask.Intercept(f(g(h())))`.
+// A call to `Intercept(f, g, h)` equals to `task.Intercept(f(g(h())))`.
 func (c *TaskClient) Intercept(interceptors ...Interceptor) {
 	c.inters.Task = append(c.inters.Task, interceptors...)
 }
@@ -2965,7 +2965,7 @@ func (c *TaskClient) DeleteOne(_m *Task) *TaskDeleteOne {
 
 // DeleteOneID returns a builder for deleting the given entity by its id.
 func (c *TaskClient) DeleteOneID(id int) *TaskDeleteOne {
-	builder := c.Delete().Where(enttask.ID(id))
+	builder := c.Delete().Where(task.ID(id))
 	builder.mutation.id = &id
 	builder.mutation.SetOp(OpDeleteOne)
 	return &TaskDeleteOne{builder}
@@ -2982,7 +2982,7 @@ func (c *TaskClient) Query() *TaskQuery {
 
 // Get returns a Task entity by its id.
 func (c *TaskClient) Get(ctx context.Context, id int) (*Task, error) {
-	return c.Query().Where(enttask.ID(id)).Only(ctx)
+	return c.Query().Where(task.ID(id)).Only(ctx)
 }
 
 // GetX is like Get, but panics if an error occurs.

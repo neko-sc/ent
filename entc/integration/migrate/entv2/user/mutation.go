@@ -88,8 +88,8 @@ func (m *Mutation) ResetMixedString() {
 }
 
 // SetMixedEnum sets the "mixed_enum" field.
-func (m *Mutation) SetMixedEnum(ue MixedEnum) {
-	m.mixed_enum = &ue
+func (m *Mutation) SetMixedEnum(me MixedEnum) {
+	m.mixed_enum = &me
 }
 
 // MixedEnum returns the value of the "mixed_enum" field in the mutation.
@@ -388,8 +388,8 @@ func (m *Mutation) ResetBlob() {
 }
 
 // SetState sets the "state" field.
-func (m *Mutation) SetState(u State) {
-	m.state = &u
+func (m *Mutation) SetState(s State) {
+	m.state = &s
 }
 
 // State returns the value of the "state" field in the mutation.
@@ -420,8 +420,8 @@ func (m *Mutation) ResetState() {
 }
 
 // SetStatus sets the "status" field.
-func (m *Mutation) SetStatus(u Status) {
-	m.status = &u
+func (m *Mutation) SetStatus(s Status) {
+	m.status = &s
 }
 
 // Status returns the value of the "status" field in the mutation.

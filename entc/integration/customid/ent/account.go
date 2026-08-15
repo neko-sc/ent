@@ -80,7 +80,7 @@ func (_m *Account) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field email", values[i])
 			} else if value.Valid {
-				_m.Email = value.String
+				_m.Email = string(value.String)
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])

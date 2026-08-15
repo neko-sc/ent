@@ -85,7 +85,9 @@ func (_c *TweetTagCreate) Mutation() *TweetTagMutation {
 
 // Save creates the TweetTag in the database.
 func (_c *TweetTagCreate) Save(ctx context.Context) (*TweetTag, error) {
-	_c.defaults()
+	if err := _c.defaults(); err != nil {
+		return nil, err
+	}
 	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
 }
 
@@ -112,15 +114,22 @@ func (_c *TweetTagCreate) ExecX(ctx context.Context) {
 }
 
 // defaults sets the default values of the builder before save.
-func (_c *TweetTagCreate) defaults() {
+func (_c *TweetTagCreate) defaults() error {
 	if _, ok := _c.mutation.AddedAt(); !ok {
+		if tweettag.DefaultAddedAt == nil {
+			return fmt.Errorf("ent: uninitialized tweettag.DefaultAddedAt (forgotten import ent/runtime?)")
+		}
 		v := tweettag.DefaultAddedAt()
 		_c.mutation.SetAddedAt(v)
 	}
 	if _, ok := _c.mutation.ID(); !ok {
+		if tweettag.DefaultID == nil {
+			return fmt.Errorf("ent: uninitialized tweettag.DefaultID (forgotten import ent/runtime?)")
+		}
 		v := tweettag.DefaultID()
 		_c.mutation.SetID(v)
 	}
+	return nil
 }
 
 // check runs all checks and user-defined validators on the builder.

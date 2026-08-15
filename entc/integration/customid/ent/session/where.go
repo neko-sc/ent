@@ -37,26 +37,6 @@ func IDNotIn(ids ...schema.ID) predicate.Session {
 	return predicate.Session(sql.FieldNotIn(FieldID, ids...))
 }
 
-// IDGT applies the GT predicate on the ID field.
-func IDGT(id schema.ID) predicate.Session {
-	return predicate.Session(sql.FieldGT(FieldID, id))
-}
-
-// IDGTE applies the GTE predicate on the ID field.
-func IDGTE(id schema.ID) predicate.Session {
-	return predicate.Session(sql.FieldGTE(FieldID, id))
-}
-
-// IDLT applies the LT predicate on the ID field.
-func IDLT(id schema.ID) predicate.Session {
-	return predicate.Session(sql.FieldLT(FieldID, id))
-}
-
-// IDLTE applies the LTE predicate on the ID field.
-func IDLTE(id schema.ID) predicate.Session {
-	return predicate.Session(sql.FieldLTE(FieldID, id))
-}
-
 // HasDevice applies the HasEdge predicate on the "device" edge.
 func HasDevice() predicate.Session {
 	return predicate.Session(func(s *sql.Selector) {

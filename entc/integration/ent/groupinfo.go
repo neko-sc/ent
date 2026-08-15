@@ -73,16 +73,16 @@ func (_m *GroupInfo) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case groupinfo.FieldID:
-			value, ok := values[i].(*sql.NullInt64)
-			if !ok {
-				return fmt.Errorf("unexpected type %T for field id", value)
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field id", values[i])
+			} else if value.Valid {
+				_m.ID = int(value.Int64)
 			}
-			_m.ID = int(value.Int64)
 		case groupinfo.FieldDesc:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field desc", values[i])
 			} else if value.Valid {
-				_m.Desc = value.String
+				_m.Desc = string(value.String)
 			}
 		case groupinfo.FieldMaxUsers:
 			if value, ok := values[i].(*sql.NullInt64); !ok {

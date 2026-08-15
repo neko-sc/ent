@@ -17,7 +17,7 @@ import (
 func main() {
 	opts := []entc.Option{
 		entc.Dependency(
-			entc.DependencyType(&secrets.Keeper{}),
+			entc.DependencyType[*secrets.Keeper](),
 		),
 		entc.FeatureNames("intercept"),
 	}

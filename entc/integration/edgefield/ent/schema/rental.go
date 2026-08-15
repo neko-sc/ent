@@ -23,10 +23,10 @@ type Rental struct {
 func (Rental) Fields() []ent.Field {
 	return []ent.Field{
 		field.Time("date").
-			Default(time.Now),
+			DefaultFunc(time.Now),
 		field.Int("user_id").
 			Immutable(),
-		field.UUID("car_id", uuid.UUID{}).
+		field.UUID[uuid.UUID]("car_id").
 			Immutable(),
 	}
 }

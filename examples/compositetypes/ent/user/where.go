@@ -3,6 +3,8 @@
 package user
 
 import (
+	"fmt"
+
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/examples/compositetypes/ent/predicate"
 	"github.com/neko-sc/ent/examples/compositetypes/ent/schema"
@@ -55,47 +57,102 @@ func IDLTE(id int) predicate.User {
 
 // Address applies equality check predicate on the "address" field. It's identical to AddressEQ.
 func Address(v *schema.Address) predicate.User {
-	return predicate.User(sql.FieldEQ(FieldAddress, v))
+	vc, err := ValueScanner.Address.Value(v)
+	return predicate.UserOrErr(sql.FieldEQ(FieldAddress, vc), err)
 }
 
 // AddressEQ applies the EQ predicate on the "address" field.
 func AddressEQ(v *schema.Address) predicate.User {
-	return predicate.User(sql.FieldEQ(FieldAddress, v))
+	vc, err := ValueScanner.Address.Value(v)
+	return predicate.UserOrErr(sql.FieldEQ(FieldAddress, vc), err)
 }
 
 // AddressNEQ applies the NEQ predicate on the "address" field.
 func AddressNEQ(v *schema.Address) predicate.User {
-	return predicate.User(sql.FieldNEQ(FieldAddress, v))
+	vc, err := ValueScanner.Address.Value(v)
+	return predicate.UserOrErr(sql.FieldNEQ(FieldAddress, vc), err)
 }
 
 // AddressIn applies the In predicate on the "address" field.
 func AddressIn(vs ...*schema.Address) predicate.User {
-	return predicate.User(sql.FieldIn(FieldAddress, vs...))
+	var (
+		err error
+		v   = make([]any, len(vs))
+	)
+	for i := range v {
+		if v[i], err = ValueScanner.Address.Value(vs[i]); err != nil {
+			break
+		}
+	}
+	return predicate.UserOrErr(sql.FieldIn(FieldAddress, v...), err)
 }
 
 // AddressNotIn applies the NotIn predicate on the "address" field.
 func AddressNotIn(vs ...*schema.Address) predicate.User {
-	return predicate.User(sql.FieldNotIn(FieldAddress, vs...))
+	var (
+		err error
+		v   = make([]any, len(vs))
+	)
+	for i := range v {
+		if v[i], err = ValueScanner.Address.Value(vs[i]); err != nil {
+			break
+		}
+	}
+	return predicate.UserOrErr(sql.FieldNotIn(FieldAddress, v...), err)
 }
 
 // AddressGT applies the GT predicate on the "address" field.
 func AddressGT(v *schema.Address) predicate.User {
-	return predicate.User(sql.FieldGT(FieldAddress, v))
+	vc, err := ValueScanner.Address.Value(v)
+	return predicate.UserOrErr(sql.FieldGT(FieldAddress, vc), err)
 }
 
 // AddressGTE applies the GTE predicate on the "address" field.
 func AddressGTE(v *schema.Address) predicate.User {
-	return predicate.User(sql.FieldGTE(FieldAddress, v))
+	vc, err := ValueScanner.Address.Value(v)
+	return predicate.UserOrErr(sql.FieldGTE(FieldAddress, vc), err)
 }
 
 // AddressLT applies the LT predicate on the "address" field.
 func AddressLT(v *schema.Address) predicate.User {
-	return predicate.User(sql.FieldLT(FieldAddress, v))
+	vc, err := ValueScanner.Address.Value(v)
+	return predicate.UserOrErr(sql.FieldLT(FieldAddress, vc), err)
 }
 
 // AddressLTE applies the LTE predicate on the "address" field.
 func AddressLTE(v *schema.Address) predicate.User {
-	return predicate.User(sql.FieldLTE(FieldAddress, v))
+	vc, err := ValueScanner.Address.Value(v)
+	return predicate.UserOrErr(sql.FieldLTE(FieldAddress, vc), err)
+}
+
+// AddressContains applies the Contains predicate on the "address" field.
+func AddressContains(v *schema.Address) predicate.User {
+	vc, err := ValueScanner.Address.Value(v)
+	vcs, ok := vc.(string)
+	if err == nil && !ok {
+		err = fmt.Errorf("address value is not a string: %T", vc)
+	}
+	return predicate.UserOrErr(sql.FieldContains(FieldAddress, vcs), err)
+}
+
+// AddressHasPrefix applies the HasPrefix predicate on the "address" field.
+func AddressHasPrefix(v *schema.Address) predicate.User {
+	vc, err := ValueScanner.Address.Value(v)
+	vcs, ok := vc.(string)
+	if err == nil && !ok {
+		err = fmt.Errorf("address value is not a string: %T", vc)
+	}
+	return predicate.UserOrErr(sql.FieldHasPrefix(FieldAddress, vcs), err)
+}
+
+// AddressHasSuffix applies the HasSuffix predicate on the "address" field.
+func AddressHasSuffix(v *schema.Address) predicate.User {
+	vc, err := ValueScanner.Address.Value(v)
+	vcs, ok := vc.(string)
+	if err == nil && !ok {
+		err = fmt.Errorf("address value is not a string: %T", vc)
+	}
+	return predicate.UserOrErr(sql.FieldHasSuffix(FieldAddress, vcs), err)
 }
 
 // And groups predicates with the AND operator between them.

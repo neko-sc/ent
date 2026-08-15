@@ -21,7 +21,7 @@ type UserTweet struct {
 func (UserTweet) Fields() []ent.Field {
 	return []ent.Field{
 		field.Time("created_at").
-			Default(time.Now),
+			DefaultFunc(time.Now),
 		field.Int("user_id"),
 		field.Int("tweet_id"),
 	}

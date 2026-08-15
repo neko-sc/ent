@@ -21,7 +21,7 @@ func main() {
 		log.Fatal("reading template file:", err)
 	}
 	intTmpl := template.Must(template.New("numeric").
-		Funcs(template.FuncMap{"title": strings.Title, "hasPrefix": strings.HasPrefix, "toUpper": strings.ToUpper}).
+		Funcs(template.FuncMap{"title": strings.Title, "hasPrefix": strings.HasPrefix, "eq": func(a, b string) bool { return a == b }}).
 		Parse(string(buf)))
 	b := &bytes.Buffer{}
 	if err := intTmpl.Execute(b, struct {

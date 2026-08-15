@@ -22,7 +22,7 @@ func (Role) Fields() []ent.Field {
 		field.String("name").
 			Unique(),
 		field.Time("created_at").
-			Default(time.Now),
+			DefaultFunc(time.Now),
 	}
 }
 

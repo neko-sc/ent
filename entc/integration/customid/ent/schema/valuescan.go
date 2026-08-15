@@ -24,9 +24,8 @@ type ValueScanID struct {
 // Fields of the ValueScan.
 func (ValueScan) Fields() []ent.Field {
 	return []ent.Field{
-		field.Int("id").
-			GoType(ValueScanID{}).
-			ValueScanner(field.ValueScannerFunc[ValueScanID, *sql.NullInt64]{
+		field.IntAs[ValueScanID]("id").
+			Codec(field.ValueScannerFunc[ValueScanID, *sql.NullInt64]{
 				V: func(id ValueScanID) (driver.Value, error) {
 					return int64(id.V), nil
 				},

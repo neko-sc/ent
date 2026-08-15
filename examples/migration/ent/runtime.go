@@ -34,7 +34,13 @@ func init() {
 	// paymentDescAmount is the schema descriptor for amount field.
 	paymentDescAmount := paymentFields[1].Descriptor()
 	// payment.AmountValidator is a validator for the "amount" field. It is called by the builders before save.
-	payment.AmountValidator = paymentDescAmount.Validators[0].(func(float64) error)
+	payment.AmountValidator = func(value float64) error {
+		validators := paymentDescAmount.Validators
+		if err := validators[0].(func(float64) error)(value); err != nil {
+			return err
+		}
+		return nil
+	}
 	petFields := schema.Pet{}.Fields()
 	_ = petFields
 	// petDescOwnerID is the schema descriptor for owner_id field.
@@ -60,15 +66,33 @@ func init() {
 	// sessiondeviceDescIPAddress is the schema descriptor for ip_address field.
 	sessiondeviceDescIPAddress := sessiondeviceFields[1].Descriptor()
 	// sessiondevice.IPAddressValidator is a validator for the "ip_address" field. It is called by the builders before save.
-	sessiondevice.IPAddressValidator = sessiondeviceDescIPAddress.Validators[0].(func(string) error)
+	sessiondevice.IPAddressValidator = func(value string) error {
+		validators := sessiondeviceDescIPAddress.Validators
+		if err := validators[0].(func(string) error)(value); err != nil {
+			return err
+		}
+		return nil
+	}
 	// sessiondeviceDescUserAgent is the schema descriptor for user_agent field.
 	sessiondeviceDescUserAgent := sessiondeviceFields[2].Descriptor()
 	// sessiondevice.UserAgentValidator is a validator for the "user_agent" field. It is called by the builders before save.
-	sessiondevice.UserAgentValidator = sessiondeviceDescUserAgent.Validators[0].(func(string) error)
+	sessiondevice.UserAgentValidator = func(value string) error {
+		validators := sessiondeviceDescUserAgent.Validators
+		if err := validators[0].(func(string) error)(value); err != nil {
+			return err
+		}
+		return nil
+	}
 	// sessiondeviceDescLocation is the schema descriptor for location field.
 	sessiondeviceDescLocation := sessiondeviceFields[3].Descriptor()
 	// sessiondevice.LocationValidator is a validator for the "location" field. It is called by the builders before save.
-	sessiondevice.LocationValidator = sessiondeviceDescLocation.Validators[0].(func(string) error)
+	sessiondevice.LocationValidator = func(value string) error {
+		validators := sessiondeviceDescLocation.Validators
+		if err := validators[0].(func(string) error)(value); err != nil {
+			return err
+		}
+		return nil
+	}
 	// sessiondeviceDescID is the schema descriptor for id field.
 	sessiondeviceDescID := sessiondeviceFields[0].Descriptor()
 	// sessiondevice.DefaultID holds the default value on creation for the id field.

@@ -4,11 +4,14 @@
 package gen
 
 import (
+	"bytes"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/neko-sc/ent/dialect/entsql"
@@ -24,9 +27,9 @@ var (
 	T1 = &load.Schema{
 		Name: "T1",
 		Fields: []*load.Field{
-			{Name: "age", Info: &field.TypeInfo{Type: field.TypeInt}, Optional: true},
-			{Name: "expired_at", Info: &field.TypeInfo{Type: field.TypeTime}, Nillable: true, Optional: true},
-			{Name: "name", Info: &field.TypeInfo{Type: field.TypeString}, Default: true},
+			{Name: "age", Type: field.TypeInt, Semantic: builtinFieldType(field.TypeInt), Optional: true},
+			{Name: "expired_at", Type: field.TypeTime, Semantic: builtinFieldType(field.TypeTime), Nillable: true, Optional: true},
+			{Name: "name", Type: field.TypeString, Semantic: builtinFieldType(field.TypeString), Default: true},
 		},
 		Edges: []*load.Edge{
 			{Name: "t2", Type: "T2", Required: true},
@@ -53,7 +56,7 @@ var (
 		Name:        "T2",
 		Annotations: dict("GQL", map[string]string{"Name": "T2"}),
 		Fields: []*load.Field{
-			{Name: "active", Info: &field.TypeInfo{Type: field.TypeBool}},
+			{Name: "active", Type: field.TypeBool, Semantic: builtinFieldType(field.TypeBool)},
 		},
 		Edges: []*load.Edge{
 			{Name: "t1", Type: "T1", RefName: "t2", Inverse: true},
@@ -209,7 +212,7 @@ func TestNewGraphDuplicateEdgeField(t *testing.T) {
 		&load.Schema{
 			Name: "User",
 			Fields: []*load.Field{
-				{Name: "parent", Info: &field.TypeInfo{Type: field.TypeInt}},
+				{Name: "parent", Type: field.TypeInt, Semantic: builtinFieldType(field.TypeInt)},
 			},
 			Edges: []*load.Edge{
 				{Name: "parent", Type: "User"},
@@ -358,7 +361,7 @@ func TestAbortDuplicateFK(t *testing.T) {
 		pet = &load.Schema{
 			Name: "Pet",
 			Fields: []*load.Field{
-				{Name: "owner_id", Info: &field.TypeInfo{Type: field.TypeInt}, Nillable: true, Optional: true},
+				{Name: "owner_id", Type: field.TypeInt, Semantic: builtinFieldType(field.TypeInt), Nillable: true, Optional: true},
 			},
 			Edges: []*load.Edge{
 				{Name: "owner", Type: "User", RefName: "pets", Inverse: true, Unique: true},
@@ -367,7 +370,7 @@ func TestAbortDuplicateFK(t *testing.T) {
 		car = &load.Schema{
 			Name: "Car",
 			Fields: []*load.Field{
-				{Name: "owner_id", Info: &field.TypeInfo{Type: field.TypeInt}, Nillable: true, Optional: true},
+				{Name: "owner_id", Type: field.TypeInt, Semantic: builtinFieldType(field.TypeInt), Nillable: true, Optional: true},
 			},
 			Edges: []*load.Edge{
 				{Name: "owner", Type: "User", RefName: "cars", Inverse: true, Unique: true},
@@ -420,8 +423,8 @@ func TestPosition(t *testing.T) {
 			Name: "CarOwner",
 			Pos:  "car_owner.go:1000",
 			Fields: []*load.Field{
-				{Name: "user_id", Info: &field.TypeInfo{Type: field.TypeInt}},
-				{Name: "car_id", Info: &field.TypeInfo{Type: field.TypeInt}},
+				{Name: "user_id", Type: field.TypeInt, Semantic: builtinFieldType(field.TypeInt)},
+				{Name: "car_id", Type: field.TypeInt, Semantic: builtinFieldType(field.TypeInt)},
 			},
 			Edges: []*load.Edge{
 				{Name: "owner", Type: "User", Field: "user_id", Unique: true, Required: true},
@@ -497,7 +500,7 @@ func TestEnsureCorrectFK(t *testing.T) {
 		pet = &load.Schema{
 			Name: "Pet",
 			Fields: []*load.Field{
-				{Name: "owner_id", Info: &field.TypeInfo{Type: field.TypeInt}, Nillable: true, Optional: true},
+				{Name: "owner_id", Type: field.TypeInt, Semantic: builtinFieldType(field.TypeInt), Nillable: true, Optional: true},
 			},
 			Edges: []*load.Edge{
 				{Name: "owner", Type: "User", RefName: "pets", Inverse: true, Unique: true},
@@ -513,6 +516,143 @@ func TestEnsureCorrectFK(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestGraph_GenSemanticFields(t *testing.T) {
+	require := require.New(t)
+	spec, err := (&load.Config{Path: "../load/testdata/semantic"}).Load()
+	require.NoError(err)
+	user := spec.Schemas[1]
+	require.Equal("User", user.Name)
+	target := filepath.Join(t.TempDir(), "ent")
+	graph, err := NewGraph(&Config{
+		Schema:  spec.PkgPath,
+		Package: "github.com/neko-sc/ent/entc/gen/testdata/semanticent/ent",
+		Target:  target,
+		Storage: drivers[0],
+		IDType:  new(field.TypeInt),
+	}, spec.Schemas...)
+	require.NoError(err)
+	graph.Features = []Feature{FeatureEntQL}
+	require.NoError(graph.Gen())
+
+	model, err := os.ReadFile(filepath.Join(target, "user.go"))
+	require.NoError(err)
+	require.Contains(string(model), "Payload semantic.Envelope[map[string][]*semantic.Phantom[url.URL, [2]int], chan<- func(url.URL) error]")
+	require.Contains(string(model), "Restrictions []schema_types.RestrictionType")
+	require.Contains(string(model), "_m.CreatedAt.Format(time.ANSIC)")
+	require.Contains(string(model), `fmt.Sprintf("%v", _m.FormattedAt)`)
+	mutation, err := os.ReadFile(filepath.Join(target, "user", "mutation.go"))
+	require.NoError(err)
+	require.Contains(string(mutation), "\"github.com/google/uuid\"")
+	require.Contains(string(mutation), "map[uuid.UUID]struct{}")
+	require.Contains(string(mutation), "func (m *Mutation) SetStatus(s semantic.Status)")
+	require.Contains(string(mutation), "func (m *Mutation) AddBigInt(")
+	require.Contains(string(mutation), " semantic.BigInt)")
+	require.Contains(string(mutation), "m.addbig_int = m.addbig_int.Add(")
+	require.Contains(string(mutation), "func (m *Mutation) AddDuration(")
+	require.Contains(string(mutation), " time2.Duration)")
+	require.Contains(string(mutation), "func (m *Mutation) AppendRaw(")
+	require.Contains(string(mutation), " json.RawMessage)")
+	runtime, err := os.ReadFile(filepath.Join(target, "runtime.go"))
+	require.NoError(err)
+	require.Contains(string(runtime), "\"github.com/google/uuid\"")
+	require.Contains(string(runtime), "func() uuid.UUID")
+	require.Contains(string(runtime), "field.TypeValueScanner[semantic.Status]")
+	require.Contains(string(runtime), "func(semantic.Status) error")
+	encodedValidatorStart := strings.Index(string(runtime), "user.EncodedValidator = func(value semantic.EncodedBytes) error")
+	require.GreaterOrEqual(encodedValidatorStart, 0)
+	encodedValidator := string(runtime)[encodedValidatorStart:]
+	firstRepresentationValidator := strings.Index(encodedValidator, "validators[0].(func(semantic.EncodedBytes) error)(value)")
+	logicalValidator := strings.Index(encodedValidator, "validators[1].(func([]uint8) error)(value)")
+	secondRepresentationValidator := strings.Index(encodedValidator, "validators[2].(func(semantic.EncodedBytes) error)(value)")
+	require.GreaterOrEqual(firstRepresentationValidator, 0)
+	require.Greater(logicalValidator, firstRepresentationValidator)
+	require.Greater(secondRepresentationValidator, logicalValidator)
+	require.Contains(string(runtime), "user.DefaultStatus = userDescStatus.Default.(semantic.Status)")
+	require.Contains(string(runtime), "user.UpdateDefaultStatus = userDescStatus.UpdateDefault.(func() semantic.Status)")
+	require.NotContains(string(runtime), "user.DefaultState =")
+	require.Contains(string(runtime), "userPhaseDefault := userDescPhase.Default.(func() string)")
+	require.Contains(string(runtime), "user.DefaultPhase = func() user.Phase { return user.Phase(userPhaseDefault()) }")
+	require.Contains(string(runtime), "userPhaseUpdateDefault := userDescPhase.UpdateDefault.(func() string)")
+	require.Contains(string(runtime), "user.UpdateDefaultPhase = func() user.Phase { return user.Phase(userPhaseUpdateDefault()) }")
+	meta, err := os.ReadFile(filepath.Join(target, "user", "user.go"))
+	require.NoError(err)
+	require.Contains(string(meta), "StatusValidator func(semantic.Status) error")
+	require.NotContains(string(meta), "type Status string")
+	require.Contains(string(meta), "const DefaultState semantic.Status = \"ready\"")
+	require.Contains(string(meta), "func StateValuesValidator(s semantic.Status) error")
+	require.Contains(string(meta), "type Phase string")
+	require.Contains(string(meta), "DefaultPhase func() Phase")
+	require.Contains(string(meta), "UpdateDefaultPhase func() Phase")
+	require.NotContains(string(meta), "const DefaultPhase")
+	require.Regexp(`PhaseActive\s+Phase = "active"`, string(meta))
+	require.Contains(string(meta), "func ByLink(opts ...sql.OrderTermOption) OrderOption")
+	require.NotContains(string(meta), "func ByRaw(opts ...sql.OrderTermOption) OrderOption")
+	require.NotContains(string(meta), "func ByDocument(opts ...sql.OrderTermOption) OrderOption")
+	where, err := os.ReadFile(filepath.Join(target, "user", "where.go"))
+	require.NoError(err)
+	require.Contains(string(where), "func LinkContains(v semantic.Link)")
+	require.Contains(string(where), "vc := v.String()")
+	require.NotContains(string(where), "vc := v\n")
+	require.NotContains(string(where), "make([]any, len(ids))")
+	require.Contains(string(where), "func StatusEQ(v semantic.Status)")
+	decode, err := os.ReadFile(filepath.Join(target, "user.go"))
+	require.NoError(err)
+	require.Contains(string(decode), "&sql.NullScanner{S: new(semantic.Link)}")
+	require.Contains(string(decode), "value.Valid")
+	create, err := os.ReadFile(filepath.Join(target, "user_create.go"))
+	require.NoError(err)
+	require.Contains(string(create), "func (_c *UserCreate) check() error")
+	require.Contains(string(create), "user.EncodedValidator(v)")
+	require.NotContains(string(create), "user.EncodedValidator([]byte(v))")
+	require.Contains(string(create), "v.Validate()")
+	require.Contains(string(create), "user.StateValuesValidator(v)")
+	require.Contains(string(create), "user.StateValidator(v)")
+	update, err := os.ReadFile(filepath.Join(target, "user_update.go"))
+	require.NoError(err)
+	require.Contains(string(update), "func (_u *UserUpdate) check() error")
+	require.Contains(string(update), "user.EncodedValidator(v)")
+	require.NotContains(string(update), "user.EncodedValidator([]byte(v))")
+	require.Contains(string(update), "v.Validate()")
+	require.Contains(string(update), "user.StateValuesValidator(v)")
+	require.Contains(string(update), "user.StateValidator(v)")
+	entqlFile, err := os.ReadFile(filepath.Join(target, "entql.go"))
+	require.NoError(err)
+	require.Contains(string(entqlFile), "func (f *UserFilter) WhereBigInt(p entql.IntP)")
+	require.Contains(string(entqlFile), "f.Where(p.Field(user.FieldBigInt))")
+	require.Contains(string(entqlFile), "func (f *UserFilter) WhereLink(p entql.StringP)")
+	require.Contains(string(entqlFile), "f.Where(p.Field(user.FieldLink))")
+	require.Contains(string(entqlFile), "func (f *UserFilter) WhereRaw(p entql.BytesP)")
+	require.Contains(string(entqlFile), "f.Where(p.Field(user.FieldRaw))")
+
+	workingDirectory, err := os.Getwd()
+	require.NoError(err)
+	module := filepath.Clean(filepath.Join(workingDirectory, "../.."))
+	require.NoError(os.WriteFile(filepath.Join(filepath.Dir(target), "go.mod"), []byte("module github.com/neko-sc/ent/entc/gen/testdata/semanticent\n\ngo 1.26\n\nrequire github.com/neko-sc/ent v0.0.0\n\nreplace github.com/neko-sc/ent => "+module+"\n"), 0o644))
+	require.NoError(os.WriteFile(filepath.Join(target, "validator_test.go"), []byte(`package ent
+
+import (
+	"testing"
+
+	"github.com/neko-sc/ent/entc/gen/testdata/semanticent/ent/user"
+	"github.com/neko-sc/ent/entc/load/testdata/semantic"
+	"github.com/stretchr/testify/require"
+)
+
+func TestEncodedValidator_PreservesValueAndOrder(t *testing.T) {
+	semantic.EncodedValidatorCalls = nil
+	require.NoError(t, user.EncodedValidator(semantic.EncodedBytes("represented")))
+	require.Equal(t, []string{
+		"representation:first:represented",
+		"representation:second:represented",
+	}, semantic.EncodedValidatorCalls)
+}
+`), 0o644))
+	command := exec.Command("go", "test", "-mod=mod", "./...")
+	command.Dir = filepath.Dir(target)
+	output, err := command.CombinedOutput()
+	require.NoError(err, string(output))
+}
+
 func TestGraph_Gen(t *testing.T) {
 	require := require.New(t)
 	target := filepath.Join(t.TempDir(), "ent")
@@ -522,9 +662,9 @@ func TestGraph_Gen(t *testing.T) {
 		{
 			Name: "T1",
 			Fields: []*load.Field{
-				{Name: "age", Info: &field.TypeInfo{Type: field.TypeInt}, Optional: true},
-				{Name: "expired_at", Info: &field.TypeInfo{Type: field.TypeTime}, Nillable: true, Optional: true},
-				{Name: "name", Info: &field.TypeInfo{Type: field.TypeString}},
+				{Name: "age", Type: field.TypeInt, Semantic: builtinFieldType(field.TypeInt), Optional: true},
+				{Name: "expired_at", Type: field.TypeTime, Semantic: builtinFieldType(field.TypeTime), Nillable: true, Optional: true},
+				{Name: "name", Type: field.TypeString, Semantic: builtinFieldType(field.TypeString)},
 			},
 			Edges: []*load.Edge{
 				{Name: "t1", Type: "T1", Unique: true},
@@ -538,7 +678,7 @@ func TestGraph_Gen(t *testing.T) {
 		Target:    target,
 		Storage:   drivers[0],
 		Templates: []*Template{external, skipped},
-		IDType:    &field.TypeInfo{Type: field.TypeInt},
+		IDType:    new(field.TypeInt),
 		Features:  AllFeatures,
 	}, schemas...)
 	require.NoError(err)
@@ -597,7 +737,7 @@ func TestGraph_Gen(t *testing.T) {
 		Target:    target,
 		Storage:   drivers[0],
 		Templates: []*Template{external, skipped},
-		IDType:    &field.TypeInfo{Type: field.TypeInt},
+		IDType:    new(field.TypeInt),
 		Features:  AllFeatures,
 	}, schemas...)
 	require.NoError(err)
@@ -634,14 +774,14 @@ func TestGraph_Hooks(t *testing.T) {
 	graph, err := NewGraph(&Config{
 		Package: "entc/gen",
 		Storage: drivers[0],
-		IDType:  &field.TypeInfo{Type: field.TypeInt},
+		IDType:  new(field.TypeInt),
 		Hooks:   []Hook{ensureStructTag("yaml")},
 	}, &load.Schema{
 		Name: "T1",
 		Fields: []*load.Field{
-			{Name: "age", Info: &field.TypeInfo{Type: field.TypeInt}, Optional: true},
-			{Name: "expired_at", Info: &field.TypeInfo{Type: field.TypeTime}, Nillable: true, Optional: true},
-			{Name: "name", Info: &field.TypeInfo{Type: field.TypeString}},
+			{Name: "age", Type: field.TypeInt, Semantic: builtinFieldType(field.TypeInt), Optional: true},
+			{Name: "expired_at", Type: field.TypeTime, Semantic: builtinFieldType(field.TypeTime), Nillable: true, Optional: true},
+			{Name: "name", Type: field.TypeString, Semantic: builtinFieldType(field.TypeString)},
 		},
 		Edges: []*load.Edge{
 			{Name: "t1", Type: "T1", Unique: true},
@@ -653,40 +793,23 @@ func TestGraph_Hooks(t *testing.T) {
 }
 
 func TestDependencyAnnotation_Build(t *testing.T) {
+	named := func(packageName, name string) *load.TypeExpression {
+		return &load.TypeExpression{Kind: load.TypeKindNamed, Named: &load.TypeName{Package: load.Package{Name: packageName}, Name: name}}
+	}
+	pointer := func(typ *load.TypeExpression) *load.TypeExpression {
+		return &load.TypeExpression{Kind: load.TypeKindPointer, Element: typ}
+	}
+	slice := func(typ *load.TypeExpression) *load.TypeExpression {
+		return &load.TypeExpression{Kind: load.TypeKindSlice, Element: typ}
+	}
 	tests := []struct {
-		typ   *field.TypeInfo
+		typ   *load.TypeExpression
 		field string
 	}{
-		{
-			typ: &field.TypeInfo{
-				Ident: "*http.Client",
-			},
-			field: "HTTPClient",
-		},
-		{
-			typ: &field.TypeInfo{
-				Ident: "[]*http.Client",
-				RType: &field.RType{
-					Kind: reflect.Slice,
-				},
-			},
-			field: "HTTPClients",
-		},
-		{
-			typ: &field.TypeInfo{
-				Ident: "[]*url.URL",
-				RType: &field.RType{
-					Kind: reflect.Slice,
-				},
-			},
-			field: "URLs",
-		},
-		{
-			typ: &field.TypeInfo{
-				Ident: "*net.Conn",
-			},
-			field: "NetConn",
-		},
+		{typ: pointer(named("http", "Client")), field: "HTTPClient"},
+		{typ: slice(pointer(named("http", "Client"))), field: "HTTPClients"},
+		{typ: slice(pointer(named("url", "URL"))), field: "URLs"},
+		{typ: pointer(named("net", "Conn")), field: "NetConn"},
 	}
 	for _, tt := range tests {
 		d := &Dependency{Type: tt.typ}
@@ -695,18 +818,96 @@ func TestDependencyAnnotation_Build(t *testing.T) {
 	}
 }
 
+func TestGraph_ClientDependencies(t *testing.T) {
+	tests := []struct {
+		name         string
+		dependencies Dependencies
+		imports      []Import
+		rendered     []string
+	}{
+		{
+			name: "deduplicates same package",
+			dependencies: Dependencies{
+				{Field: "Client", Type: namedType("example.com/service", "service", "Client")},
+				{Field: "Config", Type: namedType("example.com/service", "service", "Config")},
+			},
+			imports:  []Import{{Path: "example.com/service"}},
+			rendered: []string{"service.Client", "service.Config"},
+		},
+		{
+			name: "allocates colliding package names jointly",
+			dependencies: Dependencies{
+				{Field: "First", Type: namedType("example.com/first/shared", "shared", "Client")},
+				{Field: "Second", Type: namedType("example.com/second/shared", "shared", "Client")},
+			},
+			imports: []Import{
+				{Path: "example.com/first/shared"},
+				{Alias: "shared2", Path: "example.com/second/shared"},
+			},
+			rendered: []string{"shared.Client", "shared2.Client"},
+		},
+		{
+			name: "aliases fixed qualifier collision",
+			dependencies: Dependencies{
+				{Field: "Predicate", Type: namedType("example.com/predicate", "predicate", "Predicate")},
+			},
+			imports:  []Import{{Alias: "predicate2", Path: "example.com/predicate"}},
+			rendered: []string{"predicate2.Predicate"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			graph := Graph{Config: &Config{
+				Package:     "example.com/ent",
+				Annotations: Annotations{tt.dependencies.Name(): tt.dependencies},
+			}}
+			data, err := graph.ClientDependencies()
+			require.NoError(t, err)
+			require.Equal(t, tt.imports, data.Imports)
+			for index, rendered := range tt.rendered {
+				require.Equal(t, rendered, data.Dependencies[index].RenderedType)
+			}
+		})
+	}
+}
+
+func TestGraph_ClientTemplateDependencies(t *testing.T) {
+	storage, err := NewStorage("sql")
+	require.NoError(t, err)
+	target := t.TempDir()
+	dependencies := Dependencies{
+		{Field: "First", Option: "First", Type: namedType("example.com/first/shared", "shared", "Client")},
+		{Field: "Second", Option: "Second", Type: namedType("example.com/second/shared", "shared", "Client")},
+	}
+	graph, err := NewGraph(&Config{
+		Target:      target,
+		Package:     "example.com/ent",
+		Storage:     storage,
+		Annotations: Annotations{dependencies.Name(): dependencies},
+	}, &load.Schema{Name: "User"})
+	require.NoError(t, err)
+	templates, _ := graph.templates()
+	var output bytes.Buffer
+	require.NoError(t, templates.ExecuteTemplate(&output, "client", graph))
+	source := output.String()
+	require.Equal(t, 1, strings.Count(source, `"example.com/first/shared"`))
+	require.Equal(t, 1, strings.Count(source, `shared2 "example.com/second/shared"`))
+	require.Contains(t, source, "First shared.Client")
+	require.Contains(t, source, "Second shared2.Client")
+}
+
 func TestEdgeFieldCollation(t *testing.T) {
 	var (
 		user = &load.Schema{
 			Name: "User",
 			Fields: []*load.Field{
-				{Name: "id", Info: &field.TypeInfo{Type: field.TypeString}, Annotations: dict("EntSQL", dict("collation", "utf8mb4_bin"))},
+				{Name: "id", Type: field.TypeString, Semantic: builtinFieldType(field.TypeString), Annotations: dict("EntSQL", dict("collation", "utf8mb4_bin"))},
 			},
 		}
 		post = &load.Schema{
 			Name: "Post",
 			Fields: []*load.Field{
-				{Name: "author_id", Info: &field.TypeInfo{Type: field.TypeString}, Annotations: dict("EntSQL", dict("collation", "utf8mb4_bin"))},
+				{Name: "author_id", Type: field.TypeString, Semantic: builtinFieldType(field.TypeString), Annotations: dict("EntSQL", dict("collation", "utf8mb4_bin"))},
 			},
 			Edges: []*load.Edge{
 				{Name: "author", Type: "User", Field: "author_id", Unique: true, Required: true},

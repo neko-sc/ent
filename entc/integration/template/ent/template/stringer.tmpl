@@ -19,9 +19,9 @@
                     {{- if $f.Nillable }}
                         if v := {{ $sf }}; v != nil {
                             builder.WriteString(", {{ $f.Name }}=")
-                            {{- if and $f.IsTime (not $f.HasGoType) }}
+                            {{- if and $f.IsTime $f.RepresentationIsBase }}
                                 builder.WriteString(v.Format(time.ANSIC))
-                            {{- else if and $f.IsString (not $f.HasGoType) }}
+                            {{- else if and $f.IsString $f.RepresentationIsBase }}
                                 builder.WriteString(*v)
                             {{- else }}
                                 builder.WriteString(fmt.Sprintf("%v", *v))
@@ -29,9 +29,9 @@
                         }
                     {{- else }}
                         builder.WriteString(", {{ $f.Name }}=")
-                        {{- if and $f.IsTime (not $f.HasGoType) }}
+                        {{- if and $f.IsTime $f.RepresentationIsBase }}
                             builder.WriteString({{ $sf }}.Format(time.ANSIC))
-                        {{- else if and $f.IsString (not $f.HasGoType) }}
+                        {{- else if and $f.IsString $f.RepresentationIsBase }}
                             builder.WriteString({{ $sf }})
                         {{- else }}
                             builder.WriteString(fmt.Sprintf("%v", {{ $sf }}))

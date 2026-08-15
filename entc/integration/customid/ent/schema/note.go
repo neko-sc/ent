@@ -4,10 +4,10 @@
 package schema
 
 import (
+	"github.com/google/uuid"
 	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/schema/edge"
 	"github.com/neko-sc/ent/schema/field"
-	"github.com/google/uuid"
 )
 
 type NoteID string
@@ -20,8 +20,7 @@ type Note struct {
 // Fields of the Note.
 func (Note) Fields() []ent.Field {
 	return []ent.Field{
-		field.String("id").
-			GoType(NoteID("")).
+		field.StringAs[NoteID]("id").
 			MaxLen(36).
 			NotEmpty().
 			Unique().

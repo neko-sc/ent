@@ -66,7 +66,9 @@ func (_c *LicenseCreate) Mutation() *LicenseMutation {
 
 // Save creates the License in the database.
 func (_c *LicenseCreate) Save(ctx context.Context) (*License, error) {
-	_c.defaults()
+	if err := _c.defaults(); err != nil {
+		return nil, err
+	}
 	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
 }
 
@@ -93,15 +95,22 @@ func (_c *LicenseCreate) ExecX(ctx context.Context) {
 }
 
 // defaults sets the default values of the builder before save.
-func (_c *LicenseCreate) defaults() {
+func (_c *LicenseCreate) defaults() error {
 	if _, ok := _c.mutation.CreateTime(); !ok {
+		if license.DefaultCreateTime == nil {
+			return fmt.Errorf("ent: uninitialized license.DefaultCreateTime (forgotten import ent/runtime?)")
+		}
 		v := license.DefaultCreateTime()
 		_c.mutation.SetCreateTime(v)
 	}
 	if _, ok := _c.mutation.UpdateTime(); !ok {
+		if license.DefaultUpdateTime == nil {
+			return fmt.Errorf("ent: uninitialized license.DefaultUpdateTime (forgotten import ent/runtime?)")
+		}
 		v := license.DefaultUpdateTime()
 		_c.mutation.SetUpdateTime(v)
 	}
+	return nil
 }
 
 // check runs all checks and user-defined validators on the builder.

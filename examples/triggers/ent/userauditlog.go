@@ -52,34 +52,34 @@ func (_m *UserAuditLog) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case userauditlog.FieldID:
-			value, ok := values[i].(*sql.NullInt64)
-			if !ok {
-				return fmt.Errorf("unexpected type %T for field id", value)
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field id", values[i])
+			} else if value.Valid {
+				_m.ID = int(value.Int64)
 			}
-			_m.ID = int(value.Int64)
 		case userauditlog.FieldOperationType:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field operation_type", values[i])
 			} else if value.Valid {
-				_m.OperationType = value.String
+				_m.OperationType = string(value.String)
 			}
 		case userauditlog.FieldOperationTime:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field operation_time", values[i])
 			} else if value.Valid {
-				_m.OperationTime = value.String
+				_m.OperationTime = string(value.String)
 			}
 		case userauditlog.FieldOldValue:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field old_value", values[i])
 			} else if value.Valid {
-				_m.OldValue = value.String
+				_m.OldValue = string(value.String)
 			}
 		case userauditlog.FieldNewValue:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field new_value", values[i])
 			} else if value.Valid {
-				_m.NewValue = value.String
+				_m.NewValue = string(value.String)
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])

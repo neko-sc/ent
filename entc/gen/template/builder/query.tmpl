@@ -114,8 +114,8 @@ func ({{ $receiver }} *{{ $builder }}) FirstX(ctx context.Context) *{{ $.Name }}
 {{ if $.HasOneFieldID }}
 	// FirstID returns the first {{ $.Name }} ID from the query.
 	// Returns a *NotFoundError when no {{ $.Name }} ID was found.
-	func ({{ $receiver }} *{{ $builder }}) FirstID(ctx context.Context) (id {{ $.ID.Type }}, err error) {
-		var ids []{{ $.ID.Type }}
+	func ({{ $receiver }} *{{ $builder }}) FirstID(ctx context.Context) (id {{ $.ID.GoType }}, err error) {
+		var ids []{{ $.ID.GoType }}
 		if ids, err = {{ $receiver }}.Limit(1).IDs(setContextOp(ctx, {{ $receiver }}.ctx, ent.OpQueryFirstID)); err != nil {
 			return
 		}
@@ -127,7 +127,7 @@ func ({{ $receiver }} *{{ $builder }}) FirstX(ctx context.Context) *{{ $.Name }}
 	}
 
 	// FirstIDX is like FirstID, but panics if an error occurs.
-	func ({{ $receiver }} *{{ $builder }}) FirstIDX(ctx context.Context) {{ $.ID.Type }} {
+	func ({{ $receiver }} *{{ $builder }}) FirstIDX(ctx context.Context) {{ $.ID.GoType }} {
 		id, err := {{ $receiver }}.FirstID(ctx)
 		if err != nil && !IsNotFound(err) {
 			panic(err)
@@ -167,8 +167,8 @@ func ({{ $receiver }} *{{ $builder }}) OnlyX(ctx context.Context) *{{ $.Name }} 
 	// OnlyID is like Only, but returns the only {{ $.Name }} ID in the query.
 	// Returns a *NotSingularError when more than one {{ $.Name }} ID is found.
 	// Returns a *NotFoundError when no entities are found.
-	func ({{ $receiver }} *{{ $builder }}) OnlyID(ctx context.Context) (id {{ $.ID.Type }}, err error) {
-		var ids []{{ $.ID.Type }}
+	func ({{ $receiver }} *{{ $builder }}) OnlyID(ctx context.Context) (id {{ $.ID.GoType }}, err error) {
+		var ids []{{ $.ID.GoType }}
 		if ids, err = {{ $receiver }}.Limit(2).IDs(setContextOp(ctx, {{ $receiver }}.ctx, ent.OpQueryOnlyID)); err != nil {
 			return
 		}
@@ -184,7 +184,7 @@ func ({{ $receiver }} *{{ $builder }}) OnlyX(ctx context.Context) *{{ $.Name }} 
 	}
 
 	// OnlyIDX is like OnlyID, but panics if an error occurs.
-	func ({{ $receiver }} *{{ $builder }}) OnlyIDX(ctx context.Context) {{ $.ID.Type }} {
+	func ({{ $receiver }} *{{ $builder }}) OnlyIDX(ctx context.Context) {{ $.ID.GoType }} {
 		id, err := {{ $receiver }}.OnlyID(ctx)
 		if err != nil {
 			panic(err)
@@ -214,7 +214,7 @@ func ({{ $receiver }} *{{ $builder }}) AllX(ctx context.Context) []*{{ $.Name }}
 
 {{ if $.HasOneFieldID }}
 	// IDs executes the query and returns a list of {{ $.Name }} IDs.
-	func ({{ $receiver }} *{{ $builder }}) IDs(ctx context.Context) (ids []{{ $.ID.Type }}, err error) {
+	func ({{ $receiver }} *{{ $builder }}) IDs(ctx context.Context) (ids []{{ $.ID.GoType }}, err error) {
 		{{- /* Since a graph traversal such as JOINs can return duplicate IDs, set the Unique modifier unless specified otherwise. */}}
 		if {{ $receiver }}.ctx.Unique == nil && {{ $receiver }}.path != nil {
 			{{ $receiver }}.Unique(true)
@@ -225,7 +225,7 @@ func ({{ $receiver }} *{{ $builder }}) AllX(ctx context.Context) []*{{ $.Name }}
 			if nodes, err = {{ $receiver }}.Select({{ $.Package }}.FieldID).All(ctx); err != nil {
 				return nil, err
 			}
-			ids = make([]{{ $.ID.Type }}, len(nodes))
+			ids = make([]{{ $.ID.GoType }}, len(nodes))
 			for i := range nodes {
 				ids[i] = nodes[i].ID
 			}
@@ -238,7 +238,7 @@ func ({{ $receiver }} *{{ $builder }}) AllX(ctx context.Context) []*{{ $.Name }}
 	}
 
 	// IDsX is like IDs, but panics if an error occurs.
-	func ({{ $receiver }} *{{ $builder }}) IDsX(ctx context.Context) []{{ $.ID.Type }} {
+	func ({{ $receiver }} *{{ $builder }}) IDsX(ctx context.Context) []{{ $.ID.GoType }} {
 		ids, err := {{ $receiver }}.IDs(ctx)
 		if err != nil {
 			panic(err)
@@ -336,7 +336,7 @@ func ({{ $receiver }} *{{ $builder }}) Clone() *{{ $builder }} {
 // Example:
 //
 //	var v []struct {
-//		{{ $f.StructField }} {{ $f.Type }} `{{ $f.StructTag }}`
+//		{{ $f.StructField }} {{ $f.GoType }} `{{ $f.StructTag }}`
 //		Count int `json:"count,omitempty"`
 //	}
 //
@@ -365,7 +365,7 @@ func ({{ $receiver }} *{{ $builder }}) GroupBy(field string, fields ...string) *
 // Example:
 //
 //	var v []struct {
-//		{{ $f.StructField }} {{ $f.Type }} `{{ $f.StructTag }}`
+//		{{ $f.StructField }} {{ $f.GoType }} `{{ $f.StructTag }}`
 //	}
 //
 //	client.{{ pascal $.Name }}.Query().

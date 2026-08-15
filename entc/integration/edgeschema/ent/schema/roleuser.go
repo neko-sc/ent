@@ -27,7 +27,7 @@ func (RoleUser) Annotations() []schema.Annotation {
 func (RoleUser) Fields() []ent.Field {
 	return []ent.Field{
 		field.Time("created_at").
-			Default(time.Now),
+			DefaultFunc(time.Now),
 		// Edge fields.
 		field.Int("role_id"),
 		field.Int("user_id"),

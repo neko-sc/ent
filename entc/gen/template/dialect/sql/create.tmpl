@@ -27,7 +27,7 @@ func ({{ $receiver }} *{{ $builder }}) sqlSave(ctx context.Context) (*{{ $.Name 
 		return nil, err
 	}
 	{{- if $.HasCompositeID }}
-	{{- else if or $.ID.HasValueScanner $.ID.Type.ValueScanner (not $.ID.Type.Numeric) }}
+	{{- else if or $.ID.HasValueScanner $.ID.TypeValueScanner (not $.ID.TypeNumeric) }}
 		if _spec.ID.Value != nil {
 			{{- if $.ID.HasValueScanner }}
 				sv, ok := _spec.ID.Value.(field.ValueScanner)
@@ -44,14 +44,14 @@ func ({{ $receiver }} *{{ $builder }}) sqlSave(ctx context.Context) (*{{ $.Name 
 				}
 			{{- else }}
 				{{- /* If the ID type is not a pointer, but implements the ValueScanner interface (e.g. UUID fields). */}}
-				{{- if and $.ID.Type.ValueScanner (not $.ID.Type.RType.IsPtr) }}
-					if id, ok := _spec.ID.Value.(*{{ $.ID.Type }}); ok {
+				{{- if and $.ID.TypeValueScanner (not $.ID.TypeNillable) }}
+					if id, ok := _spec.ID.Value.(*{{ $.ID.GoType }}); ok {
 						_node.ID = *id
 				{{- else }}
-					if id, ok := _spec.ID.Value.({{ $.ID.Type }}); ok {
+					if id, ok := _spec.ID.Value.({{ $.ID.GoType }}); ok {
 						_node.ID = id
 				{{- end }}
-				{{- if $.ID.Type.ValueScanner }}
+				{{- if $.ID.TypeValueScanner }}
 					} else if err := _node.ID.Scan(_spec.ID.Value); err != nil {
 						return nil, err
 				{{- else  }}
@@ -66,7 +66,7 @@ func ({{ $receiver }} *{{ $builder }}) sqlSave(ctx context.Context) (*{{ $.Name 
 			if _spec.ID.Value != _node.ID {
 		{{- end }}
 				id := _spec.ID.Value.(int64)
-				_node.ID = {{ $.ID.Type }}(id)
+				_node.ID = {{ $.ID.GoType }}(id)
 		{{- if $.ID.UserDefined }}
 			}
 		{{- end }}
@@ -81,7 +81,7 @@ func ({{ $receiver }} *{{ $builder }}) sqlSave(ctx context.Context) (*{{ $.Name 
 func ({{ $receiver }} *{{ $builder }}) createSpec() (*{{ $.Name }}, *sqlgraph.CreateSpec{{ if $.HasValueScanner }}, error{{ end }}) {
 	var (
 		_node = &{{ $.Name }}{config: {{ $receiver }}.config}
-		_spec = sqlgraph.NewCreateSpec({{ $.Package }}.Table, {{ if $.HasOneFieldID }}sqlgraph.NewFieldSpec({{ $.Package }}.{{ $.ID.Constant }}, field.{{ $.ID.Type.ConstName }}){{ else }}nil{{ end }})
+		_spec = sqlgraph.NewCreateSpec({{ $.Package }}.Table, {{ if $.HasOneFieldID }}sqlgraph.NewFieldSpec({{ $.Package }}.{{ $.ID.Constant }}, field.{{ $.ID.TypeConst }}){{ else }}nil{{ end }})
 	)
 	{{- /* Allow mutating the sqlgraph.CreateSpec by ent extensions or user templates.*/}}
 	{{- with $tmpls := matchTemplate "dialect/sql/create/spec/*" }}
@@ -99,7 +99,7 @@ func ({{ $receiver }} *{{ $builder }}) createSpec() (*{{ $.Name }}, *sqlgraph.Cr
 				}
 				_spec.ID.Value = vv
 			{{- else }}
-				_spec.ID.Value = {{ if and $.ID.Type.ValueScanner (not $.ID.Type.RType.IsPtr) }}&{{ end }}id
+				_spec.ID.Value = {{ if and $.ID.TypeValueScanner (not $.ID.TypeNillable) }}&{{ end }}id
 			{{- end }}
 		}
 	{{- end }}
@@ -110,9 +110,9 @@ func ({{ $receiver }} *{{ $builder }}) createSpec() (*{{ $.Name }}, *sqlgraph.Cr
 				if err != nil {
 					return nil, nil, err
 				}
-				_spec.SetField({{ $.Package }}.{{ $f.Constant }}, field.{{ $f.Type.ConstName }}, vv)
+				_spec.SetField({{ $.Package }}.{{ $f.Constant }}, field.{{ $f.TypeConst }}, vv)
 			{{- else }}
-				_spec.SetField({{ $.Package }}.{{ $f.Constant }}, field.{{ $f.Type.ConstName }}, value)
+				_spec.SetField({{ $.Package }}.{{ $f.Constant }}, field.{{ $f.TypeConst }}, value)
 			{{- end }}
 			_node.{{ $f.StructField }} = {{ if $f.NillableValue }}&{{ end }}value
 		}
@@ -233,7 +233,7 @@ func ({{ $receiver }} *{{ $builder }}) Save(ctx context.Context) ([]*{{ $.Name }
 								nodes[i].ID = id
 							}
 						}
-					{{- else if or $.ID.Type.ValueScanner }}
+					{{- else if or $.ID.TypeValueScanner }}
 						if specs[i].ID.Value != nil {
 							if err := nodes[i].ID.Scan(specs[i].ID.Value); err != nil {
 								return nil, err
@@ -242,7 +242,7 @@ func ({{ $receiver }} *{{ $builder }}) Save(ctx context.Context) ([]*{{ $.Name }
 					{{- else }}
 						if specs[i].ID.Value != nil {{ if $.ID.UserDefined }}&& nodes[i].ID == 0{{ end }} {
 							id := specs[i].ID.Value.(int64)
-							nodes[i].ID = {{ $.ID.Type }}(id)
+							nodes[i].ID = {{ $.ID.GoType }}(id)
 						}
 					{{- end }}
 				{{- end }}

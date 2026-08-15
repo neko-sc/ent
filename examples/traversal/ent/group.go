@@ -87,20 +87,20 @@ func (_m *Group) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case group.FieldID:
-			value, ok := values[i].(*sql.NullInt64)
-			if !ok {
-				return fmt.Errorf("unexpected type %T for field id", value)
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field id", values[i])
+			} else if value.Valid {
+				_m.ID = int(value.Int64)
 			}
-			_m.ID = int(value.Int64)
 		case group.FieldName:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field name", values[i])
 			} else if value.Valid {
-				_m.Name = value.String
+				_m.Name = string(value.String)
 			}
 		case group.ForeignKeys[0]:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
-				return fmt.Errorf("unexpected type %T for edge-field group_admin", value)
+				return fmt.Errorf("unexpected type %T for field group_admin", values[i])
 			} else if value.Valid {
 				_m.group_admin = new(int)
 				*_m.group_admin = int(value.Int64)

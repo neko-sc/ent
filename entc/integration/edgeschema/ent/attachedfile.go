@@ -92,16 +92,16 @@ func (_m *AttachedFile) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case attachedfile.FieldID:
-			value, ok := values[i].(*sql.NullInt64)
-			if !ok {
-				return fmt.Errorf("unexpected type %T for field id", value)
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field id", values[i])
+			} else if value.Valid {
+				_m.ID = int(value.Int64)
 			}
-			_m.ID = int(value.Int64)
 		case attachedfile.FieldAttachTime:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field attach_time", values[i])
 			} else if value.Valid {
-				_m.AttachTime = value.Time
+				_m.AttachTime = time.Time(value.Time)
 			}
 		case attachedfile.FieldFID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {

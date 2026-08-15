@@ -32,7 +32,7 @@ type Session struct {
 	// Token holds the value of the "token" field.
 	Token string `json:"token,omitempty"`
 	// Method holds the value of the "method" field.
-	Method map[string]interface{} `json:"method,omitempty"`
+	Method map[string]any `json:"method,omitempty"`
 	// DeviceID holds the value of the "device_id" field.
 	DeviceID uuid.UUID `json:"device_id,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -101,25 +101,25 @@ func (_m *Session) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullBool); !ok {
 				return fmt.Errorf("unexpected type %T for field active", values[i])
 			} else if value.Valid {
-				_m.Active = value.Bool
+				_m.Active = bool(value.Bool)
 			}
 		case session.FieldIssuedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field issued_at", values[i])
 			} else if value.Valid {
-				_m.IssuedAt = value.Time
+				_m.IssuedAt = time.Time(value.Time)
 			}
 		case session.FieldExpiresAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field expires_at", values[i])
 			} else if value.Valid {
-				_m.ExpiresAt = value.Time
+				_m.ExpiresAt = time.Time(value.Time)
 			}
 		case session.FieldToken:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field token", values[i])
 			} else if value.Valid {
-				_m.Token = value.String
+				_m.Token = string(value.String)
 			}
 		case session.FieldMethod:
 			if value, ok := values[i].(*[]byte); !ok {

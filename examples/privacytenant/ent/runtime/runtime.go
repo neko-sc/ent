@@ -52,7 +52,13 @@ func init() {
 	// tenantDescName is the schema descriptor for name field.
 	tenantDescName := tenantFields[0].Descriptor()
 	// tenant.NameValidator is a validator for the "name" field. It is called by the builders before save.
-	tenant.NameValidator = tenantDescName.Validators[0].(func(string) error)
+	tenant.NameValidator = func(value string) error {
+		validators := tenantDescName.Validators
+		if err := validators[0].(func(string) error)(value); err != nil {
+			return err
+		}
+		return nil
+	}
 	userMixin := schema.User{}.Mixin()
 	user.Policy = privacy.NewPolicies(userMixin[0], userMixin[1], schema.User{})
 	user.Hooks[0] = func(next ent.Mutator) ent.Mutator {

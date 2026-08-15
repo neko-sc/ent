@@ -49,7 +49,11 @@ func (*{{ $.Name }}) scanValues(columns []string) ([]any, error) {
 			{{- range $i, $fk := $.UnexportedForeignKeys }}
 				{{- $f := $fk.Field }}
 				case {{ $.Package }}.ForeignKeys[{{ $i }}]: // {{ $f.Name }}
-					values[i] = {{ if not $f.UserDefined }}new(sql.NullInt64){{ else }}{{ $f.NewScanType }}{{ end }}
+					{{- if $f.HasValueScanner }}
+					values[i] = {{ $f.ScanValueFunc }}()
+					{{- else }}
+					values[i] = {{ $f.NewScanType }}
+					{{- end }}
 			{{- end }}
 			default:
 				{{- /* In case of unknown column that was added by a modifier, predicate, etc., fallback to any. */}}
@@ -69,16 +73,8 @@ func ({{ $receiver }} *{{ $.Name }}) assignValues(columns []string, values []any
 		switch columns[i] {
 		{{- if $.HasOneFieldID }}
 			case {{ $.Package }}.{{ $.ID.Constant }}:
-				{{- if or $.ID.IsString $.ID.IsBytes $.ID.HasGoType $.ID.HasValueScanner }}
-					{{- with extend $ "Idx" "i" "Field" $.ID "Rec" $receiver }}
-						{{ template "dialect/sql/decode/field" . }}
-					{{- end }}
-				{{- else }}
-					value, ok := values[i].(*sql.NullInt64)
-					if !ok {
-						return fmt.Errorf("unexpected type %T for field id", value)
-					}
-					{{ $receiver }}.ID = {{ $.ID.Type }}(value.Int64)
+				{{- with extend $ "Idx" "i" "Field" $.ID "Rec" $receiver }}
+					{{ template "dialect/sql/decode/field" . }}
 				{{- end }}
 		{{- end }}
 		{{- range  $f := $.Fields }}
@@ -90,17 +86,8 @@ func ({{ $receiver }} *{{ $.Name }}) assignValues(columns []string, values []any
 		{{- range $i, $fk := $.UnexportedForeignKeys }}
 			{{- $f := $fk.Field }}
 			case {{ if $fk.UserDefined }}{{ $.Package }}.{{ $.ID.Constant }}{{ else }}{{ $.Package }}.ForeignKeys[{{ $i }}]{{ end }}:
-				{{- if or $fk.UserDefined (and $f.UserDefined (or $f.IsString $f.IsBytes $f.HasGoType)) }}
-					{{- with extend $ "Idx" "i" "Field" $f "Rec" $receiver "StructField" $fk.StructField }}
-						{{ template "dialect/sql/decode/field" . }}
-					{{- end }}
-				{{- else }}
-					if value, ok := values[i].(*sql.NullInt64); !ok {
-						return fmt.Errorf("unexpected type %T for edge-field {{ $f.Name}}", value)
-					} else if value.Valid {
-						{{ $receiver }}.{{ $fk.StructField }} = new({{ $f.Type }})
-						{{ if and $f.Nillable (not $f.Type.Nillable) }}*{{ end }}{{ $receiver }}.{{ $fk.StructField }} = {{ $f.Type }}(value.Int64)
-					}
+				{{- with extend $ "Idx" "i" "Field" $f "Rec" $receiver "StructField" $fk.StructField }}
+					{{ template "dialect/sql/decode/field" . }}
 				{{- end }}
 		{{- end }}
 		default:
@@ -144,14 +131,14 @@ func ({{ $receiver }} *{{ $.Name }}) {{ $.ValueName }}(name string) (ent.Value, 
 		{{- if hasPrefix $scantype "sql.Null" }}
 			} else if value.Valid {
 				{{- if $f.NillableValue }}
-					{{ $ret }}.{{ $field }} = new({{ $f.Type }})
+					{{ $ret }}.{{ $field }} = new({{ $f.GoType }})
 					*{{ $ret }}.{{ $field }} = {{ $f.ScanTypeField "value" }}
 				{{- else }}
 					{{ $ret }}.{{ $field }} = {{ $f.ScanTypeField "value" }}
 				{{- end }}
 		{{- else }}
 			} else if value != nil {
-				{{ $ret }}.{{ $field }} = {{ if and (not $f.Nillable) (not $f.Type.RType.IsPtr) }}*{{ end }}value
+				{{ $ret }}.{{ $field }} = {{ if and (not $f.Nillable) (not (hasPrefix $f.GoType "*")) }}*{{ end }}value
 		{{- end }}
 		}
 	{{- end }}

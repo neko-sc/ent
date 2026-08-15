@@ -24,8 +24,8 @@ import (
 	"github.com/neko-sc/ent/entc/integration/ent/node"
 	"github.com/neko-sc/ent/entc/integration/ent/pet"
 	"github.com/neko-sc/ent/entc/integration/ent/schema"
-	"github.com/neko-sc/ent/entc/integration/ent/schema/task"
-	enttask "github.com/neko-sc/ent/entc/integration/ent/task"
+	task2 "github.com/neko-sc/ent/entc/integration/ent/schema/task"
+	"github.com/neko-sc/ent/entc/integration/ent/task"
 	"github.com/neko-sc/ent/entc/integration/ent/user"
 
 	"github.com/neko-sc/ent/schema/field"
@@ -57,11 +57,23 @@ func init() {
 	// cardDescNumber is the schema descriptor for number field.
 	cardDescNumber := cardFields[1].Descriptor()
 	// card.NumberValidator is a validator for the "number" field. It is called by the builders before save.
-	card.NumberValidator = cardDescNumber.Validators[0].(func(string) error)
+	card.NumberValidator = func(value string) error {
+		validators := cardDescNumber.Validators
+		if err := validators[0].(func(string) error)(value); err != nil {
+			return err
+		}
+		return nil
+	}
 	// cardDescName is the schema descriptor for name field.
 	cardDescName := cardFields[2].Descriptor()
 	// card.NameValidator is a validator for the "name" field. It is called by the builders before save.
-	card.NameValidator = cardDescName.Validators[0].(func(string) error)
+	card.NameValidator = func(value string) error {
+		validators := cardDescName.Validators
+		if err := validators[0].(func(string) error)(value); err != nil {
+			return err
+		}
+		return nil
+	}
 	exvaluescanFields := schema.ExValueScan{}.Fields()
 	_ = exvaluescanFields
 	// exvaluescanDescBinary is the schema descriptor for binary field.
@@ -97,7 +109,13 @@ func init() {
 	// fieldtypeDescValidateOptionalInt32 is the schema descriptor for validate_optional_int32 field.
 	fieldtypeDescValidateOptionalInt32 := fieldtypeFields[15].Descriptor()
 	// fieldtype.ValidateOptionalInt32Validator is a validator for the "validate_optional_int32" field. It is called by the builders before save.
-	fieldtype.ValidateOptionalInt32Validator = fieldtypeDescValidateOptionalInt32.Validators[0].(func(int32) error)
+	fieldtype.ValidateOptionalInt32Validator = func(value int32) error {
+		validators := fieldtypeDescValidateOptionalInt32.Validators
+		if err := validators[0].(func(int32) error)(value); err != nil {
+			return err
+		}
+		return nil
+	}
 	// fieldtypeDescLinkOther is the schema descriptor for link_other field.
 	fieldtypeDescLinkOther := fieldtypeFields[27].Descriptor()
 	// fieldtype.DefaultLinkOther holds the default value on creation for the link_other field.
@@ -109,7 +127,13 @@ func init() {
 	// fieldtypeDescMAC is the schema descriptor for mac field.
 	fieldtypeDescMAC := fieldtypeFields[29].Descriptor()
 	// fieldtype.MACValidator is a validator for the "mac" field. It is called by the builders before save.
-	fieldtype.MACValidator = fieldtypeDescMAC.Validators[0].(func(string) error)
+	fieldtype.MACValidator = func(value schema.MAC) error {
+		validators := fieldtypeDescMAC.Validators
+		if err := validators[0].(func(schema.MAC) error)(value); err != nil {
+			return err
+		}
+		return nil
+	}
 	// fieldtypeDescDuration is the schema descriptor for duration field.
 	fieldtypeDescDuration := fieldtypeFields[33].Descriptor()
 	// fieldtype.UpdateDefaultDuration holds the default value on update for the duration field.
@@ -121,7 +145,13 @@ func init() {
 	// fieldtypeDescNdir is the schema descriptor for ndir field.
 	fieldtypeDescNdir := fieldtypeFields[35].Descriptor()
 	// fieldtype.NdirValidator is a validator for the "ndir" field. It is called by the builders before save.
-	fieldtype.NdirValidator = fieldtypeDescNdir.Validators[0].(func(string) error)
+	fieldtype.NdirValidator = func(value http.Dir) error {
+		validators := fieldtypeDescNdir.Validators
+		if err := validators[0].(func(string) error)(string(value)); err != nil {
+			return err
+		}
+		return nil
+	}
 	// fieldtypeDescStr is the schema descriptor for str field.
 	fieldtypeDescStr := fieldtypeFields[36].Descriptor()
 	// fieldtype.DefaultStr holds the default value on creation for the str field.
@@ -133,7 +163,13 @@ func init() {
 	// fieldtypeDescLink is the schema descriptor for link field.
 	fieldtypeDescLink := fieldtypeFields[38].Descriptor()
 	// fieldtype.LinkValidator is a validator for the "link" field. It is called by the builders before save.
-	fieldtype.LinkValidator = fieldtypeDescLink.Validators[0].(func(string) error)
+	fieldtype.LinkValidator = func(value schema.Link) error {
+		validators := fieldtypeDescLink.Validators
+		if err := validators[0].(func(string) error)(value.String()); err != nil {
+			return err
+		}
+		return nil
+	}
 	// fieldtypeDescDeletedAt is the schema descriptor for deleted_at field.
 	fieldtypeDescDeletedAt := fieldtypeFields[43].Descriptor()
 	// fieldtype.DefaultDeletedAt holds the default value on creation for the deleted_at field.
@@ -143,27 +179,28 @@ func init() {
 	// fieldtypeDescRawData is the schema descriptor for raw_data field.
 	fieldtypeDescRawData := fieldtypeFields[44].Descriptor()
 	// fieldtype.RawDataValidator is a validator for the "raw_data" field. It is called by the builders before save.
-	fieldtype.RawDataValidator = func() func([]byte) error {
+	fieldtype.RawDataValidator = func(value []byte) error {
 		validators := fieldtypeDescRawData.Validators
-		fns := [...]func([]byte) error{
-			validators[0].(func([]byte) error),
-			validators[1].(func([]byte) error),
+		if err := validators[0].(func([]uint8) error)(value); err != nil {
+			return err
 		}
-		return func(raw_data []byte) error {
-			for _, fn := range fns {
-				if err := fn(raw_data); err != nil {
-					return err
-				}
-			}
-			return nil
+		if err := validators[1].(func([]uint8) error)(value); err != nil {
+			return err
 		}
-	}()
+		return nil
+	}
 	// fieldtypeDescIP is the schema descriptor for ip field.
 	fieldtypeDescIP := fieldtypeFields[46].Descriptor()
 	// fieldtype.DefaultIP holds the default value on creation for the ip field.
 	fieldtype.DefaultIP = fieldtypeDescIP.Default.(func() net.IP)
 	// fieldtype.IPValidator is a validator for the "ip" field. It is called by the builders before save.
-	fieldtype.IPValidator = fieldtypeDescIP.Validators[0].(func([]byte) error)
+	fieldtype.IPValidator = func(value net.IP) error {
+		validators := fieldtypeDescIP.Validators
+		if err := validators[0].(func(net.IP) error)(value); err != nil {
+			return err
+		}
+		return nil
+	}
 	// fieldtypeDescPair is the schema descriptor for pair field.
 	fieldtypeDescPair := fieldtypeFields[59].Descriptor()
 	// fieldtype.DefaultPair holds the default value on creation for the pair field.
@@ -181,13 +218,25 @@ func init() {
 	// fileDescSetID is the schema descriptor for set_id field.
 	fileDescSetID := fileFields[0].Descriptor()
 	// file.SetIDValidator is a validator for the "set_id" field. It is called by the builders before save.
-	file.SetIDValidator = fileDescSetID.Validators[0].(func(int) error)
+	file.SetIDValidator = func(value int) error {
+		validators := fileDescSetID.Validators
+		if err := validators[0].(func(int) error)(value); err != nil {
+			return err
+		}
+		return nil
+	}
 	// fileDescSize is the schema descriptor for size field.
 	fileDescSize := fileFields[1].Descriptor()
 	// file.DefaultSize holds the default value on creation for the size field.
 	file.DefaultSize = fileDescSize.Default.(int)
 	// file.SizeValidator is a validator for the "size" field. It is called by the builders before save.
-	file.SizeValidator = fileDescSize.Validators[0].(func(int) error)
+	file.SizeValidator = func(value int) error {
+		validators := fileDescSize.Validators
+		if err := validators[0].(func(int) error)(value); err != nil {
+			return err
+		}
+		return nil
+	}
 	filetypeFields := schema.FileType{}.Fields()
 	_ = filetypeFields
 	groupFields := schema.Group{}.Fields()
@@ -199,45 +248,41 @@ func init() {
 	// groupDescType is the schema descriptor for type field.
 	groupDescType := groupFields[2].Descriptor()
 	// group.TypeValidator is a validator for the "type" field. It is called by the builders before save.
-	group.TypeValidator = func() func(string) error {
+	group.TypeValidator = func(value string) error {
 		validators := groupDescType.Validators
-		fns := [...]func(string) error{
-			validators[0].(func(string) error),
-			validators[1].(func(string) error),
+		if err := validators[0].(func(string) error)(value); err != nil {
+			return err
 		}
-		return func(_type string) error {
-			for _, fn := range fns {
-				if err := fn(_type); err != nil {
-					return err
-				}
-			}
-			return nil
+		if err := validators[1].(func(string) error)(value); err != nil {
+			return err
 		}
-	}()
+		return nil
+	}
 	// groupDescMaxUsers is the schema descriptor for max_users field.
 	groupDescMaxUsers := groupFields[3].Descriptor()
 	// group.DefaultMaxUsers holds the default value on creation for the max_users field.
 	group.DefaultMaxUsers = groupDescMaxUsers.Default.(int)
 	// group.MaxUsersValidator is a validator for the "max_users" field. It is called by the builders before save.
-	group.MaxUsersValidator = groupDescMaxUsers.Validators[0].(func(int) error)
+	group.MaxUsersValidator = func(value int) error {
+		validators := groupDescMaxUsers.Validators
+		if err := validators[0].(func(int) error)(value); err != nil {
+			return err
+		}
+		return nil
+	}
 	// groupDescName is the schema descriptor for name field.
 	groupDescName := groupFields[4].Descriptor()
 	// group.NameValidator is a validator for the "name" field. It is called by the builders before save.
-	group.NameValidator = func() func(string) error {
+	group.NameValidator = func(value string) error {
 		validators := groupDescName.Validators
-		fns := [...]func(string) error{
-			validators[0].(func(string) error),
-			validators[1].(func(string) error),
+		if err := validators[0].(func(string) error)(value); err != nil {
+			return err
 		}
-		return func(name string) error {
-			for _, fn := range fns {
-				if err := fn(name); err != nil {
-					return err
-				}
-			}
-			return nil
+		if err := validators[1].(func(string) error)(value); err != nil {
+			return err
 		}
-	}()
+		return nil
+	}
 	groupinfoFields := schema.GroupInfo{}.Fields()
 	_ = groupinfoFields
 	// groupinfoDescMaxUsers is the schema descriptor for max_users field.
@@ -249,13 +294,25 @@ func init() {
 	// itemDescText is the schema descriptor for text field.
 	itemDescText := itemFields[1].Descriptor()
 	// item.TextValidator is a validator for the "text" field. It is called by the builders before save.
-	item.TextValidator = itemDescText.Validators[0].(func(string) error)
+	item.TextValidator = func(value string) error {
+		validators := itemDescText.Validators
+		if err := validators[0].(func(string) error)(value); err != nil {
+			return err
+		}
+		return nil
+	}
 	// itemDescID is the schema descriptor for id field.
 	itemDescID := itemFields[0].Descriptor()
 	// item.DefaultID holds the default value on creation for the id field.
 	item.DefaultID = itemDescID.Default.(func() string)
 	// item.IDValidator is a validator for the "id" field. It is called by the builders before save.
-	item.IDValidator = itemDescID.Validators[0].(func(string) error)
+	item.IDValidator = func(value string) error {
+		validators := itemDescID.Validators
+		if err := validators[0].(func(string) error)(value); err != nil {
+			return err
+		}
+		return nil
+	}
 	licenseMixin := schema.License{}.Mixin()
 	licenseMixinFields0 := licenseMixin[0].Fields()
 	_ = licenseMixinFields0
@@ -287,22 +344,28 @@ func init() {
 	petDescTrained := petFields[4].Descriptor()
 	// pet.DefaultTrained holds the default value on creation for the trained field.
 	pet.DefaultTrained = petDescTrained.Default.(bool)
-	enttaskFields := schema.Task{}.Fields()
-	_ = enttaskFields
-	// enttaskDescPriority is the schema descriptor for priority field.
-	enttaskDescPriority := enttaskFields[0].Descriptor()
-	// enttask.DefaultPriority holds the default value on creation for the priority field.
-	enttask.DefaultPriority = task.Priority(enttaskDescPriority.Default.(int))
-	// enttaskDescCreatedAt is the schema descriptor for created_at field.
-	enttaskDescCreatedAt := enttaskFields[2].Descriptor()
-	// enttask.DefaultCreatedAt holds the default value on creation for the created_at field.
-	enttask.DefaultCreatedAt = enttaskDescCreatedAt.Default.(func() time.Time)
-	// enttaskDescOp is the schema descriptor for op field.
-	enttaskDescOp := enttaskFields[7].Descriptor()
-	// enttask.DefaultOp holds the default value on creation for the op field.
-	enttask.DefaultOp = enttaskDescOp.Default.(string)
-	// enttask.OpValidator is a validator for the "op" field. It is called by the builders before save.
-	enttask.OpValidator = enttaskDescOp.Validators[0].(func(string) error)
+	taskFields := schema.Task{}.Fields()
+	_ = taskFields
+	// taskDescPriority is the schema descriptor for priority field.
+	taskDescPriority := taskFields[0].Descriptor()
+	// task.DefaultPriority holds the default value on creation for the priority field.
+	task.DefaultPriority = taskDescPriority.Default.(task2.Priority)
+	// taskDescCreatedAt is the schema descriptor for created_at field.
+	taskDescCreatedAt := taskFields[2].Descriptor()
+	// task.DefaultCreatedAt holds the default value on creation for the created_at field.
+	task.DefaultCreatedAt = taskDescCreatedAt.Default.(func() time.Time)
+	// taskDescOp is the schema descriptor for op field.
+	taskDescOp := taskFields[7].Descriptor()
+	// task.DefaultOp holds the default value on creation for the op field.
+	task.DefaultOp = taskDescOp.Default.(string)
+	// task.OpValidator is a validator for the "op" field. It is called by the builders before save.
+	task.OpValidator = func(value string) error {
+		validators := taskDescOp.Validators
+		if err := validators[0].(func(string) error)(value); err != nil {
+			return err
+		}
+		return nil
+	}
 	userMixin := schema.User{}.Mixin()
 	userMixinFields0 := userMixin[0].Fields()
 	_ = userMixinFields0
@@ -311,7 +374,13 @@ func init() {
 	// userDescOptionalInt is the schema descriptor for optional_int field.
 	userDescOptionalInt := userMixinFields0[0].Descriptor()
 	// user.OptionalIntValidator is a validator for the "optional_int" field. It is called by the builders before save.
-	user.OptionalIntValidator = userDescOptionalInt.Validators[0].(func(int) error)
+	user.OptionalIntValidator = func(value int) error {
+		validators := userDescOptionalInt.Validators
+		if err := validators[0].(func(int) error)(value); err != nil {
+			return err
+		}
+		return nil
+	}
 	// userDescLast is the schema descriptor for last field.
 	userDescLast := userFields[2].Descriptor()
 	// user.DefaultLast holds the default value on creation for the last field.

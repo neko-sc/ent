@@ -873,7 +873,7 @@ func (m *SessionMutation) OldToken(ctx context.Context) (v string, err error) {
 // OldMethod returns the old "method" field's value of the Session entity.
 // If the Session object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *SessionMutation) OldMethod(ctx context.Context) (v map[string]interface{}, err error) {
+func (m *SessionMutation) OldMethod(ctx context.Context) (v map[string]any, err error) {
 	if !m.Op().Is(OpUpdateOne) {
 		return v, errors.New("OldMethod is only allowed on UpdateOne operations")
 	}

@@ -13,8 +13,8 @@ import (
 
 	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
-	"github.com/neko-sc/ent/entc/integration/ent/schema/task"
-	enttask "github.com/neko-sc/ent/entc/integration/ent/task"
+	task2 "github.com/neko-sc/ent/entc/integration/ent/schema/task"
+	"github.com/neko-sc/ent/entc/integration/ent/task"
 )
 
 // Task is the model entity for the Task schema.
@@ -23,9 +23,9 @@ type Task struct {
 	// ID of the ent.
 	ID int `json:"id,omitempty"`
 	// Priority holds the value of the "priority" field.
-	Priority task.Priority `json:"priority,omitempty"`
+	Priority task2.Priority `json:"priority,omitempty"`
 	// Priorities holds the value of the "priorities" field.
-	Priorities map[string]task.Priority `json:"priorities,omitempty"`
+	Priorities map[string]task2.Priority `json:"priorities,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt *time.Time `json:"created_at,omitempty"`
 	// Name holds the value of the "name" field.
@@ -48,13 +48,13 @@ func (*Task) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case enttask.FieldPriorities:
+		case task.FieldPriorities:
 			values[i] = new([]byte)
-		case enttask.FieldID, enttask.FieldPriority, enttask.FieldOrder, enttask.FieldOrderOption:
+		case task.FieldID, task.FieldPriority, task.FieldOrder, task.FieldOrderOption:
 			values[i] = new(sql.NullInt64)
-		case enttask.FieldName, enttask.FieldOwner, enttask.FieldOp:
+		case task.FieldName, task.FieldOwner, task.FieldOp:
 			values[i] = new(sql.NullString)
-		case enttask.FieldCreatedAt:
+		case task.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -71,19 +71,19 @@ func (_m *Task) assignValues(columns []string, values []any) error {
 	}
 	for i := range columns {
 		switch columns[i] {
-		case enttask.FieldID:
-			value, ok := values[i].(*sql.NullInt64)
-			if !ok {
-				return fmt.Errorf("unexpected type %T for field id", value)
+		case task.FieldID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field id", values[i])
+			} else if value.Valid {
+				_m.ID = int(value.Int64)
 			}
-			_m.ID = int(value.Int64)
-		case enttask.FieldPriority:
+		case task.FieldPriority:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field priority", values[i])
 			} else if value.Valid {
-				_m.Priority = task.Priority(value.Int64)
+				_m.Priority = task2.Priority(value.Int64)
 			}
-		case enttask.FieldPriorities:
+		case task.FieldPriorities:
 			if value, ok := values[i].(*[]byte); !ok {
 				return fmt.Errorf("unexpected type %T for field priorities", values[i])
 			} else if value != nil && len(*value) > 0 {
@@ -91,42 +91,42 @@ func (_m *Task) assignValues(columns []string, values []any) error {
 					return fmt.Errorf("unmarshal field priorities: %w", err)
 				}
 			}
-		case enttask.FieldCreatedAt:
+		case task.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
 			} else if value.Valid {
 				_m.CreatedAt = new(time.Time)
-				*_m.CreatedAt = value.Time
+				*_m.CreatedAt = time.Time(value.Time)
 			}
-		case enttask.FieldName:
+		case task.FieldName:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field name", values[i])
 			} else if value.Valid {
-				_m.Name = value.String
+				_m.Name = string(value.String)
 			}
-		case enttask.FieldOwner:
+		case task.FieldOwner:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field owner", values[i])
 			} else if value.Valid {
-				_m.Owner = value.String
+				_m.Owner = string(value.String)
 			}
-		case enttask.FieldOrder:
+		case task.FieldOrder:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field order", values[i])
 			} else if value.Valid {
 				_m.Order = int(value.Int64)
 			}
-		case enttask.FieldOrderOption:
+		case task.FieldOrderOption:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field order_option", values[i])
 			} else if value.Valid {
 				_m.OrderOption = int(value.Int64)
 			}
-		case enttask.FieldOp:
+		case task.FieldOp:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field op", values[i])
 			} else if value.Valid {
-				_m.Op = value.String
+				_m.Op = string(value.String)
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])

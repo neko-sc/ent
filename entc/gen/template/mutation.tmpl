@@ -13,9 +13,6 @@ SPDX-License-Identifier: Apache-2.0
 
 {{ template "import" $ }}
 
-{{/* localType strips the current package prefix from type strings, so that
-     types defined in this package (e.g. enums) are referenced without the
-     package qualifier. */}}
 {{ $pkgPrefix := print $.Package "." }}
 
 // Mutation represents an operation that mutates the {{ $.Name }} nodes in the graph.
@@ -23,21 +20,21 @@ type Mutation struct {
 	op ent.Op
 	typ string
 	{{- range $f := $.MutationFields }}
-		{{ $f.BuilderField }} *{{ replace $f.Type.String $pkgPrefix "" }}
+		{{ $f.BuilderField }} *{{ replace $f.GoType $pkgPrefix "" }}
 		{{- if $f.SupportsMutationAdd }}
-			add{{ $f.BuilderField }} *{{ replace (print $f.SignedType) $pkgPrefix "" }}
+			add{{ $f.BuilderField }} *{{ replace (print $f.MutationAddType) $pkgPrefix "" }}
 		{{- end }}
 		{{- if $f.SupportsMutationAppend }}
-			append{{ $f.BuilderField }} {{ replace $f.Type.String $pkgPrefix "" }}
+			append{{ $f.BuilderField }} {{ replace $f.GoType $pkgPrefix "" }}
 		{{- end }}
 	{{- end }}
 	clearedFields map[string]struct{}
 	{{- range $e := $.EdgesWithID }}
 		{{- if $e.Unique }}
-			{{ $e.BuilderField }} *{{ $e.Type.ID.Type }}
+			{{ $e.BuilderField }} *{{ $e.Type.ID.GoType }}
 		{{- else }}
-			{{ $e.BuilderField }} map[{{ $e.Type.ID.Type }}]struct{}
-			removed{{ $e.BuilderField }} map[{{ $e.Type.ID.Type }}]struct{}
+			{{ $e.BuilderField }} map[{{ $e.Type.ID.GoType }}]struct{}
+			removed{{ $e.BuilderField }} map[{{ $e.Type.ID.GoType }}]struct{}
 		{{- end }}
 		cleared{{ $e.BuilderField }} bool
 	{{- end }}
@@ -66,8 +63,8 @@ func (m *Mutation) Predicates() []predicate.{{ $.Name }} {
 
 {{ range $f := $.Fields }}
 	{{ $const := $f.Constant }}
-	{{ $type := replace $f.Type.String $pkgPrefix "" }}
-	{{ $p := receiver $f.Type.String }}{{ if eq $p "m" }} {{ $p = "value" }} {{ end }}
+	{{ $type := replace $f.GoType $pkgPrefix "" }}
+	{{ $p := receiver $type }}{{ if eq $p "m" }} {{ $p = "value" }} {{ end }}
 	{{ $func := $f.MutationSet }}
 	// {{ $func }} sets the "{{ $f.Name }}" field.
 	func (m *Mutation) {{ $func }}({{ $p }} {{ $type }}) {
@@ -92,7 +89,7 @@ func (m *Mutation) Predicates() []predicate.{{ $.Name }} {
 	}
 
 	{{ if $f.SupportsMutationAdd }}
-		{{ $signedType := replace (print $f.SignedType) $pkgPrefix "" }}
+		{{ $signedType := replace (print $f.MutationAddType) $pkgPrefix "" }}
 		// {{ $f.MutationAdd }} adds {{ $p }} to the "{{ $f.Name }}" field.
 		func (m *Mutation) {{ $f.MutationAdd }}({{ $p }} {{ $signedType }}) {
 			{{- $structField := print "m.add" $f.BuilderField }}
@@ -174,12 +171,12 @@ func (m *Mutation) Predicates() []predicate.{{ $.Name }} {
 	{{ $withSetGet := not $e.HasFieldSetter }}
 	{{ if $withSetGet }}
 		// {{ $idsFunc }} {{ $op }}s the "{{ $e.Name }}" edge to the {{ $e.Type.Name }} entity by id{{ if not $e.Unique }}s{{ end }}.
-		func (m *Mutation) {{ $idsFunc }}({{ if $e.Unique }}id{{ else }}ids ...{{ end }} {{ $e.Type.ID.Type }}) {
+		func (m *Mutation) {{ $idsFunc }}({{ if $e.Unique }}id{{ else }}ids ...{{ end }} {{ $e.Type.ID.GoType }}) {
 			{{- if $e.Unique }}
 				m.{{ $e.BuilderField }} = &id
 			{{- else }}
 				if m.{{ $e.BuilderField }} == nil {
-					m.{{ $e.BuilderField }} = make(map[{{ $e.Type.ID.Type }}]struct{})
+					m.{{ $e.BuilderField }} = make(map[{{ $e.Type.ID.GoType }}]struct{})
 				}
 				for i := range ids {
 					m.{{ $e.BuilderField }}[ids[i]] = struct{}{}
@@ -207,9 +204,9 @@ func (m *Mutation) Predicates() []predicate.{{ $.Name }} {
 	{{ if not $e.Unique }}
 		{{ $p := lower (printf "%.1s" $e.Type.Name) }}
 		// {{ $e.MutationRemove }} removes the "{{ $e.Name }}" edge to the {{ $e.Type.Name }} entity by IDs.
-		func (m *Mutation) {{ $e.MutationRemove }}(ids ...{{ $e.Type.ID.Type }}) {
+		func (m *Mutation) {{ $e.MutationRemove }}(ids ...{{ $e.Type.ID.GoType }}) {
 			if m.removed{{ $e.BuilderField }} == nil {
-				m.removed{{ $e.BuilderField }} = make(map[{{ $e.Type.ID.Type }}]struct{})
+				m.removed{{ $e.BuilderField }} = make(map[{{ $e.Type.ID.GoType }}]struct{})
 			}
 			for i := range ids {
 				delete(m.{{ $e.BuilderField }}, ids[i])
@@ -219,7 +216,7 @@ func (m *Mutation) Predicates() []predicate.{{ $.Name }} {
 
 		{{ $func := print "Removed" $e.StructField }}
 		// {{ $func }} returns the removed IDs of the "{{ $e.Name }}" edge to the {{ $e.Type.Name }} entity.
-		func (m *Mutation) {{ $func }}IDs() (ids []{{ $e.Type.ID.Type }}) {
+		func (m *Mutation) {{ $func }}IDs() (ids []{{ $e.Type.ID.GoType }}) {
 			for id := range m.removed{{ $e.BuilderField }} {
 				ids = append(ids, id)
 			}
@@ -227,7 +224,7 @@ func (m *Mutation) Predicates() []predicate.{{ $.Name }} {
 		}
 	{{ else if and $e.Unique $withSetGet }}
 		// {{ $e.StructField }}ID returns the "{{ $e.Name }}" edge ID in the mutation.
-		func (m *Mutation) {{ $e.StructField }}ID() (id {{ $e.Type.ID.Type }}, exists bool) {
+		func (m *Mutation) {{ $e.StructField }}ID() (id {{ $e.Type.ID.GoType }}, exists bool) {
 			if m.{{ $e.BuilderField }} != nil {
 				return *m.{{ $e.BuilderField }}, true
 			}
@@ -240,7 +237,7 @@ func (m *Mutation) Predicates() []predicate.{{ $.Name }} {
 		// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
 		// {{ $e.StructField }}ID instead. It exists only for internal usage by the builders.
 	{{- end }}
-	func (m *Mutation) {{ $e.StructField }}IDs() (ids []{{ $e.Type.ID.Type }}) {
+	func (m *Mutation) {{ $e.StructField }}IDs() (ids []{{ $e.Type.ID.GoType }}) {
 		{{- if $e.Unique }}
 			if id := m.{{ $e.BuilderField }}; id != nil {
 				ids = append(ids, *id)
@@ -341,7 +338,7 @@ func (m *Mutation) OldField(ctx context.Context, name string) (ent.Value, error)
 func (m *Mutation) SetField(name string, value ent.Value) error {
 	switch name {
 	{{- range $f := $.Fields }}
-		{{- $type := replace $f.Type.String $pkgPrefix "" }}
+		{{- $type := replace $f.GoType $pkgPrefix "" }}
 		case {{ $f.Constant }}:
 			v, ok := value.({{ $type }})
 			if !ok {
@@ -397,7 +394,7 @@ func (m *Mutation) AddField(name string, value ent.Value) error {
 		switch name {
 		{{- range $f := $.Fields }}
 			{{- if $f.SupportsMutationAdd }}
-				{{- $signedType := replace (print $f.SignedType) $pkgPrefix "" }}
+				{{- $signedType := replace (print $f.MutationAddType) $pkgPrefix "" }}
 				case {{ $f.Constant }}:
 					v, ok := value.({{ $signedType }})
 					if !ok {

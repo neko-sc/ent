@@ -119,7 +119,9 @@ func (_c *UserCreate) Mutation() *UserMutation {
 
 // Save creates the User in the database.
 func (_c *UserCreate) Save(ctx context.Context) (*User, error) {
-	_c.defaults()
+	if err := _c.defaults(); err != nil {
+		return nil, err
+	}
 	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
 }
 
@@ -146,8 +148,11 @@ func (_c *UserCreate) ExecX(ctx context.Context) {
 }
 
 // defaults sets the default values of the builder before save.
-func (_c *UserCreate) defaults() {
+func (_c *UserCreate) defaults() error {
 	if _, ok := _c.mutation.Dirs(); !ok {
+		if user.DefaultDirs == nil {
+			return fmt.Errorf("ent: uninitialized user.DefaultDirs (forgotten import ent/runtime?)")
+		}
 		v := user.DefaultDirs()
 		_c.mutation.SetDirs(v)
 	}
@@ -155,6 +160,7 @@ func (_c *UserCreate) defaults() {
 		v := user.DefaultInts
 		_c.mutation.SetInts(v)
 	}
+	return nil
 }
 
 // check runs all checks and user-defined validators on the builder.

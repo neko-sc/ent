@@ -33,7 +33,13 @@ func init() {
 	// card.DefaultNumber holds the default value on creation for the number field.
 	card.DefaultNumber = cardDescNumber.Default.(string)
 	// card.NumberValidator is a validator for the "number" field. It is called by the builders before save.
-	card.NumberValidator = cardDescNumber.Validators[0].(func(string) error)
+	card.NumberValidator = func(value string) error {
+		validators := cardDescNumber.Validators
+		if err := validators[0].(func(string) error)(value); err != nil {
+			return err
+		}
+		return nil
+	}
 	// cardDescCreatedAt is the schema descriptor for created_at field.
 	cardDescCreatedAt := cardFields[2].Descriptor()
 	// card.DefaultCreatedAt holds the default value on creation for the created_at field.

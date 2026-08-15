@@ -22,9 +22,8 @@ type Session struct {
 // Fields of the Session.
 func (Session) Fields() []ent.Field {
 	return []ent.Field{
-		field.Bytes("id").
+		field.BytesAs[ID]("id").
 			MaxLen(64).
-			GoType(ID{}).
 			DefaultFunc(NewID),
 	}
 }
@@ -46,9 +45,8 @@ type Device struct {
 // Fields of the Device.
 func (Device) Fields() []ent.Field {
 	return []ent.Field{
-		field.Bytes("id").
+		field.BytesAs[ID]("id").
 			MaxLen(64).
-			GoType(ID{}).
 			DefaultFunc(NewID),
 	}
 }

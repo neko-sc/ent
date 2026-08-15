@@ -48,7 +48,8 @@ func (c *Client) init() {
 {{ template "header" $ }}
 
 {{/* Additional dependencies injected to config. */}}
-{{ $deps := list }}{{ with $.Config.Annotations }}{{ $deps = $.Config.Annotations.Dependencies }}{{ end }}
+{{ $clientDependencies := $.ClientDependencies }}
+{{ $deps := $clientDependencies.Dependencies }}
 
 import (
 	"context"
@@ -58,8 +59,8 @@ import (
 	{{ range $n := $.Nodes }}
 		{{ $n.PackageAlias }} "{{ $n.Config.Package }}/{{ $n.PackageDir }}"
 	{{- end }}
-	{{- range $dep := $deps }}
-		{{ $dep.Type.PkgName }} "{{ $dep.Type.PkgPath }}"
+	{{- range $import := $clientDependencies.Imports }}
+		{{ if $import.Alias }}{{ $import.Alias }} {{ end }}"{{ $import.Path }}"
 	{{- end }}
 	"github.com/neko-sc/ent/dialect"
 	{{ range $import := $.Storage.Imports -}}
@@ -85,7 +86,7 @@ type (
 		inters *inters
 		{{- /* Additional dependency fields. */}}
 		{{- range $dep := $deps }}
-			{{ $dep.Field }} {{ $dep.Type }}
+			{{ $dep.Field }} {{ $dep.RenderedType }}
 		{{- end }}
 		{{- /* Support adding config fields from both global or dialect-specific templates. */}}
 		{{- range $prefix := list "" (printf "dialect/%s/" $.Storage) }}
@@ -146,7 +147,7 @@ func Driver(driver dialect.Driver) Option {
 {{- /* Additional dependency options reside on the config object. */}}
 {{- range $dep := $deps }}
 	// {{ $dep.Option }} configures the {{ $dep.Field }}.
-	func {{ $dep.Option }}(v {{ $dep.Type }}) Option {
+	func {{ $dep.Option }}(v {{ $dep.RenderedType }}) Option {
 		return func(c *config) {
 			c.{{ $dep.Field }} = v
 		}
@@ -353,7 +354,7 @@ func (c *{{ $client }}) UpdateOne({{ $rec }} *{{ $n.Name }}) *{{ $n.UpdateOneNam
 
 {{ with $n.HasOneFieldID }}
 	// UpdateOneID returns an update builder for the given id.
-	func (c *{{ $client }}) UpdateOneID(id {{ $n.ID.Type }}) *{{ $n.UpdateOneName }} {
+	func (c *{{ $client }}) UpdateOneID(id {{ $n.ID.GoType }}) *{{ $n.UpdateOneName }} {
 		mutation := new{{ $n.MutationName }}(c.config, OpUpdateOne, {{ print "with" $n.Name "ID" }}(id))
 		return &{{ $n.UpdateOneName }}{config: c.config, hooks: c.Hooks(), mutation: mutation}
 	}
@@ -372,7 +373,7 @@ func (c *{{ $client }}) Delete() *{{ $n.DeleteName }} {
 	}
 
 	// DeleteOneID returns a builder for deleting the given entity by its id.
-	func (c *{{ $client }}) DeleteOneID(id {{ $n.ID.Type }}) *{{ $n.DeleteOneName }} {
+	func (c *{{ $client }}) DeleteOneID(id {{ $n.ID.GoType }}) *{{ $n.DeleteOneName }} {
 		{{- $builder := "builder" }}{{ if eq $n.Package $builder }}{{ $builder = "builderC" }}{{ end }}
 		{{ $builder }} := c.Delete().Where({{ $n.Package }}.ID(id))
 		{{ $builder }}.mutation.{{ $n.ID.BuilderField }} = &id
@@ -398,12 +399,12 @@ func (c *{{ $client }}) Query() *{{ $n.QueryName }} {
 
 {{ with $n.HasOneFieldID }}
 	// Get returns a {{ $n.Name }} entity by its id.
-	func (c *{{ $client }}) Get(ctx context.Context, id {{ $n.ID.Type }}) (*{{ $n.Name }}, error) {
+	func (c *{{ $client }}) Get(ctx context.Context, id {{ $n.ID.GoType }}) (*{{ $n.Name }}, error) {
 		return c.Query().Where({{ $n.Package }}.ID(id)).Only(ctx)
 	}
 
 	// GetX is like Get, but panics if an error occurs.
-	func (c *{{ $client }}) GetX(ctx context.Context, id {{ $n.ID.Type }}) *{{ $n.Name }} {
+	func (c *{{ $client }}) GetX(ctx context.Context, id {{ $n.ID.GoType }}) *{{ $n.Name }} {
 		obj, err := c.Get(ctx, id)
 		if err != nil {
 			panic(err)

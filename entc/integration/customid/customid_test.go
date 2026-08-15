@@ -7,6 +7,11 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"go/ast"
+	"go/parser"
+	gotoken "go/token"
+	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/neko-sc/ent/dialect"
@@ -17,16 +22,17 @@ import (
 	"github.com/neko-sc/ent/entc/integration/customid/ent/doc"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/intsid"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/pet"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/revision"
 	entschema "github.com/neko-sc/ent/entc/integration/customid/ent/schema"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/token"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/user"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/valuescan"
 	"github.com/neko-sc/ent/entc/integration/customid/sid"
 
-	atlas "github.com/neko-sc/atlas/sql/schema"
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
+	atlas "github.com/neko-sc/atlas/sql/schema"
 	"github.com/stretchr/testify/require"
 )
 
@@ -272,6 +278,41 @@ func BytesID(t *testing.T, client *ent.Client) {
 	d := client.Device.Query().WithActiveSession().WithSessions().OnlyX(ctx)
 	require.Equal(t, s.ID, d.Edges.ActiveSession.ID)
 	require.Equal(t, s.ID, d.Edges.Sessions[0].ID)
+}
+
+func TestStringIDPredicates(t *testing.T) {
+	client, err := ent.Open("sqlite3", "file:string-id-predicates?mode=memory&cache=shared&_fk=1")
+	require.NoError(t, err)
+	defer client.Close()
+	require.NoError(t, client.Schema.Create(t.Context(), schema.WithHooks(clearDefault)))
+
+	client.Revision.CreateBulk(
+		client.Revision.Create().SetID("alpha"),
+		client.Revision.Create().SetID("Bravo"),
+		client.Revision.Create().SetID("charlie"),
+	).ExecX(t.Context())
+
+	require.Equal(t, []string{"alpha", "charlie"}, client.Revision.Query().Where(revision.IDGT("Bravo")).Order(ent.Asc(revision.FieldID)).IDsX(t.Context()))
+	require.Equal(t, []string{"Bravo", "alpha", "charlie"}, client.Revision.Query().Where(revision.IDGTE("Bravo")).Order(ent.Asc(revision.FieldID)).IDsX(t.Context()))
+	require.Equal(t, []string{"Bravo"}, client.Revision.Query().Where(revision.IDLT("alpha")).Order(ent.Asc(revision.FieldID)).IDsX(t.Context()))
+	require.Equal(t, []string{"Bravo", "alpha"}, client.Revision.Query().Where(revision.IDLTE("alpha")).Order(ent.Asc(revision.FieldID)).IDsX(t.Context()))
+	require.Equal(t, "Bravo", client.Revision.Query().Where(revision.IDEqualFold("bravo")).OnlyIDX(t.Context()))
+	require.Equal(t, "charlie", client.Revision.Query().Where(revision.IDContainsFold("HARL")).OnlyIDX(t.Context()))
+}
+
+func TestCustomStringIDPredicates(t *testing.T) {
+	_, filename, _, ok := runtime.Caller(0)
+	require.True(t, ok)
+	file, err := parser.ParseFile(gotoken.NewFileSet(), filepath.Join(filepath.Dir(filename), "ent", "account", "where.go"), nil, 0)
+	require.NoError(t, err)
+
+	for _, declaration := range file.Decls {
+		function, ok := declaration.(*ast.FuncDecl)
+		if !ok {
+			continue
+		}
+		require.NotContains(t, []string{"IDEqualFold", "IDContainsFold"}, function.Name.Name)
+	}
 }
 
 // clearDefault clears the id's default for non-postgres dialects.

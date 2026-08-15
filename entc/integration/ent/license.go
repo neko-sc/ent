@@ -52,22 +52,22 @@ func (_m *License) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case license.FieldID:
-			value, ok := values[i].(*sql.NullInt64)
-			if !ok {
-				return fmt.Errorf("unexpected type %T for field id", value)
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field id", values[i])
+			} else if value.Valid {
+				_m.ID = int(value.Int64)
 			}
-			_m.ID = int(value.Int64)
 		case license.FieldCreateTime:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field create_time", values[i])
 			} else if value.Valid {
-				_m.CreateTime = value.Time
+				_m.CreateTime = time.Time(value.Time)
 			}
 		case license.FieldUpdateTime:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field update_time", values[i])
 			} else if value.Valid {
-				_m.UpdateTime = value.Time
+				_m.UpdateTime = time.Time(value.Time)
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])

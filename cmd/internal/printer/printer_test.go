@@ -23,11 +23,11 @@ func TestPrinter_Print(t *testing.T) {
 				Nodes: []*gen.Type{
 					{
 						Name: "User",
-						ID:   &gen.Field{Name: "id", Type: &field.TypeInfo{Type: field.TypeInt}},
+						ID:   &gen.Field{Name: "id", Type: field.TypeInt},
 						Fields: []*gen.Field{
-							{Name: "name", Type: &field.TypeInfo{Type: field.TypeString}, Validators: 1},
-							{Name: "age", Type: &field.TypeInfo{Type: field.TypeInt}, Nillable: true},
-							{Name: "created_at", Type: &field.TypeInfo{Type: field.TypeTime}, Nillable: true, Immutable: true},
+							{Name: "name", Type: field.TypeString, Validators: 1},
+							{Name: "age", Type: field.TypeInt, Nillable: true},
+							{Name: "created_at", Type: field.TypeTime, Nillable: true, Immutable: true},
 						},
 					},
 				},
@@ -50,7 +50,7 @@ User:
 				Nodes: []*gen.Type{
 					{
 						Name: "User",
-						ID:   &gen.Field{Name: "id", Type: &field.TypeInfo{Type: field.TypeInt}},
+						ID:   &gen.Field{Name: "id", Type: field.TypeInt},
 						Edges: []*gen.Edge{
 							{Name: "groups", Type: &gen.Type{Name: "Group"}, Rel: gen.Relation{Type: gen.M2M}, Optional: true},
 							{Name: "spouse", Type: &gen.Type{Name: "User"}, Unique: true, Rel: gen.Relation{Type: gen.O2O}},
@@ -79,10 +79,10 @@ User:
 				Nodes: []*gen.Type{
 					{
 						Name: "User",
-						ID:   &gen.Field{Name: "id", Type: &field.TypeInfo{Type: field.TypeInt}},
+						ID:   &gen.Field{Name: "id", Type: field.TypeInt},
 						Fields: []*gen.Field{
-							{Name: "name", Type: &field.TypeInfo{Type: field.TypeString}, Validators: 1},
-							{Name: "age", Type: &field.TypeInfo{Type: field.TypeInt}, Nillable: true},
+							{Name: "name", Type: field.TypeString, Validators: 1},
+							{Name: "age", Type: field.TypeInt, Nillable: true},
 						},
 						Edges: []*gen.Edge{
 							{Name: "groups", Type: &gen.Type{Name: "Group"}, Rel: gen.Relation{Type: gen.M2M}, Optional: true},
@@ -114,10 +114,10 @@ User:
 				Nodes: []*gen.Type{
 					{
 						Name: "User",
-						ID:   &gen.Field{Name: "id", Type: &field.TypeInfo{Type: field.TypeInt}},
+						ID:   &gen.Field{Name: "id", Type: field.TypeInt},
 						Fields: []*gen.Field{
-							{Name: "name", Type: &field.TypeInfo{Type: field.TypeString}, Validators: 1},
-							{Name: "age", Type: &field.TypeInfo{Type: field.TypeInt}, Nillable: true},
+							{Name: "name", Type: field.TypeString, Validators: 1},
+							{Name: "age", Type: field.TypeInt, Nillable: true},
 						},
 						Edges: []*gen.Edge{
 							{Name: "groups", Type: &gen.Type{Name: "Group"}, Rel: gen.Relation{Type: gen.M2M}, Optional: true},
@@ -126,9 +126,9 @@ User:
 					},
 					{
 						Name: "Group",
-						ID:   &gen.Field{Name: "id", Type: &field.TypeInfo{Type: field.TypeInt}},
+						ID:   &gen.Field{Name: "id", Type: field.TypeInt},
 						Fields: []*gen.Field{
-							{Name: "name", Type: &field.TypeInfo{Type: field.TypeString}},
+							{Name: "name", Type: field.TypeString},
 						},
 						Edges: []*gen.Edge{
 							{Name: "users", Type: &gen.Type{Name: "User"}, Rel: gen.Relation{Type: gen.M2M}, Optional: true},

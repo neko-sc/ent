@@ -61,13 +61,13 @@ func (_m *MixinID) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field some_field", values[i])
 			} else if value.Valid {
-				_m.SomeField = value.String
+				_m.SomeField = string(value.String)
 			}
 		case mixinid.FieldMixinField:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field mixin_field", values[i])
 			} else if value.Valid {
-				_m.MixinField = value.String
+				_m.MixinField = string(value.String)
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])

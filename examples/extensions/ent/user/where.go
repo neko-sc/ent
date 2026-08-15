@@ -77,26 +77,6 @@ func LocationNotIn(vs ...[]byte) predicate.User {
 	return predicate.User(sql.FieldNotIn(FieldLocation, vs...))
 }
 
-// LocationGT applies the GT predicate on the "location" field.
-func LocationGT(v []byte) predicate.User {
-	return predicate.User(sql.FieldGT(FieldLocation, v))
-}
-
-// LocationGTE applies the GTE predicate on the "location" field.
-func LocationGTE(v []byte) predicate.User {
-	return predicate.User(sql.FieldGTE(FieldLocation, v))
-}
-
-// LocationLT applies the LT predicate on the "location" field.
-func LocationLT(v []byte) predicate.User {
-	return predicate.User(sql.FieldLT(FieldLocation, v))
-}
-
-// LocationLTE applies the LTE predicate on the "location" field.
-func LocationLTE(v []byte) predicate.User {
-	return predicate.User(sql.FieldLTE(FieldLocation, v))
-}
-
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.User) predicate.User {
 	return predicate.User(sql.AndPredicates(predicates...))

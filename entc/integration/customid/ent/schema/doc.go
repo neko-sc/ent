@@ -7,11 +7,11 @@ import (
 	"database/sql/driver"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/schema/edge"
 	"github.com/neko-sc/ent/schema/field"
-	"github.com/google/uuid"
 
 	"github.com/neko-sc/atlas/sql/postgres"
 )
@@ -24,8 +24,7 @@ type Doc struct {
 // Fields of the Doc.
 func (Doc) Fields() []ent.Field {
 	return []ent.Field{
-		field.String("id").
-			GoType(DocID("")).
+		field.StringAs[DocID]("id").
 			MaxLen(36).
 			NotEmpty().
 			Unique().

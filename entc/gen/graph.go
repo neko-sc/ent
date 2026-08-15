@@ -60,7 +60,7 @@ type (
 
 		// IDType specifies the type of the id field in the codegen.
 		// The supported types are string and int, which also the default.
-		IDType *field.TypeInfo
+		IDType *field.Type
 
 		// Templates specifies a list of alternative templates to execute or
 		// to override the default. If nil, the default template is used.
@@ -201,7 +201,7 @@ func (g *Graph) MutableNodes() []*Type {
 }
 
 // defaultIDType holds the default value for IDType.
-var defaultIDType = &field.TypeInfo{Type: field.TypeInt}
+var defaultIDType = new(field.TypeInt)
 
 // defaults sets the default value of the IDType. The IDType field is used
 // by multiple templates. If the IDType was not provided, it falls back to
@@ -214,7 +214,7 @@ func (g *Graph) defaults() {
 	if len(g.Nodes) == 0 {
 		return
 	}
-	idTypes := make([]*field.TypeInfo, 0, len(g.Nodes))
+	idTypes := make([]field.Type, 0, len(g.Nodes))
 	for _, n := range g.Nodes {
 		if n.HasOneFieldID() {
 			idTypes = append(idTypes, n.ID.Type)
@@ -222,11 +222,11 @@ func (g *Graph) defaults() {
 	}
 	// Check that all nodes have the same type for the ID field.
 	for i := range len(idTypes) - 1 {
-		if idTypes[i].Type != idTypes[i+1].Type {
+		if idTypes[i] != idTypes[i+1] {
 			return
 		}
 	}
-	g.IDType = idTypes[0]
+	g.IDType = new(idTypes[0])
 }
 
 // Gen generates the artifacts for the graph.
@@ -717,12 +717,12 @@ func (g *Graph) Tables() (all []*schema.Table, err error) {
 				t1, t2 := tables[n.Table()], tables[e.Type.Table()]
 				c1 := &schema.Column{Name: e.Rel.Columns[0], Type: field.TypeInt, SchemaType: n.ID.def.SchemaType}
 				if ref := n.ID; ref.UserDefined {
-					c1.Type = ref.Type.Type
+					c1.Type = ref.Type
 					c1.Size = ref.size()
 				}
 				c2 := &schema.Column{Name: e.Rel.Columns[1], Type: field.TypeInt, SchemaType: e.Type.ID.def.SchemaType}
 				if ref := e.Type.ID; ref.UserDefined {
-					c2.Type = ref.Type.Type
+					c2.Type = ref.Type
 					c2.Size = ref.size()
 				}
 				ant := e.EntSQL()
@@ -919,6 +919,7 @@ func (g *Graph) SupportMigrate() bool {
 
 // Snapshot holds the information for storing the schema snapshot.
 type Snapshot struct {
+	Version  int
 	Schema   string
 	Package  string
 	Schemas  []*load.Schema
@@ -932,6 +933,7 @@ func (g *Graph) SchemaSnapshot() (string, error) {
 		schemas[i] = g.Nodes[i].schema
 	}
 	snap := Snapshot{
+		Version: 2,
 		Schema:  g.Schema,
 		Package: g.Package,
 		Schemas: schemas,

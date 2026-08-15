@@ -29,13 +29,31 @@ func init() {
 	// userDescIntsValidate is the schema descriptor for ints_validate field.
 	userDescIntsValidate := userFields[8].Descriptor()
 	// user.IntsValidateValidator is a validator for the "ints_validate" field. It is called by the builders before save.
-	user.IntsValidateValidator = userDescIntsValidate.Validators[0].(func([]int) error)
+	user.IntsValidateValidator = func(value []int) error {
+		validators := userDescIntsValidate.Validators
+		if err := validators[0].(func([]int) error)(value); err != nil {
+			return err
+		}
+		return nil
+	}
 	// userDescFloatsValidate is the schema descriptor for floats_validate field.
 	userDescFloatsValidate := userFields[9].Descriptor()
 	// user.FloatsValidateValidator is a validator for the "floats_validate" field. It is called by the builders before save.
-	user.FloatsValidateValidator = userDescFloatsValidate.Validators[0].(func([]float64) error)
+	user.FloatsValidateValidator = func(value []float64) error {
+		validators := userDescFloatsValidate.Validators
+		if err := validators[0].(func([]float64) error)(value); err != nil {
+			return err
+		}
+		return nil
+	}
 	// userDescStringsValidate is the schema descriptor for strings_validate field.
 	userDescStringsValidate := userFields[10].Descriptor()
 	// user.StringsValidateValidator is a validator for the "strings_validate" field. It is called by the builders before save.
-	user.StringsValidateValidator = userDescStringsValidate.Validators[0].(func([]string) error)
+	user.StringsValidateValidator = func(value []string) error {
+		validators := userDescStringsValidate.Validators
+		if err := validators[0].(func([]string) error)(value); err != nil {
+			return err
+		}
+		return nil
+	}
 }

@@ -76,7 +76,9 @@ import (
 	{{- range $n := $.Nodes }}
 		{{ $n.PackageAlias }} "{{ $.Config.Package }}/{{ $n.PackageDir }}"
 		{{- /* Import external packages */}}
-		{{- template "import/types" $n }}
+	{{- end }}
+	{{- range $import := $.RuntimeSemanticImports $.Package }}
+		{{ if $import.Alias }}{{ $import.Alias }} {{ end }}"{{ $import.Path }}"
 	{{- end }}
 
 	"github.com/neko-sc/ent"
@@ -165,8 +167,8 @@ func init() {
 		{{- range $i, $f := $fields }}
 			{{- $desc := print $pkg "Desc" $f.StructField }}
 			{{- $idscan := and $n.HasOneFieldID (eq $f.Name $n.ID.Name) }}
-			{{- /* enum default values handled near their declarations (in type package). */}}
-			{{- if or (and $f.Default (not $f.IsEnum)) $f.UpdateDefault $f.Validators (and $f.HasValueScanner (or (not $idscan) (eq $n.Storage.Name "sql"))) }}
+			{{- /* Generator-owned static enum defaults are handled near their declarations. */}}
+			{{- if or (and $f.Default (or (not $f.IsEnum) $f.DefaultFunc)) $f.UpdateDefault $f.Validators (and $f.HasValueScanner (or (not $idscan) (eq $n.Storage.Name "sql"))) }}
 				// {{ $desc }} is the schema descriptor for {{ $f.Name }} field.
 				{{- if $f.Position.MixedIn }}
 					{{ $desc }} := {{ print $pkg "MixinFields" $f.Position.MixinIndex }}[{{ $f.Position.Index }}].Descriptor()
@@ -174,56 +176,51 @@ func init() {
 					{{ $desc }} := {{ $pkg }}Fields[{{ $f.Position.Index }}].Descriptor()
 				{{- end }}
 			{{- end }}
-			{{- if and $f.Default (not $f.IsEnum) }}
+			{{- if and $f.Default (or (not $f.IsEnum) $f.DefaultFunc) }}
 				{{- $default := print $pkg "." $f.DefaultName }}
 				// {{ $default }} holds the default value on creation for the {{ $f.Name }} field.
-				{{- $defaultType := print $f.Type.Type }}{{ if $f.DefaultFunc }}{{ $defaultType = print "func() " $f.Type }}{{ end }}
-				{{- if and $f.HasGoType (not (hasPrefix $defaultType "func")) }}
-					{{- if or $f.IsJSON $f.IsOther }}
-						{{ $default }} = {{ $desc }}.Default.({{ $f.Type }})
-					{{- else }}
-						{{ $default }} = {{ $f.Type }}({{ $desc }}.Default.({{ $defaultType }}))
-					{{- end }}
+				{{- if and $f.DefinesEnumType $f.DefaultFunc }}
+					{{ $fn := print $pkg $f.StructField "Default" }}
+					{{ $fn }} := {{ $desc }}.Default.(func() {{ $f.BaseType }})
+					{{ $default }} = func() {{ $f.GoType }} { return {{ $f.GoType }}({{ $fn }}()) }
 				{{- else }}
+					{{- $defaultType := $f.GoType }}{{ if $f.DefaultFunc }}{{ $defaultType = print "func() " $f.GoType }}{{ end }}
 					{{ $default }} = {{ $desc }}.Default.({{ $defaultType }})
 				{{- end }}
 			{{- end }}
 			{{- if $f.UpdateDefault }}
 				{{- $default := print $pkg "." $f.UpdateDefaultName }}
 				// {{ $default }} holds the default value on update for the {{ $f.Name }} field.
-				{{ $default }} = {{ $desc }}.UpdateDefault.(func() {{ $f.Type }})
+				{{- if $f.DefinesEnumType }}
+					{{ $fn := print $pkg $f.StructField "UpdateDefault" }}
+					{{ $fn }} := {{ $desc }}.UpdateDefault.(func() {{ $f.BaseType }})
+					{{ $default }} = func() {{ $f.GoType }} { return {{ $f.GoType }}({{ $fn }}()) }
+				{{- else }}
+					{{ $default }} = {{ $desc }}.UpdateDefault.(func() {{ $f.GoType }})
+				{{- end }}
 			{{- end }}
 			{{- if and $f.HasValueScanner (or (not $idscan) (eq $n.Storage.Name "sql")) }}
 				{{- $valuescan := print $pkg ".ValueScanner." $f.StructField }}
-				{{ $valuescan }} = {{ $desc }}.ValueScanner.(field.TypeValueScanner[{{ $f.Type }}])
+				{{ $valuescan }} = {{ $desc }}.ValueScanner.(field.TypeValueScanner[{{ $f.GoType }}])
 			{{- end }}
 			{{- with $f.Validators }}
 				{{- $name := print $pkg "." $f.Validator }}
-				{{- $type := $f.Type.Type.String }}
-				{{- if $f.IsJSON }}
-					{{- $type = $f.Type.String }}
-				{{- end }}
 				// {{ $name }} is a validator for the "{{ $f.Name }}" field. It is called by the builders before save.
-				{{- if eq $f.Validators 1 }}
-					{{ $name }} = {{ $desc }}.Validators[0].({{ printf "func (%s) error" $type }})
-				{{- else }}
-					{{ $name }} = func() {{ printf "func (%s) error" $type }} {
-						validators := {{ $desc }}.Validators
-						fns := [...]func({{ $f.Type.Type }}) error {
-							{{- range $j, $n := xrange $f.Validators }}
-								validators[{{ $j }}].(func({{ $f.Type.Type }}) error),
-							{{- end }}
-						}
-						return func({{ $f.BuilderField }} {{ $f.Type.Type }}) error {
-							for _, fn := range fns {
-								if err := fn({{ $f.BuilderField }}); err != nil {
-									return err
-								}
+				{{ $name }} = func(value {{ $f.GoType }}) error {
+					validators := {{ $desc }}.Validators
+					{{- range $j, $_ := $f.ValidatorKinds }}
+						{{- if $f.ValidatorUsesLogicalValue $j }}
+							if err := validators[{{ $j }}].(func({{ $f.BaseType }}) error)({{ $f.BasicType "value" }}); err != nil {
+								return err
 							}
-							return nil
-						}
-					}()
-				{{- end }}
+						{{- else }}
+							if err := validators[{{ $j }}].(func({{ $f.GoType }}) error)(value); err != nil {
+								return err
+							}
+						{{- end }}
+					{{- end }}
+					return nil
+				}
 		{{- end }}
 	{{- end }}
 {{- end }}

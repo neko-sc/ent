@@ -283,8 +283,8 @@ func (m *Mutation) ResetBlob() {
 }
 
 // SetState sets the "state" field.
-func (m *Mutation) SetState(u State) {
-	m.state = &u
+func (m *Mutation) SetState(s State) {
+	m.state = &s
 }
 
 // State returns the value of the "state" field in the mutation.

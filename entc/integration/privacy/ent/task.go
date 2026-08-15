@@ -96,22 +96,22 @@ func (_m *Task) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case task.FieldID:
-			value, ok := values[i].(*sql.NullInt64)
-			if !ok {
-				return fmt.Errorf("unexpected type %T for field id", value)
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field id", values[i])
+			} else if value.Valid {
+				_m.ID = int(value.Int64)
 			}
-			_m.ID = int(value.Int64)
 		case task.FieldTitle:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field title", values[i])
 			} else if value.Valid {
-				_m.Title = value.String
+				_m.Title = string(value.String)
 			}
 		case task.FieldDescription:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field description", values[i])
 			} else if value.Valid {
-				_m.Description = value.String
+				_m.Description = string(value.String)
 			}
 		case task.FieldStatus:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -127,7 +127,7 @@ func (_m *Task) assignValues(columns []string, values []any) error {
 			}
 		case task.ForeignKeys[0]:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
-				return fmt.Errorf("unexpected type %T for edge-field user_tasks", value)
+				return fmt.Errorf("unexpected type %T for field user_tasks", values[i])
 			} else if value.Valid {
 				_m.user_tasks = new(int)
 				*_m.user_tasks = int(value.Int64)

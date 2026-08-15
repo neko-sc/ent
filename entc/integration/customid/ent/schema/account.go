@@ -19,12 +19,12 @@ type Account struct {
 // Fields of the Account.
 func (Account) Fields() []ent.Field {
 	return []ent.Field{
-		field.Other("id", sid.ID("")).
+		field.Other[sid.ID]("id").
 			SchemaType(map[string]string{
 				dialect.Postgres: "bigint",
 				dialect.SQLite:   "integer",
 			}).
-			Default(sid.New).
+			DefaultFunc(sid.New).
 			Immutable(),
 		field.String("email").NotEmpty(),
 	}

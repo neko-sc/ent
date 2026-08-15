@@ -68,7 +68,9 @@ func (_c *RoleCreate) Mutation() *RoleMutation {
 
 // Save creates the Role in the database.
 func (_c *RoleCreate) Save(ctx context.Context) (*Role, error) {
-	_c.defaults()
+	if err := _c.defaults(); err != nil {
+		return nil, err
+	}
 	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
 }
 
@@ -95,11 +97,15 @@ func (_c *RoleCreate) ExecX(ctx context.Context) {
 }
 
 // defaults sets the default values of the builder before save.
-func (_c *RoleCreate) defaults() {
+func (_c *RoleCreate) defaults() error {
 	if _, ok := _c.mutation.CreatedAt(); !ok {
+		if role.DefaultCreatedAt == nil {
+			return fmt.Errorf("ent: uninitialized role.DefaultCreatedAt (forgotten import ent/runtime?)")
+		}
 		v := role.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
 	}
+	return nil
 }
 
 // check runs all checks and user-defined validators on the builder.

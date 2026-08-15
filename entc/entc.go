@@ -9,16 +9,15 @@ import (
 	"errors"
 	"fmt"
 	"go/token"
+	"os"
 	"path"
 	"path/filepath"
-	"reflect"
 	"strings"
 
 	"github.com/neko-sc/ent/entc/gen"
 	"github.com/neko-sc/ent/entc/internal"
 	"github.com/neko-sc/ent/entc/load"
 	"github.com/neko-sc/ent/schema"
-	"github.com/neko-sc/ent/schema/field"
 
 	"golang.org/x/tools/go/packages"
 )
@@ -51,7 +50,7 @@ func LoadGraph(schemaPath string, cfg *gen.Config) (*gen.Graph, error) {
 //
 //	entc.Generate("./ent/path", &gen.Config{
 //		Header: "// Custom header",
-//		IDType: &field.TypeInfo{Type: field.TypeInt},
+//		IDType: new(field.TypeInt),
 //	})
 func Generate(schemaPath string, cfg *gen.Config, options ...Option) error {
 	if err := defaultTarget(schemaPath, cfg); err != nil {
@@ -275,37 +274,14 @@ var _ Extension = (*DefaultExtension)(nil)
 // DependencyOption allows configuring optional dependencies using functional options.
 type DependencyOption func(*gen.Dependency) error
 
-// DependencyType sets the type of the struct field in
-// the generated builders for the configured dependency.
-func DependencyType(v any) DependencyOption {
-	return func(d *gen.Dependency) error {
-		if v == nil {
-			return errors.New("nil dependency type")
+// DependencyType sets a compiler-safe semantic dependency type.
+func DependencyType[T any]() DependencyOption {
+	return func(dependency *gen.Dependency) error {
+		semanticType, err := load.TypeExpressionFor[T]()
+		if err != nil {
+			return fmt.Errorf("dependency type: %w", err)
 		}
-		t := reflect.TypeOf(v)
-		tv := indirect(t)
-		d.Type = &field.TypeInfo{
-			Ident:   t.String(),
-			PkgPath: tv.PkgPath(),
-			RType: &field.RType{
-				Kind:    t.Kind(),
-				Name:    tv.Name(),
-				Ident:   tv.String(),
-				PkgPath: tv.PkgPath(),
-			},
-		}
-		return nil
-	}
-}
-
-// DependencyTypeInfo is similar to DependencyType, but
-// allows setting the field.TypeInfo explicitly.
-func DependencyTypeInfo(t *field.TypeInfo) DependencyOption {
-	return func(d *gen.Dependency) error {
-		if t == nil {
-			return errors.New("nil dependency type info")
-		}
-		d.Type = t
+		dependency.Type = semanticType
 		return nil
 	}
 }
@@ -325,11 +301,11 @@ func DependencyName(name string) DependencyOption {
 //
 //	opts := []entc.Option{
 //		entc.Dependency(
-//			entc.DependencyType(&http.Client{}),
+//			entc.DependencyType[*http.Client](),
 //		),
 //		entc.Dependency(
 //			entc.DependencyName("DB"),
-//			entc.DependencyType(&sql.DB{}),
+//			entc.DependencyType[*sql.DB](),
 //		)
 //	}
 //	if err := entc.Generate("./ent/path", &gen.Config{}, opts...); err != nil {
@@ -384,6 +360,9 @@ func mayRecover(err error, schemaPath string, cfg *gen.Config) error {
 	if ok, _ := cfg.FeatureEnabled(gen.FeatureSnapshot.Name); !ok {
 		return err
 	}
+	if errors.Is(err, internal.ErrStaleSnapshot) {
+		return removeStaleSnapshot(filepath.Join(cfg.Target, "internal/schema.go"))
+	}
 	if !errors.As(err, &packages.Error{}) && !internal.IsBuildError(err) {
 		return err
 	}
@@ -400,15 +379,20 @@ func mayRecover(err error, schemaPath string, cfg *gen.Config) error {
 		}
 	}
 	target := filepath.Join(cfg.Target, "internal/schema.go")
-	return (&internal.Snapshot{Path: target, Config: cfg}).Restore()
+	if restoreError := (&internal.Snapshot{Path: target, Config: cfg}).Restore(); restoreError != nil {
+		if errors.Is(restoreError, internal.ErrStaleSnapshot) {
+			return removeStaleSnapshot(target)
+		}
+		return restoreError
+	}
+	return nil
 }
 
-// indirect returns the type at the end of indirection.
-func indirect(t reflect.Type) reflect.Type {
-	for t.Kind() == reflect.Pointer {
-		t = t.Elem()
+func removeStaleSnapshot(path string) error {
+	if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
 	}
-	return t
+	return nil
 }
 
 // defaultTarget computes and sets the default target-path for codegen (one level above schema-path).

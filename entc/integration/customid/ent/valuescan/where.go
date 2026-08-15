@@ -17,6 +17,70 @@ func ID(id schema.ValueScanID) predicate.ValueScan {
 	return predicate.ValueScanOrErr(sql.FieldEQ(FieldID, vc), err)
 }
 
+// IDEQ applies the EQ predicate on the ID field.
+func IDEQ(id schema.ValueScanID) predicate.ValueScan {
+	vc, err := ValueScanner.ID.Value(id)
+	return predicate.ValueScanOrErr(sql.FieldEQ(FieldID, vc), err)
+}
+
+// IDNEQ applies the NEQ predicate on the ID field.
+func IDNEQ(id schema.ValueScanID) predicate.ValueScan {
+	vc, err := ValueScanner.ID.Value(id)
+	return predicate.ValueScanOrErr(sql.FieldNEQ(FieldID, vc), err)
+}
+
+// IDIn applies the In predicate on the ID field.
+func IDIn(ids ...schema.ValueScanID) predicate.ValueScan {
+	var (
+		err error
+		vcs = make([]any, len(ids))
+	)
+	for i := range vcs {
+		if vcs[i], err = ValueScanner.ID.Value(ids[i]); err != nil {
+			break
+		}
+	}
+	return predicate.ValueScanOrErr(sql.FieldIn(FieldID, vcs...), err)
+}
+
+// IDNotIn applies the NotIn predicate on the ID field.
+func IDNotIn(ids ...schema.ValueScanID) predicate.ValueScan {
+	var (
+		err error
+		vcs = make([]any, len(ids))
+	)
+	for i := range vcs {
+		if vcs[i], err = ValueScanner.ID.Value(ids[i]); err != nil {
+			break
+		}
+	}
+	return predicate.ValueScanOrErr(sql.FieldNotIn(FieldID, vcs...), err)
+}
+
+// IDGT applies the GT predicate on the ID field.
+func IDGT(id schema.ValueScanID) predicate.ValueScan {
+	vc, err := ValueScanner.ID.Value(id)
+	return predicate.ValueScanOrErr(sql.FieldGT(FieldID, vc), err)
+}
+
+// IDGTE applies the GTE predicate on the ID field.
+func IDGTE(id schema.ValueScanID) predicate.ValueScan {
+	vc, err := ValueScanner.ID.Value(id)
+	return predicate.ValueScanOrErr(sql.FieldGTE(FieldID, vc), err)
+}
+
+// IDLT applies the LT predicate on the ID field.
+func IDLT(id schema.ValueScanID) predicate.ValueScan {
+	vc, err := ValueScanner.ID.Value(id)
+	return predicate.ValueScanOrErr(sql.FieldLT(FieldID, vc), err)
+}
+
+// IDLTE applies the LTE predicate on the ID field.
+func IDLTE(id schema.ValueScanID) predicate.ValueScan {
+	vc, err := ValueScanner.ID.Value(id)
+	return predicate.ValueScanOrErr(sql.FieldLTE(FieldID, vc), err)
+}
+
 // Name applies equality check predicate on the "name" field. It's identical to NameEQ.
 func Name(v string) predicate.ValueScan {
 	return predicate.ValueScan(sql.FieldEQ(FieldName, v))

@@ -70,7 +70,9 @@ func (_c *BlobLinkCreate) Mutation() *BlobLinkMutation {
 
 // Save creates the BlobLink in the database.
 func (_c *BlobLinkCreate) Save(ctx context.Context) (*BlobLink, error) {
-	_c.defaults()
+	if err := _c.defaults(); err != nil {
+		return nil, err
+	}
 	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
 }
 
@@ -97,11 +99,15 @@ func (_c *BlobLinkCreate) ExecX(ctx context.Context) {
 }
 
 // defaults sets the default values of the builder before save.
-func (_c *BlobLinkCreate) defaults() {
+func (_c *BlobLinkCreate) defaults() error {
 	if _, ok := _c.mutation.CreatedAt(); !ok {
+		if bloblink.DefaultCreatedAt == nil {
+			return fmt.Errorf("ent: uninitialized bloblink.DefaultCreatedAt (forgotten import ent/runtime?)")
+		}
 		v := bloblink.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
 	}
+	return nil
 }
 
 // check runs all checks and user-defined validators on the builder.

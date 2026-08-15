@@ -32,8 +32,7 @@ import (
 	"github.com/neko-sc/ent/entc/integration/ent/pc"
 	"github.com/neko-sc/ent/entc/integration/ent/pet"
 	"github.com/neko-sc/ent/entc/integration/ent/spec"
-
-	enttask "github.com/neko-sc/ent/entc/integration/ent/task"
+	"github.com/neko-sc/ent/entc/integration/ent/task"
 	"github.com/neko-sc/ent/entc/integration/ent/user"
 )
 
@@ -112,7 +111,7 @@ func checkColumn(t, c string) error {
 			pc.Table:          pc.ValidColumn,
 			pet.Table:         pet.ValidColumn,
 			spec.Table:        spec.ValidColumn,
-			enttask.Table:     enttask.ValidColumn,
+			task.Table:        task.ValidColumn,
 			user.Table:        user.ValidColumn,
 		})
 	})

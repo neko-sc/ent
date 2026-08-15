@@ -57,13 +57,13 @@ func (_m *CleanUser) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field name", values[i])
 			} else if value.Valid {
-				_m.Name = value.String
+				_m.Name = string(value.String)
 			}
 		case cleanuser.FieldPublicInfo:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field public_info", values[i])
 			} else if value.Valid {
-				_m.PublicInfo = value.String
+				_m.PublicInfo = string(value.String)
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])

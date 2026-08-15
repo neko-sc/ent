@@ -8,6 +8,8 @@ SPDX-License-Identifier: Apache-2.0
 {{ define "create" }}
 {{ $pkg := base $.Config.Package }}
 {{ $runtimeRequired := or $.NumHooks $.NumPolicy }}
+{{ range $f := $.Fields }}{{ if $f.DefaultFunc }}{{ $runtimeRequired = true }}{{ end }}{{ end }}
+{{ if $.HasOneFieldID }}{{ if and $.ID.UserDefined $.ID.DefaultFunc }}{{ $runtimeRequired = true }}{{ end }}{{ end }}
 
 {{ template "header" $ }}
 
@@ -115,12 +117,23 @@ func ({{ $receiver }} *{{ $builder }}) check() error {
 				{{- end }}
 			{{- end }}
 		{{- end }}
-		{{- $isValidator := and ($f.HasGoType) ($f.Type.Validator) }}
+		{{- $isValidator := $f.TypeValidator }}
 		{{- with or $f.Validators $f.IsEnum $isValidator }}
 			if v, ok := {{ $mutation }}.{{ $f.MutationGet }}(); ok {
-				if err := {{ if or $f.Validators $f.IsEnum }}{{ $.Package }}.{{ $f.Validator }}({{ $f.BasicType "v" }}){{ else }}v.Validate(){{ end }}; err != nil {
-					return &ValidationError{Name: "{{ $f.Name }}", err: fmt.Errorf(`{{ $pkg }}: validator failed for field "{{ $.Name }}.{{ $f.Name }}": %w`, err)}
-				}
+				{{- if $f.IsEnum }}
+					if err := {{ $.Package }}.{{ $f.EnumValidator }}(v); err != nil {
+						return &ValidationError{Name: "{{ $f.Name }}", err: fmt.Errorf(`{{ $pkg }}: validator failed for field "{{ $.Name }}.{{ $f.Name }}": %w`, err)}
+					}
+				{{- end }}
+				{{- if $f.Validators }}
+					if err := {{ $.Package }}.{{ $f.Validator }}(v); err != nil {
+						return &ValidationError{Name: "{{ $f.Name }}", err: fmt.Errorf(`{{ $pkg }}: validator failed for field "{{ $.Name }}.{{ $f.Name }}": %w`, err)}
+					}
+				{{- else if $isValidator }}
+					if err := v.Validate(); err != nil {
+						return &ValidationError{Name: "{{ $f.Name }}", err: fmt.Errorf(`{{ $pkg }}: validator failed for field "{{ $.Name }}.{{ $f.Name }}": %w`, err)}
+					}
+				{{- end }}
 			}
 		{{- end }}
 	{{- end }}

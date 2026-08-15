@@ -91,31 +91,31 @@ func (_m *SessionDevice) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field ip_address", values[i])
 			} else if value.Valid {
-				_m.IPAddress = value.String
+				_m.IPAddress = string(value.String)
 			}
 		case sessiondevice.FieldUserAgent:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field user_agent", values[i])
 			} else if value.Valid {
-				_m.UserAgent = value.String
+				_m.UserAgent = string(value.String)
 			}
 		case sessiondevice.FieldLocation:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field location", values[i])
 			} else if value.Valid {
-				_m.Location = value.String
+				_m.Location = string(value.String)
 			}
 		case sessiondevice.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
 			} else if value.Valid {
-				_m.CreatedAt = value.Time
+				_m.CreatedAt = time.Time(value.Time)
 			}
 		case sessiondevice.FieldUpdatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field updated_at", values[i])
 			} else if value.Valid {
-				_m.UpdatedAt = value.Time
+				_m.UpdatedAt = time.Time(value.Time)
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])

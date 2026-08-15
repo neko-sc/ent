@@ -93,11 +93,11 @@ func (_m *Friendship) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case friendship.FieldID:
-			value, ok := values[i].(*sql.NullInt64)
-			if !ok {
-				return fmt.Errorf("unexpected type %T for field id", value)
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field id", values[i])
+			} else if value.Valid {
+				_m.ID = int(value.Int64)
 			}
-			_m.ID = int(value.Int64)
 		case friendship.FieldWeight:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field weight", values[i])
@@ -108,7 +108,7 @@ func (_m *Friendship) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
 			} else if value.Valid {
-				_m.CreatedAt = value.Time
+				_m.CreatedAt = time.Time(value.Time)
 			}
 		case friendship.FieldUserID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {

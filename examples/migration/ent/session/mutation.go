@@ -24,7 +24,7 @@ type Mutation struct {
 	issued_at     *time.Time
 	expires_at    *time.Time
 	token         *string
-	method        *map[string]interface{}
+	method        *map[string]any
 	clearedFields map[string]struct{}
 	device        *uuid.UUID
 	cleareddevice bool
@@ -148,12 +148,12 @@ func (m *Mutation) ResetToken() {
 }
 
 // SetMethod sets the "method" field.
-func (m *Mutation) SetMethod(value map[string]interface{}) {
+func (m *Mutation) SetMethod(value map[string]any) {
 	m.method = &value
 }
 
 // Method returns the value of the "method" field in the mutation.
-func (m *Mutation) Method() (r map[string]interface{}, exists bool) {
+func (m *Mutation) Method() (r map[string]any, exists bool) {
 	v := m.method
 	if v == nil {
 		return
@@ -356,7 +356,7 @@ func (m *Mutation) SetField(name string, value ent.Value) error {
 		m.SetToken(v)
 		return nil
 	case FieldMethod:
-		v, ok := value.(map[string]interface{})
+		v, ok := value.(map[string]any)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}

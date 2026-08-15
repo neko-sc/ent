@@ -76,7 +76,11 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 	}
 	if value, ok := _u.mutation.Address(); ok {
-		_spec.SetField(user.FieldAddress, field.TypeString, value)
+		vv, err := user.ValueScanner.Address.Value(value)
+		if err != nil {
+			return 0, err
+		}
+		_spec.SetField(user.FieldAddress, field.TypeString, vv)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -176,7 +180,11 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 		}
 	}
 	if value, ok := _u.mutation.Address(); ok {
-		_spec.SetField(user.FieldAddress, field.TypeString, value)
+		vv, err := user.ValueScanner.Address.Value(value)
+		if err != nil {
+			return nil, err
+		}
+		_spec.SetField(user.FieldAddress, field.TypeString, vv)
 	}
 	_node = &User{config: _u.config}
 	_spec.Assign = _node.assignValues

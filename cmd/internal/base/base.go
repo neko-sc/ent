@@ -186,7 +186,7 @@ func GenerateCmd(postRun ...func(*gen.Config)) *cobra.Command {
 					}
 					cfg.Package = pkgPath
 				}
-				cfg.IDType = &field.TypeInfo{Type: field.Type(idtype)}
+				cfg.IDType = new(field.Type(idtype))
 				if err := entc.Generate(path[0], &cfg, opts...); err != nil {
 					log.Fatalln(err)
 				}

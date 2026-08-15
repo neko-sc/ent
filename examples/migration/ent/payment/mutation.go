@@ -104,8 +104,8 @@ func (m *Mutation) ResetAmount() {
 }
 
 // SetCurrency sets the "currency" field.
-func (m *Mutation) SetCurrency(p Currency) {
-	m.currency = &p
+func (m *Mutation) SetCurrency(c Currency) {
+	m.currency = &c
 }
 
 // Currency returns the value of the "currency" field in the mutation.
@@ -161,8 +161,8 @@ func (m *Mutation) ResetDescription() {
 }
 
 // SetStatus sets the "status" field.
-func (m *Mutation) SetStatus(p Status) {
-	m.status = &p
+func (m *Mutation) SetStatus(s Status) {
+	m.status = &s
 }
 
 // Status returns the value of the "status" field in the mutation.

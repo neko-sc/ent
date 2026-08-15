@@ -65,7 +65,7 @@ var (
 	// DefaultID holds the default value on creation for the "id" field.
 	DefaultID func() schema.NoteID
 	// IDValidator is a validator for the "id" field. It is called by the builders before save.
-	IDValidator func(string) error
+	IDValidator func(schema.NoteID) error
 )
 
 // OrderOption defines the ordering options for the Note queries.

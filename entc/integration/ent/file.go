@@ -127,11 +127,11 @@ func (_m *File) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case file.FieldID:
-			value, ok := values[i].(*sql.NullInt64)
-			if !ok {
-				return fmt.Errorf("unexpected type %T for field id", value)
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field id", values[i])
+			} else if value.Valid {
+				_m.ID = int(value.Int64)
 			}
-			_m.ID = int(value.Int64)
 		case file.FieldSetID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field set_id", values[i])
@@ -148,26 +148,26 @@ func (_m *File) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field name", values[i])
 			} else if value.Valid {
-				_m.Name = value.String
+				_m.Name = string(value.String)
 			}
 		case file.FieldUser:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field user", values[i])
 			} else if value.Valid {
 				_m.User = new(string)
-				*_m.User = value.String
+				*_m.User = string(value.String)
 			}
 		case file.FieldGroup:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field group", values[i])
 			} else if value.Valid {
-				_m.Group = value.String
+				_m.Group = string(value.String)
 			}
 		case file.FieldOp:
 			if value, ok := values[i].(*sql.NullBool); !ok {
 				return fmt.Errorf("unexpected type %T for field op", values[i])
 			} else if value.Valid {
-				_m.Op = value.Bool
+				_m.Op = bool(value.Bool)
 			}
 		case file.FieldFieldID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -179,25 +179,25 @@ func (_m *File) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field create_time", values[i])
 			} else if value.Valid {
-				_m.CreateTime = value.Time
+				_m.CreateTime = time.Time(value.Time)
 			}
 		case file.ForeignKeys[0]:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
-				return fmt.Errorf("unexpected type %T for edge-field file_type_files", value)
+				return fmt.Errorf("unexpected type %T for field file_type_files", values[i])
 			} else if value.Valid {
 				_m.file_type_files = new(int)
 				*_m.file_type_files = int(value.Int64)
 			}
 		case file.ForeignKeys[1]:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
-				return fmt.Errorf("unexpected type %T for edge-field group_files", value)
+				return fmt.Errorf("unexpected type %T for field group_files", values[i])
 			} else if value.Valid {
 				_m.group_files = new(int)
 				*_m.group_files = int(value.Int64)
 			}
 		case file.ForeignKeys[2]:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
-				return fmt.Errorf("unexpected type %T for edge-field user_files", value)
+				return fmt.Errorf("unexpected type %T for field user_files", values[i])
 			} else if value.Valid {
 				_m.user_files = new(int)
 				*_m.user_files = int(value.Int64)

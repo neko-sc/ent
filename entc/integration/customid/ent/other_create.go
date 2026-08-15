@@ -46,7 +46,9 @@ func (_c *OtherCreate) Mutation() *OtherMutation {
 
 // Save creates the Other in the database.
 func (_c *OtherCreate) Save(ctx context.Context) (*Other, error) {
-	_c.defaults()
+	if err := _c.defaults(); err != nil {
+		return nil, err
+	}
 	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
 }
 
@@ -73,11 +75,15 @@ func (_c *OtherCreate) ExecX(ctx context.Context) {
 }
 
 // defaults sets the default values of the builder before save.
-func (_c *OtherCreate) defaults() {
+func (_c *OtherCreate) defaults() error {
 	if _, ok := _c.mutation.ID(); !ok {
+		if other.DefaultID == nil {
+			return fmt.Errorf("ent: uninitialized other.DefaultID (forgotten import ent/runtime?)")
+		}
 		v := other.DefaultID()
 		_c.mutation.SetID(v)
 	}
+	return nil
 }
 
 // check runs all checks and user-defined validators on the builder.

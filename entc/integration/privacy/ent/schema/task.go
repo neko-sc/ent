@@ -4,12 +4,12 @@
 package schema
 
 import (
+	"github.com/google/uuid"
 	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/entc/integration/privacy/ent/privacy"
 	"github.com/neko-sc/ent/entc/integration/privacy/rule"
 	"github.com/neko-sc/ent/schema/edge"
 	"github.com/neko-sc/ent/schema/field"
-	"github.com/google/uuid"
 )
 
 // Task defines the schema of a task.
@@ -35,7 +35,7 @@ func (Task) Fields() []ent.Field {
 		field.Enum("status").
 			Values("planned", "in_progress", "closed").
 			Default("planned"),
-		field.UUID("uuid", uuid.UUID{}).
+		field.UUID[uuid.UUID]("uuid").
 			Optional(),
 	}
 }

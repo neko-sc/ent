@@ -104,7 +104,7 @@ func (_m *TweetTag) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field added_at", values[i])
 			} else if value.Valid {
-				_m.AddedAt = value.Time
+				_m.AddedAt = time.Time(value.Time)
 			}
 		case tweettag.FieldTagID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {

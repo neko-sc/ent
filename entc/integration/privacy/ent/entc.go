@@ -19,7 +19,7 @@ func main() {
 	// an extension and inject external dependencies in the generated API.
 	opts := []entc.Option{
 		entc.Dependency(
-			entc.DependencyType(&http.Client{}),
+			entc.DependencyType[*http.Client](),
 		),
 		entc.FeatureNames(
 			"privacy",

@@ -98,8 +98,8 @@ func (m *Mutation) ResetDescription() {
 }
 
 // SetStatus sets the "status" field.
-func (m *Mutation) SetStatus(t Status) {
-	m.status = &t
+func (m *Mutation) SetStatus(s Status) {
+	m.status = &s
 }
 
 // Status returns the value of the "status" field in the mutation.

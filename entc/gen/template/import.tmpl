@@ -1,6 +1,6 @@
 {{/*
-Copyright 2019-2026 Facebook Inc.
-SPDX-License-Identifier: Apache-2.0
+	Copyright 2019-2026 Facebook Inc.
+	SPDX-License-Identifier: Apache-2.0
 */}}
 
 {{/* gotype: github.com/neko-sc/ent/entc/gen.Graph */}}
@@ -14,17 +14,11 @@ import (
 	"strings"
 	"sync"
 	"time"
-	{{- /* Ignore generating on graph templates (e.g. config.tmpl, client.tmpl, etc). */}}
 	{{- if ne $.Config.Package $.Package }}
 		"{{ $.Config.Package }}/predicate"
-		{{- if $.HasOneFieldID }}
-			{{- with $.ID.Type.PkgPath }}
-				{{- $name := $.ID.Type.PkgName }}
-				{{ if ne $name (base $.ID.Type.PkgPath) }}{{ $name }} {{ end }}"{{ . }}"
-			{{- end }}
+		{{- range $import := $.SemanticImports }}
+			{{ if $import.Alias }}{{ $import.Alias }} {{ end }}"{{ $import.Path }}"
 		{{- end }}
-		{{- /* Import external packages */}}
-        {{- template "import/types" $ }}
 	{{- end }}
 	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect"
@@ -43,31 +37,6 @@ import (
 )
 {{ end }}
 
-{{/* A template for importing fields with custom types */}}
-{{ define "import/types" -}}
-	{{- $seen := dict }}
-	{{- $selfPkg := "" }}{{ if ne $.Config.Package $.Package }}{{ $selfPkg = print $.Config.Package "/" $.PackageDir }}{{ end }}
-	{{- $fields := $.Fields }}{{ if $.HasOneFieldID }}{{ if $.ID.UserDefined }}{{ $fields = append $fields $.ID }}{{ end }}{{ end }}
-	{{- range $f := $fields }}
-		{{- $pkg := $f.Type.PkgPath }}
-		{{- if and $pkg (not (hasImport (base $pkg))) (not (hasKey $seen $pkg)) (ne $pkg $selfPkg) }}
-			{{- $name := $f.Type.PkgName }}
-			{{ if ne $name (base $pkg) }}{{ $name }} {{ end}}"{{ $pkg }}"
-			{{- $seen = set $seen $pkg true }}
-		{{- end }}
-	{{- end }}
-	{{- /* Import packages for edge target ID types referenced in mutation fields. */}}
-	{{- range $e := $.EdgesWithID }}
-		{{- $pkg := $e.Type.ID.Type.PkgPath }}
-		{{- if and $pkg (not (hasImport (base $pkg))) (not (hasKey $seen $pkg)) (ne $pkg $selfPkg) }}
-			{{- $name := $e.Type.ID.Type.PkgName }}
-			{{ if ne $name (base $pkg) }}{{ $name }} {{ end}}"{{ $pkg }}"
-			{{- $seen = set $seen $pkg true }}
-		{{- end }}
-	{{- end }}
-{{- end }}
-
-{{/* A template for allowing additional imports by ent extensions or user templates.*/}}
 {{ define "import/additional" }}
 	{{- with $tmpls := matchTemplate "import/additional/*" }}
 		{{- range $tmpl := $tmpls }}

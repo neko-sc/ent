@@ -149,7 +149,9 @@ func (_u *CardUpdate) RemoveSpec(v ...*Spec) *CardUpdate {
 
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (_u *CardUpdate) Save(ctx context.Context) (int, error) {
-	_u.defaults()
+	if err := _u.defaults(); err != nil {
+		return 0, err
+	}
 	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
 }
 
@@ -176,11 +178,15 @@ func (_u *CardUpdate) ExecX(ctx context.Context) {
 }
 
 // defaults sets the default values of the builder before save.
-func (_u *CardUpdate) defaults() {
+func (_u *CardUpdate) defaults() error {
 	if _, ok := _u.mutation.UpdateTime(); !ok {
+		if card.UpdateDefaultUpdateTime == nil {
+			return fmt.Errorf("ent: uninitialized card.UpdateDefaultUpdateTime (forgotten import ent/runtime?)")
+		}
 		v := card.UpdateDefaultUpdateTime()
 		_u.mutation.SetUpdateTime(v)
 	}
+	return nil
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -450,7 +456,9 @@ func (_u *CardUpdateOne) Select(field string, fields ...string) *CardUpdateOne {
 
 // Save executes the query and returns the updated Card entity.
 func (_u *CardUpdateOne) Save(ctx context.Context) (*Card, error) {
-	_u.defaults()
+	if err := _u.defaults(); err != nil {
+		return nil, err
+	}
 	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
 }
 
@@ -477,11 +485,15 @@ func (_u *CardUpdateOne) ExecX(ctx context.Context) {
 }
 
 // defaults sets the default values of the builder before save.
-func (_u *CardUpdateOne) defaults() {
+func (_u *CardUpdateOne) defaults() error {
 	if _, ok := _u.mutation.UpdateTime(); !ok {
+		if card.UpdateDefaultUpdateTime == nil {
+			return fmt.Errorf("ent: uninitialized card.UpdateDefaultUpdateTime (forgotten import ent/runtime?)")
+		}
 		v := card.UpdateDefaultUpdateTime()
 		_u.mutation.SetUpdateTime(v)
 	}
+	return nil
 }
 
 // check runs all checks and user-defined validators on the builder.

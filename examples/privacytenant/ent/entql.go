@@ -295,7 +295,7 @@ func (f *UserFilter) WhereName(p entql.StringP) {
 	f.Where(p.Field(user.FieldName))
 }
 
-// WhereFoods applies the entql json.RawMessage predicate on the foods field.
+// WhereFoods applies the entql []uint8 predicate on the foods field.
 func (f *UserFilter) WhereFoods(p entql.BytesP) {
 	f.Where(p.Field(user.FieldFoods))
 }
