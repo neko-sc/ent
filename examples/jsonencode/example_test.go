@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/neko-sc/ent/examples/jsonencode/ent"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/neko-sc/ent/examples/jsonencode/ent"
 )
 
 func Example_jsonEncode() {

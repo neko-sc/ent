@@ -4,13 +4,13 @@
 package schema
 
 import (
+	"github.com/google/uuid"
 	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/entsql"
 	"github.com/neko-sc/ent/schema"
 	"github.com/neko-sc/ent/schema/edge"
 	"github.com/neko-sc/ent/schema/field"
 	"github.com/neko-sc/ent/schema/index"
-	"github.com/google/uuid"
 )
 
 // User holds the schema definition for the User entity.

@@ -22,8 +22,8 @@ import (
 	"github.com/neko-sc/ent/entc/integration/hooks/ent/schema"
 	"github.com/neko-sc/ent/entc/integration/hooks/ent/user"
 
-	entgo "github.com/neko-sc/ent"
 	_ "github.com/mattn/go-sqlite3"
+	entgo "github.com/neko-sc/ent"
 	"github.com/stretchr/testify/require"
 )
 

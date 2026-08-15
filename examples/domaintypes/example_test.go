@@ -10,9 +10,9 @@ import (
 	"testing"
 
 	"ariga.io/atlas-go-sdk/atlasexec"
+	_ "github.com/lib/pq"
 	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/examples/domaintypes/ent"
-	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/require"
 )
 

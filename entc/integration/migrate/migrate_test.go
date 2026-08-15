@@ -36,13 +36,13 @@ import (
 	"github.com/neko-sc/ent/entc/integration/migrate/versioned"
 	vmigrate "github.com/neko-sc/ent/entc/integration/migrate/versioned/migrate"
 
+	_ "github.com/lib/pq"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/neko-sc/atlas/sql/migrate"
 	"github.com/neko-sc/atlas/sql/postgres"
 	atlas "github.com/neko-sc/atlas/sql/schema"
 	"github.com/neko-sc/atlas/sql/sqltool"
 	"github.com/neko-sc/ent/schema/field"
-	_ "github.com/lib/pq"
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/require"
 )
 

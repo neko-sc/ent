@@ -26,7 +26,7 @@ func main() {
 	opts := []schema.MigrateOption{
 		schema.WithDir(dir),                          // provide migration directory
 		schema.WithMigrationMode(schema.ModeReplay),  // provide migration mode
-		schema.WithDialect(dialect.Postgres),            // Ent dialect to use
+		schema.WithDialect(dialect.Postgres),         // Ent dialect to use
 		schema.WithFormatter(atlas.DefaultFormatter), // Default Atlas formatter
 	}
 	if len(os.Args) != 2 {
