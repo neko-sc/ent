@@ -18,8 +18,6 @@ import (
 	"context"
 
 	"{{ $.Config.Package }}"
-	// required by schema hooks.
-	_ "{{ $.Config.Package }}/runtime"
 
 	{{ if $.SupportMigrate }}
 		"{{ $.Config.Package }}/migrate"
@@ -39,7 +37,7 @@ type (
 	Option func(*options)
 
 	options struct {
-		opts []{{ $pkg }}.Option
+		opts []{{ $pkg }}.ClientOption
 		{{- if $.SupportMigrate }}
 			migrateOpts []schema.MigrateOption
 		{{- end }}
@@ -47,7 +45,7 @@ type (
 )
 
 // WithOptions forwards options to client creation.
-func WithOptions(opts ...{{ $pkg }}.Option) Option {
+func WithOptions(opts ...{{ $pkg }}.ClientOption) Option {
 	return func(o *options) {
 		o.opts = append(o.opts, opts...)
 	}

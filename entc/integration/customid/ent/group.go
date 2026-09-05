@@ -11,6 +11,7 @@ import (
 
 	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/group"
 )
 
@@ -21,8 +22,7 @@ type Group struct {
 	ID int `json:"oid,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the GroupQuery when eager-loading is set.
-	Edges        GroupEdges `json:"edges"`
-	selectValues sql.SelectValues
+	Edges GroupEdges `json:"edges"`
 }
 
 // GroupEdges holds the relations/edges for other nodes in the graph.
@@ -32,6 +32,30 @@ type GroupEdges struct {
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes [1]bool
+	counts      map[string]int
+}
+
+func (e GroupEdges) Loaded[N, K any](edge ent.RelationOf[entity.Group, N, K]) bool {
+	switch edge.Ref().Name {
+	case "users":
+		return e.loadedTypes[0]
+
+	default:
+		return false
+	}
+}
+
+func (e *GroupEdges) SetLoaded[N, K any](edge ent.RelationOf[entity.Group, N, K], loaded bool) {
+	switch edge.Ref().Name {
+	case "users":
+		e.loadedTypes[0] = loaded
+
+	}
+}
+
+func (e GroupEdges) Count[N, K any](edge ent.Relation[entity.Group, N, K]) (int, bool) {
+	count, loaded := e.counts[edge.Ref().Name]
+	return count, loaded
 }
 
 // UsersOrErr returns the Users value or an error if the edge
@@ -49,7 +73,7 @@ func (*Group) scanValues(columns []string) ([]any, error) {
 	for i := range columns {
 		switch columns[i] {
 		case group.FieldID:
-			values[i] = new(sql.NullInt64)
+			values[i] = new(*int)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -66,22 +90,15 @@ func (_m *Group) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case group.FieldID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field id", values[i])
-			} else if value.Valid {
-				_m.ID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.ID = **value
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the Group.
-// This includes values selected through modifiers, order, etc.
-func (_m *Group) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // QueryUsers queries the "users" edge of the Group entity.

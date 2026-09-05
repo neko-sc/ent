@@ -62,7 +62,7 @@ func Example_traversal() {
 func Gen(ctx context.Context, client *ent.Client) error {
 	hub, err := client.Group.
 		Create().
-		SetName("Github").
+		Set(group.Name, "Github").
 		Save(ctx)
 	if err != nil {
 		return fmt.Errorf("failed creating the group: %w", err)
@@ -71,41 +71,41 @@ func Gen(ctx context.Context, client *ent.Client) error {
 	// Unlike `Save`, `SaveX` panics if an error occurs.
 	dan := client.User.
 		Create().
-		SetAge(29).
-		SetName("Dan").
-		AddManage(hub).
+		Set(user.Age, 29).
+		Set(user.Name, "Dan").
+		AddIDs(user.Manage, hub.ID).
 		SaveX(ctx)
 
 	// Create "Ariel" and its pets.
 	a8m := client.User.
 		Create().
-		SetAge(30).
-		SetName("Ariel").
-		AddGroups(hub).
-		AddFriends(dan).
+		Set(user.Age, 30).
+		Set(user.Name, "Ariel").
+		AddIDs(user.Groups, hub.ID).
+		AddIDs(user.Friends, dan.ID).
 		SaveX(ctx)
 	pedro := client.Pet.
 		Create().
-		SetName("Pedro").
-		SetOwner(a8m).
+		Set(pet.Name, "Pedro").
+		SetEdge(pet.Owner, a8m.ID).
 		SaveX(ctx)
 	xabi := client.Pet.
 		Create().
-		SetName("Xabi").
-		SetOwner(a8m).
+		Set(pet.Name, "Xabi").
+		SetEdge(pet.Owner, a8m.ID).
 		SaveX(ctx)
 
 	// Create "Alex" and its pets.
 	alex := client.User.
 		Create().
-		SetAge(37).
-		SetName("Alex").
+		Set(user.Age, 37).
+		Set(user.Name, "Alex").
 		SaveX(ctx)
 	coco := client.Pet.
 		Create().
-		SetName("Coco").
-		SetOwner(alex).
-		AddFriends(pedro).
+		Set(pet.Name, "Coco").
+		SetEdge(pet.Owner, alex.ID).
+		AddIDs(pet.Friends, pedro.ID).
 		SaveX(ctx)
 
 	fmt.Println("Pets created:", pedro, xabi, coco)
@@ -116,14 +116,14 @@ func Gen(ctx context.Context, client *ent.Client) error {
 
 func Traverse(ctx context.Context, client *ent.Client) error {
 	owner, err := client.Group. // GroupClient.
-					Query().                     // Query builder.
-					Where(group.Name("Github")). // Filter only GitHub group (only 1).
-					QueryAdmin().                // Getting Dan.
-					QueryFriends().              // Getting Dan's friends: [Ariel].
-					QueryPets().                 // Their pets: [Pedro, Xabi].
-					QueryFriends().              // Pedro's friends: [Coco], Xabi's friends: [].
-					QueryOwner().                // Coco's owner: Alex.
-					Only(ctx)                    // Expect only one entity to return in the query.
+					Query().                        // Query builder.
+					Where(group.Name.EQ("Github")). // Filter only GitHub group (only 1).
+					QueryAdmin().                   // Getting Dan.
+					QueryFriends().                 // Getting Dan's friends: [Ariel].
+					QueryPets().                    // Their pets: [Pedro, Xabi].
+					QueryFriends().                 // Pedro's friends: [Coco], Xabi's friends: [].
+					QueryOwner().                   // Coco's owner: Alex.
+					Only(ctx)                       // Expect only one entity to return in the query.
 	if err != nil {
 		return fmt.Errorf("failed querying the owner: %w", err)
 	}
@@ -138,9 +138,9 @@ func Traverse2(ctx context.Context, client *ent.Client) error {
 	pets, err := client.Pet.
 		Query().
 		Where(
-			pet.HasOwnerWith(
-				user.HasFriendsWith(
-					user.HasManage(),
+			pet.Owner.HasWith(
+				user.Friends.HasWith(
+					user.Manage.Has(),
 				),
 			),
 		).
@@ -162,7 +162,7 @@ func GenTx(ctx context.Context, client *ent.Client) error {
 	}
 	hub, err := tx.Group.
 		Create().
-		SetName("Github").
+		Set(group.Name, "Github").
 		Save(ctx)
 	if err != nil {
 		return rollback(tx, fmt.Errorf("failed creating the group: %w", err))
@@ -170,9 +170,9 @@ func GenTx(ctx context.Context, client *ent.Client) error {
 	// Create the admin of the group.
 	dan, err := tx.User.
 		Create().
-		SetAge(29).
-		SetName("Dan").
-		AddManage(hub).
+		Set(user.Age, 29).
+		Set(user.Name, "Dan").
+		AddIDs(user.Manage, hub.ID).
 		Save(ctx)
 	if err != nil {
 		return rollback(tx, err)
@@ -180,10 +180,10 @@ func GenTx(ctx context.Context, client *ent.Client) error {
 	// Create user "Ariel".
 	a8m, err := tx.User.
 		Create().
-		SetAge(30).
-		SetName("Ariel").
-		AddGroups(hub).
-		AddFriends(dan).
+		Set(user.Age, 30).
+		Set(user.Name, "Ariel").
+		AddIDs(user.Groups, hub.ID).
+		AddIDs(user.Friends, dan.ID).
 		Save(ctx)
 	if err != nil {
 		return rollback(tx, err)

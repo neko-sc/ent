@@ -10,105 +10,148 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/ent/group"
 	"github.com/neko-sc/ent/entc/integration/ent/groupinfo"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// GroupInfoCreate is the builder for creating a GroupInfo entity.
 type GroupInfoCreate struct {
 	config
-	mutation *GroupInfoMutation
-	hooks    []Hook
+	mutation    *GroupInfoMutation
+	err         error
+	fromBuilder bool
+	present     map[string]struct{}
+
 	conflict []sql.ConflictOption
 }
 
-// SetDesc sets the "desc" field.
-func (_c *GroupInfoCreate) SetDesc(v string) *GroupInfoCreate {
-	_c.mutation.SetDesc(v)
-	return _c
-}
-
-// SetMaxUsers sets the "max_users" field.
-func (_c *GroupInfoCreate) SetMaxUsers(v int) *GroupInfoCreate {
-	_c.mutation.SetMaxUsers(v)
-	return _c
-}
-
-// SetNillableMaxUsers sets the "max_users" field if the given value is not nil.
-func (_c *GroupInfoCreate) SetNillableMaxUsers(v *int) *GroupInfoCreate {
-	if v != nil {
-		_c.SetMaxUsers(*v)
+func (b *GroupInfoCreate) Set[T any](column ent.ColumnOf[entity.GroupInfo, T], value T) *GroupInfoCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.set(column.Ref().Name, value)
 	}
-	return _c
-}
-
-// AddGroupIDs adds the "groups" edge to the Group entity by IDs.
-func (_c *GroupInfoCreate) AddGroupIDs(ids ...int) *GroupInfoCreate {
-	_c.mutation.AddGroupIDs(ids...)
-	return _c
-}
-
-// AddGroups adds the "groups" edges to the Group entity.
-func (_c *GroupInfoCreate) AddGroups(v ...*Group) *GroupInfoCreate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+	if b.present == nil {
+		b.present = make(map[string]struct{})
 	}
-	return _c.AddGroupIDs(ids...)
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+}
+func (b *GroupInfoCreate) SetOptional[T any](column ent.ColumnOf[entity.GroupInfo, T], value ent.Option[T]) *GroupInfoCreate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.insert.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *GroupInfoCreate) SetExpr[T any](column ent.ColumnOf[entity.GroupInfo, T], value ent.Expr[T]) *GroupInfoCreate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case groupinfo.FieldDesc:
+
+	case groupinfo.FieldMaxUsers:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of GroupInfo is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.insert.setExpr(column.Ref().Name, value.Render)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+
+}
+func (b *GroupInfoCreate) SetEdge[N, K any](edge ent.UniqueRelation[entity.GroupInfo, N, K], id K) *GroupInfoCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.setEdge(edge.Ref().Name, id)
+	}
+
+	switch edge.Ref().Name {
+
+	}
+
+	return b
+}
+func (b *GroupInfoCreate) AddIDs[N, K any](edge ent.Relation[entity.GroupInfo, N, K], ids ...K) *GroupInfoCreate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.insert.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *GroupInfoCreate) Mutation() *GroupInfoMutation { return b.mutation }
+
+func (b *GroupInfoCreate) Insert() *GroupInfoInsert { return b.mutation.insert }
+
+func (b *GroupInfoCreate) Save(ctx context.Context) (*GroupInfo, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Mutation returns the GroupInfoMutation object of the builder.
-func (_c *GroupInfoCreate) Mutation() *GroupInfoMutation {
-	return _c.mutation
-}
-
-// Save creates the GroupInfo in the database.
-func (_c *GroupInfoCreate) Save(ctx context.Context) (*GroupInfo, error) {
-	_c.defaults()
-	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
-}
-
-// SaveX calls Save and panics if Save returns an error.
-func (_c *GroupInfoCreate) SaveX(ctx context.Context) *GroupInfo {
-	v, err := _c.Save(ctx)
+func (b *GroupInfoCreate) SaveX(ctx context.Context) *GroupInfo {
+	node, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return node
 }
 
-// Exec executes the query.
-func (_c *GroupInfoCreate) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *GroupInfoCreate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *GroupInfoCreate) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *GroupInfoCreate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// defaults sets the default values of the builder before save.
-func (_c *GroupInfoCreate) defaults() {
-	if _, ok := _c.mutation.MaxUsers(); !ok {
-		v := groupinfo.DefaultMaxUsers
-		_c.mutation.SetMaxUsers(v)
+func (b *GroupInfoCreate) defaults() error {
+
+	if b.mutation.insert.MaxUsers.IsUnset() && b.mutation.insert.expressions[groupinfo.FieldMaxUsers] == nil {
+
+		b.mutation.insert.MaxUsers = ent.Some(groupinfo.DefaultMaxUsers)
 	}
+
+	return nil
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_c *GroupInfoCreate) check() error {
-	if _, ok := _c.mutation.Desc(); !ok {
-		return &ValidationError{Name: "desc", err: errors.New(`ent: missing required field "GroupInfo.desc"`)}
+func (b *GroupInfoCreate) check() error {
+	if b.err != nil {
+		return b.err
 	}
-	if _, ok := _c.mutation.MaxUsers(); !ok {
-		return &ValidationError{Name: "max_users", err: errors.New(`ent: missing required field "GroupInfo.max_users"`)}
+
+	switch b.driver.Dialect() {
+	case dialect.Postgres, dialect.SQLite:
+		if _, present := b.present[groupinfo.FieldDesc]; b.fromBuilder && !present {
+			return &ValidationError{Name: "desc", err: errors.New(`ent: missing required field "GroupInfo.desc"`)}
+		}
 	}
+
+	if b.mutation.insert.MaxUsers.IsNull() {
+		return &ValidationError{Name: "max_users", err: errors.New(`ent: field "GroupInfo.max_users" is not nullable`)}
+	}
+
 	return nil
 }
 
@@ -116,35 +159,44 @@ func (_c *GroupInfoCreate) sqlSave(ctx context.Context) (*GroupInfo, error) {
 	if err := _c.check(); err != nil {
 		return nil, err
 	}
-	_node, _spec := _c.createSpec()
-	if err := sqlgraph.CreateNode(ctx, _c.driver, _spec); err != nil {
+	node, spec, err := _c.createSpec()
+	if err != nil {
+		return nil, err
+	}
+	if err := sqlgraph.CreateNode(ctx, _c.driver, spec); err != nil {
 		if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
 		return nil, err
 	}
-	id := _spec.ID.Value.(int64)
-	_node.ID = int(id)
-	_c.mutation.id = &_node.ID
-	_c.mutation.done = true
-	return _node, nil
+	_c.mutation.id = &node.ID
+	return node, nil
 }
 
-func (_c *GroupInfoCreate) createSpec() (*GroupInfo, *sqlgraph.CreateSpec) {
-	var (
-		_node = &GroupInfo{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(groupinfo.Table, sqlgraph.NewFieldSpec(groupinfo.FieldID, field.TypeInt))
-	)
+func (_c *GroupInfoCreate) createSpec() (*GroupInfo, *sqlgraph.CreateSpec, error) {
+	_node := &GroupInfo{config: _c.config}
+	_spec := sqlgraph.NewCreateSpec(groupinfo.Table, sqlgraph.NewFieldSpec(groupinfo.FieldID, field.TypeInt))
+
 	_spec.OnConflict = _c.conflict
-	if value, ok := _c.mutation.Desc(); ok {
+
+	if _, present := _c.present[groupinfo.FieldDesc]; !_c.fromBuilder || present {
+		value := _c.mutation.insert.Desc
 		_spec.SetField(groupinfo.FieldDesc, field.TypeString, value)
-		_node.Desc = value
 	}
-	if value, ok := _c.mutation.MaxUsers(); ok {
+
+	if value, ok := _c.mutation.insert.MaxUsers.Get(); ok {
 		_spec.SetField(groupinfo.FieldMaxUsers, field.TypeInt, value)
-		_node.MaxUsers = value
 	}
-	if nodes := _c.mutation.GroupsIDs(); len(nodes) > 0 {
+	if _c.mutation.insert.MaxUsers.IsNull() {
+		_spec.SetField(groupinfo.FieldMaxUsers, field.TypeInt, nil)
+	}
+
+	_spec.Expressions = _c.mutation.insert.expressions
+
+	if nodes := _c.mutation.insert.groupsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: true,
@@ -155,193 +207,142 @@ func (_c *GroupInfoCreate) createSpec() (*GroupInfo, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(group.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	return _node, _spec
+
+	_spec.Returning = &sqlgraph.Returning{Columns: groupinfo.Columns, Scan: func(rows dialect.Rows) error {
+		values, err := _node.scanValues(groupinfo.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(groupinfo.Columns, values); err != nil {
+			return err
+		}
+
+		_spec.ID.Value = _node.ID
+
+		return nil
+	}}
+	return _node, _spec, nil
 }
 
-// OnConflict allows configuring the `ON CONFLICT` clause of the `INSERT`
-// statement. For example:
-//
-//	client.GroupInfo.Create().
-//		SetDesc(v).
-//		OnConflict(
-//			// Update the row with the new values
-//			// the was proposed for insertion.
-//			sql.ResolveWithNewValues(),
-//		).
-//		// Override some of the fields with custom
-//		// update values.
-//		Update(func(u *ent.GroupInfoUpsert) {
-//			SetDesc(v+v).
-//		}).
-//		Exec(ctx)
-func (_c *GroupInfoCreate) OnConflict(opts ...sql.ConflictOption) *GroupInfoUpsertOne {
-	_c.conflict = opts
-	return &GroupInfoUpsertOne{
-		create: _c,
+type GroupInfoUpsertOne struct{ create *GroupInfoCreate }
+
+func (b *GroupInfoCreate) OnConflict(columns ...ent.EntityColumn[entity.GroupInfo]) *GroupInfoUpsertOne {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
 	}
-}
-
-// OnConflictColumns calls `OnConflict` and configures the columns
-// as conflict target. Using this option is equivalent to using:
-//
-//	client.GroupInfo.Create().
-//		OnConflict(sql.ConflictColumns(columns...)).
-//		Exec(ctx)
-func (_c *GroupInfoCreate) OnConflictColumns(columns ...string) *GroupInfoUpsertOne {
-	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
-	return &GroupInfoUpsertOne{
-		create: _c,
+	if len(names) == 0 {
+		return b.OnConflictOptions()
 	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
 }
 
-type (
-	// GroupInfoUpsertOne is the builder for "upsert"-ing
-	//  one GroupInfo node.
-	GroupInfoUpsertOne struct {
-		create *GroupInfoCreate
-	}
-
-	// GroupInfoUpsert is the "OnConflict" setter.
-	GroupInfoUpsert struct {
-		*sql.UpdateSet
-	}
-)
-
-// SetDesc sets the "desc" field.
-func (u *GroupInfoUpsert) SetDesc(v string) *GroupInfoUpsert {
-	u.Set(groupinfo.FieldDesc, v)
-	return u
+func (b *GroupInfoCreate) OnConflictConstraint(name string) *GroupInfoUpsertOne {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
 }
 
-// UpdateDesc sets the "desc" field to the value that was provided on create.
-func (u *GroupInfoUpsert) UpdateDesc() *GroupInfoUpsert {
-	u.SetExcluded(groupinfo.FieldDesc)
-	return u
+func (b *GroupInfoCreate) OnConflictOptions(options ...sql.ConflictOption) *GroupInfoUpsertOne {
+	b.conflict = options
+	return &GroupInfoUpsertOne{create: b}
 }
 
-// SetMaxUsers sets the "max_users" field.
-func (u *GroupInfoUpsert) SetMaxUsers(v int) *GroupInfoUpsert {
-	u.Set(groupinfo.FieldMaxUsers, v)
-	return u
-}
-
-// UpdateMaxUsers sets the "max_users" field to the value that was provided on create.
-func (u *GroupInfoUpsert) UpdateMaxUsers() *GroupInfoUpsert {
-	u.SetExcluded(groupinfo.FieldMaxUsers)
-	return u
-}
-
-// AddMaxUsers adds v to the "max_users" field.
-func (u *GroupInfoUpsert) AddMaxUsers(v int) *GroupInfoUpsert {
-	u.Add(groupinfo.FieldMaxUsers, v)
-	return u
-}
-
-// UpdateNewValues updates the mutable fields using the new values that were set on create.
-// Using this option is equivalent to using:
-//
-//	client.GroupInfo.Create().
-//		OnConflict(
-//			sql.ResolveWithNewValues(),
-//		).
-//		Exec(ctx)
-func (u *GroupInfoUpsertOne) UpdateNewValues() *GroupInfoUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
-	return u
-}
-
-// Ignore sets each column to itself in case of conflict.
-// Using this option is equivalent to using:
-//
-//	client.GroupInfo.Create().
-//	    OnConflict(sql.ResolveWithIgnore()).
-//	    Exec(ctx)
-func (u *GroupInfoUpsertOne) Ignore() *GroupInfoUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
-	return u
-}
-
-// DoNothing configures the conflict_action to `DO NOTHING`.
-// Supported only by SQLite and PostgreSQL.
 func (u *GroupInfoUpsertOne) DoNothing() *GroupInfoUpsertOne {
 	u.create.conflict = append(u.create.conflict, sql.DoNothing())
 	return u
 }
 
-// Update allows overriding fields `UPDATE` values. See the GroupInfoCreate.OnConflict
-// documentation for more info.
-func (u *GroupInfoUpsertOne) Update(set func(*GroupInfoUpsert)) *GroupInfoUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
-		set(&GroupInfoUpsert{UpdateSet: update})
+func (u *GroupInfoUpsertOne) DoSelect() *GroupInfoUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *GroupInfoUpsertOne) Ignore() *GroupInfoUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *GroupInfoUpsertOne) DoUpdate(set func(*GroupInfoUpsert)) *GroupInfoUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&GroupInfoUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *GroupInfoUpsertOne) UpdateNewValues() *GroupInfoUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case groupinfo.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
 	}))
 	return u
 }
 
-// SetDesc sets the "desc" field.
-func (u *GroupInfoUpsertOne) SetDesc(v string) *GroupInfoUpsertOne {
-	return u.Update(func(s *GroupInfoUpsert) {
-		s.SetDesc(v)
-	})
+func (u *GroupInfoUpsertOne) Where(predicates ...ent.Predicate[entity.GroupInfo]) *GroupInfoUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(groupinfo.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// UpdateDesc sets the "desc" field to the value that was provided on create.
-func (u *GroupInfoUpsertOne) UpdateDesc() *GroupInfoUpsertOne {
-	return u.Update(func(s *GroupInfoUpsert) {
-		s.UpdateDesc()
-	})
+func (u *GroupInfoUpsertOne) UpdateWhere(predicates ...ent.Predicate[entity.GroupInfo]) *GroupInfoUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(groupinfo.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// SetMaxUsers sets the "max_users" field.
-func (u *GroupInfoUpsertOne) SetMaxUsers(v int) *GroupInfoUpsertOne {
-	return u.Update(func(s *GroupInfoUpsert) {
-		s.SetMaxUsers(v)
-	})
-}
-
-// AddMaxUsers adds v to the "max_users" field.
-func (u *GroupInfoUpsertOne) AddMaxUsers(v int) *GroupInfoUpsertOne {
-	return u.Update(func(s *GroupInfoUpsert) {
-		s.AddMaxUsers(v)
-	})
-}
-
-// UpdateMaxUsers sets the "max_users" field to the value that was provided on create.
-func (u *GroupInfoUpsertOne) UpdateMaxUsers() *GroupInfoUpsertOne {
-	return u.Update(func(s *GroupInfoUpsert) {
-		s.UpdateMaxUsers()
-	})
-}
-
-// Exec executes the query.
-func (u *GroupInfoUpsertOne) Exec(ctx context.Context) error {
+func (u *GroupInfoUpsertOne) Save(ctx context.Context) (*GroupInfo, error) {
 	if len(u.create.conflict) == 0 {
-		return errors.New("ent: missing options for GroupInfoCreate.OnConflict")
+		return nil, errors.New("ent: missing options for GroupInfoCreate.OnConflict")
 	}
-	return u.create.Exec(ctx)
+	return u.create.Save(ctx)
 }
 
-// ExecX is like Exec, but panics if an error occurs.
+func (u *GroupInfoUpsertOne) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
 func (u *GroupInfoUpsertOne) ExecX(ctx context.Context) {
-	if err := u.create.Exec(ctx); err != nil {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// Exec executes the UPSERT query and returns the inserted/updated ID.
 func (u *GroupInfoUpsertOne) ID(ctx context.Context) (id int, err error) {
-	node, err := u.create.Save(ctx)
+	node, err := u.Save(ctx)
 	if err != nil {
 		return id, err
 	}
 	return node.ID, nil
 }
 
-// IDX is like ID, but panics if an error occurs.
 func (u *GroupInfoUpsertOne) IDX(ctx context.Context) int {
 	id, err := u.ID(ctx)
 	if err != nil {
@@ -350,231 +351,241 @@ func (u *GroupInfoUpsertOne) IDX(ctx context.Context) int {
 	return id
 }
 
-// GroupInfoCreateBulk is the builder for creating many GroupInfo entities in bulk.
+type GroupInfoUpsert struct{ *sql.UpdateSet }
+
+func (u *GroupInfoUpsert) Set[T any](column ent.ColumnOf[entity.GroupInfo, T], value T) *GroupInfoUpsert {
+	switch column.Ref().Name {
+
+	case groupinfo.FieldDesc:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case groupinfo.FieldMaxUsers:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of GroupInfo is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *GroupInfoUpsert) SetExpr[T any](column ent.ColumnOf[entity.GroupInfo, T], value ent.Expr[T]) *GroupInfoUpsert {
+	switch column.Ref().Name {
+
+	case groupinfo.FieldDesc:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case groupinfo.FieldMaxUsers:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of GroupInfo is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *GroupInfoUpsert) UpdateNewValue[T any](column ent.ColumnOf[entity.GroupInfo, T]) *GroupInfoUpsert {
+	switch column.Ref().Name {
+
+	case groupinfo.FieldDesc:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case groupinfo.FieldMaxUsers:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of GroupInfo is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *GroupInfoUpsert) Add[T ent.Number](column ent.ColumnOf[entity.GroupInfo, T], delta T) *GroupInfoUpsert {
+	switch column.Ref().Name {
+
+	case groupinfo.FieldMaxUsers:
+		u.UpdateSet.Add(column.Ref().Name, delta)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of GroupInfo does not support addition", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *GroupInfoUpsert) Clear[T any](column ent.ColumnOf[entity.GroupInfo, T]) *GroupInfoUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of GroupInfo is not nullable", column.Ref().Name)})
+	}
+	return u
+}
+
 type GroupInfoCreateBulk struct {
 	config
 	err      error
 	builders []*GroupInfoCreate
+
 	conflict []sql.ConflictOption
 }
 
-// Save creates the GroupInfo entities in the database.
 func (_c *GroupInfoCreateBulk) Save(ctx context.Context) ([]*GroupInfo, error) {
 	if _c.err != nil {
 		return nil, _c.err
 	}
-	specs := make([]*sqlgraph.CreateSpec, len(_c.builders))
 	nodes := make([]*GroupInfo, len(_c.builders))
-	mutators := make([]Mutator, len(_c.builders))
-	for i := range _c.builders {
-		func(i int, root context.Context) {
-			builder := _c.builders[i]
-			builder.defaults()
-			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*GroupInfoMutation)
-				if !ok {
-					return nil, fmt.Errorf("unexpected mutation type %T", m)
-				}
-				if err := builder.check(); err != nil {
-					return nil, err
-				}
-				builder.mutation = mutation
-				var err error
-				nodes[i], specs[i] = builder.createSpec()
-				if i < len(mutators)-1 {
-					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
-				} else {
-					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
-					spec.OnConflict = _c.conflict
-					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
-						if sqlgraph.IsConstraintError(err) {
-							err = &ConstraintError{msg: err.Error(), wrap: err}
-						}
-					}
-				}
-				if err != nil {
-					return nil, err
-				}
-				mutation.id = &nodes[i].ID
-				if specs[i].ID.Value != nil {
-					id := specs[i].ID.Value.(int64)
-					nodes[i].ID = int(id)
-				}
-				mutation.done = true
-				return nodes[i], nil
-			})
-			for i := len(builder.hooks) - 1; i >= 0; i-- {
-				mut = builder.hooks[i](mut)
-			}
-			mutators[i] = mut
-		}(i, ctx)
-	}
-	if len(mutators) > 0 {
-		if _, err := mutators[0].Mutate(ctx, _c.builders[0].mutation); err != nil {
+	specs := make([]*sqlgraph.CreateSpec, len(nodes))
+	for index, builder := range _c.builders {
+		if builder.err != nil {
+			return nil, builder.err
+		}
+		if err := builder.defaults(); err != nil {
+			return nil, err
+		}
+		if err := builder.check(); err != nil {
+			return nil, err
+		}
+		var err error
+		nodes[index], specs[index], err = builder.createSpec()
+		if err != nil {
 			return nil, err
 		}
 	}
-	return nodes, nil
+	if len(specs) == 0 {
+		return nodes, nil
+	}
+	spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+
+	spec.OnConflict = _c.conflict
+
+	if err := sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
+		if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{msg: err.Error(), wrap: err}
+		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
+		return nil, err
+	}
+	result := nodes[:0]
+	for index, builder := range _c.builders {
+		if specs[index].Skipped {
+			continue
+		}
+		builder.mutation.id = &nodes[index].ID
+		result = append(result, nodes[index])
+	}
+	return result, nil
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_c *GroupInfoCreateBulk) SaveX(ctx context.Context) []*GroupInfo {
-	v, err := _c.Save(ctx)
+func (b *GroupInfoCreateBulk) SaveX(ctx context.Context) []*GroupInfo {
+	nodes, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return nodes
 }
 
-// Exec executes the query.
-func (_c *GroupInfoCreateBulk) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *GroupInfoCreateBulk) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *GroupInfoCreateBulk) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *GroupInfoCreateBulk) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// OnConflict allows configuring the `ON CONFLICT` clause of the `INSERT`
-// statement. For example:
-//
-//	client.GroupInfo.CreateBulk(builders...).
-//		OnConflict(
-//			// Update the row with the new values
-//			// the was proposed for insertion.
-//			sql.ResolveWithNewValues(),
-//		).
-//		// Override some of the fields with custom
-//		// update values.
-//		Update(func(u *ent.GroupInfoUpsert) {
-//			SetDesc(v+v).
-//		}).
-//		Exec(ctx)
-func (_c *GroupInfoCreateBulk) OnConflict(opts ...sql.ConflictOption) *GroupInfoUpsertBulk {
-	_c.conflict = opts
-	return &GroupInfoUpsertBulk{
-		create: _c,
+type GroupInfoUpsertBulk struct{ create *GroupInfoCreateBulk }
+
+func (b *GroupInfoCreateBulk) OnConflict(columns ...ent.EntityColumn[entity.GroupInfo]) *GroupInfoUpsertBulk {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
 	}
-}
-
-// OnConflictColumns calls `OnConflict` and configures the columns
-// as conflict target. Using this option is equivalent to using:
-//
-//	client.GroupInfo.Create().
-//		OnConflict(sql.ConflictColumns(columns...)).
-//		Exec(ctx)
-func (_c *GroupInfoCreateBulk) OnConflictColumns(columns ...string) *GroupInfoUpsertBulk {
-	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
-	return &GroupInfoUpsertBulk{
-		create: _c,
+	if len(names) == 0 {
+		return b.OnConflictOptions()
 	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
 }
 
-// GroupInfoUpsertBulk is the builder for "upsert"-ing
-// a bulk of GroupInfo nodes.
-type GroupInfoUpsertBulk struct {
-	create *GroupInfoCreateBulk
+func (b *GroupInfoCreateBulk) OnConflictConstraint(name string) *GroupInfoUpsertBulk {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
 }
 
-// UpdateNewValues updates the mutable fields using the new values that
-// were set on create. Using this option is equivalent to using:
-//
-//	client.GroupInfo.Create().
-//		OnConflict(
-//			sql.ResolveWithNewValues(),
-//		).
-//		Exec(ctx)
-func (u *GroupInfoUpsertBulk) UpdateNewValues() *GroupInfoUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
-	return u
+func (b *GroupInfoCreateBulk) OnConflictOptions(options ...sql.ConflictOption) *GroupInfoUpsertBulk {
+	b.conflict = options
+	return &GroupInfoUpsertBulk{create: b}
 }
 
-// Ignore sets each column to itself in case of conflict.
-// Using this option is equivalent to using:
-//
-//	client.GroupInfo.Create().
-//		OnConflict(sql.ResolveWithIgnore()).
-//		Exec(ctx)
-func (u *GroupInfoUpsertBulk) Ignore() *GroupInfoUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
-	return u
-}
-
-// DoNothing configures the conflict_action to `DO NOTHING`.
-// Supported only by SQLite and PostgreSQL.
 func (u *GroupInfoUpsertBulk) DoNothing() *GroupInfoUpsertBulk {
 	u.create.conflict = append(u.create.conflict, sql.DoNothing())
 	return u
 }
 
-// Update allows overriding fields `UPDATE` values. See the GroupInfoCreateBulk.OnConflict
-// documentation for more info.
-func (u *GroupInfoUpsertBulk) Update(set func(*GroupInfoUpsert)) *GroupInfoUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
-		set(&GroupInfoUpsert{UpdateSet: update})
+func (u *GroupInfoUpsertBulk) DoSelect() *GroupInfoUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *GroupInfoUpsertBulk) Ignore() *GroupInfoUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *GroupInfoUpsertBulk) DoUpdate(set func(*GroupInfoUpsert)) *GroupInfoUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&GroupInfoUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *GroupInfoUpsertBulk) UpdateNewValues() *GroupInfoUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case groupinfo.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
 	}))
 	return u
 }
 
-// SetDesc sets the "desc" field.
-func (u *GroupInfoUpsertBulk) SetDesc(v string) *GroupInfoUpsertBulk {
-	return u.Update(func(s *GroupInfoUpsert) {
-		s.SetDesc(v)
-	})
-}
-
-// UpdateDesc sets the "desc" field to the value that was provided on create.
-func (u *GroupInfoUpsertBulk) UpdateDesc() *GroupInfoUpsertBulk {
-	return u.Update(func(s *GroupInfoUpsert) {
-		s.UpdateDesc()
-	})
-}
-
-// SetMaxUsers sets the "max_users" field.
-func (u *GroupInfoUpsertBulk) SetMaxUsers(v int) *GroupInfoUpsertBulk {
-	return u.Update(func(s *GroupInfoUpsert) {
-		s.SetMaxUsers(v)
-	})
-}
-
-// AddMaxUsers adds v to the "max_users" field.
-func (u *GroupInfoUpsertBulk) AddMaxUsers(v int) *GroupInfoUpsertBulk {
-	return u.Update(func(s *GroupInfoUpsert) {
-		s.AddMaxUsers(v)
-	})
-}
-
-// UpdateMaxUsers sets the "max_users" field to the value that was provided on create.
-func (u *GroupInfoUpsertBulk) UpdateMaxUsers() *GroupInfoUpsertBulk {
-	return u.Update(func(s *GroupInfoUpsert) {
-		s.UpdateMaxUsers()
-	})
-}
-
-// Exec executes the query.
-func (u *GroupInfoUpsertBulk) Exec(ctx context.Context) error {
-	if u.create.err != nil {
-		return u.create.err
-	}
-	for i, b := range u.create.builders {
-		if len(b.conflict) != 0 {
-			return fmt.Errorf("ent: OnConflict was set for builder %d. Set it on the GroupInfoCreateBulk instead", i)
+func (u *GroupInfoUpsertBulk) Where(predicates ...ent.Predicate[entity.GroupInfo]) *GroupInfoUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(groupinfo.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
 		}
-	}
-	if len(u.create.conflict) == 0 {
-		return errors.New("ent: missing options for GroupInfoCreateBulk.OnConflict")
-	}
-	return u.create.Exec(ctx)
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// ExecX is like Exec, but panics if an error occurs.
+func (u *GroupInfoUpsertBulk) UpdateWhere(predicates ...ent.Predicate[entity.GroupInfo]) *GroupInfoUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(groupinfo.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *GroupInfoUpsertBulk) Save(ctx context.Context) ([]*GroupInfo, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for GroupInfoCreateBulk.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *GroupInfoUpsertBulk) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
 func (u *GroupInfoUpsertBulk) ExecX(ctx context.Context) {
-	if err := u.create.Exec(ctx); err != nil {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

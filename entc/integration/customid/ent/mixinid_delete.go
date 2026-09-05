@@ -8,29 +8,56 @@ package ent
 import (
 	"context"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/mixinid"
-	"github.com/neko-sc/ent/entc/integration/customid/ent/predicate"
 	"github.com/neko-sc/ent/schema/field"
 )
 
 // MixinIDDelete is the builder for deleting a MixinID entity.
 type MixinIDDelete struct {
 	config
-	hooks    []Hook
-	mutation *MixinIDMutation
+
+	mutation  *MixinIDMutation
+	returning *sqlgraph.Returning
 }
 
 // Where appends a list predicates to the MixinIDDelete builder.
-func (_d *MixinIDDelete) Where(ps ...predicate.MixinID) *MixinIDDelete {
-	_d.mutation.Where(ps...)
+func (_d *MixinIDDelete) Where(predicates ...ent.Predicate[entity.MixinID]) *MixinIDDelete {
+	_d.mutation.Where(predicates...)
 	return _d
 }
 
 // Exec executes the deletion query and returns how many vertices were deleted.
 func (_d *MixinIDDelete) Exec(ctx context.Context) (int, error) {
-	return withHooks(ctx, _d.sqlExec, _d.mutation, _d.hooks)
+	return _d.sqlExec(ctx)
+}
+
+func (b *MixinIDDelete) Returning(ctx context.Context) ([]*MixinID, error) {
+	nodes := make([]*MixinID, 0)
+	b.returning = &sqlgraph.Returning{Columns: mixinid.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &MixinID{config: b.config}
+		values, err := _node.scanValues(mixinid.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(mixinid.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Exec(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
 }
 
 // ExecX is like Exec, but panics if an error occurs.
@@ -51,11 +78,11 @@ func (_d *MixinIDDelete) sqlExec(ctx context.Context) (int, error) {
 			}
 		}
 	}
+	_spec.Returning = _d.returning
 	affected, err := sqlgraph.DeleteNodes(ctx, _d.driver, _spec)
 	if err != nil && sqlgraph.IsConstraintError(err) {
 		err = &ConstraintError{msg: err.Error(), wrap: err}
 	}
-	_d.mutation.done = true
 	return affected, err
 }
 
@@ -65,8 +92,8 @@ type MixinIDDeleteOne struct {
 }
 
 // Where appends a list predicates to the MixinIDDelete builder.
-func (_d *MixinIDDeleteOne) Where(ps ...predicate.MixinID) *MixinIDDeleteOne {
-	_d._d.mutation.Where(ps...)
+func (_d *MixinIDDeleteOne) Where(predicates ...ent.Predicate[entity.MixinID]) *MixinIDDeleteOne {
+	_d._d.mutation.Where(predicates...)
 	return _d
 }
 

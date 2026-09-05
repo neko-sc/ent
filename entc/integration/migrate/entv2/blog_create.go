@@ -10,87 +10,143 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect"
+	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/entc/integration/migrate/entv2/blog"
+	"github.com/neko-sc/ent/entc/integration/migrate/entv2/entity"
 	"github.com/neko-sc/ent/entc/integration/migrate/entv2/user"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// BlogCreate is the builder for creating a Blog entity.
 type BlogCreate struct {
 	config
-	mutation *BlogMutation
-	hooks    []Hook
+	mutation    *BlogMutation
+	err         error
+	fromBuilder bool
+	present     map[string]struct{}
+
+	conflict []sql.ConflictOption
 }
 
-// SetOid sets the "oid" field.
-func (_c *BlogCreate) SetOid(v int) *BlogCreate {
-	_c.mutation.SetOid(v)
-	return _c
-}
-
-// SetID sets the "id" field.
-func (_c *BlogCreate) SetID(v int) *BlogCreate {
-	_c.mutation.SetID(v)
-	return _c
-}
-
-// AddAdminIDs adds the "admins" edge to the User entity by IDs.
-func (_c *BlogCreate) AddAdminIDs(ids ...int) *BlogCreate {
-	_c.mutation.AddAdminIDs(ids...)
-	return _c
-}
-
-// AddAdmins adds the "admins" edges to the User entity.
-func (_c *BlogCreate) AddAdmins(v ...*User) *BlogCreate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+func (b *BlogCreate) Set[T any](column ent.ColumnOf[entity.Blog, T], value T) *BlogCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.set(column.Ref().Name, value)
 	}
-	return _c.AddAdminIDs(ids...)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+}
+func (b *BlogCreate) SetOptional[T any](column ent.ColumnOf[entity.Blog, T], value ent.Option[T]) *BlogCreate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.insert.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *BlogCreate) SetExpr[T any](column ent.ColumnOf[entity.Blog, T], value ent.Expr[T]) *BlogCreate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case blog.FieldID:
+
+	case blog.FieldOid:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Blog is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.insert.setExpr(column.Ref().Name, value.Render)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+
+}
+func (b *BlogCreate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Blog, N, K], id K) *BlogCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.setEdge(edge.Ref().Name, id)
+	}
+
+	switch edge.Ref().Name {
+
+	}
+
+	return b
+}
+func (b *BlogCreate) AddIDs[N, K any](edge ent.Relation[entity.Blog, N, K], ids ...K) *BlogCreate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.insert.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *BlogCreate) Mutation() *BlogMutation { return b.mutation }
+
+func (b *BlogCreate) Insert() *BlogInsert { return b.mutation.insert }
+
+func (b *BlogCreate) Save(ctx context.Context) (*Blog, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Mutation returns the BlogMutation object of the builder.
-func (_c *BlogCreate) Mutation() *BlogMutation {
-	return _c.mutation
-}
-
-// Save creates the Blog in the database.
-func (_c *BlogCreate) Save(ctx context.Context) (*Blog, error) {
-	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
-}
-
-// SaveX calls Save and panics if Save returns an error.
-func (_c *BlogCreate) SaveX(ctx context.Context) *Blog {
-	v, err := _c.Save(ctx)
+func (b *BlogCreate) SaveX(ctx context.Context) *Blog {
+	node, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return node
 }
 
-// Exec executes the query.
-func (_c *BlogCreate) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *BlogCreate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *BlogCreate) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *BlogCreate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_c *BlogCreate) check() error {
-	switch _c.driver.Dialect() {
+func (b *BlogCreate) defaults() error {
+
+	return nil
+}
+
+func (b *BlogCreate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.insert.ID.IsNull() {
+		return &ValidationError{Name: "id", err: errors.New(`ent: field "Blog.id" is not nullable`)}
+	}
+
+	switch b.driver.Dialect() {
 	case dialect.SQLite:
-		if _, ok := _c.mutation.Oid(); !ok {
-			return &ValidationError{Name: "oid", err: errors.New(`entv2: missing required field "Blog.oid"`)}
+		if _, present := b.present[blog.FieldOid]; b.fromBuilder && !present {
+			return &ValidationError{Name: "oid", err: errors.New(`ent: missing required field "Blog.oid"`)}
 		}
 	}
+
 	return nil
 }
 
@@ -98,36 +154,41 @@ func (_c *BlogCreate) sqlSave(ctx context.Context) (*Blog, error) {
 	if err := _c.check(); err != nil {
 		return nil, err
 	}
-	_node, _spec := _c.createSpec()
-	if err := sqlgraph.CreateNode(ctx, _c.driver, _spec); err != nil {
+	node, spec, err := _c.createSpec()
+	if err != nil {
+		return nil, err
+	}
+	if err := sqlgraph.CreateNode(ctx, _c.driver, spec); err != nil {
 		if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
 		return nil, err
 	}
-	if _spec.ID.Value != _node.ID {
-		id := _spec.ID.Value.(int64)
-		_node.ID = int(id)
-	}
-	_c.mutation.id = &_node.ID
-	_c.mutation.done = true
-	return _node, nil
+	_c.mutation.id = &node.ID
+	return node, nil
 }
 
-func (_c *BlogCreate) createSpec() (*Blog, *sqlgraph.CreateSpec) {
-	var (
-		_node = &Blog{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(blog.Table, sqlgraph.NewFieldSpec(blog.FieldID, field.TypeInt))
-	)
-	if id, ok := _c.mutation.ID(); ok {
-		_node.ID = id
-		_spec.ID.Value = id
+func (_c *BlogCreate) createSpec() (*Blog, *sqlgraph.CreateSpec, error) {
+	_node := &Blog{config: _c.config}
+	_spec := sqlgraph.NewCreateSpec(blog.Table, sqlgraph.NewFieldSpec(blog.FieldID, field.TypeInt))
+
+	_spec.OnConflict = _c.conflict
+
+	if value, ok := _c.mutation.insert.ID.Get(); ok {
+		_spec.ID.Value = value
 	}
-	if value, ok := _c.mutation.Oid(); ok {
+
+	if _, present := _c.present[blog.FieldOid]; !_c.fromBuilder || present {
+		value := _c.mutation.insert.Oid
 		_spec.SetField(blog.FieldOid, field.TypeInt, value)
-		_node.Oid = value
 	}
-	if nodes := _c.mutation.AdminsIDs(); len(nodes) > 0 {
+
+	_spec.Expressions = _c.mutation.insert.expressions
+
+	if nodes := _c.mutation.insert.adminsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -138,97 +199,376 @@ func (_c *BlogCreate) createSpec() (*Blog, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	return _node, _spec
+
+	_spec.Returning = &sqlgraph.Returning{Columns: blog.Columns, Scan: func(rows dialect.Rows) error {
+		values, err := _node.scanValues(blog.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(blog.Columns, values); err != nil {
+			return err
+		}
+
+		_spec.ID.Value = _node.ID
+
+		return nil
+	}}
+	return _node, _spec, nil
 }
 
-// BlogCreateBulk is the builder for creating many Blog entities in bulk.
+type BlogUpsertOne struct{ create *BlogCreate }
+
+func (b *BlogCreate) OnConflict(columns ...ent.EntityColumn[entity.Blog]) *BlogUpsertOne {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
+	}
+	if len(names) == 0 {
+		return b.OnConflictOptions()
+	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
+}
+
+func (b *BlogCreate) OnConflictConstraint(name string) *BlogUpsertOne {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
+}
+
+func (b *BlogCreate) OnConflictOptions(options ...sql.ConflictOption) *BlogUpsertOne {
+	b.conflict = options
+	return &BlogUpsertOne{create: b}
+}
+
+func (u *BlogUpsertOne) DoNothing() *BlogUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+func (u *BlogUpsertOne) DoSelect() *BlogUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *BlogUpsertOne) Ignore() *BlogUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *BlogUpsertOne) DoUpdate(set func(*BlogUpsert)) *BlogUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&BlogUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *BlogUpsertOne) UpdateNewValues() *BlogUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case blog.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
+	}))
+	return u
+}
+
+func (u *BlogUpsertOne) Where(predicates ...ent.Predicate[entity.Blog]) *BlogUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(blog.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *BlogUpsertOne) UpdateWhere(predicates ...ent.Predicate[entity.Blog]) *BlogUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(blog.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *BlogUpsertOne) Save(ctx context.Context) (*Blog, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for BlogCreate.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *BlogUpsertOne) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
+func (u *BlogUpsertOne) ExecX(ctx context.Context) {
+	if err := u.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+func (u *BlogUpsertOne) ID(ctx context.Context) (id int, err error) {
+	node, err := u.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+func (u *BlogUpsertOne) IDX(ctx context.Context) int {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
+type BlogUpsert struct{ *sql.UpdateSet }
+
+func (u *BlogUpsert) Set[T any](column ent.ColumnOf[entity.Blog, T], value T) *BlogUpsert {
+	switch column.Ref().Name {
+
+	case blog.FieldOid:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Blog is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *BlogUpsert) SetExpr[T any](column ent.ColumnOf[entity.Blog, T], value ent.Expr[T]) *BlogUpsert {
+	switch column.Ref().Name {
+
+	case blog.FieldOid:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Blog is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *BlogUpsert) UpdateNewValue[T any](column ent.ColumnOf[entity.Blog, T]) *BlogUpsert {
+	switch column.Ref().Name {
+
+	case blog.FieldOid:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Blog is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *BlogUpsert) Add[T ent.Number](column ent.ColumnOf[entity.Blog, T], delta T) *BlogUpsert {
+	switch column.Ref().Name {
+
+	case blog.FieldOid:
+		u.UpdateSet.Add(column.Ref().Name, delta)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Blog does not support addition", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *BlogUpsert) Clear[T any](column ent.ColumnOf[entity.Blog, T]) *BlogUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Blog is not nullable", column.Ref().Name)})
+	}
+	return u
+}
+
 type BlogCreateBulk struct {
 	config
 	err      error
 	builders []*BlogCreate
+
+	conflict []sql.ConflictOption
 }
 
-// Save creates the Blog entities in the database.
 func (_c *BlogCreateBulk) Save(ctx context.Context) ([]*Blog, error) {
 	if _c.err != nil {
 		return nil, _c.err
 	}
-	specs := make([]*sqlgraph.CreateSpec, len(_c.builders))
 	nodes := make([]*Blog, len(_c.builders))
-	mutators := make([]Mutator, len(_c.builders))
-	for i := range _c.builders {
-		func(i int, root context.Context) {
-			builder := _c.builders[i]
-			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*BlogMutation)
-				if !ok {
-					return nil, fmt.Errorf("unexpected mutation type %T", m)
-				}
-				if err := builder.check(); err != nil {
-					return nil, err
-				}
-				builder.mutation = mutation
-				var err error
-				nodes[i], specs[i] = builder.createSpec()
-				if i < len(mutators)-1 {
-					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
-				} else {
-					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
-					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
-						if sqlgraph.IsConstraintError(err) {
-							err = &ConstraintError{msg: err.Error(), wrap: err}
-						}
-					}
-				}
-				if err != nil {
-					return nil, err
-				}
-				mutation.id = &nodes[i].ID
-				if specs[i].ID.Value != nil && nodes[i].ID == 0 {
-					id := specs[i].ID.Value.(int64)
-					nodes[i].ID = int(id)
-				}
-				mutation.done = true
-				return nodes[i], nil
-			})
-			for i := len(builder.hooks) - 1; i >= 0; i-- {
-				mut = builder.hooks[i](mut)
-			}
-			mutators[i] = mut
-		}(i, ctx)
-	}
-	if len(mutators) > 0 {
-		if _, err := mutators[0].Mutate(ctx, _c.builders[0].mutation); err != nil {
+	specs := make([]*sqlgraph.CreateSpec, len(nodes))
+	for index, builder := range _c.builders {
+		if builder.err != nil {
+			return nil, builder.err
+		}
+		if err := builder.defaults(); err != nil {
+			return nil, err
+		}
+		if err := builder.check(); err != nil {
+			return nil, err
+		}
+		var err error
+		nodes[index], specs[index], err = builder.createSpec()
+		if err != nil {
 			return nil, err
 		}
 	}
-	return nodes, nil
+	if len(specs) == 0 {
+		return nodes, nil
+	}
+	spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+
+	spec.OnConflict = _c.conflict
+
+	if err := sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
+		if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{msg: err.Error(), wrap: err}
+		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
+		return nil, err
+	}
+	result := nodes[:0]
+	for index, builder := range _c.builders {
+		if specs[index].Skipped {
+			continue
+		}
+		builder.mutation.id = &nodes[index].ID
+		result = append(result, nodes[index])
+	}
+	return result, nil
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_c *BlogCreateBulk) SaveX(ctx context.Context) []*Blog {
-	v, err := _c.Save(ctx)
+func (b *BlogCreateBulk) SaveX(ctx context.Context) []*Blog {
+	nodes, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return nodes
 }
 
-// Exec executes the query.
-func (_c *BlogCreateBulk) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
+func (b *BlogCreateBulk) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
+
+func (b *BlogCreateBulk) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+type BlogUpsertBulk struct{ create *BlogCreateBulk }
+
+func (b *BlogCreateBulk) OnConflict(columns ...ent.EntityColumn[entity.Blog]) *BlogUpsertBulk {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
+	}
+	if len(names) == 0 {
+		return b.OnConflictOptions()
+	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
+}
+
+func (b *BlogCreateBulk) OnConflictConstraint(name string) *BlogUpsertBulk {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
+}
+
+func (b *BlogCreateBulk) OnConflictOptions(options ...sql.ConflictOption) *BlogUpsertBulk {
+	b.conflict = options
+	return &BlogUpsertBulk{create: b}
+}
+
+func (u *BlogUpsertBulk) DoNothing() *BlogUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+func (u *BlogUpsertBulk) DoSelect() *BlogUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *BlogUpsertBulk) Ignore() *BlogUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *BlogUpsertBulk) DoUpdate(set func(*BlogUpsert)) *BlogUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&BlogUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *BlogUpsertBulk) UpdateNewValues() *BlogUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case blog.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
+	}))
+	return u
+}
+
+func (u *BlogUpsertBulk) Where(predicates ...ent.Predicate[entity.Blog]) *BlogUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(blog.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *BlogUpsertBulk) UpdateWhere(predicates ...ent.Predicate[entity.Blog]) *BlogUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(blog.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *BlogUpsertBulk) Save(ctx context.Context) ([]*Blog, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for BlogCreateBulk.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *BlogUpsertBulk) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
 	return err
 }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *BlogCreateBulk) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (u *BlogUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

@@ -9,6 +9,6 @@ import (
 	"github.com/neko-sc/ent/entc/load/testdata/cycle"
 )
 
-type Hook = ent.Hook
+type Mutation = ent.Mutation
 
 var _ = &cycle.Used{}

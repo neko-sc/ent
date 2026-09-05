@@ -6,11 +6,11 @@
 package tweetlike
 
 import (
-	"time"
+	time2 "time"
 
 	"github.com/neko-sc/ent"
-	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/entity"
 )
 
 const (
@@ -48,6 +48,47 @@ const (
 	UserColumn = "user_id"
 )
 
+var (
+	LikedAt = ent.OrderedColumn[entity.TweetLike, time2.Time]{Table: Table, Name: FieldLikedAt}
+	UserID  = ent.OrderedColumn[entity.TweetLike, int]{Table: Table, Name: FieldUserID}
+	TweetID = ent.OrderedColumn[entity.TweetLike, int]{Table: Table, Name: FieldTweetID}
+	Tweet   = ent.NewUniqueRelation[entity.TweetLike, entity.Tweet, int](EdgeTweet, newTweetStep)
+	User    = ent.NewUniqueRelation[entity.TweetLike, entity.User, int](EdgeUser, newUserStep)
+)
+
+// Alias returns the columns of the tweet_likes table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		LikedAt:    ent.OrderedColumn[entity.TweetLike, time2.Time]{Table: name, Name: FieldLikedAt},
+		UserID:     ent.OrderedColumn[entity.TweetLike, int]{Table: name, Name: FieldUserID},
+		TweetID:    ent.OrderedColumn[entity.TweetLike, int]{Table: name, Name: FieldTweetID},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	LikedAt    ent.OrderedColumn[entity.TweetLike, time2.Time]
+	UserID     ent.OrderedColumn[entity.TweetLike, int]
+	TweetID    ent.OrderedColumn[entity.TweetLike, int]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.TweetLike]) ent.Predicate[entity.TweetLike] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.TweetLike]) ent.Predicate[entity.TweetLike] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.TweetLike]) ent.Predicate[entity.TweetLike] {
+	return ent.Not(predicate)
+}
+
 // Columns holds all SQL columns for tweetlike fields.
 var Columns = []string{
 	FieldLikedAt,
@@ -65,49 +106,11 @@ func ValidColumn(column string) bool {
 	return false
 }
 
-// Note that the variables below are initialized by the runtime
-// package on the initialization of the application. Therefore,
-// it should be imported in the main as follows:
-//
-//	import _ "github.com/neko-sc/ent/entc/integration/edgeschema/ent/runtime"
 var (
-	Hooks  [1]ent.Hook
-	Policy ent.Policy
 	// DefaultLikedAt holds the default value on creation for the "liked_at" field.
-	DefaultLikedAt func() time.Time
+	DefaultLikedAt func() time2.Time
 )
 
-// OrderOption defines the ordering options for the TweetLike queries.
-type OrderOption func(*sql.Selector)
-
-// ByLikedAt orders the results by the liked_at field.
-func ByLikedAt(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldLikedAt, opts...).ToFunc()
-}
-
-// ByUserID orders the results by the user_id field.
-func ByUserID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldUserID, opts...).ToFunc()
-}
-
-// ByTweetID orders the results by the tweet_id field.
-func ByTweetID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldTweetID, opts...).ToFunc()
-}
-
-// ByTweetField orders the results by tweet field.
-func ByTweetField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newTweetStep(), sql.OrderByField(field, opts...))
-	}
-}
-
-// ByUserField orders the results by user field.
-func ByUserField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newUserStep(), sql.OrderByField(field, opts...))
-	}
-}
 func newTweetStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, TweetColumn),

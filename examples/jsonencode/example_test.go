@@ -11,6 +11,8 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/neko-sc/ent/examples/jsonencode/ent"
+	pet "github.com/neko-sc/ent/examples/jsonencode/ent/pet"
+	user "github.com/neko-sc/ent/examples/jsonencode/ent/user"
 )
 
 func Example_jsonEncode() {
@@ -25,14 +27,14 @@ func Example_jsonEncode() {
 		log.Fatalf("failed creating schema resources: %v", err)
 	}
 
-	a8m := client.User.Create().SetName("a8m").SetAge(10).SaveX(ctx)
+	a8m := client.User.Create().Set(user.Name, "a8m").Set(user.Age, 10).SaveX(ctx)
 	buf, err := json.Marshal(a8m)
 	if err != nil {
 		log.Fatalf("failed marshaling user: %v", err)
 	}
 	fmt.Println(string(buf))
 
-	xabi := client.Pet.Create().SetName("xabi").SetAge(1).SetOwner(a8m).SaveX(ctx)
+	xabi := client.Pet.Create().Set(pet.Name, "xabi").Set(pet.Age, 1).SetEdge(pet.Owner, a8m.ID).SaveX(ctx)
 	buf, err = json.Marshal(xabi)
 	if err != nil {
 		log.Fatalf("failed marshaling pet: %v", err)

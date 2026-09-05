@@ -12,6 +12,7 @@ import (
 	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/entc/integration/ent/card"
+	"github.com/neko-sc/ent/entc/integration/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/ent/pet"
 	"github.com/neko-sc/ent/entc/integration/ent/user"
 )
@@ -23,6 +24,10 @@ type User struct {
 	ID int `json:"id,omitempty"`
 	// OptionalInt holds the value of the "optional_int" field.
 	OptionalInt int `json:"optional_int,omitempty"`
+	// Tags holds the value of the "tags" field.
+	Tags []string `json:"tags,omitempty"`
+	// Scores holds the value of the "scores" field.
+	Scores []int `json:"scores,omitempty"`
 	// Age holds the value of the "age" field.
 	Age int `json:"age,omitempty"`
 	// Name holds the value of the "name" field.
@@ -38,9 +43,9 @@ type User struct {
 	// Password holds the value of the "password" field.
 	Password string `graphql:"-" json:"-"`
 	// Role holds the value of the "role" field.
-	Role user.Role `json:"role,omitempty"`
+	Role user.RoleValue `json:"role,omitempty"`
 	// Employment holds the value of the "employment" field.
-	Employment user.Employment `json:"employment,omitempty"`
+	Employment user.EmploymentValue `json:"employment,omitempty"`
 	// SSOCert holds the value of the "SSOCert" field.
 	SSOCert string `json:"SSOCert,omitempty"`
 	// FilesCount holds the value of the "files_count" field.
@@ -51,7 +56,6 @@ type User struct {
 	group_blocked *int
 	user_spouse   *int
 	user_parent   *int
-	selectValues  sql.SelectValues
 }
 
 // UserEdges holds the relations/edges for other nodes in the graph.
@@ -81,6 +85,7 @@ type UserEdges struct {
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes    [11]bool
+	counts         map[string]int
 	namedPets      map[string][]*Pet
 	namedFiles     map[string][]*File
 	namedGroups    map[string][]*Group
@@ -88,6 +93,69 @@ type UserEdges struct {
 	namedFollowers map[string][]*User
 	namedFollowing map[string][]*User
 	namedChildren  map[string][]*User
+}
+
+func (e UserEdges) Loaded[N, K any](edge ent.RelationOf[entity.User, N, K]) bool {
+	switch edge.Ref().Name {
+	case "card":
+		return e.loadedTypes[0]
+	case "pets":
+		return e.loadedTypes[1]
+	case "files":
+		return e.loadedTypes[2]
+	case "groups":
+		return e.loadedTypes[3]
+	case "friends":
+		return e.loadedTypes[4]
+	case "followers":
+		return e.loadedTypes[5]
+	case "following":
+		return e.loadedTypes[6]
+	case "team":
+		return e.loadedTypes[7]
+	case "spouse":
+		return e.loadedTypes[8]
+	case "children":
+		return e.loadedTypes[9]
+	case "parent":
+		return e.loadedTypes[10]
+
+	default:
+		return false
+	}
+}
+
+func (e *UserEdges) SetLoaded[N, K any](edge ent.RelationOf[entity.User, N, K], loaded bool) {
+	switch edge.Ref().Name {
+	case "card":
+		e.loadedTypes[0] = loaded
+	case "pets":
+		e.loadedTypes[1] = loaded
+	case "files":
+		e.loadedTypes[2] = loaded
+	case "groups":
+		e.loadedTypes[3] = loaded
+	case "friends":
+		e.loadedTypes[4] = loaded
+	case "followers":
+		e.loadedTypes[5] = loaded
+	case "following":
+		e.loadedTypes[6] = loaded
+	case "team":
+		e.loadedTypes[7] = loaded
+	case "spouse":
+		e.loadedTypes[8] = loaded
+	case "children":
+		e.loadedTypes[9] = loaded
+	case "parent":
+		e.loadedTypes[10] = loaded
+
+	}
+}
+
+func (e UserEdges) Count[N, K any](edge ent.Relation[entity.User, N, K]) (int, bool) {
+	count, loaded := e.counts[edge.Ref().Name]
+	return count, loaded
 }
 
 // CardOrErr returns the Card value or an error if the edge
@@ -202,16 +270,24 @@ func (*User) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case user.FieldScores:
+			values[i] = new(*[]int)
+		case user.FieldTags:
+			values[i] = new(*[]string)
 		case user.FieldID, user.FieldOptionalInt, user.FieldAge, user.FieldFilesCount:
-			values[i] = new(sql.NullInt64)
-		case user.FieldName, user.FieldLast, user.FieldNickname, user.FieldAddress, user.FieldPhone, user.FieldPassword, user.FieldRole, user.FieldEmployment, user.FieldSSOCert:
-			values[i] = new(sql.NullString)
+			values[i] = new(*int)
+		case user.FieldName, user.FieldLast, user.FieldNickname, user.FieldAddress, user.FieldPhone, user.FieldPassword, user.FieldSSOCert:
+			values[i] = new(*string)
+		case user.FieldEmployment:
+			values[i] = new(*user.EmploymentValue)
+		case user.FieldRole:
+			values[i] = new(*user.RoleValue)
 		case user.ForeignKeys[0]: // group_blocked
-			values[i] = new(sql.NullInt64)
+			values[i] = new(*int)
 		case user.ForeignKeys[1]: // user_spouse
-			values[i] = new(sql.NullInt64)
+			values[i] = new(*int)
 		case user.ForeignKeys[2]: // user_parent
-			values[i] = new(sql.NullInt64)
+			values[i] = new(*int)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -228,115 +304,134 @@ func (_m *User) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case user.FieldID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field id", values[i])
-			} else if value.Valid {
-				_m.ID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.ID = **value
 			}
 		case user.FieldOptionalInt:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field optional_int", values[i])
-			} else if value.Valid {
-				_m.OptionalInt = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.OptionalInt = **value
+			}
+		case user.FieldTags:
+
+			if value, ok := values[i].(**[]string); !ok {
+				return fmt.Errorf("unexpected type %T for field tags", values[i])
+			} else if value != nil && *value != nil {
+				_m.Tags = **value
+			}
+		case user.FieldScores:
+
+			if value, ok := values[i].(**[]int); !ok {
+				return fmt.Errorf("unexpected type %T for field scores", values[i])
+			} else if value != nil && *value != nil {
+				_m.Scores = **value
 			}
 		case user.FieldAge:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field age", values[i])
-			} else if value.Valid {
-				_m.Age = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.Age = **value
 			}
 		case user.FieldName:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field name", values[i])
-			} else if value.Valid {
-				_m.Name = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.Name = **value
 			}
 		case user.FieldLast:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field last", values[i])
-			} else if value.Valid {
-				_m.Last = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.Last = **value
 			}
 		case user.FieldNickname:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field nickname", values[i])
-			} else if value.Valid {
-				_m.Nickname = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.Nickname = **value
 			}
 		case user.FieldAddress:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field address", values[i])
-			} else if value.Valid {
-				_m.Address = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.Address = **value
 			}
 		case user.FieldPhone:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field phone", values[i])
-			} else if value.Valid {
-				_m.Phone = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.Phone = **value
 			}
 		case user.FieldPassword:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field password", values[i])
-			} else if value.Valid {
-				_m.Password = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.Password = **value
 			}
 		case user.FieldRole:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**user.RoleValue); !ok {
 				return fmt.Errorf("unexpected type %T for field role", values[i])
-			} else if value.Valid {
-				_m.Role = user.Role(value.String)
+			} else if value != nil && *value != nil {
+				_m.Role = **value
 			}
 		case user.FieldEmployment:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**user.EmploymentValue); !ok {
 				return fmt.Errorf("unexpected type %T for field employment", values[i])
-			} else if value.Valid {
-				_m.Employment = user.Employment(value.String)
+			} else if value != nil && *value != nil {
+				_m.Employment = **value
 			}
 		case user.FieldSSOCert:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field SSOCert", values[i])
-			} else if value.Valid {
-				_m.SSOCert = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.SSOCert = **value
 			}
 		case user.FieldFilesCount:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field files_count", values[i])
-			} else if value.Valid {
-				_m.FilesCount = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.FilesCount = **value
 			}
 		case user.ForeignKeys[0]:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field group_blocked", values[i])
-			} else if value.Valid {
-				_m.group_blocked = new(int)
-				*_m.group_blocked = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.group_blocked = *value
 			}
 		case user.ForeignKeys[1]:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field user_spouse", values[i])
-			} else if value.Valid {
-				_m.user_spouse = new(int)
-				*_m.user_spouse = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.user_spouse = *value
 			}
 		case user.ForeignKeys[2]:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field user_parent", values[i])
-			} else if value.Valid {
-				_m.user_parent = new(int)
-				*_m.user_parent = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.user_parent = *value
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the User.
-// This includes values selected through modifiers, order, etc.
-func (_m *User) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // QueryCard queries the "card" edge of the User entity.
@@ -419,6 +514,12 @@ func (_m *User) String() string {
 	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
 	builder.WriteString("optional_int=")
 	builder.WriteString(fmt.Sprintf("%v", _m.OptionalInt))
+	builder.WriteString(", ")
+	builder.WriteString("tags=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Tags))
+	builder.WriteString(", ")
+	builder.WriteString("scores=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Scores))
 	builder.WriteString(", ")
 	builder.WriteString("age=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Age))

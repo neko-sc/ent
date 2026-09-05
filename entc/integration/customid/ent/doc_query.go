@@ -8,37 +8,110 @@ package ent
 import (
 	"context"
 	"database/sql/driver"
+	"errors"
 	"fmt"
 	"math"
 
 	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/doc"
-	"github.com/neko-sc/ent/entc/integration/customid/ent/predicate"
-	"github.com/neko-sc/ent/entc/integration/customid/ent/schema"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
+	schema2 "github.com/neko-sc/ent/entc/integration/customid/ent/schema"
 	"github.com/neko-sc/ent/schema/field"
 )
 
 // DocQuery is the builder for querying Doc entities.
 type DocQuery struct {
 	config
-	ctx          *QueryContext
-	order        []doc.OrderOption
-	inters       []Interceptor
-	predicates   []predicate.Doc
+	ctx        *QueryContext
+	order      []ent.OrderOption[entity.Doc]
+	joins      []func(*sql.Selector)
+	withCounts []ent.RelationRef
+
+	predicates   []ent.Predicate[entity.Doc]
 	withParent   *DocQuery
 	withChildren *DocQuery
 	withRelated  *DocQuery
 	withFKs      bool
+	modifiers    []func(*sql.Selector)
+
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
 }
 
 // Where adds a new predicate for the DocQuery builder.
-func (_q *DocQuery) Where(ps ...predicate.Doc) *DocQuery {
-	_q.predicates = append(_q.predicates, ps...)
+func (_q *DocQuery) Where(predicates ...ent.Predicate[entity.Doc]) *DocQuery {
+	_q.predicates = append(_q.predicates, predicates...)
+	return _q
+}
+
+func (_q *DocQuery) WhereP(predicates ...func(*sql.Selector)) *DocQuery {
+	for _, predicate := range predicates {
+		_q.predicates = append(_q.predicates, predicate)
+	}
+	return _q
+}
+
+func (_q *DocQuery) Join(table string, on ...func(*sql.Selector)) *DocQuery {
+	return _q.JoinAs(table, "", on...)
+}
+
+func (_q *DocQuery) JoinAs(table, alias string, on ...func(*sql.Selector)) *DocQuery {
+	on = append([]func(*sql.Selector){}, on...)
+	_q.joins = append(_q.joins, func(selector *sql.Selector) {
+		joined := sql.Dialect(selector.Dialect()).Table(table)
+		if alias != "" {
+			joined.As(alias)
+		} else {
+			joined.As(table)
+		}
+		condition := sql.Dialect(selector.Dialect()).Select().From(selector.Table())
+		for _, predicate := range on {
+			predicate(condition)
+		}
+		if err := condition.Err(); err != nil {
+			selector.AddError(err)
+		}
+		selector.Join(joined).OnP(condition.P())
+	})
+	return _q
+}
+
+func (_q *DocQuery) LeftJoin(table string, on ...func(*sql.Selector)) *DocQuery {
+	return _q.LeftJoinAs(table, "", on...)
+}
+
+func (_q *DocQuery) LeftJoinAs(table, alias string, on ...func(*sql.Selector)) *DocQuery {
+	on = append([]func(*sql.Selector){}, on...)
+	_q.joins = append(_q.joins, func(selector *sql.Selector) {
+		joined := sql.Dialect(selector.Dialect()).Table(table)
+		if alias != "" {
+			joined.As(alias)
+		} else {
+			joined.As(table)
+		}
+		condition := sql.Dialect(selector.Dialect()).Select().From(selector.Table())
+		for _, predicate := range on {
+			predicate(condition)
+		}
+		if err := condition.Err(); err != nil {
+			selector.AddError(err)
+		}
+		selector.LeftJoin(joined).OnP(condition.P())
+	})
+	return _q
+}
+
+func (_q *DocQuery) WithCount[N, K any](edge ent.Relation[entity.Doc, N, K]) *DocQuery {
+	for _, requested := range _q.withCounts {
+		if requested.Name == edge.Ref().Name {
+			return _q
+		}
+	}
+	_q.withCounts = append(_q.withCounts, edge.Ref())
 	return _q
 }
 
@@ -62,7 +135,7 @@ func (_q *DocQuery) Unique(unique bool) *DocQuery {
 }
 
 // Order specifies how the records should be ordered.
-func (_q *DocQuery) Order(o ...doc.OrderOption) *DocQuery {
+func (_q *DocQuery) Order(o ...ent.OrderOption[entity.Doc]) *DocQuery {
 	_q.order = append(_q.order, o...)
 	return _q
 }
@@ -136,7 +209,7 @@ func (_q *DocQuery) QueryRelated() *DocQuery {
 // First returns the first Doc entity from the query.
 // Returns a *NotFoundError when no Doc was found.
 func (_q *DocQuery) First(ctx context.Context) (*Doc, error) {
-	nodes, err := _q.Limit(1).All(setContextOp(ctx, _q.ctx, ent.OpQueryFirst))
+	nodes, err := _q.Limit(1).All(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -157,9 +230,9 @@ func (_q *DocQuery) FirstX(ctx context.Context) *Doc {
 
 // FirstID returns the first Doc ID from the query.
 // Returns a *NotFoundError when no Doc ID was found.
-func (_q *DocQuery) FirstID(ctx context.Context) (id schema.DocID, err error) {
-	var ids []schema.DocID
-	if ids, err = _q.Limit(1).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryFirstID)); err != nil {
+func (_q *DocQuery) FirstID(ctx context.Context) (id schema2.DocID, err error) {
+	var ids []schema2.DocID
+	if ids, err = _q.Limit(1).IDs(ctx); err != nil {
 		return
 	}
 	if len(ids) == 0 {
@@ -170,7 +243,7 @@ func (_q *DocQuery) FirstID(ctx context.Context) (id schema.DocID, err error) {
 }
 
 // FirstIDX is like FirstID, but panics if an error occurs.
-func (_q *DocQuery) FirstIDX(ctx context.Context) schema.DocID {
+func (_q *DocQuery) FirstIDX(ctx context.Context) schema2.DocID {
 	id, err := _q.FirstID(ctx)
 	if err != nil && !IsNotFound(err) {
 		panic(err)
@@ -182,7 +255,7 @@ func (_q *DocQuery) FirstIDX(ctx context.Context) schema.DocID {
 // Returns a *NotSingularError when more than one Doc entity is found.
 // Returns a *NotFoundError when no Doc entities are found.
 func (_q *DocQuery) Only(ctx context.Context) (*Doc, error) {
-	nodes, err := _q.Limit(2).All(setContextOp(ctx, _q.ctx, ent.OpQueryOnly))
+	nodes, err := _q.Limit(2).All(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -208,9 +281,9 @@ func (_q *DocQuery) OnlyX(ctx context.Context) *Doc {
 // OnlyID is like Only, but returns the only Doc ID in the query.
 // Returns a *NotSingularError when more than one Doc ID is found.
 // Returns a *NotFoundError when no entities are found.
-func (_q *DocQuery) OnlyID(ctx context.Context) (id schema.DocID, err error) {
-	var ids []schema.DocID
-	if ids, err = _q.Limit(2).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryOnlyID)); err != nil {
+func (_q *DocQuery) OnlyID(ctx context.Context) (id schema2.DocID, err error) {
+	var ids []schema2.DocID
+	if ids, err = _q.Limit(2).IDs(ctx); err != nil {
 		return
 	}
 	switch len(ids) {
@@ -225,7 +298,7 @@ func (_q *DocQuery) OnlyID(ctx context.Context) (id schema.DocID, err error) {
 }
 
 // OnlyIDX is like OnlyID, but panics if an error occurs.
-func (_q *DocQuery) OnlyIDX(ctx context.Context) schema.DocID {
+func (_q *DocQuery) OnlyIDX(ctx context.Context) schema2.DocID {
 	id, err := _q.OnlyID(ctx)
 	if err != nil {
 		panic(err)
@@ -235,12 +308,10 @@ func (_q *DocQuery) OnlyIDX(ctx context.Context) schema.DocID {
 
 // All executes the query and returns a list of Docs.
 func (_q *DocQuery) All(ctx context.Context) ([]*Doc, error) {
-	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryAll)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
-	qr := querierAll[[]*Doc, *DocQuery]()
-	return withInterceptors[[]*Doc](ctx, _q, qr, _q.inters)
+	return _q.sqlAll(ctx)
 }
 
 // AllX is like All, but panics if an error occurs.
@@ -253,19 +324,18 @@ func (_q *DocQuery) AllX(ctx context.Context) []*Doc {
 }
 
 // IDs executes the query and returns a list of Doc IDs.
-func (_q *DocQuery) IDs(ctx context.Context) (ids []schema.DocID, err error) {
+func (_q *DocQuery) IDs(ctx context.Context) (ids []schema2.DocID, err error) {
 	if _q.ctx.Unique == nil && _q.path != nil {
 		_q.Unique(true)
 	}
-	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryIDs)
-	if err = _q.Select(doc.FieldID).Scan(ctx, &ids); err != nil {
+	if ids, err = ent.Values(ctx, _q.Select(doc.ID), doc.ID); err != nil {
 		return nil, err
 	}
 	return ids, nil
 }
 
 // IDsX is like IDs, but panics if an error occurs.
-func (_q *DocQuery) IDsX(ctx context.Context) []schema.DocID {
+func (_q *DocQuery) IDsX(ctx context.Context) []schema2.DocID {
 	ids, err := _q.IDs(ctx)
 	if err != nil {
 		panic(err)
@@ -275,11 +345,10 @@ func (_q *DocQuery) IDsX(ctx context.Context) []schema.DocID {
 
 // Count returns the count of the given query.
 func (_q *DocQuery) Count(ctx context.Context) (int, error) {
-	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryCount)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
-	return withInterceptors[int](ctx, _q, querierCount[*DocQuery](), _q.inters)
+	return _q.sqlCount(ctx)
 }
 
 // CountX is like Count, but panics if an error occurs.
@@ -293,7 +362,6 @@ func (_q *DocQuery) CountX(ctx context.Context) int {
 
 // Exist returns true if the query has elements in the graph.
 func (_q *DocQuery) Exist(ctx context.Context) (bool, error) {
-	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryExist)
 	switch _, err := _q.FirstID(ctx); {
 	case IsNotFound(err):
 		return false, nil
@@ -319,19 +387,24 @@ func (_q *DocQuery) Clone() *DocQuery {
 	if _q == nil {
 		return nil
 	}
-	return &DocQuery{
+	cloned := &DocQuery{
 		config:       _q.config,
 		ctx:          _q.ctx.Clone(),
-		order:        append([]doc.OrderOption{}, _q.order...),
-		inters:       append([]Interceptor{}, _q.inters...),
-		predicates:   append([]predicate.Doc{}, _q.predicates...),
+		order:        append([]ent.OrderOption[entity.Doc]{}, _q.order...),
+		predicates:   append([]ent.Predicate[entity.Doc]{}, _q.predicates...),
+		joins:        append([]func(*sql.Selector){}, _q.joins...),
+		withCounts:   append([]ent.RelationRef{}, _q.withCounts...),
+		withFKs:      _q.withFKs,
 		withParent:   _q.withParent.Clone(),
 		withChildren: _q.withChildren.Clone(),
 		withRelated:  _q.withRelated.Clone(),
 		// clone intermediate query.
-		sql:  _q.sql.Clone(),
-		path: _q.path,
+		sql:       _q.sql.Clone(),
+		path:      _q.path,
+		modifiers: append([]func(*sql.Selector){}, _q.modifiers...),
 	}
+
+	return cloned
 }
 
 // WithParent tells the query-builder to eager-load the nodes that are connected to
@@ -368,7 +441,7 @@ func (_q *DocQuery) WithRelated(opts ...func(*DocQuery)) *DocQuery {
 }
 
 // GroupBy is used to group vertices by one or more fields/columns.
-// It is often used with aggregate functions, like: count, max, mean, min, sum.
+// It can be combined with typed aggregate selections.
 //
 // Example:
 //
@@ -378,16 +451,14 @@ func (_q *DocQuery) WithRelated(opts ...func(*DocQuery)) *DocQuery {
 //	}
 //
 //	client.Doc.Query().
-//		GroupBy(doc.FieldText).
+//		GroupBy(doc.Text).
 //		Aggregate(ent.Count()).
 //		Scan(ctx, &v)
-func (_q *DocQuery) GroupBy(field string, fields ...string) *DocGroupBy {
-	_q.ctx.Fields = append([]string{field}, fields...)
-	grbuild := &DocGroupBy{build: _q}
-	grbuild.flds = &_q.ctx.Fields
-	grbuild.label = doc.Label
-	grbuild.scan = grbuild.Scan
-	return grbuild
+func (_q *DocQuery) GroupBy(columns ...ent.EntityColumn[entity.Doc]) *DocGroupBy {
+	if len(columns) == 0 {
+		panic("ent: GroupBy requires at least one column")
+	}
+	return &DocGroupBy{query: _q, columns: append([]ent.EntityColumn[entity.Doc](nil), columns...)}
 }
 
 // Select allows the selection one or more fields/columns for the given query,
@@ -400,32 +471,18 @@ func (_q *DocQuery) GroupBy(field string, fields ...string) *DocGroupBy {
 //	}
 //
 //	client.Doc.Query().
-//		Select(doc.FieldText).
+//		Select(doc.Text).
 //		Scan(ctx, &v)
-func (_q *DocQuery) Select(fields ...string) *DocSelect {
-	_q.ctx.Fields = append(_q.ctx.Fields, fields...)
-	sbuild := &DocSelect{DocQuery: _q}
-	sbuild.label = doc.Label
-	sbuild.flds, sbuild.scan = &_q.ctx.Fields, sbuild.Scan
-	return sbuild
+func (_q *DocQuery) Select(selections ...ent.Selection) *DocSelect {
+	return &DocSelect{query: _q, selections: append([]ent.Selection(nil), selections...)}
 }
 
 // Aggregate returns a DocSelect configured with the given aggregations.
-func (_q *DocQuery) Aggregate(fns ...AggregateFunc) *DocSelect {
-	return _q.Select().Aggregate(fns...)
+func (_q *DocQuery) Aggregate(selections ...ent.Selection) *DocSelect {
+	return _q.Select(selections...)
 }
 
 func (_q *DocQuery) prepareQuery(ctx context.Context) error {
-	for _, inter := range _q.inters {
-		if inter == nil {
-			return fmt.Errorf("ent: uninitialized interceptor (forgotten import ent/runtime?)")
-		}
-		if trv, ok := inter.(Traverser); ok {
-			if err := trv.Traverse(ctx, _q); err != nil {
-				return err
-			}
-		}
-	}
 	for _, f := range _q.ctx.Fields {
 		if !doc.ValidColumn(f) {
 			return &ValidationError{Name: f, err: fmt.Errorf("ent: invalid field %q for query", f)}
@@ -467,6 +524,10 @@ func (_q *DocQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Doc, err
 		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
+	if len(_q.modifiers) > 0 {
+		_spec.Modifiers = _q.modifiers
+	}
+
 	for i := range hooks {
 		hooks[i](ctx, _spec)
 	}
@@ -496,12 +557,68 @@ func (_q *DocQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Doc, err
 			return nil, err
 		}
 	}
+
+	if len(_q.withCounts) > 0 {
+		ids := make([]any, len(nodes))
+		parents := make(map[schema2.DocID][]*Doc, len(nodes))
+		for index, node := range nodes {
+			ids[index] = node.ID
+			parents[node.ID] = append(parents[node.ID], node)
+			if node.Edges.counts == nil {
+				node.Edges.counts = make(map[string]int)
+			}
+			for _, edge := range _q.withCounts {
+				node.Edges.counts[edge.Name] = 0
+			}
+		}
+		selector := sql.Dialect(_q.driver.Dialect()).Select()
+
+		for _, edge := range _q.withCounts {
+			statement, arguments := edge.CountQuery(selector, ids...).Query()
+			rows, err := _q.driver.Query(ctx, statement, arguments)
+			if err != nil {
+				return nil, err
+			}
+			for rows.Next() {
+				values, err := (*Doc)(nil).scanValues([]string{doc.FieldID})
+				if err != nil {
+					rows.Close()
+					return nil, err
+				}
+				var count int
+				if err := rows.Scan(values[0], &count); err != nil {
+					rows.Close()
+					return nil, err
+				}
+				decoded := &Doc{}
+				if err := decoded.assignValues([]string{doc.FieldID}, values); err != nil {
+					rows.Close()
+					return nil, err
+				}
+				for _, parent := range parents[decoded.ID] {
+					parent.Edges.counts[edge.Name] = count
+				}
+			}
+			if err := rows.Err(); err != nil {
+				rows.Close()
+				return nil, err
+			}
+			if err := rows.Close(); err != nil {
+				return nil, err
+			}
+		}
+	}
+
 	return nodes, nil
 }
 
 func (_q *DocQuery) loadParent(ctx context.Context, query *DocQuery, nodes []*Doc, init func(*Doc), assign func(*Doc, *Doc)) error {
-	ids := make([]schema.DocID, 0, len(nodes))
-	nodeids := make(map[schema.DocID][]*Doc)
+	query = query.Clone()
+
+	query.ctx.Limit, query.ctx.Offset = nil, nil
+
+	ids := make([]schema2.DocID, 0, len(nodes))
+	nodeids := make(map[schema2.DocID][]*Doc)
 	for i := range nodes {
 		if nodes[i].doc_children == nil {
 			continue
@@ -515,7 +632,7 @@ func (_q *DocQuery) loadParent(ctx context.Context, query *DocQuery, nodes []*Do
 	if len(ids) == 0 {
 		return nil
 	}
-	query.Where(doc.IDIn(ids...))
+	query.Where(doc.ID.In(ids...))
 	neighbors, err := query.All(ctx)
 	if err != nil {
 		return err
@@ -532,8 +649,27 @@ func (_q *DocQuery) loadParent(ctx context.Context, query *DocQuery, nodes []*Do
 	return nil
 }
 func (_q *DocQuery) loadChildren(ctx context.Context, query *DocQuery, nodes []*Doc, init func(*Doc), assign func(*Doc, *Doc)) error {
+	query = query.Clone()
+
+	if query.ctx.Limit != nil || query.ctx.Offset != nil {
+		limit, offset := -1, 0
+		if query.ctx.Limit != nil {
+			limit = *query.ctx.Limit
+		}
+		if query.ctx.Offset != nil {
+			offset = *query.ctx.Offset
+		}
+		query.ctx.Limit, query.ctx.Offset = nil, nil
+		query.modifiers = append(query.modifiers, func(selector *sql.Selector) {
+
+			partition := selector.C(doc.ChildrenColumn)
+
+			(&sqlgraph.NeighborsLimit{RowNumber: "ent_row_number", DefaultOrderField: doc.FieldID, Offset: offset}).Modifier(partition, limit)(selector)
+		})
+	}
+
 	fks := make([]driver.Value, 0, len(nodes))
-	nodeids := make(map[schema.DocID]*Doc)
+	nodeids := make(map[schema2.DocID]*Doc)
 	for i := range nodes {
 		fks = append(fks, nodes[i].ID)
 		nodeids[nodes[i].ID] = nodes[i]
@@ -542,9 +678,9 @@ func (_q *DocQuery) loadChildren(ctx context.Context, query *DocQuery, nodes []*
 		}
 	}
 	query.withFKs = true
-	query.Where(predicate.Doc(func(s *sql.Selector) {
+	query.Where(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(doc.ChildrenColumn), fks...))
-	}))
+	})
 	neighbors, err := query.All(ctx)
 	if err != nil {
 		return err
@@ -563,9 +699,30 @@ func (_q *DocQuery) loadChildren(ctx context.Context, query *DocQuery, nodes []*
 	return nil
 }
 func (_q *DocQuery) loadRelated(ctx context.Context, query *DocQuery, nodes []*Doc, init func(*Doc), assign func(*Doc, *Doc)) error {
+	query = query.Clone()
+
+	if query.ctx.Limit != nil || query.ctx.Offset != nil {
+		limit, offset := -1, 0
+		if query.ctx.Limit != nil {
+			limit = *query.ctx.Limit
+		}
+		if query.ctx.Offset != nil {
+			offset = *query.ctx.Offset
+		}
+		query.ctx.Limit, query.ctx.Offset = nil, nil
+		query.modifiers = append(query.modifiers, func(selector *sql.Selector) {
+
+			joined, _ := selector.JoinedTable(doc.RelatedTable)
+			partition := joined.C(doc.RelatedPrimaryKey[0])
+
+			(&sqlgraph.NeighborsLimit{RowNumber: "ent_row_number", DefaultOrderField: doc.FieldID, Offset: offset}).Modifier(partition, limit)(selector)
+		})
+	}
+
 	edgeIDs := make([]driver.Value, len(nodes))
-	byID := make(map[schema.DocID]*Doc)
-	nids := make(map[schema.DocID]map[*Doc]struct{})
+	byID := make(map[schema2.DocID]*Doc)
+	nids := make(map[schema2.DocID]bool)
+	orderedIDs := make(map[schema2.DocID][]schema2.DocID)
 	for i, node := range nodes {
 		edgeIDs[i] = node.ID
 		byID[node.ID] = node
@@ -585,40 +742,49 @@ func (_q *DocQuery) loadRelated(ctx context.Context, query *DocQuery, nodes []*D
 	if err := query.prepareQuery(ctx); err != nil {
 		return err
 	}
-	qr := QuerierFunc(func(ctx context.Context, q Query) (Value, error) {
-		return query.sqlAll(ctx, func(_ context.Context, spec *sqlgraph.QuerySpec) {
-			assign := spec.Assign
-			values := spec.ScanValues
-			spec.ScanValues = func(columns []string) ([]any, error) {
-				values, err := values(columns[1:])
-				if err != nil {
-					return nil, err
-				}
-				return append([]any{new(schema.DocID)}, values...), nil
+	neighbors, err := query.sqlAll(ctx, func(_ context.Context, spec *sqlgraph.QuerySpec) {
+		assign := spec.Assign
+		values := spec.ScanValues
+		spec.ScanValues = func(columns []string) ([]any, error) {
+			values, err := values(columns[1:])
+			if err != nil {
+				return nil, err
 			}
-			spec.Assign = func(columns []string, values []any) error {
-				outValue := *values[0].(*schema.DocID)
-				inValue := *values[1].(*schema.DocID)
-				if nids[inValue] == nil {
-					nids[inValue] = map[*Doc]struct{}{byID[outValue]: {}}
-					return assign(columns[1:], values[1:])
-				}
-				nids[inValue][byID[outValue]] = struct{}{}
-				return nil
+			return append([]any{new(schema2.DocID)}, values...), nil
+		}
+		spec.Assign = func(columns []string, values []any) error {
+			var outValue schema2.DocID
+
+			if value, ok := values[0].(*schema2.DocID); !ok {
+				return fmt.Errorf("unexpected type %T for edge id", values[0])
+			} else {
+				outValue = *value
 			}
-		})
+			var inValue schema2.DocID
+
+			if value, ok := values[1].(*schema2.DocID); !ok {
+				return fmt.Errorf("unexpected type %T for edge id", values[1])
+			} else {
+				inValue = *value
+			}
+			orderedIDs[outValue] = append(orderedIDs[outValue], inValue)
+			if !nids[inValue] {
+				nids[inValue] = true
+				return assign(columns[1:], values[1:])
+			}
+			return nil
+		}
 	})
-	neighbors, err := withInterceptors[[]*Doc](ctx, query, qr, query.inters)
 	if err != nil {
 		return err
 	}
-	for _, n := range neighbors {
-		nodes, ok := nids[n.ID]
-		if !ok {
-			return fmt.Errorf(`unexpected "related" node returned %v`, n.ID)
-		}
-		for kn := range nodes {
-			assign(kn, n)
+	byNeighborID := make(map[schema2.DocID]*Doc, len(neighbors))
+	for _, neighbor := range neighbors {
+		byNeighborID[neighbor.ID] = neighbor
+	}
+	for parentID, ids := range orderedIDs {
+		for _, id := range ids {
+			assign(byID[parentID], byNeighborID[id])
 		}
 	}
 	return nil
@@ -626,6 +792,10 @@ func (_q *DocQuery) loadRelated(ctx context.Context, query *DocQuery, nodes []*D
 
 func (_q *DocQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := _q.querySpec()
+	if len(_q.modifiers) > 0 {
+		_spec.Modifiers = _q.modifiers
+	}
+
 	_spec.Node.Columns = _q.ctx.Fields
 	if len(_q.ctx.Fields) > 0 {
 		_spec.Unique = _q.ctx.Unique != nil && *_q.ctx.Unique
@@ -650,10 +820,13 @@ func (_q *DocQuery) querySpec() *sqlgraph.QuerySpec {
 			}
 		}
 	}
-	if ps := _q.predicates; len(ps) > 0 {
+	if predicates := _q.predicates; len(predicates) > 0 || len(_q.joins) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
-			for i := range ps {
-				ps[i](selector)
+			for _, join := range _q.joins {
+				join(selector)
+			}
+			for i := range predicates {
+				predicates[i](selector)
 			}
 		}
 	}
@@ -688,6 +861,9 @@ func (_q *DocQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	if _q.ctx.Unique != nil && *_q.ctx.Unique {
 		selector.Distinct()
 	}
+	for _, join := range _q.joins {
+		join(selector)
+	}
 	for _, p := range _q.predicates {
 		p(selector)
 	}
@@ -702,95 +878,188 @@ func (_q *DocQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	if limit := _q.ctx.Limit; limit != nil {
 		selector.Limit(*limit)
 	}
+	for _, modifier := range _q.modifiers {
+		modifier(selector)
+	}
 	return selector
+}
+
+// ForUpdate locks the selected rows against concurrent updates, and prevent them from being
+// updated, deleted or "selected ... for update" by other sessions, until the transaction is
+// either committed or rolled-back.
+func (_q *DocQuery) ForUpdate(opts ...sql.LockOption) *DocQuery {
+	if _q.driver.Dialect() == dialect.Postgres {
+		_q.Unique(false)
+	}
+	_q.modifiers = append(_q.modifiers, func(s *sql.Selector) {
+		s.ForUpdate(opts...)
+	})
+	return _q
+}
+
+// ForShare behaves similarly to ForUpdate, except that it acquires a shared mode lock
+// on any rows that are read. Other sessions can read the rows, but cannot modify them
+// until your transaction commits.
+func (_q *DocQuery) ForShare(opts ...sql.LockOption) *DocQuery {
+	if _q.driver.Dialect() == dialect.Postgres {
+		_q.Unique(false)
+	}
+	_q.modifiers = append(_q.modifiers, func(s *sql.Selector) {
+		s.ForShare(opts...)
+	})
+	return _q
+}
+
+// Modify adds a query modifier for attaching custom logic to queries.
+func (_q *DocQuery) Modify(modifiers ...func(s *sql.Selector)) *DocSelect {
+	_q.modifiers = append(_q.modifiers, modifiers...)
+	return _q.Select()
 }
 
 // DocGroupBy is the group-by builder for Doc entities.
 type DocGroupBy struct {
-	selector
-	build *DocQuery
+	query      *DocQuery
+	columns    []ent.EntityColumn[entity.Doc]
+	aggregates []ent.Selection
 }
 
-// Aggregate adds the given aggregation functions to the group-by query.
-func (_g *DocGroupBy) Aggregate(fns ...AggregateFunc) *DocGroupBy {
-	_g.fns = append(_g.fns, fns...)
+func (_g *DocGroupBy) Aggregate(selections ...ent.Selection) *DocGroupBy {
+	_g.aggregates = append(_g.aggregates, selections...)
 	return _g
 }
 
-// Scan applies the selector query and scans the result into the given value.
 func (_g *DocGroupBy) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, _g.build.ctx, ent.OpQueryGroupBy)
-	if err := _g.build.prepareQuery(ctx); err != nil {
-		return err
-	}
-	return scanWithInterceptors[*DocQuery, *DocGroupBy](ctx, _g.build, _g, _g.build.inters, v)
+	return _g.selectQuery().Scan(ctx, v)
 }
 
-func (_g *DocGroupBy) sqlScan(ctx context.Context, root *DocQuery, v any) error {
-	selector := root.sqlQuery(ctx).Select()
-	aggregation := make([]string, 0, len(_g.fns))
-	for _, fn := range _g.fns {
-		aggregation = append(aggregation, fn(selector))
+func (_g *DocGroupBy) Rows(ctx context.Context) ([]*ent.Row, error) {
+	return _g.selectQuery().Rows(ctx)
+}
+
+func (_g *DocGroupBy) selectQuery() *DocSelect {
+	selections := make([]ent.Selection, 0, len(_g.columns)+len(_g.aggregates))
+	for _, column := range _g.columns {
+		selections = append(selections, column)
 	}
-	if len(selector.SelectedColumns()) == 0 {
-		columns := make([]string, 0, len(*_g.flds)+len(_g.fns))
-		for _, f := range *_g.flds {
-			columns = append(columns, selector.C(f))
-		}
-		columns = append(columns, aggregation...)
-		selector.Select(columns...)
-	}
-	selector.GroupBy(selector.Columns(*_g.flds...)...)
-	if err := selector.Err(); err != nil {
-		return err
-	}
-	rows := &sql.Rows{}
-	query, args := selector.Query()
-	if err := _g.build.driver.Query(ctx, query, args, rows); err != nil {
-		return err
-	}
-	defer rows.Close()
-	return sql.ScanSlice(rows, v)
+	selected := _g.query.Select(append(selections, _g.aggregates...)...)
+	selected.groups = _g.columns
+	return selected
 }
 
 // DocSelect is the builder for selecting fields of Doc entities.
 type DocSelect struct {
-	*DocQuery
-	selector
+	query      *DocQuery
+	selections []ent.Selection
+	groups     []ent.EntityColumn[entity.Doc]
 }
 
-// Aggregate adds the given aggregation functions to the selector query.
-func (_s *DocSelect) Aggregate(fns ...AggregateFunc) *DocSelect {
-	_s.fns = append(_s.fns, fns...)
+func (_s *DocSelect) Aggregate(selections ...ent.Selection) *DocSelect {
+	_s.selections = append(_s.selections, selections...)
 	return _s
 }
 
-// Scan applies the selector query and scans the result into the given value.
-func (_s *DocSelect) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, _s.ctx, ent.OpQuerySelect)
-	if err := _s.prepareQuery(ctx); err != nil {
-		return err
+func (_s *DocSelect) Row(ctx context.Context) (*ent.Row, error) {
+	rows, err := _s.Rows(ctx)
+	if err != nil {
+		return nil, err
 	}
-	return scanWithInterceptors[*DocQuery, *DocSelect](ctx, _s.DocQuery, _s, _s.inters, v)
+	switch len(rows) {
+	case 0:
+		return nil, &NotFoundError{doc.Label}
+	case 1:
+		return rows[0], nil
+	default:
+		return nil, &NotSingularError{doc.Label}
+	}
 }
 
-func (_s *DocSelect) sqlScan(ctx context.Context, root *DocQuery, v any) error {
+func (_s *DocSelect) sqlQuery(ctx context.Context) (*sql.Selector, error) {
+	root := _s.query.Clone()
+	root.ctx.Fields = nil
+	for _, selection := range _s.selections {
+		if column := selection.Ref(); column.Name != "" && (column.Table == "" || column.Table == doc.Table) {
+			root.ctx.AppendFieldOnce(column.Name)
+		}
+	}
+	if err := root.prepareQuery(ctx); err != nil {
+		return nil, err
+	}
+	root.modifiers = nil
 	selector := root.sqlQuery(ctx)
-	aggregation := make([]string, 0, len(_s.fns))
-	for _, fn := range _s.fns {
-		aggregation = append(aggregation, fn(selector))
+	if len(_s.selections) > 0 {
+		ent.SelectColumns(selector, _s.selections...)
 	}
-	switch n := len(*_s.selector.flds); {
-	case n == 0 && len(aggregation) > 0:
-		selector.Select(aggregation...)
-	case n != 0 && len(aggregation) > 0:
-		selector.AppendSelect(aggregation...)
+	for _, column := range _s.groups {
+		reference := column.Ref()
+		if reference.Table == "" || reference.Table == selector.TableName() {
+			selector.GroupBy(selector.C(reference.Name))
+		} else {
+			selector.GroupBy(sql.Dialect(selector.Dialect()).Table(reference.Table).C(reference.Name))
+		}
 	}
-	rows := &sql.Rows{}
-	query, args := selector.Query()
-	if err := _s.driver.Query(ctx, query, args, rows); err != nil {
+	for _, modifier := range _s.query.modifiers {
+		modifier(selector)
+	}
+	return selector, selector.Err()
+}
+
+func (_s *DocSelect) Scan(ctx context.Context, value any) error {
+	selector, err := _s.sqlQuery(ctx)
+	if err != nil {
+		return err
+	}
+	query, arguments := selector.Query()
+	if err := selector.Err(); err != nil {
+		return err
+	}
+	rows, err := _s.query.driver.Query(ctx, query, arguments)
+	if err != nil {
 		return err
 	}
 	defer rows.Close()
-	return sql.ScanSlice(rows, v)
+	return sql.ScanSlice(rows, value)
+}
+
+func (_s *DocSelect) Rows(ctx context.Context) ([]*ent.Row, error) {
+	if len(_s.selections) == 0 {
+		return nil, errors.New("ent: Rows requires explicit selections")
+	}
+	selector, err := _s.sqlQuery(ctx)
+	if err != nil {
+		return nil, err
+	}
+	query, arguments := selector.Query()
+	if err := selector.Err(); err != nil {
+		return nil, err
+	}
+	rows, err := _s.query.driver.Query(ctx, query, arguments)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	columns, err := rows.Columns()
+	if err != nil {
+		return nil, err
+	}
+	if len(columns) != len(_s.selections) {
+		return nil, fmt.Errorf("ent: projection column count %d differs from selection count %d", len(columns), len(_s.selections))
+	}
+	result := make([]*ent.Row, 0)
+	for rows.Next() {
+		row, destinations := ent.NewRow(_s.selections)
+		if err := rows.Scan(destinations...); err != nil {
+			return nil, err
+		}
+		result = append(result, row)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+// Modify adds a query modifier for attaching custom logic to queries.
+func (_s *DocSelect) Modify(modifiers ...func(s *sql.Selector)) *DocSelect {
+	_s.query.modifiers = append(_s.query.modifiers, modifiers...)
+	return _s
 }

@@ -10,104 +10,204 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/entc/integration/cascadelete/ent/comment"
+	"github.com/neko-sc/ent/entc/integration/cascadelete/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/cascadelete/ent/post"
-	"github.com/neko-sc/ent/entc/integration/cascadelete/ent/predicate"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// CommentUpdate is the builder for updating Comment entities.
 type CommentUpdate struct {
 	config
-	hooks    []Hook
-	mutation *CommentMutation
+	mutation  *CommentMutation
+	err       error
+	returning *sqlgraph.Returning
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// Where appends a list predicates to the CommentUpdate builder.
-func (_u *CommentUpdate) Where(ps ...predicate.Comment) *CommentUpdate {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// SetText sets the "text" field.
-func (_u *CommentUpdate) SetText(v string) *CommentUpdate {
-	_u.mutation.SetText(v)
-	return _u
-}
-
-// SetNillableText sets the "text" field if the given value is not nil.
-func (_u *CommentUpdate) SetNillableText(v *string) *CommentUpdate {
-	if v != nil {
-		_u.SetText(*v)
+func (b *CommentUpdate) Set[T any](column ent.ColumnOf[entity.Comment, T], value T) *CommentUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// SetPostID sets the "post_id" field.
-func (_u *CommentUpdate) SetPostID(v int) *CommentUpdate {
-	_u.mutation.SetPostID(v)
-	return _u
+	return b
 }
-
-// SetNillablePostID sets the "post_id" field if the given value is not nil.
-func (_u *CommentUpdate) SetNillablePostID(v *int) *CommentUpdate {
-	if v != nil {
-		_u.SetPostID(*v)
+func (b *CommentUpdate) SetOptional[T any](column ent.ColumnOf[entity.Comment, T], value ent.Option[T]) *CommentUpdate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *CommentUpdate) SetExpr[T any](column ent.ColumnOf[entity.Comment, T], value ent.Expr[T]) *CommentUpdate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case comment.FieldText:
+
+	case comment.FieldPostID:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Comment is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *CommentUpdate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Comment, N, K], id K) *CommentUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *CommentUpdate) AddIDs[N, K any](edge ent.Relation[entity.Comment, N, K], ids ...K) *CommentUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *CommentUpdate) Mutation() *CommentMutation { return b.mutation }
+
+func (b *CommentUpdate) Patch() *CommentPatch                { return b.mutation.patch }
+func (b *CommentUpdate) Apply(p CommentPatch) *CommentUpdate { b.mutation.patch.apply(p); return b }
+func (b *CommentUpdate) Add[T ent.Number](column ent.ColumnOf[entity.Comment, T], delta T) *CommentUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *CommentUpdate) Append[T any](column ent.ColumnOf[entity.Comment, T], values T) *CommentUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *CommentUpdate) Clear[T any](column ent.ColumnOf[entity.Comment, T]) *CommentUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *CommentUpdate) RemoveIDs[N, K any](edge ent.Relation[entity.Comment, N, K], ids ...K) *CommentUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *CommentUpdate) ClearEdge[N, K any](edge ent.RelationOf[entity.Comment, N, K]) *CommentUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// SetPost sets the "post" edge to the Post entity.
-func (_u *CommentUpdate) SetPost(v *Post) *CommentUpdate {
-	return _u.SetPostID(v.ID)
+func (b *CommentUpdate) Where(predicates ...ent.Predicate[entity.Comment]) *CommentUpdate {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Mutation returns the CommentMutation object of the builder.
-func (_u *CommentUpdate) Mutation() *CommentMutation {
-	return _u.mutation
+func (b *CommentUpdate) Save(ctx context.Context) (int, error) {
+	if b.err != nil {
+		return 0, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return 0, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// ClearPost clears the "post" edge to the Post entity.
-func (_u *CommentUpdate) ClearPost() *CommentUpdate {
-	_u.mutation.ClearPost()
-	return _u
-}
-
-// Save executes the query and returns the number of nodes affected by the update operation.
-func (_u *CommentUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *CommentUpdate) SaveX(ctx context.Context) int {
-	affected, err := _u.Save(ctx)
+func (b *CommentUpdate) SaveX(ctx context.Context) int {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return affected
+	return result
 }
 
-// Exec executes the query.
-func (_u *CommentUpdate) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *CommentUpdate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *CommentUpdate) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *CommentUpdate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_u *CommentUpdate) check() error {
-	if _u.mutation.PostCleared() && len(_u.mutation.PostIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "Comment.post"`)
+func (b *CommentUpdate) Returning(ctx context.Context) ([]*Comment, error) {
+	nodes := make([]*Comment, 0)
+	b.returning = &sqlgraph.Returning{Columns: comment.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Comment{config: b.config}
+		values, err := _node.scanValues(comment.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(comment.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Save(ctx); err != nil {
+		return nil, err
 	}
+	return nodes, nil
+}
+
+func (b *CommentUpdate) defaults() error {
+
 	return nil
+}
+
+func (b *CommentUpdate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.Text.IsNull() {
+		return &ValidationError{Name: "text", err: errors.New(`ent: field "Comment.text" is not nullable`)}
+	}
+
+	if b.mutation.patch.PostID.IsNull() {
+		return &ValidationError{Name: "post_id", err: errors.New(`ent: field "Comment.post_id" is not nullable`)}
+	}
+
+	if b.mutation.patch.PostID.IsNull() {
+		return &ValidationError{Name: "post", err: errors.New(`ent: clearing required edge "Comment.post"`)}
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *CommentUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *CommentUpdate {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
 }
 
 func (_u *CommentUpdate) sqlSave(ctx context.Context) (_node int, err error) {
@@ -122,10 +222,10 @@ func (_u *CommentUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.Text(); ok {
+	if value, ok := _u.mutation.patch.Text.Get(); ok {
 		_spec.SetField(comment.FieldText, field.TypeString, value)
 	}
-	if _u.mutation.PostCleared() {
+	if _u.mutation.patch.PostID.IsNull() || _u.mutation.patch.clearedEdges[comment.EdgePost] {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -138,7 +238,7 @@ func (_u *CommentUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.PostIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.postIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -149,11 +249,22 @@ func (_u *CommentUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(post.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	_spec.Returning = _u.returning
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{comment.Label}
@@ -162,108 +273,202 @@ func (_u *CommentUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		return 0, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }
 
-// CommentUpdateOne is the builder for updating a single Comment entity.
 type CommentUpdateOne struct {
 	config
-	fields   []string
-	hooks    []Hook
 	mutation *CommentMutation
+	err      error
+
+	fields []string
+	old    *Comment
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// SetText sets the "text" field.
-func (_u *CommentUpdateOne) SetText(v string) *CommentUpdateOne {
-	_u.mutation.SetText(v)
-	return _u
-}
-
-// SetNillableText sets the "text" field if the given value is not nil.
-func (_u *CommentUpdateOne) SetNillableText(v *string) *CommentUpdateOne {
-	if v != nil {
-		_u.SetText(*v)
+func (b *CommentUpdateOne) Set[T any](column ent.ColumnOf[entity.Comment, T], value T) *CommentUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// SetPostID sets the "post_id" field.
-func (_u *CommentUpdateOne) SetPostID(v int) *CommentUpdateOne {
-	_u.mutation.SetPostID(v)
-	return _u
+	return b
 }
-
-// SetNillablePostID sets the "post_id" field if the given value is not nil.
-func (_u *CommentUpdateOne) SetNillablePostID(v *int) *CommentUpdateOne {
-	if v != nil {
-		_u.SetPostID(*v)
+func (b *CommentUpdateOne) SetOptional[T any](column ent.ColumnOf[entity.Comment, T], value ent.Option[T]) *CommentUpdateOne {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *CommentUpdateOne) SetExpr[T any](column ent.ColumnOf[entity.Comment, T], value ent.Expr[T]) *CommentUpdateOne {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case comment.FieldText:
+
+	case comment.FieldPostID:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Comment is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *CommentUpdateOne) SetEdge[N, K any](edge ent.UniqueRelation[entity.Comment, N, K], id K) *CommentUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *CommentUpdateOne) AddIDs[N, K any](edge ent.Relation[entity.Comment, N, K], ids ...K) *CommentUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *CommentUpdateOne) Mutation() *CommentMutation { return b.mutation }
+
+func (b *CommentUpdateOne) Patch() *CommentPatch { return b.mutation.patch }
+func (b *CommentUpdateOne) Apply(p CommentPatch) *CommentUpdateOne {
+	b.mutation.patch.apply(p)
+	return b
+}
+func (b *CommentUpdateOne) Add[T ent.Number](column ent.ColumnOf[entity.Comment, T], delta T) *CommentUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *CommentUpdateOne) Append[T any](column ent.ColumnOf[entity.Comment, T], values T) *CommentUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *CommentUpdateOne) Clear[T any](column ent.ColumnOf[entity.Comment, T]) *CommentUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *CommentUpdateOne) RemoveIDs[N, K any](edge ent.Relation[entity.Comment, N, K], ids ...K) *CommentUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *CommentUpdateOne) ClearEdge[N, K any](edge ent.RelationOf[entity.Comment, N, K]) *CommentUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// SetPost sets the "post" edge to the Post entity.
-func (_u *CommentUpdateOne) SetPost(v *Post) *CommentUpdateOne {
-	return _u.SetPostID(v.ID)
+func (b *CommentUpdateOne) Where(predicates ...ent.Predicate[entity.Comment]) *CommentUpdateOne {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Mutation returns the CommentMutation object of the builder.
-func (_u *CommentUpdateOne) Mutation() *CommentMutation {
-	return _u.mutation
+func (b *CommentUpdateOne) Save(ctx context.Context) (*Comment, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// ClearPost clears the "post" edge to the Post entity.
-func (_u *CommentUpdateOne) ClearPost() *CommentUpdateOne {
-	_u.mutation.ClearPost()
-	return _u
-}
-
-// Where appends a list predicates to the CommentUpdate builder.
-func (_u *CommentUpdateOne) Where(ps ...predicate.Comment) *CommentUpdateOne {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// Select allows selecting one or more fields (columns) of the returned entity.
-// The default is selecting all fields defined in the entity schema.
-func (_u *CommentUpdateOne) Select(field string, fields ...string) *CommentUpdateOne {
-	_u.fields = append([]string{field}, fields...)
-	return _u
-}
-
-// Save executes the query and returns the updated Comment entity.
-func (_u *CommentUpdateOne) Save(ctx context.Context) (*Comment, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *CommentUpdateOne) SaveX(ctx context.Context) *Comment {
-	node, err := _u.Save(ctx)
+func (b *CommentUpdateOne) SaveX(ctx context.Context) *Comment {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return node
+	return result
 }
 
-// Exec executes the query on the entity.
-func (_u *CommentUpdateOne) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *CommentUpdateOne) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *CommentUpdateOne) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *CommentUpdateOne) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_u *CommentUpdateOne) check() error {
-	if _u.mutation.PostCleared() && len(_u.mutation.PostIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "Comment.post"`)
+func (b *CommentUpdateOne) Select(columns ...ent.EntityColumn[entity.Comment]) *CommentUpdateOne {
+	if len(columns) == 0 {
+		panic("ent: Select requires at least one column")
 	}
+	b.fields = make([]string, len(columns))
+	for index, column := range columns {
+		b.fields[index] = column.Ref().Name
+	}
+	return b
+}
+
+func (b *CommentUpdateOne) SaveOld(ctx context.Context) (old *Comment, updated *Comment, err error) {
+	if !b.driver.Capabilities().ReturningOld {
+		return nil, nil, &dialect.UnsupportedError{Feature: "RETURNING OLD", Dialect: dialect.Dialect(b.driver.Dialect())}
+	}
+	b.old = &Comment{config: b.config}
+	defer func() { b.old = nil }()
+	updated, err = b.Save(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return b.old, updated, nil
+}
+
+func (b *CommentUpdateOne) defaults() error {
+
 	return nil
+}
+
+func (b *CommentUpdateOne) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.Text.IsNull() {
+		return &ValidationError{Name: "text", err: errors.New(`ent: field "Comment.text" is not nullable`)}
+	}
+
+	if b.mutation.patch.PostID.IsNull() {
+		return &ValidationError{Name: "post_id", err: errors.New(`ent: field "Comment.post_id" is not nullable`)}
+	}
+
+	if b.mutation.patch.PostID.IsNull() {
+		return &ValidationError{Name: "post", err: errors.New(`ent: clearing required edge "Comment.post"`)}
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *CommentUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *CommentUpdateOne {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
 }
 
 func (_u *CommentUpdateOne) sqlSave(ctx context.Context) (_node *Comment, err error) {
@@ -295,10 +500,10 @@ func (_u *CommentUpdateOne) sqlSave(ctx context.Context) (_node *Comment, err er
 			}
 		}
 	}
-	if value, ok := _u.mutation.Text(); ok {
+	if value, ok := _u.mutation.patch.Text.Get(); ok {
 		_spec.SetField(comment.FieldText, field.TypeString, value)
 	}
-	if _u.mutation.PostCleared() {
+	if _u.mutation.patch.PostID.IsNull() || _u.mutation.patch.clearedEdges[comment.EdgePost] {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -311,7 +516,7 @@ func (_u *CommentUpdateOne) sqlSave(ctx context.Context) (_node *Comment, err er
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.PostIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.postIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -322,14 +527,28 @@ func (_u *CommentUpdateOne) sqlSave(ctx context.Context) (_node *Comment, err er
 				IDSpec: sqlgraph.NewFieldSpec(post.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	_node = &Comment{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
+	if _u.old != nil {
+		_spec.OldScanValues = _u.old.scanValues
+		_spec.OldAssign = _u.old.assignValues
+	}
 	if err = sqlgraph.UpdateNode(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{comment.Label}
@@ -338,6 +557,5 @@ func (_u *CommentUpdateOne) sqlSave(ctx context.Context) (_node *Comment, err er
 		}
 		return nil, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }

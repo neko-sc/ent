@@ -10,105 +10,202 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/edgefield/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/edgefield/ent/post"
-	"github.com/neko-sc/ent/entc/integration/edgefield/ent/predicate"
 	"github.com/neko-sc/ent/entc/integration/edgefield/ent/user"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// PostUpdate is the builder for updating Post entities.
 type PostUpdate struct {
 	config
-	hooks    []Hook
-	mutation *PostMutation
+	mutation  *PostMutation
+	err       error
+	returning *sqlgraph.Returning
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// Where appends a list predicates to the PostUpdate builder.
-func (_u *PostUpdate) Where(ps ...predicate.Post) *PostUpdate {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// SetText sets the "text" field.
-func (_u *PostUpdate) SetText(v string) *PostUpdate {
-	_u.mutation.SetText(v)
-	return _u
-}
-
-// SetNillableText sets the "text" field if the given value is not nil.
-func (_u *PostUpdate) SetNillableText(v *string) *PostUpdate {
-	if v != nil {
-		_u.SetText(*v)
+func (b *PostUpdate) Set[T any](column ent.ColumnOf[entity.Post, T], value T) *PostUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// SetAuthorID sets the "author_id" field.
-func (_u *PostUpdate) SetAuthorID(v int) *PostUpdate {
-	_u.mutation.SetAuthorID(v)
-	return _u
+	return b
 }
-
-// SetNillableAuthorID sets the "author_id" field if the given value is not nil.
-func (_u *PostUpdate) SetNillableAuthorID(v *int) *PostUpdate {
-	if v != nil {
-		_u.SetAuthorID(*v)
+func (b *PostUpdate) SetOptional[T any](column ent.ColumnOf[entity.Post, T], value ent.Option[T]) *PostUpdate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *PostUpdate) SetExpr[T any](column ent.ColumnOf[entity.Post, T], value ent.Expr[T]) *PostUpdate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case post.FieldText:
+
+	case post.FieldAuthorID:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Post is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *PostUpdate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Post, N, K], id K) *PostUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *PostUpdate) AddIDs[N, K any](edge ent.Relation[entity.Post, N, K], ids ...K) *PostUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *PostUpdate) Mutation() *PostMutation { return b.mutation }
+
+func (b *PostUpdate) Patch() *PostPatch             { return b.mutation.patch }
+func (b *PostUpdate) Apply(p PostPatch) *PostUpdate { b.mutation.patch.apply(p); return b }
+func (b *PostUpdate) Add[T ent.Number](column ent.ColumnOf[entity.Post, T], delta T) *PostUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *PostUpdate) Append[T any](column ent.ColumnOf[entity.Post, T], values T) *PostUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *PostUpdate) Clear[T any](column ent.ColumnOf[entity.Post, T]) *PostUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *PostUpdate) RemoveIDs[N, K any](edge ent.Relation[entity.Post, N, K], ids ...K) *PostUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *PostUpdate) ClearEdge[N, K any](edge ent.RelationOf[entity.Post, N, K]) *PostUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// ClearAuthorID clears the value of the "author_id" field.
-func (_u *PostUpdate) ClearAuthorID() *PostUpdate {
-	_u.mutation.ClearAuthorID()
-	return _u
+func (b *PostUpdate) Where(predicates ...ent.Predicate[entity.Post]) *PostUpdate {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// SetAuthor sets the "author" edge to the User entity.
-func (_u *PostUpdate) SetAuthor(v *User) *PostUpdate {
-	return _u.SetAuthorID(v.ID)
+func (b *PostUpdate) Save(ctx context.Context) (int, error) {
+	if b.err != nil {
+		return 0, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return 0, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Mutation returns the PostMutation object of the builder.
-func (_u *PostUpdate) Mutation() *PostMutation {
-	return _u.mutation
-}
-
-// ClearAuthor clears the "author" edge to the User entity.
-func (_u *PostUpdate) ClearAuthor() *PostUpdate {
-	_u.mutation.ClearAuthor()
-	return _u
-}
-
-// Save executes the query and returns the number of nodes affected by the update operation.
-func (_u *PostUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *PostUpdate) SaveX(ctx context.Context) int {
-	affected, err := _u.Save(ctx)
+func (b *PostUpdate) SaveX(ctx context.Context) int {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return affected
+	return result
 }
 
-// Exec executes the query.
-func (_u *PostUpdate) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *PostUpdate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *PostUpdate) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *PostUpdate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
+func (b *PostUpdate) Returning(ctx context.Context) ([]*Post, error) {
+	nodes := make([]*Post, 0)
+	b.returning = &sqlgraph.Returning{Columns: post.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Post{config: b.config}
+		values, err := _node.scanValues(post.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(post.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Save(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
+}
+
+func (b *PostUpdate) defaults() error {
+
+	return nil
+}
+
+func (b *PostUpdate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.Text.IsNull() {
+		return &ValidationError{Name: "text", err: errors.New(`ent: field "Post.text" is not nullable`)}
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *PostUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *PostUpdate {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *PostUpdate) sqlSave(ctx context.Context) (_node int, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(post.Table, post.Columns, sqlgraph.NewFieldSpec(post.FieldID, field.TypeInt))
 	if ps := _u.mutation.Predicates(); len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -117,10 +214,10 @@ func (_u *PostUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.Text(); ok {
+	if value, ok := _u.mutation.patch.Text.Get(); ok {
 		_spec.SetField(post.FieldText, field.TypeString, value)
 	}
-	if _u.mutation.AuthorCleared() {
+	if _u.mutation.patch.AuthorID.IsNull() || _u.mutation.patch.clearedEdges[post.EdgeAuthor] {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
@@ -133,7 +230,7 @@ func (_u *PostUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.AuthorIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.authorIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
@@ -144,11 +241,22 @@ func (_u *PostUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	_spec.Returning = _u.returning
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{post.Label}
@@ -157,109 +265,197 @@ func (_u *PostUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		return 0, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }
 
-// PostUpdateOne is the builder for updating a single Post entity.
 type PostUpdateOne struct {
 	config
-	fields   []string
-	hooks    []Hook
 	mutation *PostMutation
+	err      error
+
+	fields []string
+	old    *Post
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// SetText sets the "text" field.
-func (_u *PostUpdateOne) SetText(v string) *PostUpdateOne {
-	_u.mutation.SetText(v)
-	return _u
-}
-
-// SetNillableText sets the "text" field if the given value is not nil.
-func (_u *PostUpdateOne) SetNillableText(v *string) *PostUpdateOne {
-	if v != nil {
-		_u.SetText(*v)
+func (b *PostUpdateOne) Set[T any](column ent.ColumnOf[entity.Post, T], value T) *PostUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// SetAuthorID sets the "author_id" field.
-func (_u *PostUpdateOne) SetAuthorID(v int) *PostUpdateOne {
-	_u.mutation.SetAuthorID(v)
-	return _u
+	return b
 }
-
-// SetNillableAuthorID sets the "author_id" field if the given value is not nil.
-func (_u *PostUpdateOne) SetNillableAuthorID(v *int) *PostUpdateOne {
-	if v != nil {
-		_u.SetAuthorID(*v)
+func (b *PostUpdateOne) SetOptional[T any](column ent.ColumnOf[entity.Post, T], value ent.Option[T]) *PostUpdateOne {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *PostUpdateOne) SetExpr[T any](column ent.ColumnOf[entity.Post, T], value ent.Expr[T]) *PostUpdateOne {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case post.FieldText:
+
+	case post.FieldAuthorID:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Post is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *PostUpdateOne) SetEdge[N, K any](edge ent.UniqueRelation[entity.Post, N, K], id K) *PostUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *PostUpdateOne) AddIDs[N, K any](edge ent.Relation[entity.Post, N, K], ids ...K) *PostUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *PostUpdateOne) Mutation() *PostMutation { return b.mutation }
+
+func (b *PostUpdateOne) Patch() *PostPatch                { return b.mutation.patch }
+func (b *PostUpdateOne) Apply(p PostPatch) *PostUpdateOne { b.mutation.patch.apply(p); return b }
+func (b *PostUpdateOne) Add[T ent.Number](column ent.ColumnOf[entity.Post, T], delta T) *PostUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *PostUpdateOne) Append[T any](column ent.ColumnOf[entity.Post, T], values T) *PostUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *PostUpdateOne) Clear[T any](column ent.ColumnOf[entity.Post, T]) *PostUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *PostUpdateOne) RemoveIDs[N, K any](edge ent.Relation[entity.Post, N, K], ids ...K) *PostUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *PostUpdateOne) ClearEdge[N, K any](edge ent.RelationOf[entity.Post, N, K]) *PostUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// ClearAuthorID clears the value of the "author_id" field.
-func (_u *PostUpdateOne) ClearAuthorID() *PostUpdateOne {
-	_u.mutation.ClearAuthorID()
-	return _u
+func (b *PostUpdateOne) Where(predicates ...ent.Predicate[entity.Post]) *PostUpdateOne {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// SetAuthor sets the "author" edge to the User entity.
-func (_u *PostUpdateOne) SetAuthor(v *User) *PostUpdateOne {
-	return _u.SetAuthorID(v.ID)
+func (b *PostUpdateOne) Save(ctx context.Context) (*Post, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Mutation returns the PostMutation object of the builder.
-func (_u *PostUpdateOne) Mutation() *PostMutation {
-	return _u.mutation
-}
-
-// ClearAuthor clears the "author" edge to the User entity.
-func (_u *PostUpdateOne) ClearAuthor() *PostUpdateOne {
-	_u.mutation.ClearAuthor()
-	return _u
-}
-
-// Where appends a list predicates to the PostUpdate builder.
-func (_u *PostUpdateOne) Where(ps ...predicate.Post) *PostUpdateOne {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// Select allows selecting one or more fields (columns) of the returned entity.
-// The default is selecting all fields defined in the entity schema.
-func (_u *PostUpdateOne) Select(field string, fields ...string) *PostUpdateOne {
-	_u.fields = append([]string{field}, fields...)
-	return _u
-}
-
-// Save executes the query and returns the updated Post entity.
-func (_u *PostUpdateOne) Save(ctx context.Context) (*Post, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *PostUpdateOne) SaveX(ctx context.Context) *Post {
-	node, err := _u.Save(ctx)
+func (b *PostUpdateOne) SaveX(ctx context.Context) *Post {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return node
+	return result
 }
 
-// Exec executes the query on the entity.
-func (_u *PostUpdateOne) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *PostUpdateOne) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *PostUpdateOne) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *PostUpdateOne) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
+func (b *PostUpdateOne) Select(columns ...ent.EntityColumn[entity.Post]) *PostUpdateOne {
+	if len(columns) == 0 {
+		panic("ent: Select requires at least one column")
+	}
+	b.fields = make([]string, len(columns))
+	for index, column := range columns {
+		b.fields[index] = column.Ref().Name
+	}
+	return b
+}
+
+func (b *PostUpdateOne) SaveOld(ctx context.Context) (old *Post, updated *Post, err error) {
+	if !b.driver.Capabilities().ReturningOld {
+		return nil, nil, &dialect.UnsupportedError{Feature: "RETURNING OLD", Dialect: dialect.Dialect(b.driver.Dialect())}
+	}
+	b.old = &Post{config: b.config}
+	defer func() { b.old = nil }()
+	updated, err = b.Save(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return b.old, updated, nil
+}
+
+func (b *PostUpdateOne) defaults() error {
+
+	return nil
+}
+
+func (b *PostUpdateOne) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.Text.IsNull() {
+		return &ValidationError{Name: "text", err: errors.New(`ent: field "Post.text" is not nullable`)}
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *PostUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *PostUpdateOne {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *PostUpdateOne) sqlSave(ctx context.Context) (_node *Post, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(post.Table, post.Columns, sqlgraph.NewFieldSpec(post.FieldID, field.TypeInt))
 	id, ok := _u.mutation.ID()
 	if !ok {
@@ -285,10 +481,10 @@ func (_u *PostUpdateOne) sqlSave(ctx context.Context) (_node *Post, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.Text(); ok {
+	if value, ok := _u.mutation.patch.Text.Get(); ok {
 		_spec.SetField(post.FieldText, field.TypeString, value)
 	}
-	if _u.mutation.AuthorCleared() {
+	if _u.mutation.patch.AuthorID.IsNull() || _u.mutation.patch.clearedEdges[post.EdgeAuthor] {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
@@ -301,7 +497,7 @@ func (_u *PostUpdateOne) sqlSave(ctx context.Context) (_node *Post, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.AuthorIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.authorIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
@@ -312,14 +508,28 @@ func (_u *PostUpdateOne) sqlSave(ctx context.Context) (_node *Post, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	_node = &Post{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
+	if _u.old != nil {
+		_spec.OldScanValues = _u.old.scanValues
+		_spec.OldAssign = _u.old.assignValues
+	}
 	if err = sqlgraph.UpdateNode(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{post.Label}
@@ -328,6 +538,5 @@ func (_u *PostUpdateOne) sqlSave(ctx context.Context) (_node *Post, err error) {
 		}
 		return nil, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }

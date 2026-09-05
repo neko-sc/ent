@@ -6,9 +6,12 @@
 package sessiondevice
 
 import (
+	time2 "time"
+
 	"github.com/google/uuid"
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/examples/migration/ent/entity"
 )
 
 const (
@@ -38,6 +41,55 @@ const (
 	// SessionsColumn is the table column denoting the sessions relation/edge.
 	SessionsColumn = "device_id"
 )
+
+var (
+	ID        = ent.OrderedColumn[entity.SessionDevice, uuid.UUID]{Table: Table, Name: FieldID}
+	IPAddress = ent.StringColumn[entity.SessionDevice, string]{Table: Table, Name: FieldIPAddress}
+	UserAgent = ent.StringColumn[entity.SessionDevice, string]{Table: Table, Name: FieldUserAgent}
+	Location  = ent.StringColumn[entity.SessionDevice, string]{Table: Table, Name: FieldLocation}
+	CreatedAt = ent.OrderedColumn[entity.SessionDevice, time2.Time]{Table: Table, Name: FieldCreatedAt}
+	UpdatedAt = ent.OrderedColumn[entity.SessionDevice, time2.Time]{Table: Table, Name: FieldUpdatedAt}
+	Sessions  = ent.NewRelation[entity.SessionDevice, entity.Session, uuid.UUID](EdgeSessions, newSessionsStep)
+)
+
+// Alias returns the columns of the session_devices table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.SessionDevice, uuid.UUID]{Table: name, Name: FieldID},
+		IPAddress:  ent.StringColumn[entity.SessionDevice, string]{Table: name, Name: FieldIPAddress},
+		UserAgent:  ent.StringColumn[entity.SessionDevice, string]{Table: name, Name: FieldUserAgent},
+		Location:   ent.StringColumn[entity.SessionDevice, string]{Table: name, Name: FieldLocation},
+		CreatedAt:  ent.OrderedColumn[entity.SessionDevice, time2.Time]{Table: name, Name: FieldCreatedAt},
+		UpdatedAt:  ent.OrderedColumn[entity.SessionDevice, time2.Time]{Table: name, Name: FieldUpdatedAt},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.SessionDevice, uuid.UUID]
+	IPAddress  ent.StringColumn[entity.SessionDevice, string]
+	UserAgent  ent.StringColumn[entity.SessionDevice, string]
+	Location   ent.StringColumn[entity.SessionDevice, string]
+	CreatedAt  ent.OrderedColumn[entity.SessionDevice, time2.Time]
+	UpdatedAt  ent.OrderedColumn[entity.SessionDevice, time2.Time]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.SessionDevice]) ent.Predicate[entity.SessionDevice] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.SessionDevice]) ent.Predicate[entity.SessionDevice] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.SessionDevice]) ent.Predicate[entity.SessionDevice] {
+	return ent.Not(predicate)
+}
 
 // Columns holds all SQL columns for sessiondevice fields.
 var Columns = []string{
@@ -70,52 +122,6 @@ var (
 	DefaultID func() uuid.UUID
 )
 
-// OrderOption defines the ordering options for the SessionDevice queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByIPAddress orders the results by the ip_address field.
-func ByIPAddress(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldIPAddress, opts...).ToFunc()
-}
-
-// ByUserAgent orders the results by the user_agent field.
-func ByUserAgent(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldUserAgent, opts...).ToFunc()
-}
-
-// ByLocation orders the results by the location field.
-func ByLocation(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldLocation, opts...).ToFunc()
-}
-
-// ByCreatedAt orders the results by the created_at field.
-func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldCreatedAt, opts...).ToFunc()
-}
-
-// ByUpdatedAt orders the results by the updated_at field.
-func ByUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldUpdatedAt, opts...).ToFunc()
-}
-
-// BySessionsCount orders the results by sessions count.
-func BySessionsCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newSessionsStep(), opts...)
-	}
-}
-
-// BySessions orders the results by sessions terms.
-func BySessions(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newSessionsStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
 func newSessionsStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),

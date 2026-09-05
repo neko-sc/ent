@@ -125,8 +125,8 @@ func (f CreateFunc) Create(ctx context.Context, tables ...*Table) error {
 
 // exist checks if the given COUNT query returns a value >= 1.
 func exist(ctx context.Context, conn dialect.ExecQuerier, query string, args ...any) (bool, error) {
-	rows := &sql.Rows{}
-	if err := conn.Query(ctx, query, args, rows); err != nil {
+	rows, err := conn.Query(ctx, query, args)
+	if err != nil {
 		return false, fmt.Errorf("reading schema information %w", err)
 	}
 	defer rows.Close()

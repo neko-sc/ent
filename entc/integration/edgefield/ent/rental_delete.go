@@ -8,9 +8,11 @@ package ent
 import (
 	"context"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
-	"github.com/neko-sc/ent/entc/integration/edgefield/ent/predicate"
+	"github.com/neko-sc/ent/entc/integration/edgefield/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/edgefield/ent/rental"
 	"github.com/neko-sc/ent/schema/field"
 )
@@ -18,19 +20,44 @@ import (
 // RentalDelete is the builder for deleting a Rental entity.
 type RentalDelete struct {
 	config
-	hooks    []Hook
-	mutation *RentalMutation
+
+	mutation  *RentalMutation
+	returning *sqlgraph.Returning
 }
 
 // Where appends a list predicates to the RentalDelete builder.
-func (_d *RentalDelete) Where(ps ...predicate.Rental) *RentalDelete {
-	_d.mutation.Where(ps...)
+func (_d *RentalDelete) Where(predicates ...ent.Predicate[entity.Rental]) *RentalDelete {
+	_d.mutation.Where(predicates...)
 	return _d
 }
 
 // Exec executes the deletion query and returns how many vertices were deleted.
 func (_d *RentalDelete) Exec(ctx context.Context) (int, error) {
-	return withHooks(ctx, _d.sqlExec, _d.mutation, _d.hooks)
+	return _d.sqlExec(ctx)
+}
+
+func (b *RentalDelete) Returning(ctx context.Context) ([]*Rental, error) {
+	nodes := make([]*Rental, 0)
+	b.returning = &sqlgraph.Returning{Columns: rental.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Rental{config: b.config}
+		values, err := _node.scanValues(rental.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(rental.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Exec(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
 }
 
 // ExecX is like Exec, but panics if an error occurs.
@@ -51,11 +78,11 @@ func (_d *RentalDelete) sqlExec(ctx context.Context) (int, error) {
 			}
 		}
 	}
+	_spec.Returning = _d.returning
 	affected, err := sqlgraph.DeleteNodes(ctx, _d.driver, _spec)
 	if err != nil && sqlgraph.IsConstraintError(err) {
 		err = &ConstraintError{msg: err.Error(), wrap: err}
 	}
-	_d.mutation.done = true
 	return affected, err
 }
 
@@ -65,8 +92,8 @@ type RentalDeleteOne struct {
 }
 
 // Where appends a list predicates to the RentalDelete builder.
-func (_d *RentalDeleteOne) Where(ps ...predicate.Rental) *RentalDeleteOne {
-	_d._d.mutation.Where(ps...)
+func (_d *RentalDeleteOne) Where(predicates ...ent.Predicate[entity.Rental]) *RentalDeleteOne {
+	_d._d.mutation.Where(predicates...)
 	return _d
 }
 

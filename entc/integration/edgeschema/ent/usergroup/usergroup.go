@@ -6,10 +6,11 @@
 package usergroup
 
 import (
-	"time"
+	time2 "time"
 
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/entity"
 )
 
 const (
@@ -45,6 +46,50 @@ const (
 	GroupColumn = "group_id"
 )
 
+var (
+	ID       = ent.OrderedColumn[entity.UserGroup, int]{Table: Table, Name: FieldID}
+	JoinedAt = ent.OrderedColumn[entity.UserGroup, time2.Time]{Table: Table, Name: FieldJoinedAt}
+	UserID   = ent.OrderedColumn[entity.UserGroup, int]{Table: Table, Name: FieldUserID}
+	GroupID  = ent.OrderedColumn[entity.UserGroup, int]{Table: Table, Name: FieldGroupID}
+	User     = ent.NewUniqueRelation[entity.UserGroup, entity.User, int](EdgeUser, newUserStep)
+	Group    = ent.NewUniqueRelation[entity.UserGroup, entity.Group, int](EdgeGroup, newGroupStep)
+)
+
+// Alias returns the columns of the user_groups table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.UserGroup, int]{Table: name, Name: FieldID},
+		JoinedAt:   ent.OrderedColumn[entity.UserGroup, time2.Time]{Table: name, Name: FieldJoinedAt},
+		UserID:     ent.OrderedColumn[entity.UserGroup, int]{Table: name, Name: FieldUserID},
+		GroupID:    ent.OrderedColumn[entity.UserGroup, int]{Table: name, Name: FieldGroupID},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.UserGroup, int]
+	JoinedAt   ent.OrderedColumn[entity.UserGroup, time2.Time]
+	UserID     ent.OrderedColumn[entity.UserGroup, int]
+	GroupID    ent.OrderedColumn[entity.UserGroup, int]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.UserGroup]) ent.Predicate[entity.UserGroup] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.UserGroup]) ent.Predicate[entity.UserGroup] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.UserGroup]) ent.Predicate[entity.UserGroup] {
+	return ent.Not(predicate)
+}
+
 // Columns holds all SQL columns for usergroup fields.
 var Columns = []string{
 	FieldID,
@@ -65,45 +110,9 @@ func ValidColumn(column string) bool {
 
 var (
 	// DefaultJoinedAt holds the default value on creation for the "joined_at" field.
-	DefaultJoinedAt func() time.Time
+	DefaultJoinedAt func() time2.Time
 )
 
-// OrderOption defines the ordering options for the UserGroup queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByJoinedAt orders the results by the joined_at field.
-func ByJoinedAt(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldJoinedAt, opts...).ToFunc()
-}
-
-// ByUserID orders the results by the user_id field.
-func ByUserID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldUserID, opts...).ToFunc()
-}
-
-// ByGroupID orders the results by the group_id field.
-func ByGroupID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldGroupID, opts...).ToFunc()
-}
-
-// ByUserField orders the results by user field.
-func ByUserField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newUserStep(), sql.OrderByField(field, opts...))
-	}
-}
-
-// ByGroupField orders the results by group field.
-func ByGroupField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newGroupStep(), sql.OrderByField(field, opts...))
-	}
-}
 func newUserStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),

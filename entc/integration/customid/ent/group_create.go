@@ -10,76 +10,134 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/group"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/user"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// GroupCreate is the builder for creating a Group entity.
 type GroupCreate struct {
 	config
-	mutation *GroupMutation
-	hooks    []Hook
+	mutation    *GroupMutation
+	err         error
+	fromBuilder bool
+	present     map[string]struct{}
+
 	conflict []sql.ConflictOption
 }
 
-// SetID sets the "id" field.
-func (_c *GroupCreate) SetID(v int) *GroupCreate {
-	_c.mutation.SetID(v)
-	return _c
-}
-
-// AddUserIDs adds the "users" edge to the User entity by IDs.
-func (_c *GroupCreate) AddUserIDs(ids ...int) *GroupCreate {
-	_c.mutation.AddUserIDs(ids...)
-	return _c
-}
-
-// AddUsers adds the "users" edges to the User entity.
-func (_c *GroupCreate) AddUsers(v ...*User) *GroupCreate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+func (b *GroupCreate) Set[T any](column ent.ColumnOf[entity.Group, T], value T) *GroupCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.set(column.Ref().Name, value)
 	}
-	return _c.AddUserIDs(ids...)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+}
+func (b *GroupCreate) SetOptional[T any](column ent.ColumnOf[entity.Group, T], value ent.Option[T]) *GroupCreate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.insert.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *GroupCreate) SetExpr[T any](column ent.ColumnOf[entity.Group, T], value ent.Expr[T]) *GroupCreate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case group.FieldID:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Group is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.insert.setExpr(column.Ref().Name, value.Render)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+
+}
+func (b *GroupCreate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Group, N, K], id K) *GroupCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.setEdge(edge.Ref().Name, id)
+	}
+
+	switch edge.Ref().Name {
+
+	}
+
+	return b
+}
+func (b *GroupCreate) AddIDs[N, K any](edge ent.Relation[entity.Group, N, K], ids ...K) *GroupCreate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.insert.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *GroupCreate) Mutation() *GroupMutation { return b.mutation }
+
+func (b *GroupCreate) Insert() *GroupInsert { return b.mutation.insert }
+
+func (b *GroupCreate) Save(ctx context.Context) (*Group, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Mutation returns the GroupMutation object of the builder.
-func (_c *GroupCreate) Mutation() *GroupMutation {
-	return _c.mutation
-}
-
-// Save creates the Group in the database.
-func (_c *GroupCreate) Save(ctx context.Context) (*Group, error) {
-	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
-}
-
-// SaveX calls Save and panics if Save returns an error.
-func (_c *GroupCreate) SaveX(ctx context.Context) *Group {
-	v, err := _c.Save(ctx)
+func (b *GroupCreate) SaveX(ctx context.Context) *Group {
+	node, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return node
 }
 
-// Exec executes the query.
-func (_c *GroupCreate) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *GroupCreate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *GroupCreate) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *GroupCreate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_c *GroupCreate) check() error {
+func (b *GroupCreate) defaults() error {
+
+	return nil
+}
+
+func (b *GroupCreate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.insert.ID.IsNull() {
+		return &ValidationError{Name: "id", err: errors.New(`ent: field "Group.id" is not nullable`)}
+	}
+
 	return nil
 }
 
@@ -87,33 +145,36 @@ func (_c *GroupCreate) sqlSave(ctx context.Context) (*Group, error) {
 	if err := _c.check(); err != nil {
 		return nil, err
 	}
-	_node, _spec := _c.createSpec()
-	if err := sqlgraph.CreateNode(ctx, _c.driver, _spec); err != nil {
+	node, spec, err := _c.createSpec()
+	if err != nil {
+		return nil, err
+	}
+	if err := sqlgraph.CreateNode(ctx, _c.driver, spec); err != nil {
 		if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
 		return nil, err
 	}
-	if _spec.ID.Value != _node.ID {
-		id := _spec.ID.Value.(int64)
-		_node.ID = int(id)
-	}
-	_c.mutation.id = &_node.ID
-	_c.mutation.done = true
-	return _node, nil
+	_c.mutation.id = &node.ID
+	return node, nil
 }
 
-func (_c *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
-	var (
-		_node = &Group{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(group.Table, sqlgraph.NewFieldSpec(group.FieldID, field.TypeInt))
-	)
+func (_c *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec, error) {
+	_node := &Group{config: _c.config}
+	_spec := sqlgraph.NewCreateSpec(group.Table, sqlgraph.NewFieldSpec(group.FieldID, field.TypeInt))
+
 	_spec.OnConflict = _c.conflict
-	if id, ok := _c.mutation.ID(); ok {
-		_node.ID = id
-		_spec.ID.Value = id
+
+	if value, ok := _c.mutation.insert.ID.Get(); ok {
+		_spec.ID.Value = value
 	}
-	if nodes := _c.mutation.UsersIDs(); len(nodes) > 0 {
+
+	_spec.Expressions = _c.mutation.insert.expressions
+
+	if nodes := _c.mutation.insert.usersIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: false,
@@ -124,130 +185,142 @@ func (_c *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	return _node, _spec
-}
 
-// OnConflict allows configuring the `ON CONFLICT` clause of the `INSERT`
-// statement. For example:
-//
-//	client.Group.Create().
-//		OnConflict(
-//			// Update the row with the new values
-//			// the was proposed for insertion.
-//			sql.ResolveWithNewValues(),
-//		).
-//		Exec(ctx)
-func (_c *GroupCreate) OnConflict(opts ...sql.ConflictOption) *GroupUpsertOne {
-	_c.conflict = opts
-	return &GroupUpsertOne{
-		create: _c,
-	}
-}
-
-// OnConflictColumns calls `OnConflict` and configures the columns
-// as conflict target. Using this option is equivalent to using:
-//
-//	client.Group.Create().
-//		OnConflict(sql.ConflictColumns(columns...)).
-//		Exec(ctx)
-func (_c *GroupCreate) OnConflictColumns(columns ...string) *GroupUpsertOne {
-	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
-	return &GroupUpsertOne{
-		create: _c,
-	}
-}
-
-type (
-	// GroupUpsertOne is the builder for "upsert"-ing
-	//  one Group node.
-	GroupUpsertOne struct {
-		create *GroupCreate
-	}
-
-	// GroupUpsert is the "OnConflict" setter.
-	GroupUpsert struct {
-		*sql.UpdateSet
-	}
-)
-
-// UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
-// Using this option is equivalent to using:
-//
-//	client.Group.Create().
-//		OnConflict(
-//			sql.ResolveWithNewValues(),
-//			sql.ResolveWith(func(u *sql.UpdateSet) {
-//				u.SetIgnore(group.FieldID)
-//			}),
-//		).
-//		Exec(ctx)
-func (u *GroupUpsertOne) UpdateNewValues() *GroupUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
-		if _, exists := u.create.mutation.ID(); exists {
-			s.SetIgnore(group.FieldID)
+	_spec.Returning = &sqlgraph.Returning{Columns: group.Columns, Scan: func(rows dialect.Rows) error {
+		values, err := _node.scanValues(group.Columns)
+		if err != nil {
+			return err
 		}
-	}))
-	return u
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(group.Columns, values); err != nil {
+			return err
+		}
+
+		_spec.ID.Value = _node.ID
+
+		return nil
+	}}
+	return _node, _spec, nil
 }
 
-// Ignore sets each column to itself in case of conflict.
-// Using this option is equivalent to using:
-//
-//	client.Group.Create().
-//	    OnConflict(sql.ResolveWithIgnore()).
-//	    Exec(ctx)
-func (u *GroupUpsertOne) Ignore() *GroupUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
-	return u
+type GroupUpsertOne struct{ create *GroupCreate }
+
+func (b *GroupCreate) OnConflict(columns ...ent.EntityColumn[entity.Group]) *GroupUpsertOne {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
+	}
+	if len(names) == 0 {
+		return b.OnConflictOptions()
+	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
 }
 
-// DoNothing configures the conflict_action to `DO NOTHING`.
-// Supported only by SQLite and PostgreSQL.
+func (b *GroupCreate) OnConflictConstraint(name string) *GroupUpsertOne {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
+}
+
+func (b *GroupCreate) OnConflictOptions(options ...sql.ConflictOption) *GroupUpsertOne {
+	b.conflict = options
+	return &GroupUpsertOne{create: b}
+}
+
 func (u *GroupUpsertOne) DoNothing() *GroupUpsertOne {
 	u.create.conflict = append(u.create.conflict, sql.DoNothing())
 	return u
 }
 
-// Update allows overriding fields `UPDATE` values. See the GroupCreate.OnConflict
-// documentation for more info.
-func (u *GroupUpsertOne) Update(set func(*GroupUpsert)) *GroupUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
-		set(&GroupUpsert{UpdateSet: update})
+func (u *GroupUpsertOne) DoSelect() *GroupUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *GroupUpsertOne) Ignore() *GroupUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *GroupUpsertOne) DoUpdate(set func(*GroupUpsert)) *GroupUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&GroupUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *GroupUpsertOne) UpdateNewValues() *GroupUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case group.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
 	}))
 	return u
 }
 
-// Exec executes the query.
-func (u *GroupUpsertOne) Exec(ctx context.Context) error {
-	if len(u.create.conflict) == 0 {
-		return errors.New("ent: missing options for GroupCreate.OnConflict")
-	}
-	return u.create.Exec(ctx)
+func (u *GroupUpsertOne) Where(predicates ...ent.Predicate[entity.Group]) *GroupUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(group.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// ExecX is like Exec, but panics if an error occurs.
+func (u *GroupUpsertOne) UpdateWhere(predicates ...ent.Predicate[entity.Group]) *GroupUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(group.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *GroupUpsertOne) Save(ctx context.Context) (*Group, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for GroupCreate.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *GroupUpsertOne) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
 func (u *GroupUpsertOne) ExecX(ctx context.Context) {
-	if err := u.create.Exec(ctx); err != nil {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// Exec executes the UPSERT query and returns the inserted/updated ID.
 func (u *GroupUpsertOne) ID(ctx context.Context) (id int, err error) {
-	node, err := u.create.Save(ctx)
+	node, err := u.Save(ctx)
 	if err != nil {
 		return id, err
 	}
 	return node.ID, nil
 }
 
-// IDX is like ID, but panics if an error occurs.
 func (u *GroupUpsertOne) IDX(ctx context.Context) int {
 	id, err := u.ID(ctx)
 	if err != nil {
@@ -256,200 +329,220 @@ func (u *GroupUpsertOne) IDX(ctx context.Context) int {
 	return id
 }
 
-// GroupCreateBulk is the builder for creating many Group entities in bulk.
+type GroupUpsert struct{ *sql.UpdateSet }
+
+func (u *GroupUpsert) Set[T any](column ent.ColumnOf[entity.Group, T], value T) *GroupUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Group is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *GroupUpsert) SetExpr[T any](column ent.ColumnOf[entity.Group, T], value ent.Expr[T]) *GroupUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Group is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *GroupUpsert) UpdateNewValue[T any](column ent.ColumnOf[entity.Group, T]) *GroupUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Group is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *GroupUpsert) Add[T ent.Number](column ent.ColumnOf[entity.Group, T], delta T) *GroupUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Group does not support addition", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *GroupUpsert) Clear[T any](column ent.ColumnOf[entity.Group, T]) *GroupUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Group is not nullable", column.Ref().Name)})
+	}
+	return u
+}
+
 type GroupCreateBulk struct {
 	config
 	err      error
 	builders []*GroupCreate
+
 	conflict []sql.ConflictOption
 }
 
-// Save creates the Group entities in the database.
 func (_c *GroupCreateBulk) Save(ctx context.Context) ([]*Group, error) {
 	if _c.err != nil {
 		return nil, _c.err
 	}
-	specs := make([]*sqlgraph.CreateSpec, len(_c.builders))
 	nodes := make([]*Group, len(_c.builders))
-	mutators := make([]Mutator, len(_c.builders))
-	for i := range _c.builders {
-		func(i int, root context.Context) {
-			builder := _c.builders[i]
-			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*GroupMutation)
-				if !ok {
-					return nil, fmt.Errorf("unexpected mutation type %T", m)
-				}
-				if err := builder.check(); err != nil {
-					return nil, err
-				}
-				builder.mutation = mutation
-				var err error
-				nodes[i], specs[i] = builder.createSpec()
-				if i < len(mutators)-1 {
-					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
-				} else {
-					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
-					spec.OnConflict = _c.conflict
-					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
-						if sqlgraph.IsConstraintError(err) {
-							err = &ConstraintError{msg: err.Error(), wrap: err}
-						}
-					}
-				}
-				if err != nil {
-					return nil, err
-				}
-				mutation.id = &nodes[i].ID
-				if specs[i].ID.Value != nil && nodes[i].ID == 0 {
-					id := specs[i].ID.Value.(int64)
-					nodes[i].ID = int(id)
-				}
-				mutation.done = true
-				return nodes[i], nil
-			})
-			for i := len(builder.hooks) - 1; i >= 0; i-- {
-				mut = builder.hooks[i](mut)
-			}
-			mutators[i] = mut
-		}(i, ctx)
-	}
-	if len(mutators) > 0 {
-		if _, err := mutators[0].Mutate(ctx, _c.builders[0].mutation); err != nil {
+	specs := make([]*sqlgraph.CreateSpec, len(nodes))
+	for index, builder := range _c.builders {
+		if builder.err != nil {
+			return nil, builder.err
+		}
+		if err := builder.defaults(); err != nil {
+			return nil, err
+		}
+		if err := builder.check(); err != nil {
+			return nil, err
+		}
+		var err error
+		nodes[index], specs[index], err = builder.createSpec()
+		if err != nil {
 			return nil, err
 		}
 	}
-	return nodes, nil
+	if len(specs) == 0 {
+		return nodes, nil
+	}
+	spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+
+	spec.OnConflict = _c.conflict
+
+	if err := sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
+		if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{msg: err.Error(), wrap: err}
+		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
+		return nil, err
+	}
+	result := nodes[:0]
+	for index, builder := range _c.builders {
+		if specs[index].Skipped {
+			continue
+		}
+		builder.mutation.id = &nodes[index].ID
+		result = append(result, nodes[index])
+	}
+	return result, nil
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_c *GroupCreateBulk) SaveX(ctx context.Context) []*Group {
-	v, err := _c.Save(ctx)
+func (b *GroupCreateBulk) SaveX(ctx context.Context) []*Group {
+	nodes, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return nodes
 }
 
-// Exec executes the query.
-func (_c *GroupCreateBulk) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *GroupCreateBulk) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *GroupCreateBulk) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *GroupCreateBulk) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// OnConflict allows configuring the `ON CONFLICT` clause of the `INSERT`
-// statement. For example:
-//
-//	client.Group.CreateBulk(builders...).
-//		OnConflict(
-//			// Update the row with the new values
-//			// the was proposed for insertion.
-//			sql.ResolveWithNewValues(),
-//		).
-//		Exec(ctx)
-func (_c *GroupCreateBulk) OnConflict(opts ...sql.ConflictOption) *GroupUpsertBulk {
-	_c.conflict = opts
-	return &GroupUpsertBulk{
-		create: _c,
+type GroupUpsertBulk struct{ create *GroupCreateBulk }
+
+func (b *GroupCreateBulk) OnConflict(columns ...ent.EntityColumn[entity.Group]) *GroupUpsertBulk {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
 	}
-}
-
-// OnConflictColumns calls `OnConflict` and configures the columns
-// as conflict target. Using this option is equivalent to using:
-//
-//	client.Group.Create().
-//		OnConflict(sql.ConflictColumns(columns...)).
-//		Exec(ctx)
-func (_c *GroupCreateBulk) OnConflictColumns(columns ...string) *GroupUpsertBulk {
-	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
-	return &GroupUpsertBulk{
-		create: _c,
+	if len(names) == 0 {
+		return b.OnConflictOptions()
 	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
 }
 
-// GroupUpsertBulk is the builder for "upsert"-ing
-// a bulk of Group nodes.
-type GroupUpsertBulk struct {
-	create *GroupCreateBulk
+func (b *GroupCreateBulk) OnConflictConstraint(name string) *GroupUpsertBulk {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
 }
 
-// UpdateNewValues updates the mutable fields using the new values that
-// were set on create. Using this option is equivalent to using:
-//
-//	client.Group.Create().
-//		OnConflict(
-//			sql.ResolveWithNewValues(),
-//			sql.ResolveWith(func(u *sql.UpdateSet) {
-//				u.SetIgnore(group.FieldID)
-//			}),
-//		).
-//		Exec(ctx)
-func (u *GroupUpsertBulk) UpdateNewValues() *GroupUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
-		for _, b := range u.create.builders {
-			if _, exists := b.mutation.ID(); exists {
-				s.SetIgnore(group.FieldID)
-			}
-		}
-	}))
-	return u
+func (b *GroupCreateBulk) OnConflictOptions(options ...sql.ConflictOption) *GroupUpsertBulk {
+	b.conflict = options
+	return &GroupUpsertBulk{create: b}
 }
 
-// Ignore sets each column to itself in case of conflict.
-// Using this option is equivalent to using:
-//
-//	client.Group.Create().
-//		OnConflict(sql.ResolveWithIgnore()).
-//		Exec(ctx)
-func (u *GroupUpsertBulk) Ignore() *GroupUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
-	return u
-}
-
-// DoNothing configures the conflict_action to `DO NOTHING`.
-// Supported only by SQLite and PostgreSQL.
 func (u *GroupUpsertBulk) DoNothing() *GroupUpsertBulk {
 	u.create.conflict = append(u.create.conflict, sql.DoNothing())
 	return u
 }
 
-// Update allows overriding fields `UPDATE` values. See the GroupCreateBulk.OnConflict
-// documentation for more info.
-func (u *GroupUpsertBulk) Update(set func(*GroupUpsert)) *GroupUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
-		set(&GroupUpsert{UpdateSet: update})
+func (u *GroupUpsertBulk) DoSelect() *GroupUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *GroupUpsertBulk) Ignore() *GroupUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *GroupUpsertBulk) DoUpdate(set func(*GroupUpsert)) *GroupUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&GroupUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *GroupUpsertBulk) UpdateNewValues() *GroupUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case group.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
 	}))
 	return u
 }
 
-// Exec executes the query.
-func (u *GroupUpsertBulk) Exec(ctx context.Context) error {
-	if u.create.err != nil {
-		return u.create.err
-	}
-	for i, b := range u.create.builders {
-		if len(b.conflict) != 0 {
-			return fmt.Errorf("ent: OnConflict was set for builder %d. Set it on the GroupCreateBulk instead", i)
+func (u *GroupUpsertBulk) Where(predicates ...ent.Predicate[entity.Group]) *GroupUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(group.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
 		}
-	}
-	if len(u.create.conflict) == 0 {
-		return errors.New("ent: missing options for GroupCreateBulk.OnConflict")
-	}
-	return u.create.Exec(ctx)
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// ExecX is like Exec, but panics if an error occurs.
+func (u *GroupUpsertBulk) UpdateWhere(predicates ...ent.Predicate[entity.Group]) *GroupUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(group.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *GroupUpsertBulk) Save(ctx context.Context) ([]*Group, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for GroupCreateBulk.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *GroupUpsertBulk) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
 func (u *GroupUpsertBulk) ExecX(ctx context.Context) {
-	if err := u.create.Exec(ctx); err != nil {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

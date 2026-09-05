@@ -28,15 +28,6 @@ func (Schema) Edges() []ent.Edge { return nil }
 // Indexes of the mixin.
 func (Schema) Indexes() []ent.Index { return nil }
 
-// Hooks of the mixin.
-func (Schema) Hooks() []ent.Hook { return nil }
-
-// Interceptors of the schema.
-func (Schema) Interceptors() []ent.Interceptor { return nil }
-
-// Policy of the mixin.
-func (Schema) Policy() ent.Policy { return nil }
-
 // Annotations of the mixin.
 func (Schema) Annotations() []schema.Annotation { return nil }
 

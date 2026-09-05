@@ -147,7 +147,11 @@ func newTx(ctx context.Context, drv dialect.Driver) (*txDriver, error) {
 func (tx *txDriver) Tx(context.Context) (dialect.Tx, error) { return tx, nil }
 
 // Dialect returns the dialect of the driver we started the transaction from.
-func (tx *txDriver) Dialect() string { return tx.drv.Dialect() }
+func (tx *txDriver) Dialect() dialect.Dialect { return tx.drv.Dialect() }
+
+func(tx *txDriver) Capabilities() dialect.Capabilities { return tx.drv.Capabilities() }
+
+func(tx *txDriver) BeginTx(context.Context, *dialect.TxOptions) (dialect.Tx, error) { return tx, nil }
 
 // Close is a nop close.
 func (*txDriver) Close() error { return nil }
@@ -161,13 +165,13 @@ func (*txDriver) Commit() error { return nil }
 func (*txDriver) Rollback() error { return nil }
 
 // Exec calls tx.Exec.
-func (tx *txDriver) Exec(ctx context.Context, query string, args, v any) error {
-	return tx.tx.Exec(ctx, query, args, v)
+func (tx *txDriver) Exec(ctx context.Context, query string, args []any) (dialect.Result, error) {
+ return tx.tx.Exec(ctx, query, args)
 }
 
 // Query calls tx.Query.
-func (tx *txDriver) Query(ctx context.Context, query string, args, v any) error {
-	return tx.tx.Query(ctx, query, args, v)
+func (tx *txDriver) Query(ctx context.Context, query string, args []any) (dialect.Rows, error) {
+ return tx.tx.Query(ctx, query, args)
 }
 
 var _ dialect.Driver = (*txDriver)(nil)

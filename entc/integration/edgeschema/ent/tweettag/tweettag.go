@@ -6,11 +6,12 @@
 package tweettag
 
 import (
-	"time"
+	time2 "time"
 
 	"github.com/google/uuid"
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/entity"
 )
 
 const (
@@ -46,6 +47,50 @@ const (
 	TweetColumn = "tweet_id"
 )
 
+var (
+	ID      = ent.OrderedColumn[entity.TweetTag, uuid.UUID]{Table: Table, Name: FieldID}
+	AddedAt = ent.OrderedColumn[entity.TweetTag, time2.Time]{Table: Table, Name: FieldAddedAt}
+	TagID   = ent.OrderedColumn[entity.TweetTag, int]{Table: Table, Name: FieldTagID}
+	TweetID = ent.OrderedColumn[entity.TweetTag, int]{Table: Table, Name: FieldTweetID}
+	Tag     = ent.NewUniqueRelation[entity.TweetTag, entity.Tag, int](EdgeTag, newTagStep)
+	Tweet   = ent.NewUniqueRelation[entity.TweetTag, entity.Tweet, int](EdgeTweet, newTweetStep)
+)
+
+// Alias returns the columns of the tweet_tags table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.TweetTag, uuid.UUID]{Table: name, Name: FieldID},
+		AddedAt:    ent.OrderedColumn[entity.TweetTag, time2.Time]{Table: name, Name: FieldAddedAt},
+		TagID:      ent.OrderedColumn[entity.TweetTag, int]{Table: name, Name: FieldTagID},
+		TweetID:    ent.OrderedColumn[entity.TweetTag, int]{Table: name, Name: FieldTweetID},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.TweetTag, uuid.UUID]
+	AddedAt    ent.OrderedColumn[entity.TweetTag, time2.Time]
+	TagID      ent.OrderedColumn[entity.TweetTag, int]
+	TweetID    ent.OrderedColumn[entity.TweetTag, int]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.TweetTag]) ent.Predicate[entity.TweetTag] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.TweetTag]) ent.Predicate[entity.TweetTag] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.TweetTag]) ent.Predicate[entity.TweetTag] {
+	return ent.Not(predicate)
+}
+
 // Columns holds all SQL columns for tweettag fields.
 var Columns = []string{
 	FieldID,
@@ -66,47 +111,11 @@ func ValidColumn(column string) bool {
 
 var (
 	// DefaultAddedAt holds the default value on creation for the "added_at" field.
-	DefaultAddedAt func() time.Time
+	DefaultAddedAt func() time2.Time
 	// DefaultID holds the default value on creation for the "id" field.
 	DefaultID func() uuid.UUID
 )
 
-// OrderOption defines the ordering options for the TweetTag queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByAddedAt orders the results by the added_at field.
-func ByAddedAt(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldAddedAt, opts...).ToFunc()
-}
-
-// ByTagID orders the results by the tag_id field.
-func ByTagID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldTagID, opts...).ToFunc()
-}
-
-// ByTweetID orders the results by the tweet_id field.
-func ByTweetID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldTweetID, opts...).ToFunc()
-}
-
-// ByTagField orders the results by tag field.
-func ByTagField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newTagStep(), sql.OrderByField(field, opts...))
-	}
-}
-
-// ByTweetField orders the results by tweet field.
-func ByTweetField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newTweetStep(), sql.OrderByField(field, opts...))
-	}
-}
 func newTagStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),

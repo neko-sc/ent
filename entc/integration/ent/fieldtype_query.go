@@ -7,6 +7,7 @@ package ent
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 
@@ -14,8 +15,8 @@ import (
 	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/ent/fieldtype"
-	"github.com/neko-sc/ent/entc/integration/ent/predicate"
 	"github.com/neko-sc/ent/schema/field"
 )
 
@@ -23,19 +24,89 @@ import (
 type FieldTypeQuery struct {
 	config
 	ctx        *QueryContext
-	order      []fieldtype.OrderOption
-	inters     []Interceptor
-	predicates []predicate.FieldType
+	order      []ent.OrderOption[entity.FieldType]
+	joins      []func(*sql.Selector)
+	withCounts []ent.RelationRef
+
+	predicates []ent.Predicate[entity.FieldType]
 	withFKs    bool
 	modifiers  []func(*sql.Selector)
+
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
 }
 
 // Where adds a new predicate for the FieldTypeQuery builder.
-func (_q *FieldTypeQuery) Where(ps ...predicate.FieldType) *FieldTypeQuery {
-	_q.predicates = append(_q.predicates, ps...)
+func (_q *FieldTypeQuery) Where(predicates ...ent.Predicate[entity.FieldType]) *FieldTypeQuery {
+	_q.predicates = append(_q.predicates, predicates...)
+	return _q
+}
+
+func (_q *FieldTypeQuery) WhereP(predicates ...func(*sql.Selector)) *FieldTypeQuery {
+	for _, predicate := range predicates {
+		_q.predicates = append(_q.predicates, predicate)
+	}
+	return _q
+}
+
+func (_q *FieldTypeQuery) Join(table string, on ...func(*sql.Selector)) *FieldTypeQuery {
+	return _q.JoinAs(table, "", on...)
+}
+
+func (_q *FieldTypeQuery) JoinAs(table, alias string, on ...func(*sql.Selector)) *FieldTypeQuery {
+	on = append([]func(*sql.Selector){}, on...)
+	_q.joins = append(_q.joins, func(selector *sql.Selector) {
+		joined := sql.Dialect(selector.Dialect()).Table(table)
+		if alias != "" {
+			joined.As(alias)
+		} else {
+			joined.As(table)
+		}
+		condition := sql.Dialect(selector.Dialect()).Select().From(selector.Table())
+		for _, predicate := range on {
+			predicate(condition)
+		}
+		if err := condition.Err(); err != nil {
+			selector.AddError(err)
+		}
+		selector.Join(joined).OnP(condition.P())
+	})
+	return _q
+}
+
+func (_q *FieldTypeQuery) LeftJoin(table string, on ...func(*sql.Selector)) *FieldTypeQuery {
+	return _q.LeftJoinAs(table, "", on...)
+}
+
+func (_q *FieldTypeQuery) LeftJoinAs(table, alias string, on ...func(*sql.Selector)) *FieldTypeQuery {
+	on = append([]func(*sql.Selector){}, on...)
+	_q.joins = append(_q.joins, func(selector *sql.Selector) {
+		joined := sql.Dialect(selector.Dialect()).Table(table)
+		if alias != "" {
+			joined.As(alias)
+		} else {
+			joined.As(table)
+		}
+		condition := sql.Dialect(selector.Dialect()).Select().From(selector.Table())
+		for _, predicate := range on {
+			predicate(condition)
+		}
+		if err := condition.Err(); err != nil {
+			selector.AddError(err)
+		}
+		selector.LeftJoin(joined).OnP(condition.P())
+	})
+	return _q
+}
+
+func (_q *FieldTypeQuery) WithCount[N, K any](edge ent.Relation[entity.FieldType, N, K]) *FieldTypeQuery {
+	for _, requested := range _q.withCounts {
+		if requested.Name == edge.Ref().Name {
+			return _q
+		}
+	}
+	_q.withCounts = append(_q.withCounts, edge.Ref())
 	return _q
 }
 
@@ -59,7 +130,7 @@ func (_q *FieldTypeQuery) Unique(unique bool) *FieldTypeQuery {
 }
 
 // Order specifies how the records should be ordered.
-func (_q *FieldTypeQuery) Order(o ...fieldtype.OrderOption) *FieldTypeQuery {
+func (_q *FieldTypeQuery) Order(o ...ent.OrderOption[entity.FieldType]) *FieldTypeQuery {
 	_q.order = append(_q.order, o...)
 	return _q
 }
@@ -67,7 +138,7 @@ func (_q *FieldTypeQuery) Order(o ...fieldtype.OrderOption) *FieldTypeQuery {
 // First returns the first FieldType entity from the query.
 // Returns a *NotFoundError when no FieldType was found.
 func (_q *FieldTypeQuery) First(ctx context.Context) (*FieldType, error) {
-	nodes, err := _q.Limit(1).All(setContextOp(ctx, _q.ctx, ent.OpQueryFirst))
+	nodes, err := _q.Limit(1).All(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +161,7 @@ func (_q *FieldTypeQuery) FirstX(ctx context.Context) *FieldType {
 // Returns a *NotFoundError when no FieldType ID was found.
 func (_q *FieldTypeQuery) FirstID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = _q.Limit(1).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryFirstID)); err != nil {
+	if ids, err = _q.Limit(1).IDs(ctx); err != nil {
 		return
 	}
 	if len(ids) == 0 {
@@ -113,7 +184,7 @@ func (_q *FieldTypeQuery) FirstIDX(ctx context.Context) int {
 // Returns a *NotSingularError when more than one FieldType entity is found.
 // Returns a *NotFoundError when no FieldType entities are found.
 func (_q *FieldTypeQuery) Only(ctx context.Context) (*FieldType, error) {
-	nodes, err := _q.Limit(2).All(setContextOp(ctx, _q.ctx, ent.OpQueryOnly))
+	nodes, err := _q.Limit(2).All(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +212,7 @@ func (_q *FieldTypeQuery) OnlyX(ctx context.Context) *FieldType {
 // Returns a *NotFoundError when no entities are found.
 func (_q *FieldTypeQuery) OnlyID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = _q.Limit(2).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryOnlyID)); err != nil {
+	if ids, err = _q.Limit(2).IDs(ctx); err != nil {
 		return
 	}
 	switch len(ids) {
@@ -166,12 +237,10 @@ func (_q *FieldTypeQuery) OnlyIDX(ctx context.Context) int {
 
 // All executes the query and returns a list of FieldTypes.
 func (_q *FieldTypeQuery) All(ctx context.Context) ([]*FieldType, error) {
-	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryAll)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
-	qr := querierAll[[]*FieldType, *FieldTypeQuery]()
-	return withInterceptors[[]*FieldType](ctx, _q, qr, _q.inters)
+	return _q.sqlAll(ctx)
 }
 
 // AllX is like All, but panics if an error occurs.
@@ -188,8 +257,7 @@ func (_q *FieldTypeQuery) IDs(ctx context.Context) (ids []int, err error) {
 	if _q.ctx.Unique == nil && _q.path != nil {
 		_q.Unique(true)
 	}
-	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryIDs)
-	if err = _q.Select(fieldtype.FieldID).Scan(ctx, &ids); err != nil {
+	if ids, err = ent.Values(ctx, _q.Select(fieldtype.ID), fieldtype.ID); err != nil {
 		return nil, err
 	}
 	return ids, nil
@@ -206,11 +274,10 @@ func (_q *FieldTypeQuery) IDsX(ctx context.Context) []int {
 
 // Count returns the count of the given query.
 func (_q *FieldTypeQuery) Count(ctx context.Context) (int, error) {
-	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryCount)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
-	return withInterceptors[int](ctx, _q, querierCount[*FieldTypeQuery](), _q.inters)
+	return _q.sqlCount(ctx)
 }
 
 // CountX is like Count, but panics if an error occurs.
@@ -224,7 +291,6 @@ func (_q *FieldTypeQuery) CountX(ctx context.Context) int {
 
 // Exist returns true if the query has elements in the graph.
 func (_q *FieldTypeQuery) Exist(ctx context.Context) (bool, error) {
-	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryExist)
 	switch _, err := _q.FirstID(ctx); {
 	case IsNotFound(err):
 		return false, nil
@@ -250,21 +316,25 @@ func (_q *FieldTypeQuery) Clone() *FieldTypeQuery {
 	if _q == nil {
 		return nil
 	}
-	return &FieldTypeQuery{
+	cloned := &FieldTypeQuery{
 		config:     _q.config,
 		ctx:        _q.ctx.Clone(),
-		order:      append([]fieldtype.OrderOption{}, _q.order...),
-		inters:     append([]Interceptor{}, _q.inters...),
-		predicates: append([]predicate.FieldType{}, _q.predicates...),
+		order:      append([]ent.OrderOption[entity.FieldType]{}, _q.order...),
+		predicates: append([]ent.Predicate[entity.FieldType]{}, _q.predicates...),
+		joins:      append([]func(*sql.Selector){}, _q.joins...),
+		withCounts: append([]ent.RelationRef{}, _q.withCounts...),
+		withFKs:    _q.withFKs,
 		// clone intermediate query.
 		sql:       _q.sql.Clone(),
 		path:      _q.path,
 		modifiers: append([]func(*sql.Selector){}, _q.modifiers...),
 	}
+
+	return cloned
 }
 
 // GroupBy is used to group vertices by one or more fields/columns.
-// It is often used with aggregate functions, like: count, max, mean, min, sum.
+// It can be combined with typed aggregate selections.
 //
 // Example:
 //
@@ -274,16 +344,14 @@ func (_q *FieldTypeQuery) Clone() *FieldTypeQuery {
 //	}
 //
 //	client.FieldType.Query().
-//		GroupBy(fieldtype.FieldInt).
+//		GroupBy(fieldtype.Int).
 //		Aggregate(ent.Count()).
 //		Scan(ctx, &v)
-func (_q *FieldTypeQuery) GroupBy(field string, fields ...string) *FieldTypeGroupBy {
-	_q.ctx.Fields = append([]string{field}, fields...)
-	grbuild := &FieldTypeGroupBy{build: _q}
-	grbuild.flds = &_q.ctx.Fields
-	grbuild.label = fieldtype.Label
-	grbuild.scan = grbuild.Scan
-	return grbuild
+func (_q *FieldTypeQuery) GroupBy(columns ...ent.EntityColumn[entity.FieldType]) *FieldTypeGroupBy {
+	if len(columns) == 0 {
+		panic("ent: GroupBy requires at least one column")
+	}
+	return &FieldTypeGroupBy{query: _q, columns: append([]ent.EntityColumn[entity.FieldType](nil), columns...)}
 }
 
 // Select allows the selection one or more fields/columns for the given query,
@@ -296,32 +364,18 @@ func (_q *FieldTypeQuery) GroupBy(field string, fields ...string) *FieldTypeGrou
 //	}
 //
 //	client.FieldType.Query().
-//		Select(fieldtype.FieldInt).
+//		Select(fieldtype.Int).
 //		Scan(ctx, &v)
-func (_q *FieldTypeQuery) Select(fields ...string) *FieldTypeSelect {
-	_q.ctx.Fields = append(_q.ctx.Fields, fields...)
-	sbuild := &FieldTypeSelect{FieldTypeQuery: _q}
-	sbuild.label = fieldtype.Label
-	sbuild.flds, sbuild.scan = &_q.ctx.Fields, sbuild.Scan
-	return sbuild
+func (_q *FieldTypeQuery) Select(selections ...ent.Selection) *FieldTypeSelect {
+	return &FieldTypeSelect{query: _q, selections: append([]ent.Selection(nil), selections...)}
 }
 
 // Aggregate returns a FieldTypeSelect configured with the given aggregations.
-func (_q *FieldTypeQuery) Aggregate(fns ...AggregateFunc) *FieldTypeSelect {
-	return _q.Select().Aggregate(fns...)
+func (_q *FieldTypeQuery) Aggregate(selections ...ent.Selection) *FieldTypeSelect {
+	return _q.Select(selections...)
 }
 
 func (_q *FieldTypeQuery) prepareQuery(ctx context.Context) error {
-	for _, inter := range _q.inters {
-		if inter == nil {
-			return fmt.Errorf("ent: uninitialized interceptor (forgotten import ent/runtime?)")
-		}
-		if trv, ok := inter.(Traverser); ok {
-			if err := trv.Traverse(ctx, _q); err != nil {
-				return err
-			}
-		}
-	}
 	for _, f := range _q.ctx.Fields {
 		if !fieldtype.ValidColumn(f) {
 			return &ValidationError{Name: f, err: fmt.Errorf("ent: invalid field %q for query", f)}
@@ -357,6 +411,7 @@ func (_q *FieldTypeQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Fi
 	if len(_q.modifiers) > 0 {
 		_spec.Modifiers = _q.modifiers
 	}
+
 	for i := range hooks {
 		hooks[i](ctx, _spec)
 	}
@@ -366,6 +421,7 @@ func (_q *FieldTypeQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Fi
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
+
 	return nodes, nil
 }
 
@@ -374,6 +430,7 @@ func (_q *FieldTypeQuery) sqlCount(ctx context.Context) (int, error) {
 	if len(_q.modifiers) > 0 {
 		_spec.Modifiers = _q.modifiers
 	}
+
 	_spec.Node.Columns = _q.ctx.Fields
 	if len(_q.ctx.Fields) > 0 {
 		_spec.Unique = _q.ctx.Unique != nil && *_q.ctx.Unique
@@ -398,10 +455,13 @@ func (_q *FieldTypeQuery) querySpec() *sqlgraph.QuerySpec {
 			}
 		}
 	}
-	if ps := _q.predicates; len(ps) > 0 {
+	if predicates := _q.predicates; len(predicates) > 0 || len(_q.joins) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
-			for i := range ps {
-				ps[i](selector)
+			for _, join := range _q.joins {
+				join(selector)
+			}
+			for i := range predicates {
+				predicates[i](selector)
 			}
 		}
 	}
@@ -436,8 +496,8 @@ func (_q *FieldTypeQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	if _q.ctx.Unique != nil && *_q.ctx.Unique {
 		selector.Distinct()
 	}
-	for _, m := range _q.modifiers {
-		m(selector)
+	for _, join := range _q.joins {
+		join(selector)
 	}
 	for _, p := range _q.predicates {
 		p(selector)
@@ -452,6 +512,9 @@ func (_q *FieldTypeQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	}
 	if limit := _q.ctx.Limit; limit != nil {
 		selector.Limit(*limit)
+	}
+	for _, modifier := range _q.modifiers {
+		modifier(selector)
 	}
 	return selector
 }
@@ -490,96 +553,148 @@ func (_q *FieldTypeQuery) Modify(modifiers ...func(s *sql.Selector)) *FieldTypeS
 
 // FieldTypeGroupBy is the group-by builder for FieldType entities.
 type FieldTypeGroupBy struct {
-	selector
-	build *FieldTypeQuery
+	query      *FieldTypeQuery
+	columns    []ent.EntityColumn[entity.FieldType]
+	aggregates []ent.Selection
 }
 
-// Aggregate adds the given aggregation functions to the group-by query.
-func (_g *FieldTypeGroupBy) Aggregate(fns ...AggregateFunc) *FieldTypeGroupBy {
-	_g.fns = append(_g.fns, fns...)
+func (_g *FieldTypeGroupBy) Aggregate(selections ...ent.Selection) *FieldTypeGroupBy {
+	_g.aggregates = append(_g.aggregates, selections...)
 	return _g
 }
 
-// Scan applies the selector query and scans the result into the given value.
 func (_g *FieldTypeGroupBy) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, _g.build.ctx, ent.OpQueryGroupBy)
-	if err := _g.build.prepareQuery(ctx); err != nil {
-		return err
-	}
-	return scanWithInterceptors[*FieldTypeQuery, *FieldTypeGroupBy](ctx, _g.build, _g, _g.build.inters, v)
+	return _g.selectQuery().Scan(ctx, v)
 }
 
-func (_g *FieldTypeGroupBy) sqlScan(ctx context.Context, root *FieldTypeQuery, v any) error {
-	selector := root.sqlQuery(ctx).Select()
-	aggregation := make([]string, 0, len(_g.fns))
-	for _, fn := range _g.fns {
-		aggregation = append(aggregation, fn(selector))
+func (_g *FieldTypeGroupBy) Rows(ctx context.Context) ([]*ent.Row, error) {
+	return _g.selectQuery().Rows(ctx)
+}
+
+func (_g *FieldTypeGroupBy) selectQuery() *FieldTypeSelect {
+	selections := make([]ent.Selection, 0, len(_g.columns)+len(_g.aggregates))
+	for _, column := range _g.columns {
+		selections = append(selections, column)
 	}
-	if len(selector.SelectedColumns()) == 0 {
-		columns := make([]string, 0, len(*_g.flds)+len(_g.fns))
-		for _, f := range *_g.flds {
-			columns = append(columns, selector.C(f))
-		}
-		columns = append(columns, aggregation...)
-		selector.Select(columns...)
-	}
-	selector.GroupBy(selector.Columns(*_g.flds...)...)
-	if err := selector.Err(); err != nil {
-		return err
-	}
-	rows := &sql.Rows{}
-	query, args := selector.Query()
-	if err := _g.build.driver.Query(ctx, query, args, rows); err != nil {
-		return err
-	}
-	defer rows.Close()
-	return sql.ScanSlice(rows, v)
+	selected := _g.query.Select(append(selections, _g.aggregates...)...)
+	selected.groups = _g.columns
+	return selected
 }
 
 // FieldTypeSelect is the builder for selecting fields of FieldType entities.
 type FieldTypeSelect struct {
-	*FieldTypeQuery
-	selector
+	query      *FieldTypeQuery
+	selections []ent.Selection
+	groups     []ent.EntityColumn[entity.FieldType]
 }
 
-// Aggregate adds the given aggregation functions to the selector query.
-func (_s *FieldTypeSelect) Aggregate(fns ...AggregateFunc) *FieldTypeSelect {
-	_s.fns = append(_s.fns, fns...)
+func (_s *FieldTypeSelect) Aggregate(selections ...ent.Selection) *FieldTypeSelect {
+	_s.selections = append(_s.selections, selections...)
 	return _s
 }
 
-// Scan applies the selector query and scans the result into the given value.
-func (_s *FieldTypeSelect) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, _s.ctx, ent.OpQuerySelect)
-	if err := _s.prepareQuery(ctx); err != nil {
-		return err
+func (_s *FieldTypeSelect) Row(ctx context.Context) (*ent.Row, error) {
+	rows, err := _s.Rows(ctx)
+	if err != nil {
+		return nil, err
 	}
-	return scanWithInterceptors[*FieldTypeQuery, *FieldTypeSelect](ctx, _s.FieldTypeQuery, _s, _s.inters, v)
+	switch len(rows) {
+	case 0:
+		return nil, &NotFoundError{fieldtype.Label}
+	case 1:
+		return rows[0], nil
+	default:
+		return nil, &NotSingularError{fieldtype.Label}
+	}
 }
 
-func (_s *FieldTypeSelect) sqlScan(ctx context.Context, root *FieldTypeQuery, v any) error {
+func (_s *FieldTypeSelect) sqlQuery(ctx context.Context) (*sql.Selector, error) {
+	root := _s.query.Clone()
+	root.ctx.Fields = nil
+	for _, selection := range _s.selections {
+		if column := selection.Ref(); column.Name != "" && (column.Table == "" || column.Table == fieldtype.Table) {
+			root.ctx.AppendFieldOnce(column.Name)
+		}
+	}
+	if err := root.prepareQuery(ctx); err != nil {
+		return nil, err
+	}
+	root.modifiers = nil
 	selector := root.sqlQuery(ctx)
-	aggregation := make([]string, 0, len(_s.fns))
-	for _, fn := range _s.fns {
-		aggregation = append(aggregation, fn(selector))
+	if len(_s.selections) > 0 {
+		ent.SelectColumns(selector, _s.selections...)
 	}
-	switch n := len(*_s.selector.flds); {
-	case n == 0 && len(aggregation) > 0:
-		selector.Select(aggregation...)
-	case n != 0 && len(aggregation) > 0:
-		selector.AppendSelect(aggregation...)
+	for _, column := range _s.groups {
+		reference := column.Ref()
+		if reference.Table == "" || reference.Table == selector.TableName() {
+			selector.GroupBy(selector.C(reference.Name))
+		} else {
+			selector.GroupBy(sql.Dialect(selector.Dialect()).Table(reference.Table).C(reference.Name))
+		}
 	}
-	rows := &sql.Rows{}
-	query, args := selector.Query()
-	if err := _s.driver.Query(ctx, query, args, rows); err != nil {
+	for _, modifier := range _s.query.modifiers {
+		modifier(selector)
+	}
+	return selector, selector.Err()
+}
+
+func (_s *FieldTypeSelect) Scan(ctx context.Context, value any) error {
+	selector, err := _s.sqlQuery(ctx)
+	if err != nil {
+		return err
+	}
+	query, arguments := selector.Query()
+	if err := selector.Err(); err != nil {
+		return err
+	}
+	rows, err := _s.query.driver.Query(ctx, query, arguments)
+	if err != nil {
 		return err
 	}
 	defer rows.Close()
-	return sql.ScanSlice(rows, v)
+	return sql.ScanSlice(rows, value)
+}
+
+func (_s *FieldTypeSelect) Rows(ctx context.Context) ([]*ent.Row, error) {
+	if len(_s.selections) == 0 {
+		return nil, errors.New("ent: Rows requires explicit selections")
+	}
+	selector, err := _s.sqlQuery(ctx)
+	if err != nil {
+		return nil, err
+	}
+	query, arguments := selector.Query()
+	if err := selector.Err(); err != nil {
+		return nil, err
+	}
+	rows, err := _s.query.driver.Query(ctx, query, arguments)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	columns, err := rows.Columns()
+	if err != nil {
+		return nil, err
+	}
+	if len(columns) != len(_s.selections) {
+		return nil, fmt.Errorf("ent: projection column count %d differs from selection count %d", len(columns), len(_s.selections))
+	}
+	result := make([]*ent.Row, 0)
+	for rows.Next() {
+		row, destinations := ent.NewRow(_s.selections)
+		if err := rows.Scan(destinations...); err != nil {
+			return nil, err
+		}
+		result = append(result, row)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 // Modify adds a query modifier for attaching custom logic to queries.
 func (_s *FieldTypeSelect) Modify(modifiers ...func(s *sql.Selector)) *FieldTypeSelect {
-	_s.modifiers = append(_s.modifiers, modifiers...)
+	_s.query.modifiers = append(_s.query.modifiers, modifiers...)
 	return _s
 }

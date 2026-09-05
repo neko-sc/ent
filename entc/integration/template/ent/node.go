@@ -12,6 +12,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/schema"
 	"github.com/neko-sc/ent/entc/integration/template/ent/group"
@@ -92,9 +93,7 @@ func (_m *Pet) Node(ctx context.Context) (node *Node, err error) {
 		Value: string(buf),
 	}
 	var ids []int
-	ids, err = _m.QueryOwner().
-		Select(user.FieldID).
-		Ints(ctx)
+	ids, err = Values(ctx, _m.QueryOwner().Select(user.ID), user.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -123,9 +122,7 @@ func (_m *User) Node(ctx context.Context) (node *Node, err error) {
 		Value: string(buf),
 	}
 	var ids []int
-	ids, err = _m.QueryPets().
-		Select(pet.FieldID).
-		Ints(ctx)
+	ids, err = Values(ctx, _m.QueryPets().Select(pet.ID), pet.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -134,9 +131,7 @@ func (_m *User) Node(ctx context.Context) (node *Node, err error) {
 		Type: "Pet",
 		Name: "Pets",
 	}
-	ids, err = _m.QueryFriends().
-		Select(user.FieldID).
-		Ints(ctx)
+	ids, err = Values(ctx, _m.QueryFriends().Select(user.ID), user.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -201,7 +196,7 @@ type (
 	}
 
 	querier interface {
-		Query(ctx context.Context, query string, args, v any) error
+		Query(ctx context.Context, query string, args []any) (dialect.Rows, error)
 	}
 )
 
@@ -225,12 +220,12 @@ func (t *tables) Load(ctx context.Context, querier querier) ([]string, error) {
 }
 
 func (*tables) load(ctx context.Context, querier querier) ([]string, error) {
-	rows := &sql.Rows{}
 	query, args := sql.Select("type").
 		From(sql.Table(schema.TypeTable)).
 		OrderBy(sql.Asc("id")).
 		Query()
-	if err := querier.Query(ctx, query, args, rows); err != nil {
+	rows, err := querier.Query(ctx, query, args)
+	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()

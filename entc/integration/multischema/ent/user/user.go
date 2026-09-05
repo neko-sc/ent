@@ -6,8 +6,11 @@
 package user
 
 import (
+	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/multischema/ent/entity"
+	"github.com/neko-sc/ent/entc/integration/multischema/ent/internal"
 )
 
 const (
@@ -67,6 +70,85 @@ const (
 	ParentHoodColumn = "user_id"
 )
 
+var (
+	ID          = ent.OrderedColumn[entity.User, int]{Table: Table, Name: FieldID}
+	Name        = ent.StringColumn[entity.User, string]{Table: Table, Name: FieldName}
+	Pets        = ent.NewRelation[entity.User, entity.Pet, int](EdgePets, newPetsStep)
+	Groups      = ent.NewRelation[entity.User, entity.Group, int](EdgeGroups, newGroupsStep)
+	Friends     = ent.NewRelation[entity.User, entity.User, int](EdgeFriends, newFriendsStep)
+	Parents     = ent.NewRelation[entity.User, entity.User, int](EdgeParents, newParentsStep)
+	Children    = ent.NewRelation[entity.User, entity.User, int](EdgeChildren, newChildrenStep)
+	Friendships = ent.NewRelation[entity.User, entity.Friendship, int](EdgeFriendships, newFriendshipsStep)
+	ParentHood  = ent.NewRelation[entity.User, entity.Parent, int](EdgeParentHood, newParentHoodStep)
+)
+
+func init() {
+	Pets.Configure = func(s *sql.Selector, step *sqlgraph.Step) {
+		schemaConfig := internal.SchemaConfigFromContext(s.Context())
+		step.To.Schema = schemaConfig.Pet
+		step.Edge.Schema = schemaConfig.Pet
+	}
+	Groups.Configure = func(s *sql.Selector, step *sqlgraph.Step) {
+		schemaConfig := internal.SchemaConfigFromContext(s.Context())
+		step.To.Schema = schemaConfig.Group
+		step.Edge.Schema = schemaConfig.GroupUsers
+	}
+	Friends.Configure = func(s *sql.Selector, step *sqlgraph.Step) {
+		schemaConfig := internal.SchemaConfigFromContext(s.Context())
+		step.To.Schema = schemaConfig.User
+		step.Edge.Schema = schemaConfig.Friendship
+	}
+	Parents.Configure = func(s *sql.Selector, step *sqlgraph.Step) {
+		schemaConfig := internal.SchemaConfigFromContext(s.Context())
+		step.To.Schema = schemaConfig.User
+		step.Edge.Schema = schemaConfig.UserChildren
+	}
+	Children.Configure = func(s *sql.Selector, step *sqlgraph.Step) {
+		schemaConfig := internal.SchemaConfigFromContext(s.Context())
+		step.To.Schema = schemaConfig.User
+		step.Edge.Schema = schemaConfig.Parent
+	}
+	Friendships.Configure = func(s *sql.Selector, step *sqlgraph.Step) {
+		schemaConfig := internal.SchemaConfigFromContext(s.Context())
+		step.To.Schema = schemaConfig.Friendship
+		step.Edge.Schema = schemaConfig.Friendship
+	}
+	ParentHood.Configure = func(s *sql.Selector, step *sqlgraph.Step) {
+		schemaConfig := internal.SchemaConfigFromContext(s.Context())
+		step.To.Schema = schemaConfig.Parent
+		step.Edge.Schema = schemaConfig.Parent
+	}
+}
+
+// Alias returns the columns of the users table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.User, int]{Table: name, Name: FieldID},
+		Name:       ent.StringColumn[entity.User, string]{Table: name, Name: FieldName},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.User, int]
+	Name       ent.StringColumn[entity.User, string]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.User]) ent.Predicate[entity.User] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.User]) ent.Predicate[entity.User] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.User]) ent.Predicate[entity.User] { return ent.Not(predicate) }
+
 // Columns holds all SQL columns for user fields.
 var Columns = []string{
 	FieldID,
@@ -103,116 +185,6 @@ var (
 	DefaultName string
 )
 
-// OrderOption defines the ordering options for the User queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByName orders the results by the name field.
-func ByName(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldName, opts...).ToFunc()
-}
-
-// ByPetsCount orders the results by pets count.
-func ByPetsCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newPetsStep(), opts...)
-	}
-}
-
-// ByPets orders the results by pets terms.
-func ByPets(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newPetsStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
-// ByGroupsCount orders the results by groups count.
-func ByGroupsCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newGroupsStep(), opts...)
-	}
-}
-
-// ByGroups orders the results by groups terms.
-func ByGroups(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newGroupsStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
-// ByFriendsCount orders the results by friends count.
-func ByFriendsCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newFriendsStep(), opts...)
-	}
-}
-
-// ByFriends orders the results by friends terms.
-func ByFriends(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newFriendsStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
-// ByParentsCount orders the results by parents count.
-func ByParentsCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newParentsStep(), opts...)
-	}
-}
-
-// ByParents orders the results by parents terms.
-func ByParents(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newParentsStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
-// ByChildrenCount orders the results by children count.
-func ByChildrenCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newChildrenStep(), opts...)
-	}
-}
-
-// ByChildren orders the results by children terms.
-func ByChildren(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newChildrenStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
-// ByFriendshipsCount orders the results by friendships count.
-func ByFriendshipsCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newFriendshipsStep(), opts...)
-	}
-}
-
-// ByFriendships orders the results by friendships terms.
-func ByFriendships(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newFriendshipsStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
-// ByParentHoodCount orders the results by parent_hood count.
-func ByParentHoodCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newParentHoodStep(), opts...)
-	}
-}
-
-// ByParentHood orders the results by parent_hood terms.
-func ByParentHood(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newParentHoodStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
 func newPetsStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),

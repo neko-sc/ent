@@ -6,8 +6,6 @@ import (
 	"context"
 
 	"github.com/neko-sc/ent/examples/viewcomposite/ent"
-	// required by schema hooks.
-	_ "github.com/neko-sc/ent/examples/viewcomposite/ent/runtime"
 
 	"github.com/neko-sc/ent/dialect/sql/schema"
 	"github.com/neko-sc/ent/examples/viewcomposite/ent/migrate"
@@ -25,13 +23,13 @@ type (
 	Option func(*options)
 
 	options struct {
-		opts        []ent.Option
+		opts        []ent.ClientOption
 		migrateOpts []schema.MigrateOption
 	}
 )
 
 // WithOptions forwards options to client creation.
-func WithOptions(opts ...ent.Option) Option {
+func WithOptions(opts ...ent.ClientOption) Option {
 	return func(o *options) {
 		o.opts = append(o.opts, opts...)
 	}

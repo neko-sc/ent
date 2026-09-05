@@ -10,84 +10,141 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/other"
 	"github.com/neko-sc/ent/entc/integration/customid/sid"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// OtherCreate is the builder for creating a Other entity.
 type OtherCreate struct {
 	config
-	mutation *OtherMutation
-	hooks    []Hook
+	mutation    *OtherMutation
+	err         error
+	fromBuilder bool
+	present     map[string]struct{}
+
 	conflict []sql.ConflictOption
 }
 
-// SetID sets the "id" field.
-func (_c *OtherCreate) SetID(v sid.ID) *OtherCreate {
-	_c.mutation.SetID(v)
-	return _c
-}
-
-// SetNillableID sets the "id" field if the given value is not nil.
-func (_c *OtherCreate) SetNillableID(v *sid.ID) *OtherCreate {
-	if v != nil {
-		_c.SetID(*v)
+func (b *OtherCreate) Set[T any](column ent.ColumnOf[entity.Other, T], value T) *OtherCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.set(column.Ref().Name, value)
 	}
-	return _c
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
 }
-
-// Mutation returns the OtherMutation object of the builder.
-func (_c *OtherCreate) Mutation() *OtherMutation {
-	return _c.mutation
+func (b *OtherCreate) SetOptional[T any](column ent.ColumnOf[entity.Other, T], value ent.Option[T]) *OtherCreate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.insert.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
 }
+func (b *OtherCreate) SetExpr[T any](column ent.ColumnOf[entity.Other, T], value ent.Expr[T]) *OtherCreate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
 
-// Save creates the Other in the database.
-func (_c *OtherCreate) Save(ctx context.Context) (*Other, error) {
-	if err := _c.defaults(); err != nil {
+	case other.FieldID:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Other is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.insert.setExpr(column.Ref().Name, value.Render)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+
+}
+func (b *OtherCreate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Other, N, K], id K) *OtherCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.setEdge(edge.Ref().Name, id)
+	}
+
+	switch edge.Ref().Name {
+
+	}
+
+	return b
+}
+func (b *OtherCreate) AddIDs[N, K any](edge ent.Relation[entity.Other, N, K], ids ...K) *OtherCreate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.insert.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *OtherCreate) Mutation() *OtherMutation { return b.mutation }
+
+func (b *OtherCreate) Insert() *OtherInsert { return b.mutation.insert }
+
+func (b *OtherCreate) Save(ctx context.Context) (*Other, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
 		return nil, err
 	}
-	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
+	return b.sqlSave(ctx)
 }
 
-// SaveX calls Save and panics if Save returns an error.
-func (_c *OtherCreate) SaveX(ctx context.Context) *Other {
-	v, err := _c.Save(ctx)
+func (b *OtherCreate) SaveX(ctx context.Context) *Other {
+	node, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return node
 }
 
-// Exec executes the query.
-func (_c *OtherCreate) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *OtherCreate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *OtherCreate) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *OtherCreate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// defaults sets the default values of the builder before save.
-func (_c *OtherCreate) defaults() error {
-	if _, ok := _c.mutation.ID(); !ok {
+func (b *OtherCreate) defaults() error {
+
+	if b.mutation.insert.ID.IsUnset() && b.mutation.insert.expressions[other.FieldID] == nil {
 		if other.DefaultID == nil {
-			return fmt.Errorf("ent: uninitialized other.DefaultID (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized other.DefaultID")
 		}
-		v := other.DefaultID()
-		_c.mutation.SetID(v)
+		b.mutation.insert.ID = ent.Some(other.DefaultID())
 	}
+
 	return nil
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_c *OtherCreate) check() error {
+func (b *OtherCreate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.insert.ID.IsNull() {
+		return &ValidationError{Name: "id", err: errors.New(`ent: field "Other.id" is not nullable`)}
+	}
+
 	return nil
 }
 
@@ -95,154 +152,160 @@ func (_c *OtherCreate) sqlSave(ctx context.Context) (*Other, error) {
 	if err := _c.check(); err != nil {
 		return nil, err
 	}
-	_node, _spec := _c.createSpec()
-	if err := sqlgraph.CreateNode(ctx, _c.driver, _spec); err != nil {
+	node, spec, err := _c.createSpec()
+	if err != nil {
+		return nil, err
+	}
+	if err := sqlgraph.CreateNode(ctx, _c.driver, spec); err != nil {
 		if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
 		return nil, err
 	}
-	if _spec.ID.Value != nil {
-		if id, ok := _spec.ID.Value.(*sid.ID); ok {
-			_node.ID = *id
-		} else if err := _node.ID.Scan(_spec.ID.Value); err != nil {
-			return nil, err
-		}
-	}
-	_c.mutation.id = &_node.ID
-	_c.mutation.done = true
-	return _node, nil
+	_c.mutation.id = &node.ID
+	return node, nil
 }
 
-func (_c *OtherCreate) createSpec() (*Other, *sqlgraph.CreateSpec) {
-	var (
-		_node = &Other{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(other.Table, sqlgraph.NewFieldSpec(other.FieldID, field.TypeOther))
-	)
+func (_c *OtherCreate) createSpec() (*Other, *sqlgraph.CreateSpec, error) {
+	_node := &Other{config: _c.config}
+	_spec := sqlgraph.NewCreateSpec(other.Table, sqlgraph.NewFieldSpec(other.FieldID, field.TypeOther))
+
 	_spec.OnConflict = _c.conflict
-	if id, ok := _c.mutation.ID(); ok {
-		_node.ID = id
-		_spec.ID.Value = &id
-	}
-	return _node, _spec
-}
 
-// OnConflict allows configuring the `ON CONFLICT` clause of the `INSERT`
-// statement. For example:
-//
-//	client.Other.Create().
-//		OnConflict(
-//			// Update the row with the new values
-//			// the was proposed for insertion.
-//			sql.ResolveWithNewValues(),
-//		).
-//		Exec(ctx)
-func (_c *OtherCreate) OnConflict(opts ...sql.ConflictOption) *OtherUpsertOne {
-	_c.conflict = opts
-	return &OtherUpsertOne{
-		create: _c,
-	}
-}
-
-// OnConflictColumns calls `OnConflict` and configures the columns
-// as conflict target. Using this option is equivalent to using:
-//
-//	client.Other.Create().
-//		OnConflict(sql.ConflictColumns(columns...)).
-//		Exec(ctx)
-func (_c *OtherCreate) OnConflictColumns(columns ...string) *OtherUpsertOne {
-	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
-	return &OtherUpsertOne{
-		create: _c,
-	}
-}
-
-type (
-	// OtherUpsertOne is the builder for "upsert"-ing
-	//  one Other node.
-	OtherUpsertOne struct {
-		create *OtherCreate
+	if value, ok := _c.mutation.insert.ID.Get(); ok {
+		_spec.ID.Value = &value
 	}
 
-	// OtherUpsert is the "OnConflict" setter.
-	OtherUpsert struct {
-		*sql.UpdateSet
-	}
-)
+	_spec.Expressions = _c.mutation.insert.expressions
 
-// UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
-// Using this option is equivalent to using:
-//
-//	client.Other.Create().
-//		OnConflict(
-//			sql.ResolveWithNewValues(),
-//			sql.ResolveWith(func(u *sql.UpdateSet) {
-//				u.SetIgnore(other.FieldID)
-//			}),
-//		).
-//		Exec(ctx)
-func (u *OtherUpsertOne) UpdateNewValues() *OtherUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
-		if _, exists := u.create.mutation.ID(); exists {
-			s.SetIgnore(other.FieldID)
+	_spec.Returning = &sqlgraph.Returning{Columns: other.Columns, Scan: func(rows dialect.Rows) error {
+		values, err := _node.scanValues(other.Columns)
+		if err != nil {
+			return err
 		}
-	}))
-	return u
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(other.Columns, values); err != nil {
+			return err
+		}
+
+		_spec.ID.Value = _node.ID
+
+		return nil
+	}}
+	return _node, _spec, nil
 }
 
-// Ignore sets each column to itself in case of conflict.
-// Using this option is equivalent to using:
-//
-//	client.Other.Create().
-//	    OnConflict(sql.ResolveWithIgnore()).
-//	    Exec(ctx)
-func (u *OtherUpsertOne) Ignore() *OtherUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
-	return u
+type OtherUpsertOne struct{ create *OtherCreate }
+
+func (b *OtherCreate) OnConflict(columns ...ent.EntityColumn[entity.Other]) *OtherUpsertOne {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
+	}
+	if len(names) == 0 {
+		return b.OnConflictOptions()
+	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
 }
 
-// DoNothing configures the conflict_action to `DO NOTHING`.
-// Supported only by SQLite and PostgreSQL.
+func (b *OtherCreate) OnConflictConstraint(name string) *OtherUpsertOne {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
+}
+
+func (b *OtherCreate) OnConflictOptions(options ...sql.ConflictOption) *OtherUpsertOne {
+	b.conflict = options
+	return &OtherUpsertOne{create: b}
+}
+
 func (u *OtherUpsertOne) DoNothing() *OtherUpsertOne {
 	u.create.conflict = append(u.create.conflict, sql.DoNothing())
 	return u
 }
 
-// Update allows overriding fields `UPDATE` values. See the OtherCreate.OnConflict
-// documentation for more info.
-func (u *OtherUpsertOne) Update(set func(*OtherUpsert)) *OtherUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
-		set(&OtherUpsert{UpdateSet: update})
+func (u *OtherUpsertOne) DoSelect() *OtherUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *OtherUpsertOne) Ignore() *OtherUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *OtherUpsertOne) DoUpdate(set func(*OtherUpsert)) *OtherUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&OtherUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *OtherUpsertOne) UpdateNewValues() *OtherUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case other.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
 	}))
 	return u
 }
 
-// Exec executes the query.
-func (u *OtherUpsertOne) Exec(ctx context.Context) error {
-	if len(u.create.conflict) == 0 {
-		return errors.New("ent: missing options for OtherCreate.OnConflict")
-	}
-	return u.create.Exec(ctx)
+func (u *OtherUpsertOne) Where(predicates ...ent.Predicate[entity.Other]) *OtherUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(other.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// ExecX is like Exec, but panics if an error occurs.
+func (u *OtherUpsertOne) UpdateWhere(predicates ...ent.Predicate[entity.Other]) *OtherUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(other.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *OtherUpsertOne) Save(ctx context.Context) (*Other, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for OtherCreate.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *OtherUpsertOne) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
 func (u *OtherUpsertOne) ExecX(ctx context.Context) {
-	if err := u.create.Exec(ctx); err != nil {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// Exec executes the UPSERT query and returns the inserted/updated ID.
 func (u *OtherUpsertOne) ID(ctx context.Context) (id sid.ID, err error) {
-	node, err := u.create.Save(ctx)
+	node, err := u.Save(ctx)
 	if err != nil {
 		return id, err
 	}
 	return node.ID, nil
 }
 
-// IDX is like ID, but panics if an error occurs.
 func (u *OtherUpsertOne) IDX(ctx context.Context) sid.ID {
 	id, err := u.ID(ctx)
 	if err != nil {
@@ -251,197 +314,220 @@ func (u *OtherUpsertOne) IDX(ctx context.Context) sid.ID {
 	return id
 }
 
-// OtherCreateBulk is the builder for creating many Other entities in bulk.
+type OtherUpsert struct{ *sql.UpdateSet }
+
+func (u *OtherUpsert) Set[T any](column ent.ColumnOf[entity.Other, T], value T) *OtherUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Other is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *OtherUpsert) SetExpr[T any](column ent.ColumnOf[entity.Other, T], value ent.Expr[T]) *OtherUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Other is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *OtherUpsert) UpdateNewValue[T any](column ent.ColumnOf[entity.Other, T]) *OtherUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Other is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *OtherUpsert) Add[T ent.Number](column ent.ColumnOf[entity.Other, T], delta T) *OtherUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Other does not support addition", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *OtherUpsert) Clear[T any](column ent.ColumnOf[entity.Other, T]) *OtherUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Other is not nullable", column.Ref().Name)})
+	}
+	return u
+}
+
 type OtherCreateBulk struct {
 	config
 	err      error
 	builders []*OtherCreate
+
 	conflict []sql.ConflictOption
 }
 
-// Save creates the Other entities in the database.
 func (_c *OtherCreateBulk) Save(ctx context.Context) ([]*Other, error) {
 	if _c.err != nil {
 		return nil, _c.err
 	}
-	specs := make([]*sqlgraph.CreateSpec, len(_c.builders))
 	nodes := make([]*Other, len(_c.builders))
-	mutators := make([]Mutator, len(_c.builders))
-	for i := range _c.builders {
-		func(i int, root context.Context) {
-			builder := _c.builders[i]
-			builder.defaults()
-			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*OtherMutation)
-				if !ok {
-					return nil, fmt.Errorf("unexpected mutation type %T", m)
-				}
-				if err := builder.check(); err != nil {
-					return nil, err
-				}
-				builder.mutation = mutation
-				var err error
-				nodes[i], specs[i] = builder.createSpec()
-				if i < len(mutators)-1 {
-					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
-				} else {
-					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
-					spec.OnConflict = _c.conflict
-					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
-						if sqlgraph.IsConstraintError(err) {
-							err = &ConstraintError{msg: err.Error(), wrap: err}
-						}
-					}
-				}
-				if err != nil {
-					return nil, err
-				}
-				mutation.id = &nodes[i].ID
-				mutation.done = true
-				return nodes[i], nil
-			})
-			for i := len(builder.hooks) - 1; i >= 0; i-- {
-				mut = builder.hooks[i](mut)
-			}
-			mutators[i] = mut
-		}(i, ctx)
-	}
-	if len(mutators) > 0 {
-		if _, err := mutators[0].Mutate(ctx, _c.builders[0].mutation); err != nil {
+	specs := make([]*sqlgraph.CreateSpec, len(nodes))
+	for index, builder := range _c.builders {
+		if builder.err != nil {
+			return nil, builder.err
+		}
+		if err := builder.defaults(); err != nil {
+			return nil, err
+		}
+		if err := builder.check(); err != nil {
+			return nil, err
+		}
+		var err error
+		nodes[index], specs[index], err = builder.createSpec()
+		if err != nil {
 			return nil, err
 		}
 	}
-	return nodes, nil
+	if len(specs) == 0 {
+		return nodes, nil
+	}
+	spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+
+	spec.OnConflict = _c.conflict
+
+	if err := sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
+		if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{msg: err.Error(), wrap: err}
+		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
+		return nil, err
+	}
+	result := nodes[:0]
+	for index, builder := range _c.builders {
+		if specs[index].Skipped {
+			continue
+		}
+		builder.mutation.id = &nodes[index].ID
+		result = append(result, nodes[index])
+	}
+	return result, nil
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_c *OtherCreateBulk) SaveX(ctx context.Context) []*Other {
-	v, err := _c.Save(ctx)
+func (b *OtherCreateBulk) SaveX(ctx context.Context) []*Other {
+	nodes, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return nodes
 }
 
-// Exec executes the query.
-func (_c *OtherCreateBulk) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *OtherCreateBulk) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *OtherCreateBulk) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *OtherCreateBulk) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// OnConflict allows configuring the `ON CONFLICT` clause of the `INSERT`
-// statement. For example:
-//
-//	client.Other.CreateBulk(builders...).
-//		OnConflict(
-//			// Update the row with the new values
-//			// the was proposed for insertion.
-//			sql.ResolveWithNewValues(),
-//		).
-//		Exec(ctx)
-func (_c *OtherCreateBulk) OnConflict(opts ...sql.ConflictOption) *OtherUpsertBulk {
-	_c.conflict = opts
-	return &OtherUpsertBulk{
-		create: _c,
+type OtherUpsertBulk struct{ create *OtherCreateBulk }
+
+func (b *OtherCreateBulk) OnConflict(columns ...ent.EntityColumn[entity.Other]) *OtherUpsertBulk {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
 	}
-}
-
-// OnConflictColumns calls `OnConflict` and configures the columns
-// as conflict target. Using this option is equivalent to using:
-//
-//	client.Other.Create().
-//		OnConflict(sql.ConflictColumns(columns...)).
-//		Exec(ctx)
-func (_c *OtherCreateBulk) OnConflictColumns(columns ...string) *OtherUpsertBulk {
-	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
-	return &OtherUpsertBulk{
-		create: _c,
+	if len(names) == 0 {
+		return b.OnConflictOptions()
 	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
 }
 
-// OtherUpsertBulk is the builder for "upsert"-ing
-// a bulk of Other nodes.
-type OtherUpsertBulk struct {
-	create *OtherCreateBulk
+func (b *OtherCreateBulk) OnConflictConstraint(name string) *OtherUpsertBulk {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
 }
 
-// UpdateNewValues updates the mutable fields using the new values that
-// were set on create. Using this option is equivalent to using:
-//
-//	client.Other.Create().
-//		OnConflict(
-//			sql.ResolveWithNewValues(),
-//			sql.ResolveWith(func(u *sql.UpdateSet) {
-//				u.SetIgnore(other.FieldID)
-//			}),
-//		).
-//		Exec(ctx)
-func (u *OtherUpsertBulk) UpdateNewValues() *OtherUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
-		for _, b := range u.create.builders {
-			if _, exists := b.mutation.ID(); exists {
-				s.SetIgnore(other.FieldID)
-			}
-		}
-	}))
-	return u
+func (b *OtherCreateBulk) OnConflictOptions(options ...sql.ConflictOption) *OtherUpsertBulk {
+	b.conflict = options
+	return &OtherUpsertBulk{create: b}
 }
 
-// Ignore sets each column to itself in case of conflict.
-// Using this option is equivalent to using:
-//
-//	client.Other.Create().
-//		OnConflict(sql.ResolveWithIgnore()).
-//		Exec(ctx)
-func (u *OtherUpsertBulk) Ignore() *OtherUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
-	return u
-}
-
-// DoNothing configures the conflict_action to `DO NOTHING`.
-// Supported only by SQLite and PostgreSQL.
 func (u *OtherUpsertBulk) DoNothing() *OtherUpsertBulk {
 	u.create.conflict = append(u.create.conflict, sql.DoNothing())
 	return u
 }
 
-// Update allows overriding fields `UPDATE` values. See the OtherCreateBulk.OnConflict
-// documentation for more info.
-func (u *OtherUpsertBulk) Update(set func(*OtherUpsert)) *OtherUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
-		set(&OtherUpsert{UpdateSet: update})
+func (u *OtherUpsertBulk) DoSelect() *OtherUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *OtherUpsertBulk) Ignore() *OtherUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *OtherUpsertBulk) DoUpdate(set func(*OtherUpsert)) *OtherUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&OtherUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *OtherUpsertBulk) UpdateNewValues() *OtherUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case other.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
 	}))
 	return u
 }
 
-// Exec executes the query.
-func (u *OtherUpsertBulk) Exec(ctx context.Context) error {
-	if u.create.err != nil {
-		return u.create.err
-	}
-	for i, b := range u.create.builders {
-		if len(b.conflict) != 0 {
-			return fmt.Errorf("ent: OnConflict was set for builder %d. Set it on the OtherCreateBulk instead", i)
+func (u *OtherUpsertBulk) Where(predicates ...ent.Predicate[entity.Other]) *OtherUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(other.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
 		}
-	}
-	if len(u.create.conflict) == 0 {
-		return errors.New("ent: missing options for OtherCreateBulk.OnConflict")
-	}
-	return u.create.Exec(ctx)
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// ExecX is like Exec, but panics if an error occurs.
+func (u *OtherUpsertBulk) UpdateWhere(predicates ...ent.Predicate[entity.Other]) *OtherUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(other.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *OtherUpsertBulk) Save(ctx context.Context) ([]*Other, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for OtherCreateBulk.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *OtherUpsertBulk) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
 func (u *OtherUpsertBulk) ExecX(ctx context.Context) {
-	if err := u.create.Exec(ctx); err != nil {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

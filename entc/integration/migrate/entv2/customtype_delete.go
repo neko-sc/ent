@@ -8,29 +8,56 @@ package entv2
 import (
 	"context"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/entc/integration/migrate/entv2/customtype"
-	"github.com/neko-sc/ent/entc/integration/migrate/entv2/predicate"
+	"github.com/neko-sc/ent/entc/integration/migrate/entv2/entity"
 	"github.com/neko-sc/ent/schema/field"
 )
 
 // CustomTypeDelete is the builder for deleting a CustomType entity.
 type CustomTypeDelete struct {
 	config
-	hooks    []Hook
-	mutation *CustomTypeMutation
+
+	mutation  *CustomTypeMutation
+	returning *sqlgraph.Returning
 }
 
 // Where appends a list predicates to the CustomTypeDelete builder.
-func (_d *CustomTypeDelete) Where(ps ...predicate.CustomType) *CustomTypeDelete {
-	_d.mutation.Where(ps...)
+func (_d *CustomTypeDelete) Where(predicates ...ent.Predicate[entity.CustomType]) *CustomTypeDelete {
+	_d.mutation.Where(predicates...)
 	return _d
 }
 
 // Exec executes the deletion query and returns how many vertices were deleted.
 func (_d *CustomTypeDelete) Exec(ctx context.Context) (int, error) {
-	return withHooks(ctx, _d.sqlExec, _d.mutation, _d.hooks)
+	return _d.sqlExec(ctx)
+}
+
+func (b *CustomTypeDelete) Returning(ctx context.Context) ([]*CustomType, error) {
+	nodes := make([]*CustomType, 0)
+	b.returning = &sqlgraph.Returning{Columns: customtype.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &CustomType{config: b.config}
+		values, err := _node.scanValues(customtype.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(customtype.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Exec(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
 }
 
 // ExecX is like Exec, but panics if an error occurs.
@@ -51,11 +78,11 @@ func (_d *CustomTypeDelete) sqlExec(ctx context.Context) (int, error) {
 			}
 		}
 	}
+	_spec.Returning = _d.returning
 	affected, err := sqlgraph.DeleteNodes(ctx, _d.driver, _spec)
 	if err != nil && sqlgraph.IsConstraintError(err) {
 		err = &ConstraintError{msg: err.Error(), wrap: err}
 	}
-	_d.mutation.done = true
 	return affected, err
 }
 
@@ -65,8 +92,8 @@ type CustomTypeDeleteOne struct {
 }
 
 // Where appends a list predicates to the CustomTypeDelete builder.
-func (_d *CustomTypeDeleteOne) Where(ps ...predicate.CustomType) *CustomTypeDeleteOne {
-	_d._d.mutation.Where(ps...)
+func (_d *CustomTypeDeleteOne) Where(predicates ...ent.Predicate[entity.CustomType]) *CustomTypeDeleteOne {
+	_d._d.mutation.Where(predicates...)
 	return _d
 }
 

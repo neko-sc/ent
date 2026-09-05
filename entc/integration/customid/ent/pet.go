@@ -11,6 +11,7 @@ import (
 
 	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/pet"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/user"
 )
@@ -25,7 +26,6 @@ type Pet struct {
 	Edges           PetEdges `json:"edges"`
 	pet_best_friend *string
 	user_pets       *int
-	selectValues    sql.SelectValues
 }
 
 // PetEdges holds the relations/edges for other nodes in the graph.
@@ -41,6 +41,42 @@ type PetEdges struct {
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes [4]bool
+	counts      map[string]int
+}
+
+func (e PetEdges) Loaded[N, K any](edge ent.RelationOf[entity.Pet, N, K]) bool {
+	switch edge.Ref().Name {
+	case "owner":
+		return e.loadedTypes[0]
+	case "cars":
+		return e.loadedTypes[1]
+	case "friends":
+		return e.loadedTypes[2]
+	case "best_friend":
+		return e.loadedTypes[3]
+
+	default:
+		return false
+	}
+}
+
+func (e *PetEdges) SetLoaded[N, K any](edge ent.RelationOf[entity.Pet, N, K], loaded bool) {
+	switch edge.Ref().Name {
+	case "owner":
+		e.loadedTypes[0] = loaded
+	case "cars":
+		e.loadedTypes[1] = loaded
+	case "friends":
+		e.loadedTypes[2] = loaded
+	case "best_friend":
+		e.loadedTypes[3] = loaded
+
+	}
+}
+
+func (e PetEdges) Count[N, K any](edge ent.Relation[entity.Pet, N, K]) (int, bool) {
+	count, loaded := e.counts[edge.Ref().Name]
+	return count, loaded
 }
 
 // OwnerOrErr returns the Owner value or an error if the edge
@@ -89,11 +125,11 @@ func (*Pet) scanValues(columns []string) ([]any, error) {
 	for i := range columns {
 		switch columns[i] {
 		case pet.FieldID:
-			values[i] = new(sql.NullString)
+			values[i] = new(*string)
 		case pet.ForeignKeys[0]: // pet_best_friend
-			values[i] = new(sql.NullString)
+			values[i] = new(*string)
 		case pet.ForeignKeys[1]: // user_pets
-			values[i] = new(sql.NullInt64)
+			values[i] = new(*int)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -110,36 +146,29 @@ func (_m *Pet) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case pet.FieldID:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field id", values[i])
-			} else if value.Valid {
-				_m.ID = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.ID = **value
 			}
 		case pet.ForeignKeys[0]:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field pet_best_friend", values[i])
-			} else if value.Valid {
-				_m.pet_best_friend = new(string)
-				*_m.pet_best_friend = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.pet_best_friend = *value
 			}
 		case pet.ForeignKeys[1]:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field user_pets", values[i])
-			} else if value.Valid {
-				_m.user_pets = new(int)
-				*_m.user_pets = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.user_pets = *value
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the Pet.
-// This includes values selected through modifiers, order, etc.
-func (_m *Pet) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // QueryOwner queries the "owner" edge of the Pet entity.

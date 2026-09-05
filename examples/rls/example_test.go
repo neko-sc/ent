@@ -13,6 +13,8 @@ import (
 
 	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/examples/rls/ent"
+	tenant "github.com/neko-sc/ent/examples/rls/ent/tenant"
+	user "github.com/neko-sc/ent/examples/rls/ent/user"
 
 	"ariga.io/atlas-go-sdk/atlasexec"
 	_ "github.com/lib/pq"
@@ -49,10 +51,10 @@ func TestRowLevelSecurity(t *testing.T) {
 		client.User.Delete().ExecX(ctx)
 		client.Tenant.Delete().ExecX(ctx)
 	})
-	a8m, r3m := client.Tenant.Create().SetName("a8m").SaveX(ctx), client.Tenant.Create().SetName("r3m").SaveX(ctx)
+	a8m, r3m := client.Tenant.Create().Set(tenant.Name, "a8m").SaveX(ctx), client.Tenant.Create().Set(tenant.Name, "r3m").SaveX(ctx)
 	ctx1, ctx2 := sql.WithIntVar(ctx, "app.current_tenant", a8m.ID), sql.WithIntVar(ctx, "app.current_tenant", r3m.ID)
-	u1 := client.User.Create().SetName("User: a8m").SetTenantID(a8m.ID).SaveX(ctx1)
-	u2 := client.User.Create().SetName("User: r3m").SetTenantID(r3m.ID).SaveX(ctx2)
+	u1 := client.User.Create().Set(user.Name, "User: a8m").Set(user.TenantID, a8m.ID).SaveX(ctx1)
+	u2 := client.User.Create().Set(user.Name, "User: r3m").Set(user.TenantID, r3m.ID).SaveX(ctx2)
 	users1 := client.User.Query().AllX(ctx1)
 	require.Len(t, users1, 1)
 	require.Equal(t, u1.ID, users1[0].ID)

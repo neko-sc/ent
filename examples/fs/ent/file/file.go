@@ -6,8 +6,9 @@
 package file
 
 import (
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/examples/fs/ent/entity"
 )
 
 const (
@@ -37,6 +38,48 @@ const (
 	ChildrenColumn = "parent_id"
 )
 
+var (
+	ID       = ent.OrderedColumn[entity.File, int]{Table: Table, Name: FieldID}
+	Name     = ent.StringColumn[entity.File, string]{Table: Table, Name: FieldName}
+	Deleted  = ent.Column[entity.File, bool]{Table: Table, Name: FieldDeleted}
+	ParentID = ent.OrderedColumn[entity.File, int]{Table: Table, Name: FieldParentID}
+	Parent   = ent.NewUniqueRelation[entity.File, entity.File, int](EdgeParent, newParentStep)
+	Children = ent.NewRelation[entity.File, entity.File, int](EdgeChildren, newChildrenStep)
+)
+
+// Alias returns the columns of the files table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.File, int]{Table: name, Name: FieldID},
+		Name:       ent.StringColumn[entity.File, string]{Table: name, Name: FieldName},
+		Deleted:    ent.Column[entity.File, bool]{Table: name, Name: FieldDeleted},
+		ParentID:   ent.OrderedColumn[entity.File, int]{Table: name, Name: FieldParentID},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.File, int]
+	Name       ent.StringColumn[entity.File, string]
+	Deleted    ent.Column[entity.File, bool]
+	ParentID   ent.OrderedColumn[entity.File, int]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.File]) ent.Predicate[entity.File] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.File]) ent.Predicate[entity.File] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.File]) ent.Predicate[entity.File] { return ent.Not(predicate) }
+
 // Columns holds all SQL columns for file fields.
 var Columns = []string{
 	FieldID,
@@ -60,49 +103,6 @@ var (
 	DefaultDeleted bool
 )
 
-// OrderOption defines the ordering options for the File queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByName orders the results by the name field.
-func ByName(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldName, opts...).ToFunc()
-}
-
-// ByDeleted orders the results by the deleted field.
-func ByDeleted(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldDeleted, opts...).ToFunc()
-}
-
-// ByParentID orders the results by the parent_id field.
-func ByParentID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldParentID, opts...).ToFunc()
-}
-
-// ByParentField orders the results by parent field.
-func ByParentField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newParentStep(), sql.OrderByField(field, opts...))
-	}
-}
-
-// ByChildrenCount orders the results by children count.
-func ByChildrenCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newChildrenStep(), opts...)
-	}
-}
-
-// ByChildren orders the results by children terms.
-func ByChildren(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newChildrenStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
 func newParentStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),

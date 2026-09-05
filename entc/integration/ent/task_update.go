@@ -10,213 +10,218 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
-	"github.com/neko-sc/ent/entc/integration/ent/predicate"
-	task2 "github.com/neko-sc/ent/entc/integration/ent/schema/task"
+	"github.com/neko-sc/ent/entc/integration/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/ent/task"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// TaskUpdate is the builder for updating Task entities.
 type TaskUpdate struct {
 	config
-	hooks     []Hook
 	mutation  *TaskMutation
+	err       error
+	returning *sqlgraph.Returning
+
 	modifiers []func(*sql.UpdateBuilder)
 }
 
-// Where appends a list predicates to the TaskUpdate builder.
-func (_u *TaskUpdate) Where(ps ...predicate.Task) *TaskUpdate {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// SetPriority sets the "priority" field.
-func (_u *TaskUpdate) SetPriority(v task2.Priority) *TaskUpdate {
-	_u.mutation.ResetPriority()
-	_u.mutation.SetPriority(v)
-	return _u
-}
-
-// SetNillablePriority sets the "priority" field if the given value is not nil.
-func (_u *TaskUpdate) SetNillablePriority(v *task2.Priority) *TaskUpdate {
-	if v != nil {
-		_u.SetPriority(*v)
+func (b *TaskUpdate) Set[T any](column ent.ColumnOf[entity.Task, T], value T) *TaskUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// AddPriority adds value to the "priority" field.
-func (_u *TaskUpdate) AddPriority(v task2.Priority) *TaskUpdate {
-	_u.mutation.AddPriority(v)
-	return _u
+	return b
 }
-
-// SetPriorities sets the "priorities" field.
-func (_u *TaskUpdate) SetPriorities(v map[string]task2.Priority) *TaskUpdate {
-	_u.mutation.SetPriorities(v)
-	return _u
-}
-
-// ClearPriorities clears the value of the "priorities" field.
-func (_u *TaskUpdate) ClearPriorities() *TaskUpdate {
-	_u.mutation.ClearPriorities()
-	return _u
-}
-
-// SetName sets the "name" field.
-func (_u *TaskUpdate) SetName(v string) *TaskUpdate {
-	_u.mutation.SetName(v)
-	return _u
-}
-
-// SetNillableName sets the "name" field if the given value is not nil.
-func (_u *TaskUpdate) SetNillableName(v *string) *TaskUpdate {
-	if v != nil {
-		_u.SetName(*v)
+func (b *TaskUpdate) SetOptional[T any](column ent.ColumnOf[entity.Task, T], value ent.Option[T]) *TaskUpdate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u
-}
-
-// ClearName clears the value of the "name" field.
-func (_u *TaskUpdate) ClearName() *TaskUpdate {
-	_u.mutation.ClearName()
-	return _u
-}
-
-// SetOwner sets the "owner" field.
-func (_u *TaskUpdate) SetOwner(v string) *TaskUpdate {
-	_u.mutation.SetOwner(v)
-	return _u
-}
-
-// SetNillableOwner sets the "owner" field if the given value is not nil.
-func (_u *TaskUpdate) SetNillableOwner(v *string) *TaskUpdate {
-	if v != nil {
-		_u.SetOwner(*v)
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
 	}
-	return _u
+	return b
 }
-
-// ClearOwner clears the value of the "owner" field.
-func (_u *TaskUpdate) ClearOwner() *TaskUpdate {
-	_u.mutation.ClearOwner()
-	return _u
-}
-
-// SetOrder sets the "order" field.
-func (_u *TaskUpdate) SetOrder(v int) *TaskUpdate {
-	_u.mutation.ResetOrder()
-	_u.mutation.SetOrder(v)
-	return _u
-}
-
-// SetNillableOrder sets the "order" field if the given value is not nil.
-func (_u *TaskUpdate) SetNillableOrder(v *int) *TaskUpdate {
-	if v != nil {
-		_u.SetOrder(*v)
+func (b *TaskUpdate) SetExpr[T any](column ent.ColumnOf[entity.Task, T], value ent.Expr[T]) *TaskUpdate {
+	if b.err != nil {
+		return b
 	}
-	return _u
-}
+	switch column.Ref().Name {
 
-// AddOrder adds value to the "order" field.
-func (_u *TaskUpdate) AddOrder(v int) *TaskUpdate {
-	_u.mutation.AddOrder(v)
-	return _u
-}
+	case task.FieldPriority:
 
-// ClearOrder clears the value of the "order" field.
-func (_u *TaskUpdate) ClearOrder() *TaskUpdate {
-	_u.mutation.ClearOrder()
-	return _u
-}
+	case task.FieldPriorities:
 
-// SetOrderOption sets the "order_option" field.
-func (_u *TaskUpdate) SetOrderOption(v int) *TaskUpdate {
-	_u.mutation.ResetOrderOption()
-	_u.mutation.SetOrderOption(v)
-	return _u
-}
+	case task.FieldName:
 
-// SetNillableOrderOption sets the "order_option" field if the given value is not nil.
-func (_u *TaskUpdate) SetNillableOrderOption(v *int) *TaskUpdate {
-	if v != nil {
-		_u.SetOrderOption(*v)
+	case task.FieldOwner:
+
+	case task.FieldOrder:
+
+	case task.FieldOrderingOption:
+
+	case task.FieldOp:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Task is not settable", column.Ref().Name)}
+		return b
 	}
-	return _u
-}
 
-// AddOrderOption adds value to the "order_option" field.
-func (_u *TaskUpdate) AddOrderOption(v int) *TaskUpdate {
-	_u.mutation.AddOrderOption(v)
-	return _u
-}
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
 
-// ClearOrderOption clears the value of the "order_option" field.
-func (_u *TaskUpdate) ClearOrderOption() *TaskUpdate {
-	_u.mutation.ClearOrderOption()
-	return _u
-}
+	return b
 
-// SetOp sets the "op" field.
-func (_u *TaskUpdate) SetOp(v string) *TaskUpdate {
-	_u.mutation.SetOpField(v)
-	return _u
 }
-
-// SetNillableOp sets the "op" field if the given value is not nil.
-func (_u *TaskUpdate) SetNillableOp(v *string) *TaskUpdate {
-	if v != nil {
-		_u.SetOp(*v)
+func (b *TaskUpdate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Task, N, K], id K) *TaskUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
 	}
-	return _u
+
+	return b
+}
+func (b *TaskUpdate) AddIDs[N, K any](edge ent.Relation[entity.Task, N, K], ids ...K) *TaskUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *TaskUpdate) Mutation() *TaskMutation { return b.mutation }
+
+func (b *TaskUpdate) Patch() *TaskPatch             { return b.mutation.patch }
+func (b *TaskUpdate) Apply(p TaskPatch) *TaskUpdate { b.mutation.patch.apply(p); return b }
+func (b *TaskUpdate) Add[T ent.Number](column ent.ColumnOf[entity.Task, T], delta T) *TaskUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *TaskUpdate) Append[T any](column ent.ColumnOf[entity.Task, T], values T) *TaskUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *TaskUpdate) Clear[T any](column ent.ColumnOf[entity.Task, T]) *TaskUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *TaskUpdate) RemoveIDs[N, K any](edge ent.Relation[entity.Task, N, K], ids ...K) *TaskUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *TaskUpdate) ClearEdge[N, K any](edge ent.RelationOf[entity.Task, N, K]) *TaskUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// Mutation returns the TaskMutation object of the builder.
-func (_u *TaskUpdate) Mutation() *TaskMutation {
-	return _u.mutation
+func (b *TaskUpdate) Where(predicates ...ent.Predicate[entity.Task]) *TaskUpdate {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Save executes the query and returns the number of nodes affected by the update operation.
-func (_u *TaskUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
+func (b *TaskUpdate) Save(ctx context.Context) (int, error) {
+	if b.err != nil {
+		return 0, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return 0, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_u *TaskUpdate) SaveX(ctx context.Context) int {
-	affected, err := _u.Save(ctx)
+func (b *TaskUpdate) SaveX(ctx context.Context) int {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return affected
+	return result
 }
 
-// Exec executes the query.
-func (_u *TaskUpdate) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *TaskUpdate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *TaskUpdate) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *TaskUpdate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_u *TaskUpdate) check() error {
-	if v, ok := _u.mutation.Priority(); ok {
+func (b *TaskUpdate) Returning(ctx context.Context) ([]*Task, error) {
+	nodes := make([]*Task, 0)
+	b.returning = &sqlgraph.Returning{Columns: task.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Task{config: b.config}
+		values, err := _node.scanValues(task.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(task.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Save(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
+}
+
+func (b *TaskUpdate) defaults() error {
+
+	return nil
+}
+
+func (b *TaskUpdate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.Priority.IsNull() {
+		return &ValidationError{Name: "priority", err: errors.New(`ent: field "Task.priority" is not nullable`)}
+	}
+
+	if v, ok := b.mutation.patch.Priority.Get(); ok && b.mutation.patch.expressions[task.FieldPriority] == nil {
+
 		if err := v.Validate(); err != nil {
 			return &ValidationError{Name: "priority", err: fmt.Errorf(`ent: validator failed for field "Task.priority": %w`, err)}
 		}
+
 	}
-	if v, ok := _u.mutation.GetOp(); ok {
+
+	if b.mutation.patch.Op.IsNull() {
+		return &ValidationError{Name: "op", err: errors.New(`ent: field "Task.op" is not nullable`)}
+	}
+
+	if v, ok := b.mutation.patch.Op.Get(); ok && b.mutation.patch.expressions[task.FieldOp] == nil {
+
 		if err := task.OpValidator(v); err != nil {
 			return &ValidationError{Name: "op", err: fmt.Errorf(`ent: validator failed for field "Task.op": %w`, err)}
 		}
+
 	}
+
 	return nil
 }
 
@@ -238,52 +243,57 @@ func (_u *TaskUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.Priority(); ok {
+	if value, ok := _u.mutation.patch.Priority.Get(); ok {
 		_spec.SetField(task.FieldPriority, field.TypeInt, value)
 	}
-	if value, ok := _u.mutation.AddedPriority(); ok {
+	if value, ok := _u.mutation.patch.PriorityAdd.Get(); ok {
 		_spec.AddField(task.FieldPriority, field.TypeInt, value)
 	}
-	if value, ok := _u.mutation.Priorities(); ok {
+	if value, ok := _u.mutation.patch.Priorities.Get(); ok {
 		_spec.SetField(task.FieldPriorities, field.TypeJSON, value)
 	}
-	if _u.mutation.PrioritiesCleared() {
+	if _u.mutation.patch.Priorities.IsNull() {
 		_spec.ClearField(task.FieldPriorities, field.TypeJSON)
 	}
-	if value, ok := _u.mutation.Name(); ok {
+	if value, ok := _u.mutation.patch.Name.Get(); ok {
 		_spec.SetField(task.FieldName, field.TypeString, value)
 	}
-	if _u.mutation.NameCleared() {
+	if _u.mutation.patch.Name.IsNull() {
 		_spec.ClearField(task.FieldName, field.TypeString)
 	}
-	if value, ok := _u.mutation.Owner(); ok {
+	if value, ok := _u.mutation.patch.Owner.Get(); ok {
 		_spec.SetField(task.FieldOwner, field.TypeString, value)
 	}
-	if _u.mutation.OwnerCleared() {
+	if _u.mutation.patch.Owner.IsNull() {
 		_spec.ClearField(task.FieldOwner, field.TypeString)
 	}
-	if value, ok := _u.mutation.Order(); ok {
+	if value, ok := _u.mutation.patch.Order.Get(); ok {
 		_spec.SetField(task.FieldOrder, field.TypeInt, value)
 	}
-	if value, ok := _u.mutation.AddedOrder(); ok {
+	if value, ok := _u.mutation.patch.OrderAdd.Get(); ok {
 		_spec.AddField(task.FieldOrder, field.TypeInt, value)
 	}
-	if _u.mutation.OrderCleared() {
+	if _u.mutation.patch.Order.IsNull() {
 		_spec.ClearField(task.FieldOrder, field.TypeInt)
 	}
-	if value, ok := _u.mutation.OrderOption(); ok {
-		_spec.SetField(task.FieldOrderOption, field.TypeInt, value)
+	if value, ok := _u.mutation.patch.OrderingOption.Get(); ok {
+		_spec.SetField(task.FieldOrderingOption, field.TypeInt, value)
 	}
-	if value, ok := _u.mutation.AddedOrderOption(); ok {
-		_spec.AddField(task.FieldOrderOption, field.TypeInt, value)
+	if value, ok := _u.mutation.patch.OrderingOptionAdd.Get(); ok {
+		_spec.AddField(task.FieldOrderingOption, field.TypeInt, value)
 	}
-	if _u.mutation.OrderOptionCleared() {
-		_spec.ClearField(task.FieldOrderOption, field.TypeInt)
+	if _u.mutation.patch.OrderingOption.IsNull() {
+		_spec.ClearField(task.FieldOrderingOption, field.TypeInt)
 	}
-	if value, ok := _u.mutation.GetOp(); ok {
+	if value, ok := _u.mutation.patch.Op.Get(); ok {
 		_spec.SetField(task.FieldOp, field.TypeString, value)
 	}
+	_spec.Returning = _u.returning
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
 	_spec.AddModifiers(_u.modifiers...)
+
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{task.Label}
@@ -292,217 +302,214 @@ func (_u *TaskUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		return 0, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }
 
-// TaskUpdateOne is the builder for updating a single Task entity.
 type TaskUpdateOne struct {
 	config
-	fields    []string
-	hooks     []Hook
-	mutation  *TaskMutation
+	mutation *TaskMutation
+	err      error
+
+	fields []string
+	old    *Task
+
 	modifiers []func(*sql.UpdateBuilder)
 }
 
-// SetPriority sets the "priority" field.
-func (_u *TaskUpdateOne) SetPriority(v task2.Priority) *TaskUpdateOne {
-	_u.mutation.ResetPriority()
-	_u.mutation.SetPriority(v)
-	return _u
-}
-
-// SetNillablePriority sets the "priority" field if the given value is not nil.
-func (_u *TaskUpdateOne) SetNillablePriority(v *task2.Priority) *TaskUpdateOne {
-	if v != nil {
-		_u.SetPriority(*v)
+func (b *TaskUpdateOne) Set[T any](column ent.ColumnOf[entity.Task, T], value T) *TaskUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// AddPriority adds value to the "priority" field.
-func (_u *TaskUpdateOne) AddPriority(v task2.Priority) *TaskUpdateOne {
-	_u.mutation.AddPriority(v)
-	return _u
+	return b
 }
-
-// SetPriorities sets the "priorities" field.
-func (_u *TaskUpdateOne) SetPriorities(v map[string]task2.Priority) *TaskUpdateOne {
-	_u.mutation.SetPriorities(v)
-	return _u
-}
-
-// ClearPriorities clears the value of the "priorities" field.
-func (_u *TaskUpdateOne) ClearPriorities() *TaskUpdateOne {
-	_u.mutation.ClearPriorities()
-	return _u
-}
-
-// SetName sets the "name" field.
-func (_u *TaskUpdateOne) SetName(v string) *TaskUpdateOne {
-	_u.mutation.SetName(v)
-	return _u
-}
-
-// SetNillableName sets the "name" field if the given value is not nil.
-func (_u *TaskUpdateOne) SetNillableName(v *string) *TaskUpdateOne {
-	if v != nil {
-		_u.SetName(*v)
+func (b *TaskUpdateOne) SetOptional[T any](column ent.ColumnOf[entity.Task, T], value ent.Option[T]) *TaskUpdateOne {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u
-}
-
-// ClearName clears the value of the "name" field.
-func (_u *TaskUpdateOne) ClearName() *TaskUpdateOne {
-	_u.mutation.ClearName()
-	return _u
-}
-
-// SetOwner sets the "owner" field.
-func (_u *TaskUpdateOne) SetOwner(v string) *TaskUpdateOne {
-	_u.mutation.SetOwner(v)
-	return _u
-}
-
-// SetNillableOwner sets the "owner" field if the given value is not nil.
-func (_u *TaskUpdateOne) SetNillableOwner(v *string) *TaskUpdateOne {
-	if v != nil {
-		_u.SetOwner(*v)
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
 	}
-	return _u
+	return b
 }
-
-// ClearOwner clears the value of the "owner" field.
-func (_u *TaskUpdateOne) ClearOwner() *TaskUpdateOne {
-	_u.mutation.ClearOwner()
-	return _u
-}
-
-// SetOrder sets the "order" field.
-func (_u *TaskUpdateOne) SetOrder(v int) *TaskUpdateOne {
-	_u.mutation.ResetOrder()
-	_u.mutation.SetOrder(v)
-	return _u
-}
-
-// SetNillableOrder sets the "order" field if the given value is not nil.
-func (_u *TaskUpdateOne) SetNillableOrder(v *int) *TaskUpdateOne {
-	if v != nil {
-		_u.SetOrder(*v)
+func (b *TaskUpdateOne) SetExpr[T any](column ent.ColumnOf[entity.Task, T], value ent.Expr[T]) *TaskUpdateOne {
+	if b.err != nil {
+		return b
 	}
-	return _u
-}
+	switch column.Ref().Name {
 
-// AddOrder adds value to the "order" field.
-func (_u *TaskUpdateOne) AddOrder(v int) *TaskUpdateOne {
-	_u.mutation.AddOrder(v)
-	return _u
-}
+	case task.FieldPriority:
 
-// ClearOrder clears the value of the "order" field.
-func (_u *TaskUpdateOne) ClearOrder() *TaskUpdateOne {
-	_u.mutation.ClearOrder()
-	return _u
-}
+	case task.FieldPriorities:
 
-// SetOrderOption sets the "order_option" field.
-func (_u *TaskUpdateOne) SetOrderOption(v int) *TaskUpdateOne {
-	_u.mutation.ResetOrderOption()
-	_u.mutation.SetOrderOption(v)
-	return _u
-}
+	case task.FieldName:
 
-// SetNillableOrderOption sets the "order_option" field if the given value is not nil.
-func (_u *TaskUpdateOne) SetNillableOrderOption(v *int) *TaskUpdateOne {
-	if v != nil {
-		_u.SetOrderOption(*v)
+	case task.FieldOwner:
+
+	case task.FieldOrder:
+
+	case task.FieldOrderingOption:
+
+	case task.FieldOp:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Task is not settable", column.Ref().Name)}
+		return b
 	}
-	return _u
-}
 
-// AddOrderOption adds value to the "order_option" field.
-func (_u *TaskUpdateOne) AddOrderOption(v int) *TaskUpdateOne {
-	_u.mutation.AddOrderOption(v)
-	return _u
-}
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
 
-// ClearOrderOption clears the value of the "order_option" field.
-func (_u *TaskUpdateOne) ClearOrderOption() *TaskUpdateOne {
-	_u.mutation.ClearOrderOption()
-	return _u
-}
+	return b
 
-// SetOp sets the "op" field.
-func (_u *TaskUpdateOne) SetOp(v string) *TaskUpdateOne {
-	_u.mutation.SetOpField(v)
-	return _u
 }
-
-// SetNillableOp sets the "op" field if the given value is not nil.
-func (_u *TaskUpdateOne) SetNillableOp(v *string) *TaskUpdateOne {
-	if v != nil {
-		_u.SetOp(*v)
+func (b *TaskUpdateOne) SetEdge[N, K any](edge ent.UniqueRelation[entity.Task, N, K], id K) *TaskUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
 	}
-	return _u
+
+	return b
+}
+func (b *TaskUpdateOne) AddIDs[N, K any](edge ent.Relation[entity.Task, N, K], ids ...K) *TaskUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *TaskUpdateOne) Mutation() *TaskMutation { return b.mutation }
+
+func (b *TaskUpdateOne) Patch() *TaskPatch                { return b.mutation.patch }
+func (b *TaskUpdateOne) Apply(p TaskPatch) *TaskUpdateOne { b.mutation.patch.apply(p); return b }
+func (b *TaskUpdateOne) Add[T ent.Number](column ent.ColumnOf[entity.Task, T], delta T) *TaskUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *TaskUpdateOne) Append[T any](column ent.ColumnOf[entity.Task, T], values T) *TaskUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *TaskUpdateOne) Clear[T any](column ent.ColumnOf[entity.Task, T]) *TaskUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *TaskUpdateOne) RemoveIDs[N, K any](edge ent.Relation[entity.Task, N, K], ids ...K) *TaskUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *TaskUpdateOne) ClearEdge[N, K any](edge ent.RelationOf[entity.Task, N, K]) *TaskUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// Mutation returns the TaskMutation object of the builder.
-func (_u *TaskUpdateOne) Mutation() *TaskMutation {
-	return _u.mutation
+func (b *TaskUpdateOne) Where(predicates ...ent.Predicate[entity.Task]) *TaskUpdateOne {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Where appends a list predicates to the TaskUpdate builder.
-func (_u *TaskUpdateOne) Where(ps ...predicate.Task) *TaskUpdateOne {
-	_u.mutation.Where(ps...)
-	return _u
+func (b *TaskUpdateOne) Save(ctx context.Context) (*Task, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Select allows selecting one or more fields (columns) of the returned entity.
-// The default is selecting all fields defined in the entity schema.
-func (_u *TaskUpdateOne) Select(field string, fields ...string) *TaskUpdateOne {
-	_u.fields = append([]string{field}, fields...)
-	return _u
-}
-
-// Save executes the query and returns the updated Task entity.
-func (_u *TaskUpdateOne) Save(ctx context.Context) (*Task, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *TaskUpdateOne) SaveX(ctx context.Context) *Task {
-	node, err := _u.Save(ctx)
+func (b *TaskUpdateOne) SaveX(ctx context.Context) *Task {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return node
+	return result
 }
 
-// Exec executes the query on the entity.
-func (_u *TaskUpdateOne) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *TaskUpdateOne) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *TaskUpdateOne) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *TaskUpdateOne) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_u *TaskUpdateOne) check() error {
-	if v, ok := _u.mutation.Priority(); ok {
+func (b *TaskUpdateOne) Select(columns ...ent.EntityColumn[entity.Task]) *TaskUpdateOne {
+	if len(columns) == 0 {
+		panic("ent: Select requires at least one column")
+	}
+	b.fields = make([]string, len(columns))
+	for index, column := range columns {
+		b.fields[index] = column.Ref().Name
+	}
+	return b
+}
+
+func (b *TaskUpdateOne) SaveOld(ctx context.Context) (old *Task, updated *Task, err error) {
+	if !b.driver.Capabilities().ReturningOld {
+		return nil, nil, &dialect.UnsupportedError{Feature: "RETURNING OLD", Dialect: dialect.Dialect(b.driver.Dialect())}
+	}
+	b.old = &Task{config: b.config}
+	defer func() { b.old = nil }()
+	updated, err = b.Save(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return b.old, updated, nil
+}
+
+func (b *TaskUpdateOne) defaults() error {
+
+	return nil
+}
+
+func (b *TaskUpdateOne) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.Priority.IsNull() {
+		return &ValidationError{Name: "priority", err: errors.New(`ent: field "Task.priority" is not nullable`)}
+	}
+
+	if v, ok := b.mutation.patch.Priority.Get(); ok && b.mutation.patch.expressions[task.FieldPriority] == nil {
+
 		if err := v.Validate(); err != nil {
 			return &ValidationError{Name: "priority", err: fmt.Errorf(`ent: validator failed for field "Task.priority": %w`, err)}
 		}
+
 	}
-	if v, ok := _u.mutation.GetOp(); ok {
+
+	if b.mutation.patch.Op.IsNull() {
+		return &ValidationError{Name: "op", err: errors.New(`ent: field "Task.op" is not nullable`)}
+	}
+
+	if v, ok := b.mutation.patch.Op.Get(); ok && b.mutation.patch.expressions[task.FieldOp] == nil {
+
 		if err := task.OpValidator(v); err != nil {
 			return &ValidationError{Name: "op", err: fmt.Errorf(`ent: validator failed for field "Task.op": %w`, err)}
 		}
+
 	}
+
 	return nil
 }
 
@@ -541,55 +548,63 @@ func (_u *TaskUpdateOne) sqlSave(ctx context.Context) (_node *Task, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.Priority(); ok {
+	if value, ok := _u.mutation.patch.Priority.Get(); ok {
 		_spec.SetField(task.FieldPriority, field.TypeInt, value)
 	}
-	if value, ok := _u.mutation.AddedPriority(); ok {
+	if value, ok := _u.mutation.patch.PriorityAdd.Get(); ok {
 		_spec.AddField(task.FieldPriority, field.TypeInt, value)
 	}
-	if value, ok := _u.mutation.Priorities(); ok {
+	if value, ok := _u.mutation.patch.Priorities.Get(); ok {
 		_spec.SetField(task.FieldPriorities, field.TypeJSON, value)
 	}
-	if _u.mutation.PrioritiesCleared() {
+	if _u.mutation.patch.Priorities.IsNull() {
 		_spec.ClearField(task.FieldPriorities, field.TypeJSON)
 	}
-	if value, ok := _u.mutation.Name(); ok {
+	if value, ok := _u.mutation.patch.Name.Get(); ok {
 		_spec.SetField(task.FieldName, field.TypeString, value)
 	}
-	if _u.mutation.NameCleared() {
+	if _u.mutation.patch.Name.IsNull() {
 		_spec.ClearField(task.FieldName, field.TypeString)
 	}
-	if value, ok := _u.mutation.Owner(); ok {
+	if value, ok := _u.mutation.patch.Owner.Get(); ok {
 		_spec.SetField(task.FieldOwner, field.TypeString, value)
 	}
-	if _u.mutation.OwnerCleared() {
+	if _u.mutation.patch.Owner.IsNull() {
 		_spec.ClearField(task.FieldOwner, field.TypeString)
 	}
-	if value, ok := _u.mutation.Order(); ok {
+	if value, ok := _u.mutation.patch.Order.Get(); ok {
 		_spec.SetField(task.FieldOrder, field.TypeInt, value)
 	}
-	if value, ok := _u.mutation.AddedOrder(); ok {
+	if value, ok := _u.mutation.patch.OrderAdd.Get(); ok {
 		_spec.AddField(task.FieldOrder, field.TypeInt, value)
 	}
-	if _u.mutation.OrderCleared() {
+	if _u.mutation.patch.Order.IsNull() {
 		_spec.ClearField(task.FieldOrder, field.TypeInt)
 	}
-	if value, ok := _u.mutation.OrderOption(); ok {
-		_spec.SetField(task.FieldOrderOption, field.TypeInt, value)
+	if value, ok := _u.mutation.patch.OrderingOption.Get(); ok {
+		_spec.SetField(task.FieldOrderingOption, field.TypeInt, value)
 	}
-	if value, ok := _u.mutation.AddedOrderOption(); ok {
-		_spec.AddField(task.FieldOrderOption, field.TypeInt, value)
+	if value, ok := _u.mutation.patch.OrderingOptionAdd.Get(); ok {
+		_spec.AddField(task.FieldOrderingOption, field.TypeInt, value)
 	}
-	if _u.mutation.OrderOptionCleared() {
-		_spec.ClearField(task.FieldOrderOption, field.TypeInt)
+	if _u.mutation.patch.OrderingOption.IsNull() {
+		_spec.ClearField(task.FieldOrderingOption, field.TypeInt)
 	}
-	if value, ok := _u.mutation.GetOp(); ok {
+	if value, ok := _u.mutation.patch.Op.Get(); ok {
 		_spec.SetField(task.FieldOp, field.TypeString, value)
 	}
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
 	_spec.AddModifiers(_u.modifiers...)
+
 	_node = &Task{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
+	if _u.old != nil {
+		_spec.OldScanValues = _u.old.scanValues
+		_spec.OldAssign = _u.old.assignValues
+	}
 	if err = sqlgraph.UpdateNode(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{task.Label}
@@ -598,6 +613,5 @@ func (_u *TaskUpdateOne) sqlSave(ctx context.Context) (_node *Task, err error) {
 		}
 		return nil, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }

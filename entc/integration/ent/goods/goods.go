@@ -6,7 +6,8 @@
 package goods
 
 import (
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/entc/integration/ent/entity"
 )
 
 const (
@@ -17,6 +18,39 @@ const (
 	// Table holds the table name of the goods in the database.
 	Table = "goods"
 )
+
+var (
+	ID = ent.OrderedColumn[entity.Goods, int]{Table: Table, Name: FieldID}
+)
+
+// Alias returns the columns of the goods table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.Goods, int]{Table: name, Name: FieldID},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.Goods, int]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.Goods]) ent.Predicate[entity.Goods] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.Goods]) ent.Predicate[entity.Goods] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.Goods]) ent.Predicate[entity.Goods] {
+	return ent.Not(predicate)
+}
 
 // Columns holds all SQL columns for goods fields.
 var Columns = []string{
@@ -31,14 +65,6 @@ func ValidColumn(column string) bool {
 		}
 	}
 	return false
-}
-
-// OrderOption defines the ordering options for the Goods queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
 }
 
 // comment from another template.

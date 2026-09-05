@@ -7,8 +7,9 @@ package car
 
 import (
 	"github.com/google/uuid"
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/edgefield/ent/entity"
 )
 
 const (
@@ -31,6 +32,41 @@ const (
 	RentalsColumn = "car_id"
 )
 
+var (
+	ID      = ent.OrderedColumn[entity.Car, uuid.UUID]{Table: Table, Name: FieldID}
+	Number  = ent.StringColumn[entity.Car, string]{Table: Table, Name: FieldNumber}
+	Rentals = ent.NewRelation[entity.Car, entity.Rental, int](EdgeRentals, newRentalsStep)
+)
+
+// Alias returns the columns of the cars table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.Car, uuid.UUID]{Table: name, Name: FieldID},
+		Number:     ent.StringColumn[entity.Car, string]{Table: name, Name: FieldNumber},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.Car, uuid.UUID]
+	Number     ent.StringColumn[entity.Car, string]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.Car]) ent.Predicate[entity.Car] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.Car]) ent.Predicate[entity.Car] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.Car]) ent.Predicate[entity.Car] { return ent.Not(predicate) }
+
 // Columns holds all SQL columns for car fields.
 var Columns = []string{
 	FieldID,
@@ -52,32 +88,6 @@ var (
 	DefaultID func() uuid.UUID
 )
 
-// OrderOption defines the ordering options for the Car queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByNumber orders the results by the number field.
-func ByNumber(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldNumber, opts...).ToFunc()
-}
-
-// ByRentalsCount orders the results by rentals count.
-func ByRentalsCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newRentalsStep(), opts...)
-	}
-}
-
-// ByRentals orders the results by rentals terms.
-func ByRentals(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newRentalsStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
 func newRentalsStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),

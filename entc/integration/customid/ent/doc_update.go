@@ -10,177 +10,196 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/doc"
-	"github.com/neko-sc/ent/entc/integration/customid/ent/predicate"
-	"github.com/neko-sc/ent/entc/integration/customid/ent/schema"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
+	schema2 "github.com/neko-sc/ent/entc/integration/customid/ent/schema"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// DocUpdate is the builder for updating Doc entities.
 type DocUpdate struct {
 	config
-	hooks    []Hook
-	mutation *DocMutation
+	mutation  *DocMutation
+	err       error
+	returning *sqlgraph.Returning
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// Where appends a list predicates to the DocUpdate builder.
-func (_u *DocUpdate) Where(ps ...predicate.Doc) *DocUpdate {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// SetText sets the "text" field.
-func (_u *DocUpdate) SetText(v string) *DocUpdate {
-	_u.mutation.SetText(v)
-	return _u
-}
-
-// SetNillableText sets the "text" field if the given value is not nil.
-func (_u *DocUpdate) SetNillableText(v *string) *DocUpdate {
-	if v != nil {
-		_u.SetText(*v)
+func (b *DocUpdate) Set[T any](column ent.ColumnOf[entity.Doc, T], value T) *DocUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// ClearText clears the value of the "text" field.
-func (_u *DocUpdate) ClearText() *DocUpdate {
-	_u.mutation.ClearText()
-	return _u
+	return b
 }
-
-// SetParentID sets the "parent" edge to the Doc entity by ID.
-func (_u *DocUpdate) SetParentID(id schema.DocID) *DocUpdate {
-	_u.mutation.SetParentID(id)
-	return _u
-}
-
-// SetNillableParentID sets the "parent" edge to the Doc entity by ID if the given value is not nil.
-func (_u *DocUpdate) SetNillableParentID(id *schema.DocID) *DocUpdate {
-	if id != nil {
-		_u = _u.SetParentID(*id)
+func (b *DocUpdate) SetOptional[T any](column ent.ColumnOf[entity.Doc, T], value ent.Option[T]) *DocUpdate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u
-}
-
-// SetParent sets the "parent" edge to the Doc entity.
-func (_u *DocUpdate) SetParent(v *Doc) *DocUpdate {
-	return _u.SetParentID(v.ID)
-}
-
-// AddChildIDs adds the "children" edge to the Doc entity by IDs.
-func (_u *DocUpdate) AddChildIDs(ids ...schema.DocID) *DocUpdate {
-	_u.mutation.AddChildIDs(ids...)
-	return _u
-}
-
-// AddChildren adds the "children" edges to the Doc entity.
-func (_u *DocUpdate) AddChildren(v ...*Doc) *DocUpdate {
-	ids := make([]schema.DocID, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
 	}
-	return _u.AddChildIDs(ids...)
+	return b
 }
-
-// AddRelatedIDs adds the "related" edge to the Doc entity by IDs.
-func (_u *DocUpdate) AddRelatedIDs(ids ...schema.DocID) *DocUpdate {
-	_u.mutation.AddRelatedIDs(ids...)
-	return _u
-}
-
-// AddRelated adds the "related" edges to the Doc entity.
-func (_u *DocUpdate) AddRelated(v ...*Doc) *DocUpdate {
-	ids := make([]schema.DocID, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+func (b *DocUpdate) SetExpr[T any](column ent.ColumnOf[entity.Doc, T], value ent.Expr[T]) *DocUpdate {
+	if b.err != nil {
+		return b
 	}
-	return _u.AddRelatedIDs(ids...)
-}
+	switch column.Ref().Name {
 
-// Mutation returns the DocMutation object of the builder.
-func (_u *DocUpdate) Mutation() *DocMutation {
-	return _u.mutation
-}
+	case doc.FieldText:
 
-// ClearParent clears the "parent" edge to the Doc entity.
-func (_u *DocUpdate) ClearParent() *DocUpdate {
-	_u.mutation.ClearParent()
-	return _u
-}
-
-// ClearChildren clears all "children" edges to the Doc entity.
-func (_u *DocUpdate) ClearChildren() *DocUpdate {
-	_u.mutation.ClearChildren()
-	return _u
-}
-
-// RemoveChildIDs removes the "children" edge to Doc entities by IDs.
-func (_u *DocUpdate) RemoveChildIDs(ids ...schema.DocID) *DocUpdate {
-	_u.mutation.RemoveChildIDs(ids...)
-	return _u
-}
-
-// RemoveChildren removes "children" edges to Doc entities.
-func (_u *DocUpdate) RemoveChildren(v ...*Doc) *DocUpdate {
-	ids := make([]schema.DocID, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Doc is not settable", column.Ref().Name)}
+		return b
 	}
-	return _u.RemoveChildIDs(ids...)
-}
 
-// ClearRelated clears all "related" edges to the Doc entity.
-func (_u *DocUpdate) ClearRelated() *DocUpdate {
-	_u.mutation.ClearRelated()
-	return _u
-}
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
 
-// RemoveRelatedIDs removes the "related" edge to Doc entities by IDs.
-func (_u *DocUpdate) RemoveRelatedIDs(ids ...schema.DocID) *DocUpdate {
-	_u.mutation.RemoveRelatedIDs(ids...)
-	return _u
-}
+	return b
 
-// RemoveRelated removes "related" edges to Doc entities.
-func (_u *DocUpdate) RemoveRelated(v ...*Doc) *DocUpdate {
-	ids := make([]schema.DocID, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+}
+func (b *DocUpdate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Doc, N, K], id K) *DocUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
 	}
-	return _u.RemoveRelatedIDs(ids...)
+
+	return b
+}
+func (b *DocUpdate) AddIDs[N, K any](edge ent.Relation[entity.Doc, N, K], ids ...K) *DocUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *DocUpdate) Mutation() *DocMutation { return b.mutation }
+
+func (b *DocUpdate) Patch() *DocPatch            { return b.mutation.patch }
+func (b *DocUpdate) Apply(p DocPatch) *DocUpdate { b.mutation.patch.apply(p); return b }
+func (b *DocUpdate) Add[T ent.Number](column ent.ColumnOf[entity.Doc, T], delta T) *DocUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *DocUpdate) Append[T any](column ent.ColumnOf[entity.Doc, T], values T) *DocUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *DocUpdate) Clear[T any](column ent.ColumnOf[entity.Doc, T]) *DocUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *DocUpdate) RemoveIDs[N, K any](edge ent.Relation[entity.Doc, N, K], ids ...K) *DocUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *DocUpdate) ClearEdge[N, K any](edge ent.RelationOf[entity.Doc, N, K]) *DocUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// Save executes the query and returns the number of nodes affected by the update operation.
-func (_u *DocUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
+func (b *DocUpdate) Where(predicates ...ent.Predicate[entity.Doc]) *DocUpdate {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_u *DocUpdate) SaveX(ctx context.Context) int {
-	affected, err := _u.Save(ctx)
+func (b *DocUpdate) Save(ctx context.Context) (int, error) {
+	if b.err != nil {
+		return 0, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return 0, err
+	}
+	return b.sqlSave(ctx)
+}
+
+func (b *DocUpdate) SaveX(ctx context.Context) int {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return affected
+	return result
 }
 
-// Exec executes the query.
-func (_u *DocUpdate) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *DocUpdate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *DocUpdate) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *DocUpdate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
+func (b *DocUpdate) Returning(ctx context.Context) ([]*Doc, error) {
+	nodes := make([]*Doc, 0)
+	b.returning = &sqlgraph.Returning{Columns: doc.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Doc{config: b.config}
+		values, err := _node.scanValues(doc.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(doc.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Save(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
+}
+
+func (b *DocUpdate) defaults() error {
+
+	return nil
+}
+
+func (b *DocUpdate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *DocUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *DocUpdate {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *DocUpdate) sqlSave(ctx context.Context) (_node int, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(doc.Table, doc.Columns, sqlgraph.NewFieldSpec(doc.FieldID, field.TypeString))
 	if ps := _u.mutation.Predicates(); len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -189,13 +208,13 @@ func (_u *DocUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.Text(); ok {
+	if value, ok := _u.mutation.patch.Text.Get(); ok {
 		_spec.SetField(doc.FieldText, field.TypeString, value)
 	}
-	if _u.mutation.TextCleared() {
+	if _u.mutation.patch.Text.IsNull() {
 		_spec.ClearField(doc.FieldText, field.TypeString)
 	}
-	if _u.mutation.ParentCleared() {
+	if _u.mutation.patch.ParentID.IsNull() || _u.mutation.patch.clearedEdges[doc.EdgeParent] {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -208,7 +227,7 @@ func (_u *DocUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.ParentIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.parentIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -219,12 +238,17 @@ func (_u *DocUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(doc.FieldID, field.TypeString),
 			},
 		}
+		seen := make(map[schema2.DocID]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
-	if _u.mutation.ChildrenCleared() {
+	if _u.mutation.patch.Children.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -237,7 +261,7 @@ func (_u *DocUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.RemovedChildrenIDs(); len(nodes) > 0 && !_u.mutation.ChildrenCleared() {
+	if nodes := _u.mutation.patch.Children.Remove; len(nodes) > 0 && !_u.mutation.patch.Children.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -248,12 +272,17 @@ func (_u *DocUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(doc.FieldID, field.TypeString),
 			},
 		}
+		seen := make(map[schema2.DocID]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.ChildrenIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.childrenIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -264,12 +293,17 @@ func (_u *DocUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(doc.FieldID, field.TypeString),
 			},
 		}
+		seen := make(map[schema2.DocID]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
-	if _u.mutation.RelatedCleared() {
+	if _u.mutation.patch.Related.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: false,
@@ -282,7 +316,7 @@ func (_u *DocUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.RemovedRelatedIDs(); len(nodes) > 0 && !_u.mutation.RelatedCleared() {
+	if nodes := _u.mutation.patch.Related.Remove; len(nodes) > 0 && !_u.mutation.patch.Related.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: false,
@@ -293,12 +327,17 @@ func (_u *DocUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(doc.FieldID, field.TypeString),
 			},
 		}
+		seen := make(map[schema2.DocID]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.RelatedIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.relatedIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: false,
@@ -309,11 +348,22 @@ func (_u *DocUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(doc.FieldID, field.TypeString),
 			},
 		}
+		seen := make(map[schema2.DocID]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	_spec.Returning = _u.returning
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{doc.Label}
@@ -322,181 +372,191 @@ func (_u *DocUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		return 0, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }
 
-// DocUpdateOne is the builder for updating a single Doc entity.
 type DocUpdateOne struct {
 	config
-	fields   []string
-	hooks    []Hook
 	mutation *DocMutation
+	err      error
+
+	fields []string
+	old    *Doc
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// SetText sets the "text" field.
-func (_u *DocUpdateOne) SetText(v string) *DocUpdateOne {
-	_u.mutation.SetText(v)
-	return _u
-}
-
-// SetNillableText sets the "text" field if the given value is not nil.
-func (_u *DocUpdateOne) SetNillableText(v *string) *DocUpdateOne {
-	if v != nil {
-		_u.SetText(*v)
+func (b *DocUpdateOne) Set[T any](column ent.ColumnOf[entity.Doc, T], value T) *DocUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// ClearText clears the value of the "text" field.
-func (_u *DocUpdateOne) ClearText() *DocUpdateOne {
-	_u.mutation.ClearText()
-	return _u
+	return b
 }
-
-// SetParentID sets the "parent" edge to the Doc entity by ID.
-func (_u *DocUpdateOne) SetParentID(id schema.DocID) *DocUpdateOne {
-	_u.mutation.SetParentID(id)
-	return _u
-}
-
-// SetNillableParentID sets the "parent" edge to the Doc entity by ID if the given value is not nil.
-func (_u *DocUpdateOne) SetNillableParentID(id *schema.DocID) *DocUpdateOne {
-	if id != nil {
-		_u = _u.SetParentID(*id)
+func (b *DocUpdateOne) SetOptional[T any](column ent.ColumnOf[entity.Doc, T], value ent.Option[T]) *DocUpdateOne {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u
-}
-
-// SetParent sets the "parent" edge to the Doc entity.
-func (_u *DocUpdateOne) SetParent(v *Doc) *DocUpdateOne {
-	return _u.SetParentID(v.ID)
-}
-
-// AddChildIDs adds the "children" edge to the Doc entity by IDs.
-func (_u *DocUpdateOne) AddChildIDs(ids ...schema.DocID) *DocUpdateOne {
-	_u.mutation.AddChildIDs(ids...)
-	return _u
-}
-
-// AddChildren adds the "children" edges to the Doc entity.
-func (_u *DocUpdateOne) AddChildren(v ...*Doc) *DocUpdateOne {
-	ids := make([]schema.DocID, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
 	}
-	return _u.AddChildIDs(ids...)
+	return b
 }
-
-// AddRelatedIDs adds the "related" edge to the Doc entity by IDs.
-func (_u *DocUpdateOne) AddRelatedIDs(ids ...schema.DocID) *DocUpdateOne {
-	_u.mutation.AddRelatedIDs(ids...)
-	return _u
-}
-
-// AddRelated adds the "related" edges to the Doc entity.
-func (_u *DocUpdateOne) AddRelated(v ...*Doc) *DocUpdateOne {
-	ids := make([]schema.DocID, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+func (b *DocUpdateOne) SetExpr[T any](column ent.ColumnOf[entity.Doc, T], value ent.Expr[T]) *DocUpdateOne {
+	if b.err != nil {
+		return b
 	}
-	return _u.AddRelatedIDs(ids...)
-}
+	switch column.Ref().Name {
 
-// Mutation returns the DocMutation object of the builder.
-func (_u *DocUpdateOne) Mutation() *DocMutation {
-	return _u.mutation
-}
+	case doc.FieldText:
 
-// ClearParent clears the "parent" edge to the Doc entity.
-func (_u *DocUpdateOne) ClearParent() *DocUpdateOne {
-	_u.mutation.ClearParent()
-	return _u
-}
-
-// ClearChildren clears all "children" edges to the Doc entity.
-func (_u *DocUpdateOne) ClearChildren() *DocUpdateOne {
-	_u.mutation.ClearChildren()
-	return _u
-}
-
-// RemoveChildIDs removes the "children" edge to Doc entities by IDs.
-func (_u *DocUpdateOne) RemoveChildIDs(ids ...schema.DocID) *DocUpdateOne {
-	_u.mutation.RemoveChildIDs(ids...)
-	return _u
-}
-
-// RemoveChildren removes "children" edges to Doc entities.
-func (_u *DocUpdateOne) RemoveChildren(v ...*Doc) *DocUpdateOne {
-	ids := make([]schema.DocID, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Doc is not settable", column.Ref().Name)}
+		return b
 	}
-	return _u.RemoveChildIDs(ids...)
-}
 
-// ClearRelated clears all "related" edges to the Doc entity.
-func (_u *DocUpdateOne) ClearRelated() *DocUpdateOne {
-	_u.mutation.ClearRelated()
-	return _u
-}
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
 
-// RemoveRelatedIDs removes the "related" edge to Doc entities by IDs.
-func (_u *DocUpdateOne) RemoveRelatedIDs(ids ...schema.DocID) *DocUpdateOne {
-	_u.mutation.RemoveRelatedIDs(ids...)
-	return _u
-}
+	return b
 
-// RemoveRelated removes "related" edges to Doc entities.
-func (_u *DocUpdateOne) RemoveRelated(v ...*Doc) *DocUpdateOne {
-	ids := make([]schema.DocID, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+}
+func (b *DocUpdateOne) SetEdge[N, K any](edge ent.UniqueRelation[entity.Doc, N, K], id K) *DocUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
 	}
-	return _u.RemoveRelatedIDs(ids...)
+
+	return b
+}
+func (b *DocUpdateOne) AddIDs[N, K any](edge ent.Relation[entity.Doc, N, K], ids ...K) *DocUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *DocUpdateOne) Mutation() *DocMutation { return b.mutation }
+
+func (b *DocUpdateOne) Patch() *DocPatch               { return b.mutation.patch }
+func (b *DocUpdateOne) Apply(p DocPatch) *DocUpdateOne { b.mutation.patch.apply(p); return b }
+func (b *DocUpdateOne) Add[T ent.Number](column ent.ColumnOf[entity.Doc, T], delta T) *DocUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *DocUpdateOne) Append[T any](column ent.ColumnOf[entity.Doc, T], values T) *DocUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *DocUpdateOne) Clear[T any](column ent.ColumnOf[entity.Doc, T]) *DocUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *DocUpdateOne) RemoveIDs[N, K any](edge ent.Relation[entity.Doc, N, K], ids ...K) *DocUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *DocUpdateOne) ClearEdge[N, K any](edge ent.RelationOf[entity.Doc, N, K]) *DocUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// Where appends a list predicates to the DocUpdate builder.
-func (_u *DocUpdateOne) Where(ps ...predicate.Doc) *DocUpdateOne {
-	_u.mutation.Where(ps...)
-	return _u
+func (b *DocUpdateOne) Where(predicates ...ent.Predicate[entity.Doc]) *DocUpdateOne {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Select allows selecting one or more fields (columns) of the returned entity.
-// The default is selecting all fields defined in the entity schema.
-func (_u *DocUpdateOne) Select(field string, fields ...string) *DocUpdateOne {
-	_u.fields = append([]string{field}, fields...)
-	return _u
+func (b *DocUpdateOne) Save(ctx context.Context) (*Doc, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Save executes the query and returns the updated Doc entity.
-func (_u *DocUpdateOne) Save(ctx context.Context) (*Doc, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *DocUpdateOne) SaveX(ctx context.Context) *Doc {
-	node, err := _u.Save(ctx)
+func (b *DocUpdateOne) SaveX(ctx context.Context) *Doc {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return node
+	return result
 }
 
-// Exec executes the query on the entity.
-func (_u *DocUpdateOne) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *DocUpdateOne) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *DocUpdateOne) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *DocUpdateOne) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
+func (b *DocUpdateOne) Select(columns ...ent.EntityColumn[entity.Doc]) *DocUpdateOne {
+	if len(columns) == 0 {
+		panic("ent: Select requires at least one column")
+	}
+	b.fields = make([]string, len(columns))
+	for index, column := range columns {
+		b.fields[index] = column.Ref().Name
+	}
+	return b
+}
+
+func (b *DocUpdateOne) SaveOld(ctx context.Context) (old *Doc, updated *Doc, err error) {
+	if !b.driver.Capabilities().ReturningOld {
+		return nil, nil, &dialect.UnsupportedError{Feature: "RETURNING OLD", Dialect: dialect.Dialect(b.driver.Dialect())}
+	}
+	b.old = &Doc{config: b.config}
+	defer func() { b.old = nil }()
+	updated, err = b.Save(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return b.old, updated, nil
+}
+
+func (b *DocUpdateOne) defaults() error {
+
+	return nil
+}
+
+func (b *DocUpdateOne) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *DocUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *DocUpdateOne {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *DocUpdateOne) sqlSave(ctx context.Context) (_node *Doc, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(doc.Table, doc.Columns, sqlgraph.NewFieldSpec(doc.FieldID, field.TypeString))
 	id, ok := _u.mutation.ID()
 	if !ok {
@@ -522,13 +582,13 @@ func (_u *DocUpdateOne) sqlSave(ctx context.Context) (_node *Doc, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.Text(); ok {
+	if value, ok := _u.mutation.patch.Text.Get(); ok {
 		_spec.SetField(doc.FieldText, field.TypeString, value)
 	}
-	if _u.mutation.TextCleared() {
+	if _u.mutation.patch.Text.IsNull() {
 		_spec.ClearField(doc.FieldText, field.TypeString)
 	}
-	if _u.mutation.ParentCleared() {
+	if _u.mutation.patch.ParentID.IsNull() || _u.mutation.patch.clearedEdges[doc.EdgeParent] {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -541,7 +601,7 @@ func (_u *DocUpdateOne) sqlSave(ctx context.Context) (_node *Doc, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.ParentIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.parentIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -552,12 +612,17 @@ func (_u *DocUpdateOne) sqlSave(ctx context.Context) (_node *Doc, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(doc.FieldID, field.TypeString),
 			},
 		}
+		seen := make(map[schema2.DocID]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
-	if _u.mutation.ChildrenCleared() {
+	if _u.mutation.patch.Children.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -570,7 +635,7 @@ func (_u *DocUpdateOne) sqlSave(ctx context.Context) (_node *Doc, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.RemovedChildrenIDs(); len(nodes) > 0 && !_u.mutation.ChildrenCleared() {
+	if nodes := _u.mutation.patch.Children.Remove; len(nodes) > 0 && !_u.mutation.patch.Children.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -581,12 +646,17 @@ func (_u *DocUpdateOne) sqlSave(ctx context.Context) (_node *Doc, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(doc.FieldID, field.TypeString),
 			},
 		}
+		seen := make(map[schema2.DocID]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.ChildrenIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.childrenIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -597,12 +667,17 @@ func (_u *DocUpdateOne) sqlSave(ctx context.Context) (_node *Doc, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(doc.FieldID, field.TypeString),
 			},
 		}
+		seen := make(map[schema2.DocID]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
-	if _u.mutation.RelatedCleared() {
+	if _u.mutation.patch.Related.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: false,
@@ -615,7 +690,7 @@ func (_u *DocUpdateOne) sqlSave(ctx context.Context) (_node *Doc, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.RemovedRelatedIDs(); len(nodes) > 0 && !_u.mutation.RelatedCleared() {
+	if nodes := _u.mutation.patch.Related.Remove; len(nodes) > 0 && !_u.mutation.patch.Related.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: false,
@@ -626,12 +701,17 @@ func (_u *DocUpdateOne) sqlSave(ctx context.Context) (_node *Doc, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(doc.FieldID, field.TypeString),
 			},
 		}
+		seen := make(map[schema2.DocID]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.RelatedIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.relatedIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: false,
@@ -642,14 +722,28 @@ func (_u *DocUpdateOne) sqlSave(ctx context.Context) (_node *Doc, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(doc.FieldID, field.TypeString),
 			},
 		}
+		seen := make(map[schema2.DocID]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	_node = &Doc{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
+	if _u.old != nil {
+		_spec.OldScanValues = _u.old.scanValues
+		_spec.OldAssign = _u.old.assignValues
+	}
 	if err = sqlgraph.UpdateNode(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{doc.Label}
@@ -658,6 +752,5 @@ func (_u *DocUpdateOne) sqlSave(ctx context.Context) (_node *Doc, err error) {
 		}
 		return nil, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }

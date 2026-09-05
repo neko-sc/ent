@@ -12,6 +12,7 @@ import (
 	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/examples/compositetypes/ent"
 	"github.com/neko-sc/ent/examples/compositetypes/ent/schema"
+	user "github.com/neko-sc/ent/examples/compositetypes/ent/user"
 
 	"ariga.io/atlas-go-sdk/atlasexec"
 	_ "github.com/lib/pq"
@@ -42,7 +43,7 @@ func TestCompositeTypes(t *testing.T) {
 	})
 	require.NoError(t, err)
 	t.Cleanup(func() { client.User.Delete().ExecX(ctx) })
-	client.User.Create().SetAddress(&schema.Address{Street: "Beit Hillel", City: "Tel Aviv"}).SaveX(ctx)
+	client.User.Create().Set(user.Address, &schema.Address{Street: "Beit Hillel", City: "Tel Aviv"}).SaveX(ctx)
 	u := client.User.Query().OnlyX(ctx)
 	require.Equal(t, u.Address.Street, "Beit Hillel")
 	require.Equal(t, u.Address.City, "Tel Aviv")

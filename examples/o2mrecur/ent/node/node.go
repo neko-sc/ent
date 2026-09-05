@@ -6,8 +6,9 @@
 package node
 
 import (
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/examples/o2mrecur/ent/entity"
 )
 
 const (
@@ -35,6 +36,45 @@ const (
 	ChildrenColumn = "parent_id"
 )
 
+var (
+	ID       = ent.OrderedColumn[entity.Node, int]{Table: Table, Name: FieldID}
+	Value    = ent.OrderedColumn[entity.Node, int]{Table: Table, Name: FieldValue}
+	ParentID = ent.OrderedColumn[entity.Node, int]{Table: Table, Name: FieldParentID}
+	Parent   = ent.NewUniqueRelation[entity.Node, entity.Node, int](EdgeParent, newParentStep)
+	Children = ent.NewRelation[entity.Node, entity.Node, int](EdgeChildren, newChildrenStep)
+)
+
+// Alias returns the columns of the nodes table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.Node, int]{Table: name, Name: FieldID},
+		Value:      ent.OrderedColumn[entity.Node, int]{Table: name, Name: FieldValue},
+		ParentID:   ent.OrderedColumn[entity.Node, int]{Table: name, Name: FieldParentID},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.Node, int]
+	Value      ent.OrderedColumn[entity.Node, int]
+	ParentID   ent.OrderedColumn[entity.Node, int]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.Node]) ent.Predicate[entity.Node] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.Node]) ent.Predicate[entity.Node] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.Node]) ent.Predicate[entity.Node] { return ent.Not(predicate) }
+
 // Columns holds all SQL columns for node fields.
 var Columns = []string{
 	FieldID,
@@ -52,44 +92,6 @@ func ValidColumn(column string) bool {
 	return false
 }
 
-// OrderOption defines the ordering options for the Node queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByValue orders the results by the value field.
-func ByValue(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldValue, opts...).ToFunc()
-}
-
-// ByParentID orders the results by the parent_id field.
-func ByParentID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldParentID, opts...).ToFunc()
-}
-
-// ByParentField orders the results by parent field.
-func ByParentField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newParentStep(), sql.OrderByField(field, opts...))
-	}
-}
-
-// ByChildrenCount orders the results by children count.
-func ByChildrenCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newChildrenStep(), opts...)
-	}
-}
-
-// ByChildren orders the results by children terms.
-func ByChildren(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newChildrenStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
 func newParentStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),

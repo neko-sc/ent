@@ -6,10 +6,11 @@
 package node
 
 import (
-	"time"
+	time2 "time"
 
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/ent/entity"
 )
 
 const (
@@ -36,6 +37,45 @@ const (
 	// NextColumn is the table column denoting the next relation/edge.
 	NextColumn = "node_next"
 )
+
+var (
+	ID        = ent.OrderedColumn[entity.Node, int]{Table: Table, Name: FieldID}
+	Value     = ent.OrderedColumn[entity.Node, int]{Table: Table, Name: FieldValue}
+	UpdatedAt = ent.OrderedColumn[entity.Node, time2.Time]{Table: Table, Name: FieldUpdatedAt}
+	Prev      = ent.NewUniqueRelation[entity.Node, entity.Node, int](EdgePrev, newPrevStep)
+	Next      = ent.NewUniqueRelation[entity.Node, entity.Node, int](EdgeNext, newNextStep)
+)
+
+// Alias returns the columns of the nodes table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.Node, int]{Table: name, Name: FieldID},
+		Value:      ent.OrderedColumn[entity.Node, int]{Table: name, Name: FieldValue},
+		UpdatedAt:  ent.OrderedColumn[entity.Node, time2.Time]{Table: name, Name: FieldUpdatedAt},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.Node, int]
+	Value      ent.OrderedColumn[entity.Node, int]
+	UpdatedAt  ent.OrderedColumn[entity.Node, time2.Time]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.Node]) ent.Predicate[entity.Node] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.Node]) ent.Predicate[entity.Node] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.Node]) ent.Predicate[entity.Node] { return ent.Not(predicate) }
 
 // Columns holds all SQL columns for node fields.
 var Columns = []string{
@@ -67,40 +107,9 @@ func ValidColumn(column string) bool {
 
 var (
 	// UpdateDefaultUpdatedAt holds the default value on update for the "updated_at" field.
-	UpdateDefaultUpdatedAt func() time.Time
+	UpdateDefaultUpdatedAt func() time2.Time
 )
 
-// OrderOption defines the ordering options for the Node queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByValue orders the results by the value field.
-func ByValue(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldValue, opts...).ToFunc()
-}
-
-// ByUpdatedAt orders the results by the updated_at field.
-func ByUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldUpdatedAt, opts...).ToFunc()
-}
-
-// ByPrevField orders the results by prev field.
-func ByPrevField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newPrevStep(), sql.OrderByField(field, opts...))
-	}
-}
-
-// ByNextField orders the results by next field.
-func ByNextField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newNextStep(), sql.OrderByField(field, opts...))
-	}
-}
 func newPrevStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),

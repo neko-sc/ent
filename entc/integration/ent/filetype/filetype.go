@@ -8,8 +8,9 @@ package filetype
 import (
 	"fmt"
 
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/ent/entity"
 )
 
 const (
@@ -36,6 +37,49 @@ const (
 	FilesColumn = "file_type_files"
 )
 
+var (
+	ID    = ent.OrderedColumn[entity.FileType, int]{Table: Table, Name: FieldID}
+	Name  = ent.StringColumn[entity.FileType, string]{Table: Table, Name: FieldName}
+	Type  = ent.StringColumn[entity.FileType, TypeValue]{Table: Table, Name: FieldType}
+	State = ent.StringColumn[entity.FileType, StateValue]{Table: Table, Name: FieldState}
+	Files = ent.NewRelation[entity.FileType, entity.File, int](EdgeFiles, newFilesStep)
+)
+
+// Alias returns the columns of the file_types table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.FileType, int]{Table: name, Name: FieldID},
+		Name:       ent.StringColumn[entity.FileType, string]{Table: name, Name: FieldName},
+		Type:       ent.StringColumn[entity.FileType, TypeValue]{Table: name, Name: FieldType},
+		State:      ent.StringColumn[entity.FileType, StateValue]{Table: name, Name: FieldState},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.FileType, int]
+	Name       ent.StringColumn[entity.FileType, string]
+	Type       ent.StringColumn[entity.FileType, TypeValue]
+	State      ent.StringColumn[entity.FileType, StateValue]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.FileType]) ent.Predicate[entity.FileType] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.FileType]) ent.Predicate[entity.FileType] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.FileType]) ent.Predicate[entity.FileType] {
+	return ent.Not(predicate)
+}
+
 // Columns holds all SQL columns for filetype fields.
 var Columns = []string{
 	FieldID,
@@ -54,25 +98,25 @@ func ValidColumn(column string) bool {
 	return false
 }
 
-// Type defines the type for the "type" enum field.
-type Type string
+// TypeValue defines the type for the "type" enum field.
+type TypeValue string
 
-// TypePNG is the default value of the Type enum.
+// TypePNG is the default value of the TypeValue enum.
 const DefaultType = TypePNG
 
-// Type values.
+// TypeValue values.
 const (
-	TypePNG Type = "png"
-	TypeSVG Type = "svg"
-	TypeJPG Type = "jpg"
+	TypePNG TypeValue = "png"
+	TypeSVG TypeValue = "svg"
+	TypeJPG TypeValue = "jpg"
 )
 
-func (_type Type) String() string {
+func (_type TypeValue) String() string {
 	return string(_type)
 }
 
 // TypeValidator is a validator for the "type" field enum values. It is called by the builders before save.
-func TypeValidator(_type Type) error {
+func TypeValidator(_type TypeValue) error {
 	switch _type {
 	case TypePNG, TypeSVG, TypeJPG:
 		return nil
@@ -81,24 +125,24 @@ func TypeValidator(_type Type) error {
 	}
 }
 
-// State defines the type for the "state" enum field.
-type State string
+// StateValue defines the type for the "state" enum field.
+type StateValue string
 
-// StateOn is the default value of the State enum.
+// StateOn is the default value of the StateValue enum.
 const DefaultState = StateOn
 
-// State values.
+// StateValue values.
 const (
-	StateOn  State = "ON"
-	StateOff State = "OFF"
+	StateOn  StateValue = "ON"
+	StateOff StateValue = "OFF"
 )
 
-func (s State) String() string {
+func (s StateValue) String() string {
 	return string(s)
 }
 
 // StateValidator is a validator for the "state" field enum values. It is called by the builders before save.
-func StateValidator(s State) error {
+func StateValidator(s StateValue) error {
 	switch s {
 	case StateOn, StateOff:
 		return nil
@@ -107,42 +151,6 @@ func StateValidator(s State) error {
 	}
 }
 
-// OrderOption defines the ordering options for the FileType queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByName orders the results by the name field.
-func ByName(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldName, opts...).ToFunc()
-}
-
-// ByType orders the results by the type field.
-func ByType(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldType, opts...).ToFunc()
-}
-
-// ByState orders the results by the state field.
-func ByState(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldState, opts...).ToFunc()
-}
-
-// ByFilesCount orders the results by files count.
-func ByFilesCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newFilesStep(), opts...)
-	}
-}
-
-// ByFiles orders the results by files terms.
-func ByFiles(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newFilesStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
 func newFilesStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -152,12 +160,12 @@ func newFilesStep() *sqlgraph.Step {
 }
 
 // Ptr returns a new pointer to the enum value.
-func (_type Type) Ptr() *Type {
+func (_type TypeValue) Ptr() *TypeValue {
 	return &_type
 }
 
 // Ptr returns a new pointer to the enum value.
-func (s State) Ptr() *State {
+func (s StateValue) Ptr() *StateValue {
 	return &s
 }
 

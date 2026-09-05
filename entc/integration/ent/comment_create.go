@@ -7,132 +7,157 @@ package ent
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/entc/integration/ent/comment"
-	schemadir "github.com/neko-sc/ent/entc/integration/ent/schema/dir"
+	"github.com/neko-sc/ent/entc/integration/ent/entity"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// CommentCreate is the builder for creating a Comment entity.
 type CommentCreate struct {
 	config
-	mutation *CommentMutation
-	hooks    []Hook
+	mutation    *CommentMutation
+	err         error
+	fromBuilder bool
+	present     map[string]struct{}
+
 	conflict []sql.ConflictOption
 }
 
-// SetUniqueInt sets the "unique_int" field.
-func (_c *CommentCreate) SetUniqueInt(v int) *CommentCreate {
-	_c.mutation.SetUniqueInt(v)
-	return _c
-}
-
-// SetUniqueFloat sets the "unique_float" field.
-func (_c *CommentCreate) SetUniqueFloat(v float64) *CommentCreate {
-	_c.mutation.SetUniqueFloat(v)
-	return _c
-}
-
-// SetNillableInt sets the "nillable_int" field.
-func (_c *CommentCreate) SetNillableInt(v int) *CommentCreate {
-	_c.mutation.SetNillableInt(v)
-	return _c
-}
-
-// SetNillableNillableInt sets the "nillable_int" field if the given value is not nil.
-func (_c *CommentCreate) SetNillableNillableInt(v *int) *CommentCreate {
-	if v != nil {
-		_c.SetNillableInt(*v)
+func (b *CommentCreate) Set[T any](column ent.ColumnOf[entity.Comment, T], value T) *CommentCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.set(column.Ref().Name, value)
 	}
-	return _c
-}
-
-// SetTable sets the "table" field.
-func (_c *CommentCreate) SetTable(v string) *CommentCreate {
-	_c.mutation.SetTable(v)
-	return _c
-}
-
-// SetNillableTable sets the "table" field if the given value is not nil.
-func (_c *CommentCreate) SetNillableTable(v *string) *CommentCreate {
-	if v != nil {
-		_c.SetTable(*v)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
 	}
-	return _c
+	b.present[column.Ref().Name] = struct{}{}
+	return b
 }
-
-// SetDir sets the "dir" field.
-func (_c *CommentCreate) SetDir(v schemadir.Dir) *CommentCreate {
-	_c.mutation.SetDir(v)
-	return _c
-}
-
-// SetNillableDir sets the "dir" field if the given value is not nil.
-func (_c *CommentCreate) SetNillableDir(v *schemadir.Dir) *CommentCreate {
-	if v != nil {
-		_c.SetDir(*v)
+func (b *CommentCreate) SetOptional[T any](column ent.ColumnOf[entity.Comment, T], value ent.Option[T]) *CommentCreate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.insert.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _c
-}
-
-// SetClient sets the "client" field.
-func (_c *CommentCreate) SetClient(v string) *CommentCreate {
-	_c.mutation.SetClient(v)
-	return _c
-}
-
-// SetNillableClient sets the "client" field if the given value is not nil.
-func (_c *CommentCreate) SetNillableClient(v *string) *CommentCreate {
-	if v != nil {
-		_c.SetClient(*v)
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
 	}
-	return _c
+	return b
+}
+func (b *CommentCreate) SetExpr[T any](column ent.ColumnOf[entity.Comment, T], value ent.Expr[T]) *CommentCreate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case comment.FieldUniqueInt:
+
+	case comment.FieldUniqueFloat:
+
+	case comment.FieldNillableInt:
+
+	case comment.FieldTableName:
+
+	case comment.FieldDir:
+
+	case comment.FieldClient:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Comment is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.insert.setExpr(column.Ref().Name, value.Render)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+
+}
+func (b *CommentCreate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Comment, N, K], id K) *CommentCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.setEdge(edge.Ref().Name, id)
+	}
+
+	switch edge.Ref().Name {
+
+	}
+
+	return b
+}
+func (b *CommentCreate) AddIDs[N, K any](edge ent.Relation[entity.Comment, N, K], ids ...K) *CommentCreate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.insert.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *CommentCreate) Mutation() *CommentMutation { return b.mutation }
+
+func (b *CommentCreate) Insert() *CommentInsert { return b.mutation.insert }
+
+func (b *CommentCreate) Save(ctx context.Context) (*Comment, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Mutation returns the CommentMutation object of the builder.
-func (_c *CommentCreate) Mutation() *CommentMutation {
-	return _c.mutation
-}
-
-// Save creates the Comment in the database.
-func (_c *CommentCreate) Save(ctx context.Context) (*Comment, error) {
-	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
-}
-
-// SaveX calls Save and panics if Save returns an error.
-func (_c *CommentCreate) SaveX(ctx context.Context) *Comment {
-	v, err := _c.Save(ctx)
+func (b *CommentCreate) SaveX(ctx context.Context) *Comment {
+	node, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return node
 }
 
-// Exec executes the query.
-func (_c *CommentCreate) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *CommentCreate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *CommentCreate) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *CommentCreate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_c *CommentCreate) check() error {
-	if _, ok := _c.mutation.UniqueInt(); !ok {
-		return &ValidationError{Name: "unique_int", err: errors.New(`ent: missing required field "Comment.unique_int"`)}
+func (b *CommentCreate) defaults() error {
+
+	return nil
+}
+
+func (b *CommentCreate) check() error {
+	if b.err != nil {
+		return b.err
 	}
-	if _, ok := _c.mutation.UniqueFloat(); !ok {
-		return &ValidationError{Name: "unique_float", err: errors.New(`ent: missing required field "Comment.unique_float"`)}
+
+	switch b.driver.Dialect() {
+	case dialect.Postgres, dialect.SQLite:
+		if _, present := b.present[comment.FieldUniqueInt]; b.fromBuilder && !present {
+			return &ValidationError{Name: "unique_int", err: errors.New(`ent: missing required field "Comment.unique_int"`)}
+		}
 	}
+
+	switch b.driver.Dialect() {
+	case dialect.Postgres, dialect.SQLite:
+		if _, present := b.present[comment.FieldUniqueFloat]; b.fromBuilder && !present {
+			return &ValidationError{Name: "unique_float", err: errors.New(`ent: missing required field "Comment.unique_float"`)}
+		}
+	}
+
 	return nil
 }
 
@@ -140,414 +165,194 @@ func (_c *CommentCreate) sqlSave(ctx context.Context) (*Comment, error) {
 	if err := _c.check(); err != nil {
 		return nil, err
 	}
-	_node, _spec := _c.createSpec()
-	if err := sqlgraph.CreateNode(ctx, _c.driver, _spec); err != nil {
+	node, spec, err := _c.createSpec()
+	if err != nil {
+		return nil, err
+	}
+	if err := sqlgraph.CreateNode(ctx, _c.driver, spec); err != nil {
 		if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
 		return nil, err
 	}
-	id := _spec.ID.Value.(int64)
-	_node.ID = int(id)
-	_c.mutation.id = &_node.ID
-	_c.mutation.done = true
-	return _node, nil
+	_c.mutation.id = &node.ID
+	return node, nil
 }
 
-func (_c *CommentCreate) createSpec() (*Comment, *sqlgraph.CreateSpec) {
-	var (
-		_node = &Comment{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(comment.Table, sqlgraph.NewFieldSpec(comment.FieldID, field.TypeInt))
-	)
+func (_c *CommentCreate) createSpec() (*Comment, *sqlgraph.CreateSpec, error) {
+	_node := &Comment{config: _c.config}
+	_spec := sqlgraph.NewCreateSpec(comment.Table, sqlgraph.NewFieldSpec(comment.FieldID, field.TypeInt))
+
 	_spec.OnConflict = _c.conflict
-	if value, ok := _c.mutation.UniqueInt(); ok {
+
+	if _, present := _c.present[comment.FieldUniqueInt]; !_c.fromBuilder || present {
+		value := _c.mutation.insert.UniqueInt
 		_spec.SetField(comment.FieldUniqueInt, field.TypeInt, value)
-		_node.UniqueInt = value
 	}
-	if value, ok := _c.mutation.UniqueFloat(); ok {
+
+	if _, present := _c.present[comment.FieldUniqueFloat]; !_c.fromBuilder || present {
+		value := _c.mutation.insert.UniqueFloat
 		_spec.SetField(comment.FieldUniqueFloat, field.TypeFloat64, value)
-		_node.UniqueFloat = value
 	}
-	if value, ok := _c.mutation.NillableInt(); ok {
+
+	if value, ok := _c.mutation.insert.NillableInt.Get(); ok {
 		_spec.SetField(comment.FieldNillableInt, field.TypeInt, value)
-		_node.NillableInt = &value
 	}
-	if value, ok := _c.mutation.Table(); ok {
-		_spec.SetField(comment.FieldTable, field.TypeString, value)
-		_node.Table = value
+	if _c.mutation.insert.NillableInt.IsNull() {
+		_spec.SetField(comment.FieldNillableInt, field.TypeInt, nil)
 	}
-	if value, ok := _c.mutation.Dir(); ok {
+
+	if value, ok := _c.mutation.insert.TableName.Get(); ok {
+		_spec.SetField(comment.FieldTableName, field.TypeString, value)
+	}
+	if _c.mutation.insert.TableName.IsNull() {
+		_spec.SetField(comment.FieldTableName, field.TypeString, nil)
+	}
+
+	if value, ok := _c.mutation.insert.Dir.Get(); ok {
 		_spec.SetField(comment.FieldDir, field.TypeJSON, value)
-		_node.Dir = value
 	}
-	if value, ok := _c.mutation.GetClient(); ok {
+	if _c.mutation.insert.Dir.IsNull() {
+		_spec.SetField(comment.FieldDir, field.TypeJSON, nil)
+	}
+
+	if value, ok := _c.mutation.insert.Client.Get(); ok {
 		_spec.SetField(comment.FieldClient, field.TypeString, value)
-		_node.Client = value
 	}
-	return _node, _spec
-}
-
-// OnConflict allows configuring the `ON CONFLICT` clause of the `INSERT`
-// statement. For example:
-//
-//	client.Comment.Create().
-//		SetUniqueInt(v).
-//		OnConflict(
-//			// Update the row with the new values
-//			// the was proposed for insertion.
-//			sql.ResolveWithNewValues(),
-//		).
-//		// Override some of the fields with custom
-//		// update values.
-//		Update(func(u *ent.CommentUpsert) {
-//			SetUniqueInt(v+v).
-//		}).
-//		Exec(ctx)
-func (_c *CommentCreate) OnConflict(opts ...sql.ConflictOption) *CommentUpsertOne {
-	_c.conflict = opts
-	return &CommentUpsertOne{
-		create: _c,
-	}
-}
-
-// OnConflictColumns calls `OnConflict` and configures the columns
-// as conflict target. Using this option is equivalent to using:
-//
-//	client.Comment.Create().
-//		OnConflict(sql.ConflictColumns(columns...)).
-//		Exec(ctx)
-func (_c *CommentCreate) OnConflictColumns(columns ...string) *CommentUpsertOne {
-	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
-	return &CommentUpsertOne{
-		create: _c,
-	}
-}
-
-type (
-	// CommentUpsertOne is the builder for "upsert"-ing
-	//  one Comment node.
-	CommentUpsertOne struct {
-		create *CommentCreate
+	if _c.mutation.insert.Client.IsNull() {
+		_spec.SetField(comment.FieldClient, field.TypeString, nil)
 	}
 
-	// CommentUpsert is the "OnConflict" setter.
-	CommentUpsert struct {
-		*sql.UpdateSet
+	_spec.Expressions = _c.mutation.insert.expressions
+
+	_spec.Returning = &sqlgraph.Returning{Columns: comment.Columns, Scan: func(rows dialect.Rows) error {
+		values, err := _node.scanValues(comment.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(comment.Columns, values); err != nil {
+			return err
+		}
+
+		_spec.ID.Value = _node.ID
+
+		return nil
+	}}
+	return _node, _spec, nil
+}
+
+type CommentUpsertOne struct{ create *CommentCreate }
+
+func (b *CommentCreate) OnConflict(columns ...ent.EntityColumn[entity.Comment]) *CommentUpsertOne {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
 	}
-)
-
-// SetUniqueInt sets the "unique_int" field.
-func (u *CommentUpsert) SetUniqueInt(v int) *CommentUpsert {
-	u.Set(comment.FieldUniqueInt, v)
-	return u
+	if len(names) == 0 {
+		return b.OnConflictOptions()
+	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
 }
 
-// UpdateUniqueInt sets the "unique_int" field to the value that was provided on create.
-func (u *CommentUpsert) UpdateUniqueInt() *CommentUpsert {
-	u.SetExcluded(comment.FieldUniqueInt)
-	return u
+func (b *CommentCreate) OnConflictConstraint(name string) *CommentUpsertOne {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
 }
 
-// AddUniqueInt adds v to the "unique_int" field.
-func (u *CommentUpsert) AddUniqueInt(v int) *CommentUpsert {
-	u.Add(comment.FieldUniqueInt, v)
-	return u
+func (b *CommentCreate) OnConflictOptions(options ...sql.ConflictOption) *CommentUpsertOne {
+	b.conflict = options
+	return &CommentUpsertOne{create: b}
 }
 
-// SetUniqueFloat sets the "unique_float" field.
-func (u *CommentUpsert) SetUniqueFloat(v float64) *CommentUpsert {
-	u.Set(comment.FieldUniqueFloat, v)
-	return u
-}
-
-// UpdateUniqueFloat sets the "unique_float" field to the value that was provided on create.
-func (u *CommentUpsert) UpdateUniqueFloat() *CommentUpsert {
-	u.SetExcluded(comment.FieldUniqueFloat)
-	return u
-}
-
-// AddUniqueFloat adds v to the "unique_float" field.
-func (u *CommentUpsert) AddUniqueFloat(v float64) *CommentUpsert {
-	u.Add(comment.FieldUniqueFloat, v)
-	return u
-}
-
-// SetNillableInt sets the "nillable_int" field.
-func (u *CommentUpsert) SetNillableInt(v int) *CommentUpsert {
-	u.Set(comment.FieldNillableInt, v)
-	return u
-}
-
-// UpdateNillableInt sets the "nillable_int" field to the value that was provided on create.
-func (u *CommentUpsert) UpdateNillableInt() *CommentUpsert {
-	u.SetExcluded(comment.FieldNillableInt)
-	return u
-}
-
-// AddNillableInt adds v to the "nillable_int" field.
-func (u *CommentUpsert) AddNillableInt(v int) *CommentUpsert {
-	u.Add(comment.FieldNillableInt, v)
-	return u
-}
-
-// ClearNillableInt clears the value of the "nillable_int" field.
-func (u *CommentUpsert) ClearNillableInt() *CommentUpsert {
-	u.SetNull(comment.FieldNillableInt)
-	return u
-}
-
-// SetTable sets the "table" field.
-func (u *CommentUpsert) SetTable(v string) *CommentUpsert {
-	u.Set(comment.FieldTable, v)
-	return u
-}
-
-// UpdateTable sets the "table" field to the value that was provided on create.
-func (u *CommentUpsert) UpdateTable() *CommentUpsert {
-	u.SetExcluded(comment.FieldTable)
-	return u
-}
-
-// ClearTable clears the value of the "table" field.
-func (u *CommentUpsert) ClearTable() *CommentUpsert {
-	u.SetNull(comment.FieldTable)
-	return u
-}
-
-// SetDir sets the "dir" field.
-func (u *CommentUpsert) SetDir(v schemadir.Dir) *CommentUpsert {
-	u.Set(comment.FieldDir, v)
-	return u
-}
-
-// UpdateDir sets the "dir" field to the value that was provided on create.
-func (u *CommentUpsert) UpdateDir() *CommentUpsert {
-	u.SetExcluded(comment.FieldDir)
-	return u
-}
-
-// ClearDir clears the value of the "dir" field.
-func (u *CommentUpsert) ClearDir() *CommentUpsert {
-	u.SetNull(comment.FieldDir)
-	return u
-}
-
-// SetClient sets the "client" field.
-func (u *CommentUpsert) SetClient(v string) *CommentUpsert {
-	u.Set(comment.FieldClient, v)
-	return u
-}
-
-// UpdateClient sets the "client" field to the value that was provided on create.
-func (u *CommentUpsert) UpdateClient() *CommentUpsert {
-	u.SetExcluded(comment.FieldClient)
-	return u
-}
-
-// ClearClient clears the value of the "client" field.
-func (u *CommentUpsert) ClearClient() *CommentUpsert {
-	u.SetNull(comment.FieldClient)
-	return u
-}
-
-// UpdateNewValues updates the mutable fields using the new values that were set on create.
-// Using this option is equivalent to using:
-//
-//	client.Comment.Create().
-//		OnConflict(
-//			sql.ResolveWithNewValues(),
-//		).
-//		Exec(ctx)
-func (u *CommentUpsertOne) UpdateNewValues() *CommentUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
-	return u
-}
-
-// Ignore sets each column to itself in case of conflict.
-// Using this option is equivalent to using:
-//
-//	client.Comment.Create().
-//	    OnConflict(sql.ResolveWithIgnore()).
-//	    Exec(ctx)
-func (u *CommentUpsertOne) Ignore() *CommentUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
-	return u
-}
-
-// DoNothing configures the conflict_action to `DO NOTHING`.
-// Supported only by SQLite and PostgreSQL.
 func (u *CommentUpsertOne) DoNothing() *CommentUpsertOne {
 	u.create.conflict = append(u.create.conflict, sql.DoNothing())
 	return u
 }
 
-// Update allows overriding fields `UPDATE` values. See the CommentCreate.OnConflict
-// documentation for more info.
-func (u *CommentUpsertOne) Update(set func(*CommentUpsert)) *CommentUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
-		set(&CommentUpsert{UpdateSet: update})
+func (u *CommentUpsertOne) DoSelect() *CommentUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *CommentUpsertOne) Ignore() *CommentUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *CommentUpsertOne) DoUpdate(set func(*CommentUpsert)) *CommentUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&CommentUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *CommentUpsertOne) UpdateNewValues() *CommentUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case comment.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
 	}))
 	return u
 }
 
-// SetUniqueInt sets the "unique_int" field.
-func (u *CommentUpsertOne) SetUniqueInt(v int) *CommentUpsertOne {
-	return u.Update(func(s *CommentUpsert) {
-		s.SetUniqueInt(v)
-	})
+func (u *CommentUpsertOne) Where(predicates ...ent.Predicate[entity.Comment]) *CommentUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(comment.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// AddUniqueInt adds v to the "unique_int" field.
-func (u *CommentUpsertOne) AddUniqueInt(v int) *CommentUpsertOne {
-	return u.Update(func(s *CommentUpsert) {
-		s.AddUniqueInt(v)
-	})
+func (u *CommentUpsertOne) UpdateWhere(predicates ...ent.Predicate[entity.Comment]) *CommentUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(comment.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// UpdateUniqueInt sets the "unique_int" field to the value that was provided on create.
-func (u *CommentUpsertOne) UpdateUniqueInt() *CommentUpsertOne {
-	return u.Update(func(s *CommentUpsert) {
-		s.UpdateUniqueInt()
-	})
-}
-
-// SetUniqueFloat sets the "unique_float" field.
-func (u *CommentUpsertOne) SetUniqueFloat(v float64) *CommentUpsertOne {
-	return u.Update(func(s *CommentUpsert) {
-		s.SetUniqueFloat(v)
-	})
-}
-
-// AddUniqueFloat adds v to the "unique_float" field.
-func (u *CommentUpsertOne) AddUniqueFloat(v float64) *CommentUpsertOne {
-	return u.Update(func(s *CommentUpsert) {
-		s.AddUniqueFloat(v)
-	})
-}
-
-// UpdateUniqueFloat sets the "unique_float" field to the value that was provided on create.
-func (u *CommentUpsertOne) UpdateUniqueFloat() *CommentUpsertOne {
-	return u.Update(func(s *CommentUpsert) {
-		s.UpdateUniqueFloat()
-	})
-}
-
-// SetNillableInt sets the "nillable_int" field.
-func (u *CommentUpsertOne) SetNillableInt(v int) *CommentUpsertOne {
-	return u.Update(func(s *CommentUpsert) {
-		s.SetNillableInt(v)
-	})
-}
-
-// AddNillableInt adds v to the "nillable_int" field.
-func (u *CommentUpsertOne) AddNillableInt(v int) *CommentUpsertOne {
-	return u.Update(func(s *CommentUpsert) {
-		s.AddNillableInt(v)
-	})
-}
-
-// UpdateNillableInt sets the "nillable_int" field to the value that was provided on create.
-func (u *CommentUpsertOne) UpdateNillableInt() *CommentUpsertOne {
-	return u.Update(func(s *CommentUpsert) {
-		s.UpdateNillableInt()
-	})
-}
-
-// ClearNillableInt clears the value of the "nillable_int" field.
-func (u *CommentUpsertOne) ClearNillableInt() *CommentUpsertOne {
-	return u.Update(func(s *CommentUpsert) {
-		s.ClearNillableInt()
-	})
-}
-
-// SetTable sets the "table" field.
-func (u *CommentUpsertOne) SetTable(v string) *CommentUpsertOne {
-	return u.Update(func(s *CommentUpsert) {
-		s.SetTable(v)
-	})
-}
-
-// UpdateTable sets the "table" field to the value that was provided on create.
-func (u *CommentUpsertOne) UpdateTable() *CommentUpsertOne {
-	return u.Update(func(s *CommentUpsert) {
-		s.UpdateTable()
-	})
-}
-
-// ClearTable clears the value of the "table" field.
-func (u *CommentUpsertOne) ClearTable() *CommentUpsertOne {
-	return u.Update(func(s *CommentUpsert) {
-		s.ClearTable()
-	})
-}
-
-// SetDir sets the "dir" field.
-func (u *CommentUpsertOne) SetDir(v schemadir.Dir) *CommentUpsertOne {
-	return u.Update(func(s *CommentUpsert) {
-		s.SetDir(v)
-	})
-}
-
-// UpdateDir sets the "dir" field to the value that was provided on create.
-func (u *CommentUpsertOne) UpdateDir() *CommentUpsertOne {
-	return u.Update(func(s *CommentUpsert) {
-		s.UpdateDir()
-	})
-}
-
-// ClearDir clears the value of the "dir" field.
-func (u *CommentUpsertOne) ClearDir() *CommentUpsertOne {
-	return u.Update(func(s *CommentUpsert) {
-		s.ClearDir()
-	})
-}
-
-// SetClient sets the "client" field.
-func (u *CommentUpsertOne) SetClient(v string) *CommentUpsertOne {
-	return u.Update(func(s *CommentUpsert) {
-		s.SetClient(v)
-	})
-}
-
-// UpdateClient sets the "client" field to the value that was provided on create.
-func (u *CommentUpsertOne) UpdateClient() *CommentUpsertOne {
-	return u.Update(func(s *CommentUpsert) {
-		s.UpdateClient()
-	})
-}
-
-// ClearClient clears the value of the "client" field.
-func (u *CommentUpsertOne) ClearClient() *CommentUpsertOne {
-	return u.Update(func(s *CommentUpsert) {
-		s.ClearClient()
-	})
-}
-
-// Exec executes the query.
-func (u *CommentUpsertOne) Exec(ctx context.Context) error {
+func (u *CommentUpsertOne) Save(ctx context.Context) (*Comment, error) {
 	if len(u.create.conflict) == 0 {
-		return errors.New("ent: missing options for CommentCreate.OnConflict")
+		return nil, errors.New("ent: missing options for CommentCreate.OnConflict")
 	}
-	return u.create.Exec(ctx)
+	return u.create.Save(ctx)
 }
 
-// ExecX is like Exec, but panics if an error occurs.
+func (u *CommentUpsertOne) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
 func (u *CommentUpsertOne) ExecX(ctx context.Context) {
-	if err := u.create.Exec(ctx); err != nil {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// Exec executes the UPSERT query and returns the inserted/updated ID.
 func (u *CommentUpsertOne) ID(ctx context.Context) (id int, err error) {
-	node, err := u.create.Save(ctx)
+	node, err := u.Save(ctx)
 	if err != nil {
 		return id, err
 	}
 	return node.ID, nil
 }
 
-// IDX is like ID, but panics if an error occurs.
 func (u *CommentUpsertOne) IDX(ctx context.Context) int {
 	id, err := u.ID(ctx)
 	if err != nil {
@@ -556,328 +361,301 @@ func (u *CommentUpsertOne) IDX(ctx context.Context) int {
 	return id
 }
 
-// CommentCreateBulk is the builder for creating many Comment entities in bulk.
+type CommentUpsert struct{ *sql.UpdateSet }
+
+func (u *CommentUpsert) Set[T any](column ent.ColumnOf[entity.Comment, T], value T) *CommentUpsert {
+	switch column.Ref().Name {
+
+	case comment.FieldUniqueInt:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case comment.FieldUniqueFloat:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case comment.FieldNillableInt:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case comment.FieldTableName:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case comment.FieldDir:
+
+		encoded, err := json.Marshal(value)
+		if err != nil {
+			u.UpdateSet.AddError(err)
+			return u
+		}
+		u.UpdateSet.Set(column.Ref().Name, json.RawMessage(encoded))
+
+	case comment.FieldClient:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Comment is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *CommentUpsert) SetExpr[T any](column ent.ColumnOf[entity.Comment, T], value ent.Expr[T]) *CommentUpsert {
+	switch column.Ref().Name {
+
+	case comment.FieldUniqueInt:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case comment.FieldUniqueFloat:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case comment.FieldNillableInt:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case comment.FieldTableName:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case comment.FieldDir:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case comment.FieldClient:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Comment is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *CommentUpsert) UpdateNewValue[T any](column ent.ColumnOf[entity.Comment, T]) *CommentUpsert {
+	switch column.Ref().Name {
+
+	case comment.FieldUniqueInt:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case comment.FieldUniqueFloat:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case comment.FieldNillableInt:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case comment.FieldTableName:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case comment.FieldDir:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case comment.FieldClient:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Comment is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *CommentUpsert) Add[T ent.Number](column ent.ColumnOf[entity.Comment, T], delta T) *CommentUpsert {
+	switch column.Ref().Name {
+
+	case comment.FieldUniqueInt:
+		u.UpdateSet.Add(column.Ref().Name, delta)
+
+	case comment.FieldUniqueFloat:
+		u.UpdateSet.Add(column.Ref().Name, delta)
+
+	case comment.FieldNillableInt:
+		u.UpdateSet.Add(column.Ref().Name, delta)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Comment does not support addition", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *CommentUpsert) Clear[T any](column ent.ColumnOf[entity.Comment, T]) *CommentUpsert {
+	switch column.Ref().Name {
+
+	case comment.FieldNillableInt:
+		u.UpdateSet.SetNull(column.Ref().Name)
+
+	case comment.FieldTableName:
+		u.UpdateSet.SetNull(column.Ref().Name)
+
+	case comment.FieldDir:
+		u.UpdateSet.SetNull(column.Ref().Name)
+
+	case comment.FieldClient:
+		u.UpdateSet.SetNull(column.Ref().Name)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Comment is not nullable", column.Ref().Name)})
+	}
+	return u
+}
+
 type CommentCreateBulk struct {
 	config
 	err      error
 	builders []*CommentCreate
+
 	conflict []sql.ConflictOption
 }
 
-// Save creates the Comment entities in the database.
 func (_c *CommentCreateBulk) Save(ctx context.Context) ([]*Comment, error) {
 	if _c.err != nil {
 		return nil, _c.err
 	}
-	specs := make([]*sqlgraph.CreateSpec, len(_c.builders))
 	nodes := make([]*Comment, len(_c.builders))
-	mutators := make([]Mutator, len(_c.builders))
-	for i := range _c.builders {
-		func(i int, root context.Context) {
-			builder := _c.builders[i]
-			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*CommentMutation)
-				if !ok {
-					return nil, fmt.Errorf("unexpected mutation type %T", m)
-				}
-				if err := builder.check(); err != nil {
-					return nil, err
-				}
-				builder.mutation = mutation
-				var err error
-				nodes[i], specs[i] = builder.createSpec()
-				if i < len(mutators)-1 {
-					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
-				} else {
-					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
-					spec.OnConflict = _c.conflict
-					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
-						if sqlgraph.IsConstraintError(err) {
-							err = &ConstraintError{msg: err.Error(), wrap: err}
-						}
-					}
-				}
-				if err != nil {
-					return nil, err
-				}
-				mutation.id = &nodes[i].ID
-				if specs[i].ID.Value != nil {
-					id := specs[i].ID.Value.(int64)
-					nodes[i].ID = int(id)
-				}
-				mutation.done = true
-				return nodes[i], nil
-			})
-			for i := len(builder.hooks) - 1; i >= 0; i-- {
-				mut = builder.hooks[i](mut)
-			}
-			mutators[i] = mut
-		}(i, ctx)
-	}
-	if len(mutators) > 0 {
-		if _, err := mutators[0].Mutate(ctx, _c.builders[0].mutation); err != nil {
+	specs := make([]*sqlgraph.CreateSpec, len(nodes))
+	for index, builder := range _c.builders {
+		if builder.err != nil {
+			return nil, builder.err
+		}
+		if err := builder.defaults(); err != nil {
+			return nil, err
+		}
+		if err := builder.check(); err != nil {
+			return nil, err
+		}
+		var err error
+		nodes[index], specs[index], err = builder.createSpec()
+		if err != nil {
 			return nil, err
 		}
 	}
-	return nodes, nil
+	if len(specs) == 0 {
+		return nodes, nil
+	}
+	spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+
+	spec.OnConflict = _c.conflict
+
+	if err := sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
+		if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{msg: err.Error(), wrap: err}
+		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
+		return nil, err
+	}
+	result := nodes[:0]
+	for index, builder := range _c.builders {
+		if specs[index].Skipped {
+			continue
+		}
+		builder.mutation.id = &nodes[index].ID
+		result = append(result, nodes[index])
+	}
+	return result, nil
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_c *CommentCreateBulk) SaveX(ctx context.Context) []*Comment {
-	v, err := _c.Save(ctx)
+func (b *CommentCreateBulk) SaveX(ctx context.Context) []*Comment {
+	nodes, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return nodes
 }
 
-// Exec executes the query.
-func (_c *CommentCreateBulk) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *CommentCreateBulk) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *CommentCreateBulk) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *CommentCreateBulk) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// OnConflict allows configuring the `ON CONFLICT` clause of the `INSERT`
-// statement. For example:
-//
-//	client.Comment.CreateBulk(builders...).
-//		OnConflict(
-//			// Update the row with the new values
-//			// the was proposed for insertion.
-//			sql.ResolveWithNewValues(),
-//		).
-//		// Override some of the fields with custom
-//		// update values.
-//		Update(func(u *ent.CommentUpsert) {
-//			SetUniqueInt(v+v).
-//		}).
-//		Exec(ctx)
-func (_c *CommentCreateBulk) OnConflict(opts ...sql.ConflictOption) *CommentUpsertBulk {
-	_c.conflict = opts
-	return &CommentUpsertBulk{
-		create: _c,
+type CommentUpsertBulk struct{ create *CommentCreateBulk }
+
+func (b *CommentCreateBulk) OnConflict(columns ...ent.EntityColumn[entity.Comment]) *CommentUpsertBulk {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
 	}
-}
-
-// OnConflictColumns calls `OnConflict` and configures the columns
-// as conflict target. Using this option is equivalent to using:
-//
-//	client.Comment.Create().
-//		OnConflict(sql.ConflictColumns(columns...)).
-//		Exec(ctx)
-func (_c *CommentCreateBulk) OnConflictColumns(columns ...string) *CommentUpsertBulk {
-	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
-	return &CommentUpsertBulk{
-		create: _c,
+	if len(names) == 0 {
+		return b.OnConflictOptions()
 	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
 }
 
-// CommentUpsertBulk is the builder for "upsert"-ing
-// a bulk of Comment nodes.
-type CommentUpsertBulk struct {
-	create *CommentCreateBulk
+func (b *CommentCreateBulk) OnConflictConstraint(name string) *CommentUpsertBulk {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
 }
 
-// UpdateNewValues updates the mutable fields using the new values that
-// were set on create. Using this option is equivalent to using:
-//
-//	client.Comment.Create().
-//		OnConflict(
-//			sql.ResolveWithNewValues(),
-//		).
-//		Exec(ctx)
-func (u *CommentUpsertBulk) UpdateNewValues() *CommentUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
-	return u
+func (b *CommentCreateBulk) OnConflictOptions(options ...sql.ConflictOption) *CommentUpsertBulk {
+	b.conflict = options
+	return &CommentUpsertBulk{create: b}
 }
 
-// Ignore sets each column to itself in case of conflict.
-// Using this option is equivalent to using:
-//
-//	client.Comment.Create().
-//		OnConflict(sql.ResolveWithIgnore()).
-//		Exec(ctx)
-func (u *CommentUpsertBulk) Ignore() *CommentUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
-	return u
-}
-
-// DoNothing configures the conflict_action to `DO NOTHING`.
-// Supported only by SQLite and PostgreSQL.
 func (u *CommentUpsertBulk) DoNothing() *CommentUpsertBulk {
 	u.create.conflict = append(u.create.conflict, sql.DoNothing())
 	return u
 }
 
-// Update allows overriding fields `UPDATE` values. See the CommentCreateBulk.OnConflict
-// documentation for more info.
-func (u *CommentUpsertBulk) Update(set func(*CommentUpsert)) *CommentUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
-		set(&CommentUpsert{UpdateSet: update})
+func (u *CommentUpsertBulk) DoSelect() *CommentUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *CommentUpsertBulk) Ignore() *CommentUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *CommentUpsertBulk) DoUpdate(set func(*CommentUpsert)) *CommentUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&CommentUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *CommentUpsertBulk) UpdateNewValues() *CommentUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case comment.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
 	}))
 	return u
 }
 
-// SetUniqueInt sets the "unique_int" field.
-func (u *CommentUpsertBulk) SetUniqueInt(v int) *CommentUpsertBulk {
-	return u.Update(func(s *CommentUpsert) {
-		s.SetUniqueInt(v)
-	})
-}
-
-// AddUniqueInt adds v to the "unique_int" field.
-func (u *CommentUpsertBulk) AddUniqueInt(v int) *CommentUpsertBulk {
-	return u.Update(func(s *CommentUpsert) {
-		s.AddUniqueInt(v)
-	})
-}
-
-// UpdateUniqueInt sets the "unique_int" field to the value that was provided on create.
-func (u *CommentUpsertBulk) UpdateUniqueInt() *CommentUpsertBulk {
-	return u.Update(func(s *CommentUpsert) {
-		s.UpdateUniqueInt()
-	})
-}
-
-// SetUniqueFloat sets the "unique_float" field.
-func (u *CommentUpsertBulk) SetUniqueFloat(v float64) *CommentUpsertBulk {
-	return u.Update(func(s *CommentUpsert) {
-		s.SetUniqueFloat(v)
-	})
-}
-
-// AddUniqueFloat adds v to the "unique_float" field.
-func (u *CommentUpsertBulk) AddUniqueFloat(v float64) *CommentUpsertBulk {
-	return u.Update(func(s *CommentUpsert) {
-		s.AddUniqueFloat(v)
-	})
-}
-
-// UpdateUniqueFloat sets the "unique_float" field to the value that was provided on create.
-func (u *CommentUpsertBulk) UpdateUniqueFloat() *CommentUpsertBulk {
-	return u.Update(func(s *CommentUpsert) {
-		s.UpdateUniqueFloat()
-	})
-}
-
-// SetNillableInt sets the "nillable_int" field.
-func (u *CommentUpsertBulk) SetNillableInt(v int) *CommentUpsertBulk {
-	return u.Update(func(s *CommentUpsert) {
-		s.SetNillableInt(v)
-	})
-}
-
-// AddNillableInt adds v to the "nillable_int" field.
-func (u *CommentUpsertBulk) AddNillableInt(v int) *CommentUpsertBulk {
-	return u.Update(func(s *CommentUpsert) {
-		s.AddNillableInt(v)
-	})
-}
-
-// UpdateNillableInt sets the "nillable_int" field to the value that was provided on create.
-func (u *CommentUpsertBulk) UpdateNillableInt() *CommentUpsertBulk {
-	return u.Update(func(s *CommentUpsert) {
-		s.UpdateNillableInt()
-	})
-}
-
-// ClearNillableInt clears the value of the "nillable_int" field.
-func (u *CommentUpsertBulk) ClearNillableInt() *CommentUpsertBulk {
-	return u.Update(func(s *CommentUpsert) {
-		s.ClearNillableInt()
-	})
-}
-
-// SetTable sets the "table" field.
-func (u *CommentUpsertBulk) SetTable(v string) *CommentUpsertBulk {
-	return u.Update(func(s *CommentUpsert) {
-		s.SetTable(v)
-	})
-}
-
-// UpdateTable sets the "table" field to the value that was provided on create.
-func (u *CommentUpsertBulk) UpdateTable() *CommentUpsertBulk {
-	return u.Update(func(s *CommentUpsert) {
-		s.UpdateTable()
-	})
-}
-
-// ClearTable clears the value of the "table" field.
-func (u *CommentUpsertBulk) ClearTable() *CommentUpsertBulk {
-	return u.Update(func(s *CommentUpsert) {
-		s.ClearTable()
-	})
-}
-
-// SetDir sets the "dir" field.
-func (u *CommentUpsertBulk) SetDir(v schemadir.Dir) *CommentUpsertBulk {
-	return u.Update(func(s *CommentUpsert) {
-		s.SetDir(v)
-	})
-}
-
-// UpdateDir sets the "dir" field to the value that was provided on create.
-func (u *CommentUpsertBulk) UpdateDir() *CommentUpsertBulk {
-	return u.Update(func(s *CommentUpsert) {
-		s.UpdateDir()
-	})
-}
-
-// ClearDir clears the value of the "dir" field.
-func (u *CommentUpsertBulk) ClearDir() *CommentUpsertBulk {
-	return u.Update(func(s *CommentUpsert) {
-		s.ClearDir()
-	})
-}
-
-// SetClient sets the "client" field.
-func (u *CommentUpsertBulk) SetClient(v string) *CommentUpsertBulk {
-	return u.Update(func(s *CommentUpsert) {
-		s.SetClient(v)
-	})
-}
-
-// UpdateClient sets the "client" field to the value that was provided on create.
-func (u *CommentUpsertBulk) UpdateClient() *CommentUpsertBulk {
-	return u.Update(func(s *CommentUpsert) {
-		s.UpdateClient()
-	})
-}
-
-// ClearClient clears the value of the "client" field.
-func (u *CommentUpsertBulk) ClearClient() *CommentUpsertBulk {
-	return u.Update(func(s *CommentUpsert) {
-		s.ClearClient()
-	})
-}
-
-// Exec executes the query.
-func (u *CommentUpsertBulk) Exec(ctx context.Context) error {
-	if u.create.err != nil {
-		return u.create.err
-	}
-	for i, b := range u.create.builders {
-		if len(b.conflict) != 0 {
-			return fmt.Errorf("ent: OnConflict was set for builder %d. Set it on the CommentCreateBulk instead", i)
+func (u *CommentUpsertBulk) Where(predicates ...ent.Predicate[entity.Comment]) *CommentUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(comment.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
 		}
-	}
-	if len(u.create.conflict) == 0 {
-		return errors.New("ent: missing options for CommentCreateBulk.OnConflict")
-	}
-	return u.create.Exec(ctx)
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// ExecX is like Exec, but panics if an error occurs.
+func (u *CommentUpsertBulk) UpdateWhere(predicates ...ent.Predicate[entity.Comment]) *CommentUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(comment.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *CommentUpsertBulk) Save(ctx context.Context) ([]*Comment, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for CommentCreateBulk.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *CommentUpsertBulk) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
 func (u *CommentUpsertBulk) ExecX(ctx context.Context) {
-	if err := u.create.Exec(ctx); err != nil {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

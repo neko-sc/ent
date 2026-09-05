@@ -10,95 +10,143 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
+	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/examples/o2mrecur/ent/entity"
 	"github.com/neko-sc/ent/examples/o2mrecur/ent/node"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// NodeCreate is the builder for creating a Node entity.
 type NodeCreate struct {
 	config
-	mutation *NodeMutation
-	hooks    []Hook
+	mutation    *NodeMutation
+	err         error
+	fromBuilder bool
+	present     map[string]struct{}
+
+	conflict []sql.ConflictOption
 }
 
-// SetValue sets the "value" field.
-func (_c *NodeCreate) SetValue(v int) *NodeCreate {
-	_c.mutation.SetValue(v)
-	return _c
-}
-
-// SetParentID sets the "parent_id" field.
-func (_c *NodeCreate) SetParentID(v int) *NodeCreate {
-	_c.mutation.SetParentID(v)
-	return _c
-}
-
-// SetNillableParentID sets the "parent_id" field if the given value is not nil.
-func (_c *NodeCreate) SetNillableParentID(v *int) *NodeCreate {
-	if v != nil {
-		_c.SetParentID(*v)
+func (b *NodeCreate) Set[T any](column ent.ColumnOf[entity.Node, T], value T) *NodeCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.set(column.Ref().Name, value)
 	}
-	return _c
-}
-
-// SetParent sets the "parent" edge to the Node entity.
-func (_c *NodeCreate) SetParent(v *Node) *NodeCreate {
-	return _c.SetParentID(v.ID)
-}
-
-// AddChildIDs adds the "children" edge to the Node entity by IDs.
-func (_c *NodeCreate) AddChildIDs(ids ...int) *NodeCreate {
-	_c.mutation.AddChildIDs(ids...)
-	return _c
-}
-
-// AddChildren adds the "children" edges to the Node entity.
-func (_c *NodeCreate) AddChildren(v ...*Node) *NodeCreate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+	if b.present == nil {
+		b.present = make(map[string]struct{})
 	}
-	return _c.AddChildIDs(ids...)
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+}
+func (b *NodeCreate) SetOptional[T any](column ent.ColumnOf[entity.Node, T], value ent.Option[T]) *NodeCreate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.insert.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *NodeCreate) SetExpr[T any](column ent.ColumnOf[entity.Node, T], value ent.Expr[T]) *NodeCreate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case node.FieldValue:
+
+	case node.FieldParentID:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Node is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.insert.setExpr(column.Ref().Name, value.Render)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+
+}
+func (b *NodeCreate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Node, N, K], id K) *NodeCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.setEdge(edge.Ref().Name, id)
+	}
+
+	switch edge.Ref().Name {
+	case node.EdgeParent:
+		if b.present == nil {
+			b.present = make(map[string]struct{})
+		}
+		b.present[node.FieldParentID] = struct{}{}
+
+	}
+
+	return b
+}
+func (b *NodeCreate) AddIDs[N, K any](edge ent.Relation[entity.Node, N, K], ids ...K) *NodeCreate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.insert.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *NodeCreate) Mutation() *NodeMutation { return b.mutation }
+
+func (b *NodeCreate) Insert() *NodeInsert { return b.mutation.insert }
+
+func (b *NodeCreate) Save(ctx context.Context) (*Node, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Mutation returns the NodeMutation object of the builder.
-func (_c *NodeCreate) Mutation() *NodeMutation {
-	return _c.mutation
-}
-
-// Save creates the Node in the database.
-func (_c *NodeCreate) Save(ctx context.Context) (*Node, error) {
-	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
-}
-
-// SaveX calls Save and panics if Save returns an error.
-func (_c *NodeCreate) SaveX(ctx context.Context) *Node {
-	v, err := _c.Save(ctx)
+func (b *NodeCreate) SaveX(ctx context.Context) *Node {
+	node, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return node
 }
 
-// Exec executes the query.
-func (_c *NodeCreate) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *NodeCreate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *NodeCreate) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *NodeCreate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_c *NodeCreate) check() error {
-	if _, ok := _c.mutation.Value(); !ok {
-		return &ValidationError{Name: "value", err: errors.New(`ent: missing required field "Node.value"`)}
+func (b *NodeCreate) defaults() error {
+
+	return nil
+}
+
+func (b *NodeCreate) check() error {
+	if b.err != nil {
+		return b.err
 	}
+
+	switch b.driver.Dialect() {
+	case dialect.Postgres, dialect.SQLite:
+		if _, present := b.present[node.FieldValue]; b.fromBuilder && !present {
+			return &ValidationError{Name: "value", err: errors.New(`ent: missing required field "Node.value"`)}
+		}
+	}
+
 	return nil
 }
 
@@ -106,30 +154,37 @@ func (_c *NodeCreate) sqlSave(ctx context.Context) (*Node, error) {
 	if err := _c.check(); err != nil {
 		return nil, err
 	}
-	_node, _spec := _c.createSpec()
-	if err := sqlgraph.CreateNode(ctx, _c.driver, _spec); err != nil {
+	node, spec, err := _c.createSpec()
+	if err != nil {
+		return nil, err
+	}
+	if err := sqlgraph.CreateNode(ctx, _c.driver, spec); err != nil {
 		if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
 		return nil, err
 	}
-	id := _spec.ID.Value.(int64)
-	_node.ID = int(id)
-	_c.mutation.id = &_node.ID
-	_c.mutation.done = true
-	return _node, nil
+	_c.mutation.id = &node.ID
+	return node, nil
 }
 
-func (_c *NodeCreate) createSpec() (*Node, *sqlgraph.CreateSpec) {
-	var (
-		_node = &Node{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(node.Table, sqlgraph.NewFieldSpec(node.FieldID, field.TypeInt))
-	)
-	if value, ok := _c.mutation.Value(); ok {
+func (_c *NodeCreate) createSpec() (*Node, *sqlgraph.CreateSpec, error) {
+	_node := &Node{config: _c.config}
+	_spec := sqlgraph.NewCreateSpec(node.Table, sqlgraph.NewFieldSpec(node.FieldID, field.TypeInt))
+
+	_spec.OnConflict = _c.conflict
+
+	if _, present := _c.present[node.FieldValue]; !_c.fromBuilder || present {
+		value := _c.mutation.insert.Value
 		_spec.SetField(node.FieldValue, field.TypeInt, value)
-		_node.Value = value
 	}
-	if nodes := _c.mutation.ParentIDs(); len(nodes) > 0 {
+
+	_spec.Expressions = _c.mutation.insert.expressions
+
+	if nodes := _c.mutation.insert.parentIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -140,13 +195,18 @@ func (_c *NodeCreate) createSpec() (*Node, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(node.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
-		_node.ParentID = nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	if nodes := _c.mutation.ChildrenIDs(); len(nodes) > 0 {
+
+	if nodes := _c.mutation.insert.childrenIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -157,97 +217,388 @@ func (_c *NodeCreate) createSpec() (*Node, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(node.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	return _node, _spec
+
+	_spec.Returning = &sqlgraph.Returning{Columns: node.Columns, Scan: func(rows dialect.Rows) error {
+		values, err := _node.scanValues(node.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(node.Columns, values); err != nil {
+			return err
+		}
+
+		_spec.ID.Value = _node.ID
+
+		return nil
+	}}
+	return _node, _spec, nil
 }
 
-// NodeCreateBulk is the builder for creating many Node entities in bulk.
+type NodeUpsertOne struct{ create *NodeCreate }
+
+func (b *NodeCreate) OnConflict(columns ...ent.EntityColumn[entity.Node]) *NodeUpsertOne {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
+	}
+	if len(names) == 0 {
+		return b.OnConflictOptions()
+	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
+}
+
+func (b *NodeCreate) OnConflictConstraint(name string) *NodeUpsertOne {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
+}
+
+func (b *NodeCreate) OnConflictOptions(options ...sql.ConflictOption) *NodeUpsertOne {
+	b.conflict = options
+	return &NodeUpsertOne{create: b}
+}
+
+func (u *NodeUpsertOne) DoNothing() *NodeUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+func (u *NodeUpsertOne) DoSelect() *NodeUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *NodeUpsertOne) Ignore() *NodeUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *NodeUpsertOne) DoUpdate(set func(*NodeUpsert)) *NodeUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&NodeUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *NodeUpsertOne) UpdateNewValues() *NodeUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case node.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
+	}))
+	return u
+}
+
+func (u *NodeUpsertOne) Where(predicates ...ent.Predicate[entity.Node]) *NodeUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(node.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *NodeUpsertOne) UpdateWhere(predicates ...ent.Predicate[entity.Node]) *NodeUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(node.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *NodeUpsertOne) Save(ctx context.Context) (*Node, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for NodeCreate.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *NodeUpsertOne) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
+func (u *NodeUpsertOne) ExecX(ctx context.Context) {
+	if err := u.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+func (u *NodeUpsertOne) ID(ctx context.Context) (id int, err error) {
+	node, err := u.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+func (u *NodeUpsertOne) IDX(ctx context.Context) int {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
+type NodeUpsert struct{ *sql.UpdateSet }
+
+func (u *NodeUpsert) Set[T any](column ent.ColumnOf[entity.Node, T], value T) *NodeUpsert {
+	switch column.Ref().Name {
+
+	case node.FieldValue:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case node.FieldParentID:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Node is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *NodeUpsert) SetExpr[T any](column ent.ColumnOf[entity.Node, T], value ent.Expr[T]) *NodeUpsert {
+	switch column.Ref().Name {
+
+	case node.FieldValue:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case node.FieldParentID:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Node is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *NodeUpsert) UpdateNewValue[T any](column ent.ColumnOf[entity.Node, T]) *NodeUpsert {
+	switch column.Ref().Name {
+
+	case node.FieldValue:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case node.FieldParentID:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Node is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *NodeUpsert) Add[T ent.Number](column ent.ColumnOf[entity.Node, T], delta T) *NodeUpsert {
+	switch column.Ref().Name {
+
+	case node.FieldValue:
+		u.UpdateSet.Add(column.Ref().Name, delta)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Node does not support addition", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *NodeUpsert) Clear[T any](column ent.ColumnOf[entity.Node, T]) *NodeUpsert {
+	switch column.Ref().Name {
+
+	case node.FieldParentID:
+		u.UpdateSet.SetNull(column.Ref().Name)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Node is not nullable", column.Ref().Name)})
+	}
+	return u
+}
+
 type NodeCreateBulk struct {
 	config
 	err      error
 	builders []*NodeCreate
+
+	conflict []sql.ConflictOption
 }
 
-// Save creates the Node entities in the database.
 func (_c *NodeCreateBulk) Save(ctx context.Context) ([]*Node, error) {
 	if _c.err != nil {
 		return nil, _c.err
 	}
-	specs := make([]*sqlgraph.CreateSpec, len(_c.builders))
 	nodes := make([]*Node, len(_c.builders))
-	mutators := make([]Mutator, len(_c.builders))
-	for i := range _c.builders {
-		func(i int, root context.Context) {
-			builder := _c.builders[i]
-			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*NodeMutation)
-				if !ok {
-					return nil, fmt.Errorf("unexpected mutation type %T", m)
-				}
-				if err := builder.check(); err != nil {
-					return nil, err
-				}
-				builder.mutation = mutation
-				var err error
-				nodes[i], specs[i] = builder.createSpec()
-				if i < len(mutators)-1 {
-					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
-				} else {
-					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
-					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
-						if sqlgraph.IsConstraintError(err) {
-							err = &ConstraintError{msg: err.Error(), wrap: err}
-						}
-					}
-				}
-				if err != nil {
-					return nil, err
-				}
-				mutation.id = &nodes[i].ID
-				if specs[i].ID.Value != nil {
-					id := specs[i].ID.Value.(int64)
-					nodes[i].ID = int(id)
-				}
-				mutation.done = true
-				return nodes[i], nil
-			})
-			for i := len(builder.hooks) - 1; i >= 0; i-- {
-				mut = builder.hooks[i](mut)
-			}
-			mutators[i] = mut
-		}(i, ctx)
-	}
-	if len(mutators) > 0 {
-		if _, err := mutators[0].Mutate(ctx, _c.builders[0].mutation); err != nil {
+	specs := make([]*sqlgraph.CreateSpec, len(nodes))
+	for index, builder := range _c.builders {
+		if builder.err != nil {
+			return nil, builder.err
+		}
+		if err := builder.defaults(); err != nil {
+			return nil, err
+		}
+		if err := builder.check(); err != nil {
+			return nil, err
+		}
+		var err error
+		nodes[index], specs[index], err = builder.createSpec()
+		if err != nil {
 			return nil, err
 		}
 	}
-	return nodes, nil
+	if len(specs) == 0 {
+		return nodes, nil
+	}
+	spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+
+	spec.OnConflict = _c.conflict
+
+	if err := sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
+		if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{msg: err.Error(), wrap: err}
+		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
+		return nil, err
+	}
+	result := nodes[:0]
+	for index, builder := range _c.builders {
+		if specs[index].Skipped {
+			continue
+		}
+		builder.mutation.id = &nodes[index].ID
+		result = append(result, nodes[index])
+	}
+	return result, nil
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_c *NodeCreateBulk) SaveX(ctx context.Context) []*Node {
-	v, err := _c.Save(ctx)
+func (b *NodeCreateBulk) SaveX(ctx context.Context) []*Node {
+	nodes, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return nodes
 }
 
-// Exec executes the query.
-func (_c *NodeCreateBulk) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
+func (b *NodeCreateBulk) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
+
+func (b *NodeCreateBulk) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+type NodeUpsertBulk struct{ create *NodeCreateBulk }
+
+func (b *NodeCreateBulk) OnConflict(columns ...ent.EntityColumn[entity.Node]) *NodeUpsertBulk {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
+	}
+	if len(names) == 0 {
+		return b.OnConflictOptions()
+	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
+}
+
+func (b *NodeCreateBulk) OnConflictConstraint(name string) *NodeUpsertBulk {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
+}
+
+func (b *NodeCreateBulk) OnConflictOptions(options ...sql.ConflictOption) *NodeUpsertBulk {
+	b.conflict = options
+	return &NodeUpsertBulk{create: b}
+}
+
+func (u *NodeUpsertBulk) DoNothing() *NodeUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+func (u *NodeUpsertBulk) DoSelect() *NodeUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *NodeUpsertBulk) Ignore() *NodeUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *NodeUpsertBulk) DoUpdate(set func(*NodeUpsert)) *NodeUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&NodeUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *NodeUpsertBulk) UpdateNewValues() *NodeUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case node.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
+	}))
+	return u
+}
+
+func (u *NodeUpsertBulk) Where(predicates ...ent.Predicate[entity.Node]) *NodeUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(node.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *NodeUpsertBulk) UpdateWhere(predicates ...ent.Predicate[entity.Node]) *NodeUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(node.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *NodeUpsertBulk) Save(ctx context.Context) ([]*Node, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for NodeCreateBulk.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *NodeUpsertBulk) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
 	return err
 }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *NodeCreateBulk) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (u *NodeUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

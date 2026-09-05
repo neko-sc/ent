@@ -6,8 +6,9 @@
 package post
 
 import (
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/edgefield/ent/entity"
 )
 
 const (
@@ -32,6 +33,44 @@ const (
 	AuthorColumn = "author_id"
 )
 
+var (
+	ID       = ent.OrderedColumn[entity.Post, int]{Table: Table, Name: FieldID}
+	Text     = ent.StringColumn[entity.Post, string]{Table: Table, Name: FieldText}
+	AuthorID = ent.OrderedColumn[entity.Post, int]{Table: Table, Name: FieldAuthorID}
+	Author   = ent.NewUniqueRelation[entity.Post, entity.User, int](EdgeAuthor, newAuthorStep)
+)
+
+// Alias returns the columns of the posts table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.Post, int]{Table: name, Name: FieldID},
+		Text:       ent.StringColumn[entity.Post, string]{Table: name, Name: FieldText},
+		AuthorID:   ent.OrderedColumn[entity.Post, int]{Table: name, Name: FieldAuthorID},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.Post, int]
+	Text       ent.StringColumn[entity.Post, string]
+	AuthorID   ent.OrderedColumn[entity.Post, int]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.Post]) ent.Predicate[entity.Post] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.Post]) ent.Predicate[entity.Post] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.Post]) ent.Predicate[entity.Post] { return ent.Not(predicate) }
+
 // Columns holds all SQL columns for post fields.
 var Columns = []string{
 	FieldID,
@@ -49,30 +88,6 @@ func ValidColumn(column string) bool {
 	return false
 }
 
-// OrderOption defines the ordering options for the Post queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByText orders the results by the text field.
-func ByText(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldText, opts...).ToFunc()
-}
-
-// ByAuthorID orders the results by the author_id field.
-func ByAuthorID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldAuthorID, opts...).ToFunc()
-}
-
-// ByAuthorField orders the results by author field.
-func ByAuthorField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newAuthorStep(), sql.OrderByField(field, opts...))
-	}
-}
 func newAuthorStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),

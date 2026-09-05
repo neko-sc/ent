@@ -625,13 +625,13 @@ func Do(ctx context.Context, client *ent.Client) error {
 	// Output: Tree leafs [1 3 5]
 
 	// Get all leafs (nodes without children).
-	// Unlike `Int`, `IntX` panics if an error occurs.
-	ints := client.Node.
-		Query().                             // All nodes.
-		Where(node.Not(node.HasChildren())). // Only leafs.
-		Order(ent.Asc(node.FieldValue)).     // Order by their `value` field.
-		GroupBy(node.FieldValue).            // Extract only the `value` field.
-		IntsX(ctx)
+	ints, err := ent.Values(ctx, client.Node.Query().
+		Where(node.Not(node.Children.Has())).
+		Order(node.Value.Asc()).
+		GroupBy(node.Value), node.Value)
+	if err != nil {
+		return err
+	}
 	fmt.Println(ints)
 	// Output: [1 3 5]
 
@@ -810,19 +810,22 @@ func Do(ctx context.Context, client *ent.Client) error {
 
 	// Traverse the graph:
 
-	ages := nati.
-		QueryFollowers().       // [a8m]
-		QueryFollowing().       // [nati]
-		GroupBy(user.FieldAge). // [28]
-		IntsX(ctx)
+	ages, err := ent.Values(ctx, nati.
+		QueryFollowers(). // [a8m]
+		QueryFollowing(). // [nati]
+		GroupBy(user.Age), user.Age)
+	if err != nil {
+		return err
+	}
 	fmt.Println(ages)
 	// Output: [28]
 
-	names := client.User.
-		Query().
-		Where(user.Not(user.HasFollowers())).
-		GroupBy(user.FieldName).
-		StringsX(ctx)
+	names, err := ent.Values(ctx, client.User.Query().
+		Where(user.Not(user.Followers.Has())).
+		GroupBy(user.Name), user.Name)
+	if err != nil {
+		return err
+	}
 	fmt.Println(names)
 	// Output: [a8m]
 	return nil

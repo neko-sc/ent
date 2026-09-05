@@ -10,79 +10,155 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
+	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/entc/integration/cascadelete/ent/comment"
+	"github.com/neko-sc/ent/entc/integration/cascadelete/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/cascadelete/ent/post"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// CommentCreate is the builder for creating a Comment entity.
 type CommentCreate struct {
 	config
-	mutation *CommentMutation
-	hooks    []Hook
+	mutation    *CommentMutation
+	err         error
+	fromBuilder bool
+	present     map[string]struct{}
+
+	conflict []sql.ConflictOption
 }
 
-// SetText sets the "text" field.
-func (_c *CommentCreate) SetText(v string) *CommentCreate {
-	_c.mutation.SetText(v)
-	return _c
+func (b *CommentCreate) Set[T any](column ent.ColumnOf[entity.Comment, T], value T) *CommentCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.set(column.Ref().Name, value)
+	}
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+}
+func (b *CommentCreate) SetOptional[T any](column ent.ColumnOf[entity.Comment, T], value ent.Option[T]) *CommentCreate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.insert.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *CommentCreate) SetExpr[T any](column ent.ColumnOf[entity.Comment, T], value ent.Expr[T]) *CommentCreate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case comment.FieldText:
+
+	case comment.FieldPostID:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Comment is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.insert.setExpr(column.Ref().Name, value.Render)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+
+}
+func (b *CommentCreate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Comment, N, K], id K) *CommentCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.setEdge(edge.Ref().Name, id)
+	}
+
+	switch edge.Ref().Name {
+	case comment.EdgePost:
+		if b.present == nil {
+			b.present = make(map[string]struct{})
+		}
+		b.present[comment.FieldPostID] = struct{}{}
+
+	}
+
+	return b
+}
+func (b *CommentCreate) AddIDs[N, K any](edge ent.Relation[entity.Comment, N, K], ids ...K) *CommentCreate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.insert.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *CommentCreate) Mutation() *CommentMutation { return b.mutation }
+
+func (b *CommentCreate) Insert() *CommentInsert { return b.mutation.insert }
+
+func (b *CommentCreate) Save(ctx context.Context) (*Comment, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// SetPostID sets the "post_id" field.
-func (_c *CommentCreate) SetPostID(v int) *CommentCreate {
-	_c.mutation.SetPostID(v)
-	return _c
-}
-
-// SetPost sets the "post" edge to the Post entity.
-func (_c *CommentCreate) SetPost(v *Post) *CommentCreate {
-	return _c.SetPostID(v.ID)
-}
-
-// Mutation returns the CommentMutation object of the builder.
-func (_c *CommentCreate) Mutation() *CommentMutation {
-	return _c.mutation
-}
-
-// Save creates the Comment in the database.
-func (_c *CommentCreate) Save(ctx context.Context) (*Comment, error) {
-	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
-}
-
-// SaveX calls Save and panics if Save returns an error.
-func (_c *CommentCreate) SaveX(ctx context.Context) *Comment {
-	v, err := _c.Save(ctx)
+func (b *CommentCreate) SaveX(ctx context.Context) *Comment {
+	node, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return node
 }
 
-// Exec executes the query.
-func (_c *CommentCreate) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *CommentCreate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *CommentCreate) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *CommentCreate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_c *CommentCreate) check() error {
-	if _, ok := _c.mutation.Text(); !ok {
-		return &ValidationError{Name: "text", err: errors.New(`ent: missing required field "Comment.text"`)}
+func (b *CommentCreate) defaults() error {
+
+	return nil
+}
+
+func (b *CommentCreate) check() error {
+	if b.err != nil {
+		return b.err
 	}
-	if _, ok := _c.mutation.PostID(); !ok {
-		return &ValidationError{Name: "post_id", err: errors.New(`ent: missing required field "Comment.post_id"`)}
+
+	switch b.driver.Dialect() {
+	case dialect.Postgres, dialect.SQLite:
+		if _, present := b.present[comment.FieldText]; b.fromBuilder && !present {
+			return &ValidationError{Name: "text", err: errors.New(`ent: missing required field "Comment.text"`)}
+		}
 	}
-	if len(_c.mutation.PostIDs()) == 0 {
+
+	switch b.driver.Dialect() {
+	case dialect.Postgres, dialect.SQLite:
+		if _, present := b.present[comment.FieldPostID]; b.fromBuilder && !present {
+			return &ValidationError{Name: "post_id", err: errors.New(`ent: missing required field "Comment.post_id"`)}
+		}
+	}
+
+	if len(b.mutation.insert.postIDs()) == 0 {
 		return &ValidationError{Name: "post", err: errors.New(`ent: missing required edge "Comment.post"`)}
 	}
+
 	return nil
 }
 
@@ -90,30 +166,37 @@ func (_c *CommentCreate) sqlSave(ctx context.Context) (*Comment, error) {
 	if err := _c.check(); err != nil {
 		return nil, err
 	}
-	_node, _spec := _c.createSpec()
-	if err := sqlgraph.CreateNode(ctx, _c.driver, _spec); err != nil {
+	node, spec, err := _c.createSpec()
+	if err != nil {
+		return nil, err
+	}
+	if err := sqlgraph.CreateNode(ctx, _c.driver, spec); err != nil {
 		if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
 		return nil, err
 	}
-	id := _spec.ID.Value.(int64)
-	_node.ID = int(id)
-	_c.mutation.id = &_node.ID
-	_c.mutation.done = true
-	return _node, nil
+	_c.mutation.id = &node.ID
+	return node, nil
 }
 
-func (_c *CommentCreate) createSpec() (*Comment, *sqlgraph.CreateSpec) {
-	var (
-		_node = &Comment{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(comment.Table, sqlgraph.NewFieldSpec(comment.FieldID, field.TypeInt))
-	)
-	if value, ok := _c.mutation.Text(); ok {
+func (_c *CommentCreate) createSpec() (*Comment, *sqlgraph.CreateSpec, error) {
+	_node := &Comment{config: _c.config}
+	_spec := sqlgraph.NewCreateSpec(comment.Table, sqlgraph.NewFieldSpec(comment.FieldID, field.TypeInt))
+
+	_spec.OnConflict = _c.conflict
+
+	if _, present := _c.present[comment.FieldText]; !_c.fromBuilder || present {
+		value := _c.mutation.insert.Text
 		_spec.SetField(comment.FieldText, field.TypeString, value)
-		_node.Text = value
 	}
-	if nodes := _c.mutation.PostIDs(); len(nodes) > 0 {
+
+	_spec.Expressions = _c.mutation.insert.expressions
+
+	if nodes := _c.mutation.insert.postIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -124,98 +207,382 @@ func (_c *CommentCreate) createSpec() (*Comment, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(post.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
-		_node.PostID = nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	return _node, _spec
+
+	_spec.Returning = &sqlgraph.Returning{Columns: comment.Columns, Scan: func(rows dialect.Rows) error {
+		values, err := _node.scanValues(comment.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(comment.Columns, values); err != nil {
+			return err
+		}
+
+		_spec.ID.Value = _node.ID
+
+		return nil
+	}}
+	return _node, _spec, nil
 }
 
-// CommentCreateBulk is the builder for creating many Comment entities in bulk.
+type CommentUpsertOne struct{ create *CommentCreate }
+
+func (b *CommentCreate) OnConflict(columns ...ent.EntityColumn[entity.Comment]) *CommentUpsertOne {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
+	}
+	if len(names) == 0 {
+		return b.OnConflictOptions()
+	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
+}
+
+func (b *CommentCreate) OnConflictConstraint(name string) *CommentUpsertOne {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
+}
+
+func (b *CommentCreate) OnConflictOptions(options ...sql.ConflictOption) *CommentUpsertOne {
+	b.conflict = options
+	return &CommentUpsertOne{create: b}
+}
+
+func (u *CommentUpsertOne) DoNothing() *CommentUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+func (u *CommentUpsertOne) DoSelect() *CommentUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *CommentUpsertOne) Ignore() *CommentUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *CommentUpsertOne) DoUpdate(set func(*CommentUpsert)) *CommentUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&CommentUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *CommentUpsertOne) UpdateNewValues() *CommentUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case comment.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
+	}))
+	return u
+}
+
+func (u *CommentUpsertOne) Where(predicates ...ent.Predicate[entity.Comment]) *CommentUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(comment.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *CommentUpsertOne) UpdateWhere(predicates ...ent.Predicate[entity.Comment]) *CommentUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(comment.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *CommentUpsertOne) Save(ctx context.Context) (*Comment, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for CommentCreate.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *CommentUpsertOne) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
+func (u *CommentUpsertOne) ExecX(ctx context.Context) {
+	if err := u.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+func (u *CommentUpsertOne) ID(ctx context.Context) (id int, err error) {
+	node, err := u.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+func (u *CommentUpsertOne) IDX(ctx context.Context) int {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
+type CommentUpsert struct{ *sql.UpdateSet }
+
+func (u *CommentUpsert) Set[T any](column ent.ColumnOf[entity.Comment, T], value T) *CommentUpsert {
+	switch column.Ref().Name {
+
+	case comment.FieldText:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case comment.FieldPostID:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Comment is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *CommentUpsert) SetExpr[T any](column ent.ColumnOf[entity.Comment, T], value ent.Expr[T]) *CommentUpsert {
+	switch column.Ref().Name {
+
+	case comment.FieldText:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case comment.FieldPostID:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Comment is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *CommentUpsert) UpdateNewValue[T any](column ent.ColumnOf[entity.Comment, T]) *CommentUpsert {
+	switch column.Ref().Name {
+
+	case comment.FieldText:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case comment.FieldPostID:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Comment is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *CommentUpsert) Add[T ent.Number](column ent.ColumnOf[entity.Comment, T], delta T) *CommentUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Comment does not support addition", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *CommentUpsert) Clear[T any](column ent.ColumnOf[entity.Comment, T]) *CommentUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Comment is not nullable", column.Ref().Name)})
+	}
+	return u
+}
+
 type CommentCreateBulk struct {
 	config
 	err      error
 	builders []*CommentCreate
+
+	conflict []sql.ConflictOption
 }
 
-// Save creates the Comment entities in the database.
 func (_c *CommentCreateBulk) Save(ctx context.Context) ([]*Comment, error) {
 	if _c.err != nil {
 		return nil, _c.err
 	}
-	specs := make([]*sqlgraph.CreateSpec, len(_c.builders))
 	nodes := make([]*Comment, len(_c.builders))
-	mutators := make([]Mutator, len(_c.builders))
-	for i := range _c.builders {
-		func(i int, root context.Context) {
-			builder := _c.builders[i]
-			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*CommentMutation)
-				if !ok {
-					return nil, fmt.Errorf("unexpected mutation type %T", m)
-				}
-				if err := builder.check(); err != nil {
-					return nil, err
-				}
-				builder.mutation = mutation
-				var err error
-				nodes[i], specs[i] = builder.createSpec()
-				if i < len(mutators)-1 {
-					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
-				} else {
-					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
-					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
-						if sqlgraph.IsConstraintError(err) {
-							err = &ConstraintError{msg: err.Error(), wrap: err}
-						}
-					}
-				}
-				if err != nil {
-					return nil, err
-				}
-				mutation.id = &nodes[i].ID
-				if specs[i].ID.Value != nil {
-					id := specs[i].ID.Value.(int64)
-					nodes[i].ID = int(id)
-				}
-				mutation.done = true
-				return nodes[i], nil
-			})
-			for i := len(builder.hooks) - 1; i >= 0; i-- {
-				mut = builder.hooks[i](mut)
-			}
-			mutators[i] = mut
-		}(i, ctx)
-	}
-	if len(mutators) > 0 {
-		if _, err := mutators[0].Mutate(ctx, _c.builders[0].mutation); err != nil {
+	specs := make([]*sqlgraph.CreateSpec, len(nodes))
+	for index, builder := range _c.builders {
+		if builder.err != nil {
+			return nil, builder.err
+		}
+		if err := builder.defaults(); err != nil {
+			return nil, err
+		}
+		if err := builder.check(); err != nil {
+			return nil, err
+		}
+		var err error
+		nodes[index], specs[index], err = builder.createSpec()
+		if err != nil {
 			return nil, err
 		}
 	}
-	return nodes, nil
+	if len(specs) == 0 {
+		return nodes, nil
+	}
+	spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+
+	spec.OnConflict = _c.conflict
+
+	if err := sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
+		if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{msg: err.Error(), wrap: err}
+		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
+		return nil, err
+	}
+	result := nodes[:0]
+	for index, builder := range _c.builders {
+		if specs[index].Skipped {
+			continue
+		}
+		builder.mutation.id = &nodes[index].ID
+		result = append(result, nodes[index])
+	}
+	return result, nil
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_c *CommentCreateBulk) SaveX(ctx context.Context) []*Comment {
-	v, err := _c.Save(ctx)
+func (b *CommentCreateBulk) SaveX(ctx context.Context) []*Comment {
+	nodes, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return nodes
 }
 
-// Exec executes the query.
-func (_c *CommentCreateBulk) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
+func (b *CommentCreateBulk) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
+
+func (b *CommentCreateBulk) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+type CommentUpsertBulk struct{ create *CommentCreateBulk }
+
+func (b *CommentCreateBulk) OnConflict(columns ...ent.EntityColumn[entity.Comment]) *CommentUpsertBulk {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
+	}
+	if len(names) == 0 {
+		return b.OnConflictOptions()
+	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
+}
+
+func (b *CommentCreateBulk) OnConflictConstraint(name string) *CommentUpsertBulk {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
+}
+
+func (b *CommentCreateBulk) OnConflictOptions(options ...sql.ConflictOption) *CommentUpsertBulk {
+	b.conflict = options
+	return &CommentUpsertBulk{create: b}
+}
+
+func (u *CommentUpsertBulk) DoNothing() *CommentUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+func (u *CommentUpsertBulk) DoSelect() *CommentUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *CommentUpsertBulk) Ignore() *CommentUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *CommentUpsertBulk) DoUpdate(set func(*CommentUpsert)) *CommentUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&CommentUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *CommentUpsertBulk) UpdateNewValues() *CommentUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case comment.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
+	}))
+	return u
+}
+
+func (u *CommentUpsertBulk) Where(predicates ...ent.Predicate[entity.Comment]) *CommentUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(comment.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *CommentUpsertBulk) UpdateWhere(predicates ...ent.Predicate[entity.Comment]) *CommentUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(comment.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *CommentUpsertBulk) Save(ctx context.Context) ([]*Comment, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for CommentCreateBulk.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *CommentUpsertBulk) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
 	return err
 }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *CommentCreateBulk) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (u *CommentUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

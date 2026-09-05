@@ -9,79 +9,194 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/ent/license"
-	"github.com/neko-sc/ent/entc/integration/ent/predicate"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// LicenseUpdate is the builder for updating License entities.
 type LicenseUpdate struct {
 	config
-	hooks     []Hook
 	mutation  *LicenseMutation
+	err       error
+	returning *sqlgraph.Returning
+
 	modifiers []func(*sql.UpdateBuilder)
 }
 
-// Where appends a list predicates to the LicenseUpdate builder.
-func (_u *LicenseUpdate) Where(ps ...predicate.License) *LicenseUpdate {
-	_u.mutation.Where(ps...)
-	return _u
+func (b *LicenseUpdate) Set[T any](column ent.ColumnOf[entity.License, T], value T) *LicenseUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
+	}
+
+	return b
+}
+func (b *LicenseUpdate) SetOptional[T any](column ent.ColumnOf[entity.License, T], value ent.Option[T]) *LicenseUpdate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *LicenseUpdate) SetExpr[T any](column ent.ColumnOf[entity.License, T], value ent.Expr[T]) *LicenseUpdate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case license.FieldUpdateTime:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of License is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *LicenseUpdate) SetEdge[N, K any](edge ent.UniqueRelation[entity.License, N, K], id K) *LicenseUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *LicenseUpdate) AddIDs[N, K any](edge ent.Relation[entity.License, N, K], ids ...K) *LicenseUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *LicenseUpdate) Mutation() *LicenseMutation { return b.mutation }
+
+func (b *LicenseUpdate) Patch() *LicensePatch                { return b.mutation.patch }
+func (b *LicenseUpdate) Apply(p LicensePatch) *LicenseUpdate { b.mutation.patch.apply(p); return b }
+func (b *LicenseUpdate) Add[T ent.Number](column ent.ColumnOf[entity.License, T], delta T) *LicenseUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *LicenseUpdate) Append[T any](column ent.ColumnOf[entity.License, T], values T) *LicenseUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *LicenseUpdate) Clear[T any](column ent.ColumnOf[entity.License, T]) *LicenseUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *LicenseUpdate) RemoveIDs[N, K any](edge ent.Relation[entity.License, N, K], ids ...K) *LicenseUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *LicenseUpdate) ClearEdge[N, K any](edge ent.RelationOf[entity.License, N, K]) *LicenseUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// SetUpdateTime sets the "update_time" field.
-func (_u *LicenseUpdate) SetUpdateTime(v time.Time) *LicenseUpdate {
-	_u.mutation.SetUpdateTime(v)
-	return _u
+func (b *LicenseUpdate) Where(predicates ...ent.Predicate[entity.License]) *LicenseUpdate {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Mutation returns the LicenseMutation object of the builder.
-func (_u *LicenseUpdate) Mutation() *LicenseMutation {
-	return _u.mutation
-}
-
-// Save executes the query and returns the number of nodes affected by the update operation.
-func (_u *LicenseUpdate) Save(ctx context.Context) (int, error) {
-	if err := _u.defaults(); err != nil {
+func (b *LicenseUpdate) Save(ctx context.Context) (int, error) {
+	if b.err != nil {
+		return 0, b.err
+	}
+	if err := b.defaults(); err != nil {
 		return 0, err
 	}
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
+	return b.sqlSave(ctx)
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_u *LicenseUpdate) SaveX(ctx context.Context) int {
-	affected, err := _u.Save(ctx)
+func (b *LicenseUpdate) SaveX(ctx context.Context) int {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return affected
+	return result
 }
 
-// Exec executes the query.
-func (_u *LicenseUpdate) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *LicenseUpdate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *LicenseUpdate) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *LicenseUpdate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// defaults sets the default values of the builder before save.
-func (_u *LicenseUpdate) defaults() error {
-	if _, ok := _u.mutation.UpdateTime(); !ok {
-		if license.UpdateDefaultUpdateTime == nil {
-			return fmt.Errorf("ent: uninitialized license.UpdateDefaultUpdateTime (forgotten import ent/runtime?)")
+func (b *LicenseUpdate) Returning(ctx context.Context) ([]*License, error) {
+	nodes := make([]*License, 0)
+	b.returning = &sqlgraph.Returning{Columns: license.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &License{config: b.config}
+		values, err := _node.scanValues(license.Columns)
+		if err != nil {
+			return err
 		}
-		v := license.UpdateDefaultUpdateTime()
-		_u.mutation.SetUpdateTime(v)
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(license.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Save(ctx); err != nil {
+		return nil, err
 	}
+	return nodes, nil
+}
+
+func (b *LicenseUpdate) defaults() error {
+
+	if b.mutation.patch.UpdateTime.IsUnset() && b.mutation.patch.expressions[license.FieldUpdateTime] == nil {
+		if license.UpdateDefaultUpdateTime == nil {
+			return fmt.Errorf("ent: uninitialized license.UpdateDefaultUpdateTime")
+		}
+		b.mutation.patch.UpdateTime = ent.Some(license.UpdateDefaultUpdateTime())
+	}
+
+	return nil
+}
+
+func (b *LicenseUpdate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.UpdateTime.IsNull() {
+		return &ValidationError{Name: "update_time", err: errors.New(`ent: field "License.update_time" is not nullable`)}
+	}
+
 	return nil
 }
 
@@ -92,6 +207,9 @@ func (_u *LicenseUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *Licens
 }
 
 func (_u *LicenseUpdate) sqlSave(ctx context.Context) (_node int, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(license.Table, license.Columns, sqlgraph.NewFieldSpec(license.FieldID, field.TypeInt))
 	if ps := _u.mutation.Predicates(); len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -100,10 +218,15 @@ func (_u *LicenseUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.UpdateTime(); ok {
+	if value, ok := _u.mutation.patch.UpdateTime.Get(); ok {
 		_spec.SetField(license.FieldUpdateTime, field.TypeTime, value)
 	}
+	_spec.Returning = _u.returning
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
 	_spec.AddModifiers(_u.modifiers...)
+
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{license.Label}
@@ -112,82 +235,192 @@ func (_u *LicenseUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		return 0, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }
 
-// LicenseUpdateOne is the builder for updating a single License entity.
 type LicenseUpdateOne struct {
 	config
-	fields    []string
-	hooks     []Hook
-	mutation  *LicenseMutation
+	mutation *LicenseMutation
+	err      error
+
+	fields []string
+	old    *License
+
 	modifiers []func(*sql.UpdateBuilder)
 }
 
-// SetUpdateTime sets the "update_time" field.
-func (_u *LicenseUpdateOne) SetUpdateTime(v time.Time) *LicenseUpdateOne {
-	_u.mutation.SetUpdateTime(v)
-	return _u
+func (b *LicenseUpdateOne) Set[T any](column ent.ColumnOf[entity.License, T], value T) *LicenseUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
+	}
+
+	return b
+}
+func (b *LicenseUpdateOne) SetOptional[T any](column ent.ColumnOf[entity.License, T], value ent.Option[T]) *LicenseUpdateOne {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *LicenseUpdateOne) SetExpr[T any](column ent.ColumnOf[entity.License, T], value ent.Expr[T]) *LicenseUpdateOne {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case license.FieldUpdateTime:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of License is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *LicenseUpdateOne) SetEdge[N, K any](edge ent.UniqueRelation[entity.License, N, K], id K) *LicenseUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *LicenseUpdateOne) AddIDs[N, K any](edge ent.Relation[entity.License, N, K], ids ...K) *LicenseUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *LicenseUpdateOne) Mutation() *LicenseMutation { return b.mutation }
+
+func (b *LicenseUpdateOne) Patch() *LicensePatch { return b.mutation.patch }
+func (b *LicenseUpdateOne) Apply(p LicensePatch) *LicenseUpdateOne {
+	b.mutation.patch.apply(p)
+	return b
+}
+func (b *LicenseUpdateOne) Add[T ent.Number](column ent.ColumnOf[entity.License, T], delta T) *LicenseUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *LicenseUpdateOne) Append[T any](column ent.ColumnOf[entity.License, T], values T) *LicenseUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *LicenseUpdateOne) Clear[T any](column ent.ColumnOf[entity.License, T]) *LicenseUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *LicenseUpdateOne) RemoveIDs[N, K any](edge ent.Relation[entity.License, N, K], ids ...K) *LicenseUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *LicenseUpdateOne) ClearEdge[N, K any](edge ent.RelationOf[entity.License, N, K]) *LicenseUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// Mutation returns the LicenseMutation object of the builder.
-func (_u *LicenseUpdateOne) Mutation() *LicenseMutation {
-	return _u.mutation
+func (b *LicenseUpdateOne) Where(predicates ...ent.Predicate[entity.License]) *LicenseUpdateOne {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Where appends a list predicates to the LicenseUpdate builder.
-func (_u *LicenseUpdateOne) Where(ps ...predicate.License) *LicenseUpdateOne {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// Select allows selecting one or more fields (columns) of the returned entity.
-// The default is selecting all fields defined in the entity schema.
-func (_u *LicenseUpdateOne) Select(field string, fields ...string) *LicenseUpdateOne {
-	_u.fields = append([]string{field}, fields...)
-	return _u
-}
-
-// Save executes the query and returns the updated License entity.
-func (_u *LicenseUpdateOne) Save(ctx context.Context) (*License, error) {
-	if err := _u.defaults(); err != nil {
+func (b *LicenseUpdateOne) Save(ctx context.Context) (*License, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
 		return nil, err
 	}
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
+	return b.sqlSave(ctx)
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_u *LicenseUpdateOne) SaveX(ctx context.Context) *License {
-	node, err := _u.Save(ctx)
+func (b *LicenseUpdateOne) SaveX(ctx context.Context) *License {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return node
+	return result
 }
 
-// Exec executes the query on the entity.
-func (_u *LicenseUpdateOne) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *LicenseUpdateOne) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *LicenseUpdateOne) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *LicenseUpdateOne) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// defaults sets the default values of the builder before save.
-func (_u *LicenseUpdateOne) defaults() error {
-	if _, ok := _u.mutation.UpdateTime(); !ok {
-		if license.UpdateDefaultUpdateTime == nil {
-			return fmt.Errorf("ent: uninitialized license.UpdateDefaultUpdateTime (forgotten import ent/runtime?)")
-		}
-		v := license.UpdateDefaultUpdateTime()
-		_u.mutation.SetUpdateTime(v)
+func (b *LicenseUpdateOne) Select(columns ...ent.EntityColumn[entity.License]) *LicenseUpdateOne {
+	if len(columns) == 0 {
+		panic("ent: Select requires at least one column")
 	}
+	b.fields = make([]string, len(columns))
+	for index, column := range columns {
+		b.fields[index] = column.Ref().Name
+	}
+	return b
+}
+
+func (b *LicenseUpdateOne) SaveOld(ctx context.Context) (old *License, updated *License, err error) {
+	if !b.driver.Capabilities().ReturningOld {
+		return nil, nil, &dialect.UnsupportedError{Feature: "RETURNING OLD", Dialect: dialect.Dialect(b.driver.Dialect())}
+	}
+	b.old = &License{config: b.config}
+	defer func() { b.old = nil }()
+	updated, err = b.Save(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return b.old, updated, nil
+}
+
+func (b *LicenseUpdateOne) defaults() error {
+
+	if b.mutation.patch.UpdateTime.IsUnset() && b.mutation.patch.expressions[license.FieldUpdateTime] == nil {
+		if license.UpdateDefaultUpdateTime == nil {
+			return fmt.Errorf("ent: uninitialized license.UpdateDefaultUpdateTime")
+		}
+		b.mutation.patch.UpdateTime = ent.Some(license.UpdateDefaultUpdateTime())
+	}
+
+	return nil
+}
+
+func (b *LicenseUpdateOne) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.UpdateTime.IsNull() {
+		return &ValidationError{Name: "update_time", err: errors.New(`ent: field "License.update_time" is not nullable`)}
+	}
+
 	return nil
 }
 
@@ -198,6 +431,9 @@ func (_u *LicenseUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *Lic
 }
 
 func (_u *LicenseUpdateOne) sqlSave(ctx context.Context) (_node *License, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(license.Table, license.Columns, sqlgraph.NewFieldSpec(license.FieldID, field.TypeInt))
 	id, ok := _u.mutation.ID()
 	if !ok {
@@ -223,13 +459,21 @@ func (_u *LicenseUpdateOne) sqlSave(ctx context.Context) (_node *License, err er
 			}
 		}
 	}
-	if value, ok := _u.mutation.UpdateTime(); ok {
+	if value, ok := _u.mutation.patch.UpdateTime.Get(); ok {
 		_spec.SetField(license.FieldUpdateTime, field.TypeTime, value)
 	}
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
 	_spec.AddModifiers(_u.modifiers...)
+
 	_node = &License{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
+	if _u.old != nil {
+		_spec.OldScanValues = _u.old.scanValues
+		_spec.OldAssign = _u.old.assignValues
+	}
 	if err = sqlgraph.UpdateNode(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{license.Label}
@@ -238,6 +482,5 @@ func (_u *LicenseUpdateOne) sqlSave(ctx context.Context) (_node *License, err er
 		}
 		return nil, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }

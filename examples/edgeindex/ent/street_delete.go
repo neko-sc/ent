@@ -8,9 +8,11 @@ package ent
 import (
 	"context"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
-	"github.com/neko-sc/ent/examples/edgeindex/ent/predicate"
+	"github.com/neko-sc/ent/examples/edgeindex/ent/entity"
 	"github.com/neko-sc/ent/examples/edgeindex/ent/street"
 	"github.com/neko-sc/ent/schema/field"
 )
@@ -18,19 +20,44 @@ import (
 // StreetDelete is the builder for deleting a Street entity.
 type StreetDelete struct {
 	config
-	hooks    []Hook
-	mutation *StreetMutation
+
+	mutation  *StreetMutation
+	returning *sqlgraph.Returning
 }
 
 // Where appends a list predicates to the StreetDelete builder.
-func (_d *StreetDelete) Where(ps ...predicate.Street) *StreetDelete {
-	_d.mutation.Where(ps...)
+func (_d *StreetDelete) Where(predicates ...ent.Predicate[entity.Street]) *StreetDelete {
+	_d.mutation.Where(predicates...)
 	return _d
 }
 
 // Exec executes the deletion query and returns how many vertices were deleted.
 func (_d *StreetDelete) Exec(ctx context.Context) (int, error) {
-	return withHooks(ctx, _d.sqlExec, _d.mutation, _d.hooks)
+	return _d.sqlExec(ctx)
+}
+
+func (b *StreetDelete) Returning(ctx context.Context) ([]*Street, error) {
+	nodes := make([]*Street, 0)
+	b.returning = &sqlgraph.Returning{Columns: street.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Street{config: b.config}
+		values, err := _node.scanValues(street.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(street.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Exec(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
 }
 
 // ExecX is like Exec, but panics if an error occurs.
@@ -51,11 +78,11 @@ func (_d *StreetDelete) sqlExec(ctx context.Context) (int, error) {
 			}
 		}
 	}
+	_spec.Returning = _d.returning
 	affected, err := sqlgraph.DeleteNodes(ctx, _d.driver, _spec)
 	if err != nil && sqlgraph.IsConstraintError(err) {
 		err = &ConstraintError{msg: err.Error(), wrap: err}
 	}
-	_d.mutation.done = true
 	return affected, err
 }
 
@@ -65,8 +92,8 @@ type StreetDeleteOne struct {
 }
 
 // Where appends a list predicates to the StreetDelete builder.
-func (_d *StreetDeleteOne) Where(ps ...predicate.Street) *StreetDeleteOne {
-	_d._d.mutation.Where(ps...)
+func (_d *StreetDeleteOne) Where(predicates ...ent.Predicate[entity.Street]) *StreetDeleteOne {
+	_d._d.mutation.Where(predicates...)
 	return _d
 }
 

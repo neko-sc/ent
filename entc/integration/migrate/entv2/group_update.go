@@ -10,59 +10,189 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/migrate/entv2/entity"
 	"github.com/neko-sc/ent/entc/integration/migrate/entv2/group"
-	"github.com/neko-sc/ent/entc/integration/migrate/entv2/predicate"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// GroupUpdate is the builder for updating Group entities.
 type GroupUpdate struct {
 	config
-	hooks    []Hook
-	mutation *GroupMutation
+	mutation  *GroupMutation
+	err       error
+	returning *sqlgraph.Returning
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// Where appends a list predicates to the GroupUpdate builder.
-func (_u *GroupUpdate) Where(ps ...predicate.Group) *GroupUpdate {
-	_u.mutation.Where(ps...)
-	return _u
+func (b *GroupUpdate) Set[T any](column ent.ColumnOf[entity.Group, T], value T) *GroupUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
+	}
+
+	return b
+}
+func (b *GroupUpdate) SetOptional[T any](column ent.ColumnOf[entity.Group, T], value ent.Option[T]) *GroupUpdate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *GroupUpdate) SetExpr[T any](column ent.ColumnOf[entity.Group, T], value ent.Expr[T]) *GroupUpdate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Group is not settable", column.Ref().Name)}
+		return b
+	}
+
+}
+func (b *GroupUpdate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Group, N, K], id K) *GroupUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *GroupUpdate) AddIDs[N, K any](edge ent.Relation[entity.Group, N, K], ids ...K) *GroupUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *GroupUpdate) Mutation() *GroupMutation { return b.mutation }
+
+func (b *GroupUpdate) Patch() *GroupPatch              { return b.mutation.patch }
+func (b *GroupUpdate) Apply(p GroupPatch) *GroupUpdate { b.mutation.patch.apply(p); return b }
+func (b *GroupUpdate) Add[T ent.Number](column ent.ColumnOf[entity.Group, T], delta T) *GroupUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *GroupUpdate) Append[T any](column ent.ColumnOf[entity.Group, T], values T) *GroupUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *GroupUpdate) Clear[T any](column ent.ColumnOf[entity.Group, T]) *GroupUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *GroupUpdate) RemoveIDs[N, K any](edge ent.Relation[entity.Group, N, K], ids ...K) *GroupUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *GroupUpdate) ClearEdge[N, K any](edge ent.RelationOf[entity.Group, N, K]) *GroupUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// Mutation returns the GroupMutation object of the builder.
-func (_u *GroupUpdate) Mutation() *GroupMutation {
-	return _u.mutation
+func (b *GroupUpdate) Where(predicates ...ent.Predicate[entity.Group]) *GroupUpdate {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Save executes the query and returns the number of nodes affected by the update operation.
-func (_u *GroupUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
+func (b *GroupUpdate) Save(ctx context.Context) (int, error) {
+	if b.err != nil {
+		return 0, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return 0, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_u *GroupUpdate) SaveX(ctx context.Context) int {
-	affected, err := _u.Save(ctx)
+func (b *GroupUpdate) SaveX(ctx context.Context) int {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return affected
+	return result
 }
 
-// Exec executes the query.
-func (_u *GroupUpdate) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *GroupUpdate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *GroupUpdate) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *GroupUpdate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
+func (b *GroupUpdate) Returning(ctx context.Context) ([]*Group, error) {
+	nodes := make([]*Group, 0)
+	b.returning = &sqlgraph.Returning{Columns: group.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Group{config: b.config}
+		values, err := _node.scanValues(group.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(group.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Save(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
+}
+
+func (b *GroupUpdate) defaults() error {
+
+	return nil
+}
+
+func (b *GroupUpdate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *GroupUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *GroupUpdate {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *GroupUpdate) sqlSave(ctx context.Context) (_node int, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(group.Table, group.Columns, sqlgraph.NewFieldSpec(group.FieldID, field.TypeInt))
 	if ps := _u.mutation.Predicates(); len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -71,6 +201,12 @@ func (_u *GroupUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			}
 		}
 	}
+	_spec.Returning = _u.returning
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{group.Label}
@@ -79,64 +215,185 @@ func (_u *GroupUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		return 0, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }
 
-// GroupUpdateOne is the builder for updating a single Group entity.
 type GroupUpdateOne struct {
 	config
-	fields   []string
-	hooks    []Hook
 	mutation *GroupMutation
+	err      error
+
+	fields []string
+	old    *Group
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// Mutation returns the GroupMutation object of the builder.
-func (_u *GroupUpdateOne) Mutation() *GroupMutation {
-	return _u.mutation
+func (b *GroupUpdateOne) Set[T any](column ent.ColumnOf[entity.Group, T], value T) *GroupUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
+	}
+
+	return b
+}
+func (b *GroupUpdateOne) SetOptional[T any](column ent.ColumnOf[entity.Group, T], value ent.Option[T]) *GroupUpdateOne {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *GroupUpdateOne) SetExpr[T any](column ent.ColumnOf[entity.Group, T], value ent.Expr[T]) *GroupUpdateOne {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Group is not settable", column.Ref().Name)}
+		return b
+	}
+
+}
+func (b *GroupUpdateOne) SetEdge[N, K any](edge ent.UniqueRelation[entity.Group, N, K], id K) *GroupUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *GroupUpdateOne) AddIDs[N, K any](edge ent.Relation[entity.Group, N, K], ids ...K) *GroupUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *GroupUpdateOne) Mutation() *GroupMutation { return b.mutation }
+
+func (b *GroupUpdateOne) Patch() *GroupPatch                 { return b.mutation.patch }
+func (b *GroupUpdateOne) Apply(p GroupPatch) *GroupUpdateOne { b.mutation.patch.apply(p); return b }
+func (b *GroupUpdateOne) Add[T ent.Number](column ent.ColumnOf[entity.Group, T], delta T) *GroupUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *GroupUpdateOne) Append[T any](column ent.ColumnOf[entity.Group, T], values T) *GroupUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *GroupUpdateOne) Clear[T any](column ent.ColumnOf[entity.Group, T]) *GroupUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *GroupUpdateOne) RemoveIDs[N, K any](edge ent.Relation[entity.Group, N, K], ids ...K) *GroupUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *GroupUpdateOne) ClearEdge[N, K any](edge ent.RelationOf[entity.Group, N, K]) *GroupUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// Where appends a list predicates to the GroupUpdate builder.
-func (_u *GroupUpdateOne) Where(ps ...predicate.Group) *GroupUpdateOne {
-	_u.mutation.Where(ps...)
-	return _u
+func (b *GroupUpdateOne) Where(predicates ...ent.Predicate[entity.Group]) *GroupUpdateOne {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Select allows selecting one or more fields (columns) of the returned entity.
-// The default is selecting all fields defined in the entity schema.
-func (_u *GroupUpdateOne) Select(field string, fields ...string) *GroupUpdateOne {
-	_u.fields = append([]string{field}, fields...)
-	return _u
+func (b *GroupUpdateOne) Save(ctx context.Context) (*Group, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Save executes the query and returns the updated Group entity.
-func (_u *GroupUpdateOne) Save(ctx context.Context) (*Group, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *GroupUpdateOne) SaveX(ctx context.Context) *Group {
-	node, err := _u.Save(ctx)
+func (b *GroupUpdateOne) SaveX(ctx context.Context) *Group {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return node
+	return result
 }
 
-// Exec executes the query on the entity.
-func (_u *GroupUpdateOne) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *GroupUpdateOne) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *GroupUpdateOne) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *GroupUpdateOne) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
+func (b *GroupUpdateOne) Select(columns ...ent.EntityColumn[entity.Group]) *GroupUpdateOne {
+	if len(columns) == 0 {
+		panic("ent: Select requires at least one column")
+	}
+	b.fields = make([]string, len(columns))
+	for index, column := range columns {
+		b.fields[index] = column.Ref().Name
+	}
+	return b
+}
+
+func (b *GroupUpdateOne) SaveOld(ctx context.Context) (old *Group, updated *Group, err error) {
+	if !b.driver.Capabilities().ReturningOld {
+		return nil, nil, &dialect.UnsupportedError{Feature: "RETURNING OLD", Dialect: dialect.Dialect(b.driver.Dialect())}
+	}
+	b.old = &Group{config: b.config}
+	defer func() { b.old = nil }()
+	updated, err = b.Save(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return b.old, updated, nil
+}
+
+func (b *GroupUpdateOne) defaults() error {
+
+	return nil
+}
+
+func (b *GroupUpdateOne) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *GroupUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *GroupUpdateOne {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *GroupUpdateOne) sqlSave(ctx context.Context) (_node *Group, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(group.Table, group.Columns, sqlgraph.NewFieldSpec(group.FieldID, field.TypeInt))
 	id, ok := _u.mutation.ID()
 	if !ok {
@@ -162,9 +419,18 @@ func (_u *GroupUpdateOne) sqlSave(ctx context.Context) (_node *Group, err error)
 			}
 		}
 	}
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	_node = &Group{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
+	if _u.old != nil {
+		_spec.OldScanValues = _u.old.scanValues
+		_spec.OldAssign = _u.old.assignValues
+	}
 	if err = sqlgraph.UpdateNode(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{group.Label}
@@ -173,6 +439,5 @@ func (_u *GroupUpdateOne) sqlSave(ctx context.Context) (_node *Group, err error)
 		}
 		return nil, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }

@@ -8,29 +8,56 @@ package ent
 import (
 	"context"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/ent/fieldtype"
-	"github.com/neko-sc/ent/entc/integration/ent/predicate"
 	"github.com/neko-sc/ent/schema/field"
 )
 
 // FieldTypeDelete is the builder for deleting a FieldType entity.
 type FieldTypeDelete struct {
 	config
-	hooks    []Hook
-	mutation *FieldTypeMutation
+
+	mutation  *FieldTypeMutation
+	returning *sqlgraph.Returning
 }
 
 // Where appends a list predicates to the FieldTypeDelete builder.
-func (_d *FieldTypeDelete) Where(ps ...predicate.FieldType) *FieldTypeDelete {
-	_d.mutation.Where(ps...)
+func (_d *FieldTypeDelete) Where(predicates ...ent.Predicate[entity.FieldType]) *FieldTypeDelete {
+	_d.mutation.Where(predicates...)
 	return _d
 }
 
 // Exec executes the deletion query and returns how many vertices were deleted.
 func (_d *FieldTypeDelete) Exec(ctx context.Context) (int, error) {
-	return withHooks(ctx, _d.sqlExec, _d.mutation, _d.hooks)
+	return _d.sqlExec(ctx)
+}
+
+func (b *FieldTypeDelete) Returning(ctx context.Context) ([]*FieldType, error) {
+	nodes := make([]*FieldType, 0)
+	b.returning = &sqlgraph.Returning{Columns: fieldtype.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &FieldType{config: b.config}
+		values, err := _node.scanValues(fieldtype.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(fieldtype.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Exec(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
 }
 
 // ExecX is like Exec, but panics if an error occurs.
@@ -51,11 +78,11 @@ func (_d *FieldTypeDelete) sqlExec(ctx context.Context) (int, error) {
 			}
 		}
 	}
+	_spec.Returning = _d.returning
 	affected, err := sqlgraph.DeleteNodes(ctx, _d.driver, _spec)
 	if err != nil && sqlgraph.IsConstraintError(err) {
 		err = &ConstraintError{msg: err.Error(), wrap: err}
 	}
-	_d.mutation.done = true
 	return affected, err
 }
 
@@ -65,8 +92,8 @@ type FieldTypeDeleteOne struct {
 }
 
 // Where appends a list predicates to the FieldTypeDelete builder.
-func (_d *FieldTypeDeleteOne) Where(ps ...predicate.FieldType) *FieldTypeDeleteOne {
-	_d._d.mutation.Where(ps...)
+func (_d *FieldTypeDeleteOne) Where(predicates ...ent.Predicate[entity.FieldType]) *FieldTypeDeleteOne {
+	_d._d.mutation.Where(predicates...)
 	return _d
 }
 

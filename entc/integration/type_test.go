@@ -35,11 +35,11 @@ func Types(t *testing.T, client *ent.Client) {
 	require.NoError(bigint.Scan("1000"))
 
 	ft := client.FieldType.Create().
-		SetInt(1).
-		SetInt8(8).
-		SetInt16(16).
-		SetInt32(32).
-		SetInt64(64).
+		Set(fieldtype.Int, 1).
+		Set(fieldtype.Int8, 8).
+		Set(fieldtype.Int16, 16).
+		Set(fieldtype.Int32, 32).
+		Set(fieldtype.Int64, 64).
 		SaveX(ctx)
 
 	require.NotEmpty(t, ft.ID)
@@ -53,33 +53,33 @@ func Types(t *testing.T, client *ent.Client) {
 	require.Nil(ft.Deleted)
 
 	ft = client.FieldType.Create().
-		SetInt(1).
-		SetInt8(math.MinInt8).
-		SetInt16(math.MinInt16).
-		SetInt32(math.MinInt16).
-		SetInt64(math.MinInt16).
-		SetOptionalInt8(math.MinInt8).
-		SetOptionalInt16(math.MinInt16).
-		SetOptionalInt32(math.MinInt32).
-		SetOptionalInt64(math.MinInt64).
-		SetNillableInt8(math.MinInt8).
-		SetNillableInt16(math.MinInt16).
-		SetNillableInt32(math.MinInt32).
-		SetNillableInt64(math.MinInt64).
-		SetDir("dir").
-		SetNdir("ndir").
-		SetNullStr(&sql.NullString{String: "not-default", Valid: true}).
-		SetLink(schema.Link{URL: link}).
-		SetLinkOther(&schema.Link{URL: link}).
-		SetNullLink(&schema.Link{URL: link}).
-		SetRole(role.Admin).
-		SetPriority(role.High).
-		SetDuration(time.Hour).
-		SetPair(schema.Pair{K: []byte("K"), V: []byte("V")}).
-		SetNilPair(&schema.Pair{K: []byte("K"), V: []byte("V")}).
-		SetStringArray([]string{"foo", "bar", "baz"}).
-		SetBigInt(bigint).
-		SetRawData([]byte{1, 2, 3}).
+		Set(fieldtype.Int, 1).
+		Set(fieldtype.Int8, math.MinInt8).
+		Set(fieldtype.Int16, math.MinInt16).
+		Set(fieldtype.Int32, math.MinInt16).
+		Set(fieldtype.Int64, math.MinInt16).
+		Set(fieldtype.OptionalInt8, math.MinInt8).
+		Set(fieldtype.OptionalInt16, math.MinInt16).
+		Set(fieldtype.OptionalInt32, math.MinInt32).
+		Set(fieldtype.OptionalInt64, math.MinInt64).
+		Set(fieldtype.NillableInt8, math.MinInt8).
+		Set(fieldtype.NillableInt16, math.MinInt16).
+		Set(fieldtype.NillableInt32, math.MinInt32).
+		Set(fieldtype.NillableInt64, math.MinInt64).
+		Set(fieldtype.Dir, "dir").
+		Set(fieldtype.Ndir, "ndir").
+		Set(fieldtype.NullStr, &sql.NullString{String: "not-default", Valid: true}).
+		Set(fieldtype.Link, schema.Link{URL: link}).
+		Set(fieldtype.LinkOther, &schema.Link{URL: link}).
+		Set(fieldtype.NullLink, &schema.Link{URL: link}).
+		Set(fieldtype.Role, role.Admin).
+		Set(fieldtype.Priority, role.High).
+		Set(fieldtype.Duration, time.Hour).
+		Set(fieldtype.Pair, schema.Pair{K: []byte("K"), V: []byte("V")}).
+		Set(fieldtype.NilPair, &schema.Pair{K: []byte("K"), V: []byte("V")}).
+		Set(fieldtype.StringArray, []string{"foo", "bar", "baz"}).
+		Set(fieldtype.BigInt, bigint).
+		Set(fieldtype.RawData, []byte{1, 2, 3}).
 		SaveX(ctx)
 
 	require.Equal(int8(math.MinInt8), ft.OptionalInt8)
@@ -110,70 +110,70 @@ func Types(t *testing.T, client *ent.Client) {
 	require.Equal(&schema.Pair{K: []byte("K"), V: []byte("V")}, ft.NilPair)
 	require.EqualValues([]string{"foo", "bar", "baz"}, ft.StringArray)
 	require.Equal("1000", ft.BigInt.String())
-	exists, err := client.FieldType.Query().Where(fieldtype.DurationLT(time.Hour * 2)).Exist(ctx)
+	exists, err := client.FieldType.Query().Where(fieldtype.Duration.LT(time.Hour * 2)).Exist(ctx)
 	require.NoError(err)
 	require.True(exists)
-	exists, err = client.FieldType.Query().Where(fieldtype.DurationLT(time.Hour)).Exist(ctx)
+	exists, err = client.FieldType.Query().Where(fieldtype.Duration.LT(time.Hour)).Exist(ctx)
 	require.NoError(err)
 	require.False(exists)
 	require.Equal("127.0.0.1", ft.LinkOtherFunc.String())
 	require.False(ft.DeletedAt.Time.IsZero())
 
-	ft = client.FieldType.UpdateOne(ft).AddOptionalUint64(10).SaveX(ctx)
+	ft = client.FieldType.UpdateOne(ft).Add(fieldtype.OptionalUint64, 10).SaveX(ctx)
 	require.EqualValues(10, ft.OptionalUint64)
-	ft = client.FieldType.UpdateOne(ft).AddOptionalUint64(20).SetOptionalUint64(5).SaveX(ctx)
+	ft = client.FieldType.UpdateOne(ft).Add(fieldtype.OptionalUint64, 20).Set(fieldtype.OptionalUint64, 5).SaveX(ctx)
 	require.EqualValues(5, ft.OptionalUint64)
-	ft = client.FieldType.UpdateOne(ft).AddOptionalUint64(-5).SaveX(ctx)
+	ft = client.FieldType.UpdateOne(ft).Apply(ent.FieldTypePatch{OptionalUint64Add: ent.Some[int64](-5)}).SaveX(ctx)
 	require.Zero(ft.OptionalUint64)
 
 	err = client.FieldType.Create().
-		SetInt(1).
-		SetInt8(8).
-		SetInt16(16).
-		SetInt32(32).
-		SetInt64(64).
-		SetRawData(make([]byte, 40)).
+		Set(fieldtype.Int, 1).
+		Set(fieldtype.Int8, 8).
+		Set(fieldtype.Int16, 16).
+		Set(fieldtype.Int32, 32).
+		Set(fieldtype.Int64, 64).
+		Set(fieldtype.RawData, make([]byte, 40)).
 		Exec(ctx)
 	require.Error(err, "MaxLen validator should reject this operation")
 	err = client.FieldType.Create().
-		SetInt(1).
-		SetInt8(8).
-		SetInt16(16).
-		SetInt32(32).
-		SetInt64(64).
-		SetRawData(make([]byte, 2)).
+		Set(fieldtype.Int, 1).
+		Set(fieldtype.Int8, 8).
+		Set(fieldtype.Int16, 16).
+		Set(fieldtype.Int32, 32).
+		Set(fieldtype.Int64, 64).
+		Set(fieldtype.RawData, make([]byte, 2)).
 		Exec(ctx)
 	require.Error(err, "MinLen validator should reject this operation")
 	ft = ft.Update().
-		SetInt(1).
-		SetInt8(math.MaxInt8).
-		SetInt16(math.MaxInt16).
-		SetInt32(math.MaxInt16).
-		SetOptionalInt8(math.MaxInt8).
-		SetOptionalInt16(math.MaxInt16).
-		SetOptionalInt32(math.MaxInt32).
-		SetOptionalInt64(math.MaxInt64).
-		SetNillableInt8(math.MaxInt8).
-		SetNillableInt16(math.MaxInt16).
-		SetNillableInt32(math.MaxInt32).
-		SetNillableInt64(math.MaxInt64).
-		SetDatetime(dt).
-		SetDecimal(10.20).
-		SetDir("dir").
-		SetNdir("ndir").
-		SetStr(sql.NullString{String: "str", Valid: true}).
-		SetNullStr(&sql.NullString{String: "str", Valid: true}).
-		SetLink(schema.Link{URL: link}).
-		SetNullLink(&schema.Link{URL: link}).
-		SetLinkOther(&schema.Link{URL: link}).
-		SetSchemaInt(64).
-		SetSchemaInt8(8).
-		SetSchemaInt64(64).
-		SetMAC(schema.MAC{HardwareAddr: mac}).
-		SetPair(schema.Pair{K: []byte("K1"), V: []byte("V1")}).
-		SetNilPair(&schema.Pair{K: []byte("K1"), V: []byte("V1")}).
-		SetStringArray([]string{"qux"}).
-		AddBigInt(bigint).
+		Set(fieldtype.Int, 1).
+		Set(fieldtype.Int8, math.MaxInt8).
+		Set(fieldtype.Int16, math.MaxInt16).
+		Set(fieldtype.Int32, math.MaxInt16).
+		Set(fieldtype.OptionalInt8, math.MaxInt8).
+		Set(fieldtype.OptionalInt16, math.MaxInt16).
+		Set(fieldtype.OptionalInt32, math.MaxInt32).
+		Set(fieldtype.OptionalInt64, math.MaxInt64).
+		Set(fieldtype.NillableInt8, math.MaxInt8).
+		Set(fieldtype.NillableInt16, math.MaxInt16).
+		Set(fieldtype.NillableInt32, math.MaxInt32).
+		Set(fieldtype.NillableInt64, math.MaxInt64).
+		Set(fieldtype.Datetime, dt).
+		Set(fieldtype.Decimal, 10.20).
+		Set(fieldtype.Dir, "dir").
+		Set(fieldtype.Ndir, "ndir").
+		Set(fieldtype.Str, sql.NullString{String: "str", Valid: true}).
+		Set(fieldtype.NullStr, &sql.NullString{String: "str", Valid: true}).
+		Set(fieldtype.Link, schema.Link{URL: link}).
+		Set(fieldtype.NullLink, &schema.Link{URL: link}).
+		Set(fieldtype.LinkOther, &schema.Link{URL: link}).
+		Set(fieldtype.SchemaInt, 64).
+		Set(fieldtype.SchemaInt8, 8).
+		Set(fieldtype.SchemaInt64, 64).
+		Set(fieldtype.MAC, schema.MAC{HardwareAddr: mac}).
+		Set(fieldtype.Pair, schema.Pair{K: []byte("K1"), V: []byte("V1")}).
+		Set(fieldtype.NilPair, &schema.Pair{K: []byte("K1"), V: []byte("V1")}).
+		Set(fieldtype.StringArray, []string{"qux"}).
+		Apply(ent.FieldTypePatch{BigIntAdd: ent.Some(bigint)}).
 		SaveX(ctx)
 
 	require.Equal(int8(math.MaxInt8), ft.OptionalInt8)
@@ -212,25 +212,25 @@ func Types(t *testing.T, client *ent.Client) {
 	require.Equal(task.PriorityMid, defaultTask.Priority)
 
 	err = client.Task.CreateBulk(
-		client.Task.Create().SetPriority(task.PriorityLow),
-		client.Task.Create().SetPriority(task.PriorityMid),
-		client.Task.Create().SetPriority(task.PriorityHigh),
+		client.Task.Create().Set(enttask.Priority, task.PriorityLow),
+		client.Task.Create().Set(enttask.Priority, task.PriorityMid),
+		client.Task.Create().Set(enttask.Priority, task.PriorityHigh),
 	).Exec(ctx)
 	require.NoError(err)
-	err = client.Task.Create().SetPriority(task.Priority(10)).Exec(ctx)
+	err = client.Task.Create().Set(enttask.Priority, task.Priority(10)).Exec(ctx)
 	require.Error(err)
-	err = client.Task.Update().SetPriority(task.Priority(10)).Exec(ctx)
+	err = client.Task.Update().Set(enttask.Priority, task.Priority(10)).Exec(ctx)
 	require.Error(err)
-	err = defaultTask.Update().SetPriority(task.Priority(10)).Exec(ctx)
+	err = defaultTask.Update().Set(enttask.Priority, task.Priority(10)).Exec(ctx)
 	require.Error(err)
 	client.Task.DeleteOne(defaultTask).ExecX(ctx)
 
-	tasks := client.Task.Query().Order(ent.Asc(enttask.FieldPriority)).AllX(ctx)
+	tasks := client.Task.Query().Order(enttask.Priority.Asc()).AllX(ctx)
 	require.Equal(task.PriorityLow, tasks[0].Priority)
 	require.Equal(task.PriorityMid, tasks[1].Priority)
 	require.Equal(task.PriorityHigh, tasks[2].Priority)
 
-	tasks = client.Task.Query().Order(ent.Desc(enttask.FieldPriority)).AllX(ctx)
+	tasks = client.Task.Query().Order(enttask.Priority.Desc()).AllX(ctx)
 	require.Equal(task.PriorityLow, tasks[2].Priority)
 	require.Equal(task.PriorityMid, tasks[1].Priority)
 	require.Equal(task.PriorityHigh, tasks[0].Priority)

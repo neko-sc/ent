@@ -10,118 +10,203 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/account"
-	"github.com/neko-sc/ent/entc/integration/customid/ent/predicate"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/token"
 	"github.com/neko-sc/ent/entc/integration/customid/sid"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// AccountUpdate is the builder for updating Account entities.
 type AccountUpdate struct {
 	config
-	hooks    []Hook
-	mutation *AccountMutation
+	mutation  *AccountMutation
+	err       error
+	returning *sqlgraph.Returning
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// Where appends a list predicates to the AccountUpdate builder.
-func (_u *AccountUpdate) Where(ps ...predicate.Account) *AccountUpdate {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// SetEmail sets the "email" field.
-func (_u *AccountUpdate) SetEmail(v string) *AccountUpdate {
-	_u.mutation.SetEmail(v)
-	return _u
-}
-
-// SetNillableEmail sets the "email" field if the given value is not nil.
-func (_u *AccountUpdate) SetNillableEmail(v *string) *AccountUpdate {
-	if v != nil {
-		_u.SetEmail(*v)
+func (b *AccountUpdate) Set[T any](column ent.ColumnOf[entity.Account, T], value T) *AccountUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// AddTokenIDs adds the "token" edge to the Token entity by IDs.
-func (_u *AccountUpdate) AddTokenIDs(ids ...sid.ID) *AccountUpdate {
-	_u.mutation.AddTokenIDs(ids...)
-	return _u
+	return b
 }
-
-// AddToken adds the "token" edges to the Token entity.
-func (_u *AccountUpdate) AddToken(v ...*Token) *AccountUpdate {
-	ids := make([]sid.ID, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+func (b *AccountUpdate) SetOptional[T any](column ent.ColumnOf[entity.Account, T], value ent.Option[T]) *AccountUpdate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u.AddTokenIDs(ids...)
-}
-
-// Mutation returns the AccountMutation object of the builder.
-func (_u *AccountUpdate) Mutation() *AccountMutation {
-	return _u.mutation
-}
-
-// ClearToken clears all "token" edges to the Token entity.
-func (_u *AccountUpdate) ClearToken() *AccountUpdate {
-	_u.mutation.ClearToken()
-	return _u
-}
-
-// RemoveTokenIDs removes the "token" edge to Token entities by IDs.
-func (_u *AccountUpdate) RemoveTokenIDs(ids ...sid.ID) *AccountUpdate {
-	_u.mutation.RemoveTokenIDs(ids...)
-	return _u
-}
-
-// RemoveToken removes "token" edges to Token entities.
-func (_u *AccountUpdate) RemoveToken(v ...*Token) *AccountUpdate {
-	ids := make([]sid.ID, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
 	}
-	return _u.RemoveTokenIDs(ids...)
+	return b
+}
+func (b *AccountUpdate) SetExpr[T any](column ent.ColumnOf[entity.Account, T], value ent.Expr[T]) *AccountUpdate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case account.FieldEmail:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Account is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *AccountUpdate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Account, N, K], id K) *AccountUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *AccountUpdate) AddIDs[N, K any](edge ent.Relation[entity.Account, N, K], ids ...K) *AccountUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *AccountUpdate) Mutation() *AccountMutation { return b.mutation }
+
+func (b *AccountUpdate) Patch() *AccountPatch                { return b.mutation.patch }
+func (b *AccountUpdate) Apply(p AccountPatch) *AccountUpdate { b.mutation.patch.apply(p); return b }
+func (b *AccountUpdate) Add[T ent.Number](column ent.ColumnOf[entity.Account, T], delta T) *AccountUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *AccountUpdate) Append[T any](column ent.ColumnOf[entity.Account, T], values T) *AccountUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *AccountUpdate) Clear[T any](column ent.ColumnOf[entity.Account, T]) *AccountUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *AccountUpdate) RemoveIDs[N, K any](edge ent.Relation[entity.Account, N, K], ids ...K) *AccountUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *AccountUpdate) ClearEdge[N, K any](edge ent.RelationOf[entity.Account, N, K]) *AccountUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// Save executes the query and returns the number of nodes affected by the update operation.
-func (_u *AccountUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
+func (b *AccountUpdate) Where(predicates ...ent.Predicate[entity.Account]) *AccountUpdate {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_u *AccountUpdate) SaveX(ctx context.Context) int {
-	affected, err := _u.Save(ctx)
+func (b *AccountUpdate) Save(ctx context.Context) (int, error) {
+	if b.err != nil {
+		return 0, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return 0, err
+	}
+	return b.sqlSave(ctx)
+}
+
+func (b *AccountUpdate) SaveX(ctx context.Context) int {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return affected
+	return result
 }
 
-// Exec executes the query.
-func (_u *AccountUpdate) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *AccountUpdate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *AccountUpdate) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *AccountUpdate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_u *AccountUpdate) check() error {
-	if v, ok := _u.mutation.Email(); ok {
+func (b *AccountUpdate) Returning(ctx context.Context) ([]*Account, error) {
+	nodes := make([]*Account, 0)
+	b.returning = &sqlgraph.Returning{Columns: account.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Account{config: b.config}
+		values, err := _node.scanValues(account.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(account.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Save(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
+}
+
+func (b *AccountUpdate) defaults() error {
+
+	return nil
+}
+
+func (b *AccountUpdate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.Email.IsNull() {
+		return &ValidationError{Name: "email", err: errors.New(`ent: field "Account.email" is not nullable`)}
+	}
+
+	if v, ok := b.mutation.patch.Email.Get(); ok && b.mutation.patch.expressions[account.FieldEmail] == nil {
+
 		if err := account.EmailValidator(v); err != nil {
 			return &ValidationError{Name: "email", err: fmt.Errorf(`ent: validator failed for field "Account.email": %w`, err)}
 		}
+
 	}
+
 	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *AccountUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *AccountUpdate {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
 }
 
 func (_u *AccountUpdate) sqlSave(ctx context.Context) (_node int, err error) {
@@ -136,10 +221,10 @@ func (_u *AccountUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.Email(); ok {
+	if value, ok := _u.mutation.patch.Email.Get(); ok {
 		_spec.SetField(account.FieldEmail, field.TypeString, value)
 	}
-	if _u.mutation.TokenCleared() {
+	if _u.mutation.patch.Token.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -152,7 +237,7 @@ func (_u *AccountUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.RemovedTokenIDs(); len(nodes) > 0 && !_u.mutation.TokenCleared() {
+	if nodes := _u.mutation.patch.Token.Remove; len(nodes) > 0 && !_u.mutation.patch.Token.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -163,12 +248,17 @@ func (_u *AccountUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(token.FieldID, field.TypeOther),
 			},
 		}
+		seen := make(map[sid.ID]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.TokenIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.tokenIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -179,11 +269,22 @@ func (_u *AccountUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(token.FieldID, field.TypeOther),
 			},
 		}
+		seen := make(map[sid.ID]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	_spec.Returning = _u.returning
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{account.Label}
@@ -192,121 +293,200 @@ func (_u *AccountUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		return 0, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }
 
-// AccountUpdateOne is the builder for updating a single Account entity.
 type AccountUpdateOne struct {
 	config
-	fields   []string
-	hooks    []Hook
 	mutation *AccountMutation
+	err      error
+
+	fields []string
+	old    *Account
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// SetEmail sets the "email" field.
-func (_u *AccountUpdateOne) SetEmail(v string) *AccountUpdateOne {
-	_u.mutation.SetEmail(v)
-	return _u
-}
-
-// SetNillableEmail sets the "email" field if the given value is not nil.
-func (_u *AccountUpdateOne) SetNillableEmail(v *string) *AccountUpdateOne {
-	if v != nil {
-		_u.SetEmail(*v)
+func (b *AccountUpdateOne) Set[T any](column ent.ColumnOf[entity.Account, T], value T) *AccountUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// AddTokenIDs adds the "token" edge to the Token entity by IDs.
-func (_u *AccountUpdateOne) AddTokenIDs(ids ...sid.ID) *AccountUpdateOne {
-	_u.mutation.AddTokenIDs(ids...)
-	return _u
+	return b
 }
-
-// AddToken adds the "token" edges to the Token entity.
-func (_u *AccountUpdateOne) AddToken(v ...*Token) *AccountUpdateOne {
-	ids := make([]sid.ID, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+func (b *AccountUpdateOne) SetOptional[T any](column ent.ColumnOf[entity.Account, T], value ent.Option[T]) *AccountUpdateOne {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u.AddTokenIDs(ids...)
-}
-
-// Mutation returns the AccountMutation object of the builder.
-func (_u *AccountUpdateOne) Mutation() *AccountMutation {
-	return _u.mutation
-}
-
-// ClearToken clears all "token" edges to the Token entity.
-func (_u *AccountUpdateOne) ClearToken() *AccountUpdateOne {
-	_u.mutation.ClearToken()
-	return _u
-}
-
-// RemoveTokenIDs removes the "token" edge to Token entities by IDs.
-func (_u *AccountUpdateOne) RemoveTokenIDs(ids ...sid.ID) *AccountUpdateOne {
-	_u.mutation.RemoveTokenIDs(ids...)
-	return _u
-}
-
-// RemoveToken removes "token" edges to Token entities.
-func (_u *AccountUpdateOne) RemoveToken(v ...*Token) *AccountUpdateOne {
-	ids := make([]sid.ID, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
 	}
-	return _u.RemoveTokenIDs(ids...)
+	return b
+}
+func (b *AccountUpdateOne) SetExpr[T any](column ent.ColumnOf[entity.Account, T], value ent.Expr[T]) *AccountUpdateOne {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case account.FieldEmail:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Account is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *AccountUpdateOne) SetEdge[N, K any](edge ent.UniqueRelation[entity.Account, N, K], id K) *AccountUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *AccountUpdateOne) AddIDs[N, K any](edge ent.Relation[entity.Account, N, K], ids ...K) *AccountUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *AccountUpdateOne) Mutation() *AccountMutation { return b.mutation }
+
+func (b *AccountUpdateOne) Patch() *AccountPatch { return b.mutation.patch }
+func (b *AccountUpdateOne) Apply(p AccountPatch) *AccountUpdateOne {
+	b.mutation.patch.apply(p)
+	return b
+}
+func (b *AccountUpdateOne) Add[T ent.Number](column ent.ColumnOf[entity.Account, T], delta T) *AccountUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *AccountUpdateOne) Append[T any](column ent.ColumnOf[entity.Account, T], values T) *AccountUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *AccountUpdateOne) Clear[T any](column ent.ColumnOf[entity.Account, T]) *AccountUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *AccountUpdateOne) RemoveIDs[N, K any](edge ent.Relation[entity.Account, N, K], ids ...K) *AccountUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *AccountUpdateOne) ClearEdge[N, K any](edge ent.RelationOf[entity.Account, N, K]) *AccountUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// Where appends a list predicates to the AccountUpdate builder.
-func (_u *AccountUpdateOne) Where(ps ...predicate.Account) *AccountUpdateOne {
-	_u.mutation.Where(ps...)
-	return _u
+func (b *AccountUpdateOne) Where(predicates ...ent.Predicate[entity.Account]) *AccountUpdateOne {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Select allows selecting one or more fields (columns) of the returned entity.
-// The default is selecting all fields defined in the entity schema.
-func (_u *AccountUpdateOne) Select(field string, fields ...string) *AccountUpdateOne {
-	_u.fields = append([]string{field}, fields...)
-	return _u
+func (b *AccountUpdateOne) Save(ctx context.Context) (*Account, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Save executes the query and returns the updated Account entity.
-func (_u *AccountUpdateOne) Save(ctx context.Context) (*Account, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *AccountUpdateOne) SaveX(ctx context.Context) *Account {
-	node, err := _u.Save(ctx)
+func (b *AccountUpdateOne) SaveX(ctx context.Context) *Account {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return node
+	return result
 }
 
-// Exec executes the query on the entity.
-func (_u *AccountUpdateOne) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *AccountUpdateOne) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *AccountUpdateOne) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *AccountUpdateOne) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_u *AccountUpdateOne) check() error {
-	if v, ok := _u.mutation.Email(); ok {
+func (b *AccountUpdateOne) Select(columns ...ent.EntityColumn[entity.Account]) *AccountUpdateOne {
+	if len(columns) == 0 {
+		panic("ent: Select requires at least one column")
+	}
+	b.fields = make([]string, len(columns))
+	for index, column := range columns {
+		b.fields[index] = column.Ref().Name
+	}
+	return b
+}
+
+func (b *AccountUpdateOne) SaveOld(ctx context.Context) (old *Account, updated *Account, err error) {
+	if !b.driver.Capabilities().ReturningOld {
+		return nil, nil, &dialect.UnsupportedError{Feature: "RETURNING OLD", Dialect: dialect.Dialect(b.driver.Dialect())}
+	}
+	b.old = &Account{config: b.config}
+	defer func() { b.old = nil }()
+	updated, err = b.Save(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return b.old, updated, nil
+}
+
+func (b *AccountUpdateOne) defaults() error {
+
+	return nil
+}
+
+func (b *AccountUpdateOne) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.Email.IsNull() {
+		return &ValidationError{Name: "email", err: errors.New(`ent: field "Account.email" is not nullable`)}
+	}
+
+	if v, ok := b.mutation.patch.Email.Get(); ok && b.mutation.patch.expressions[account.FieldEmail] == nil {
+
 		if err := account.EmailValidator(v); err != nil {
 			return &ValidationError{Name: "email", err: fmt.Errorf(`ent: validator failed for field "Account.email": %w`, err)}
 		}
+
 	}
+
 	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *AccountUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *AccountUpdateOne {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
 }
 
 func (_u *AccountUpdateOne) sqlSave(ctx context.Context) (_node *Account, err error) {
@@ -338,10 +518,10 @@ func (_u *AccountUpdateOne) sqlSave(ctx context.Context) (_node *Account, err er
 			}
 		}
 	}
-	if value, ok := _u.mutation.Email(); ok {
+	if value, ok := _u.mutation.patch.Email.Get(); ok {
 		_spec.SetField(account.FieldEmail, field.TypeString, value)
 	}
-	if _u.mutation.TokenCleared() {
+	if _u.mutation.patch.Token.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -354,7 +534,7 @@ func (_u *AccountUpdateOne) sqlSave(ctx context.Context) (_node *Account, err er
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.RemovedTokenIDs(); len(nodes) > 0 && !_u.mutation.TokenCleared() {
+	if nodes := _u.mutation.patch.Token.Remove; len(nodes) > 0 && !_u.mutation.patch.Token.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -365,12 +545,17 @@ func (_u *AccountUpdateOne) sqlSave(ctx context.Context) (_node *Account, err er
 				IDSpec: sqlgraph.NewFieldSpec(token.FieldID, field.TypeOther),
 			},
 		}
+		seen := make(map[sid.ID]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.TokenIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.tokenIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -381,14 +566,28 @@ func (_u *AccountUpdateOne) sqlSave(ctx context.Context) (_node *Account, err er
 				IDSpec: sqlgraph.NewFieldSpec(token.FieldID, field.TypeOther),
 			},
 		}
+		seen := make(map[sid.ID]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	_node = &Account{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
+	if _u.old != nil {
+		_spec.OldScanValues = _u.old.scanValues
+		_spec.OldAssign = _u.old.assignValues
+	}
 	if err = sqlgraph.UpdateNode(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{account.Label}
@@ -397,6 +596,5 @@ func (_u *AccountUpdateOne) sqlSave(ctx context.Context) (_node *Account, err er
 		}
 		return nil, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }

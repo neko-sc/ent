@@ -6,8 +6,9 @@
 package grouptag
 
 import (
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/entity"
 )
 
 const (
@@ -41,6 +42,47 @@ const (
 	GroupColumn = "group_id"
 )
 
+var (
+	ID      = ent.OrderedColumn[entity.GroupTag, int]{Table: Table, Name: FieldID}
+	TagID   = ent.OrderedColumn[entity.GroupTag, int]{Table: Table, Name: FieldTagID}
+	GroupID = ent.OrderedColumn[entity.GroupTag, int]{Table: Table, Name: FieldGroupID}
+	Tag     = ent.NewUniqueRelation[entity.GroupTag, entity.Tag, int](EdgeTag, newTagStep)
+	Group   = ent.NewUniqueRelation[entity.GroupTag, entity.Group, int](EdgeGroup, newGroupStep)
+)
+
+// Alias returns the columns of the group_tags table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.GroupTag, int]{Table: name, Name: FieldID},
+		TagID:      ent.OrderedColumn[entity.GroupTag, int]{Table: name, Name: FieldTagID},
+		GroupID:    ent.OrderedColumn[entity.GroupTag, int]{Table: name, Name: FieldGroupID},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.GroupTag, int]
+	TagID      ent.OrderedColumn[entity.GroupTag, int]
+	GroupID    ent.OrderedColumn[entity.GroupTag, int]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.GroupTag]) ent.Predicate[entity.GroupTag] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.GroupTag]) ent.Predicate[entity.GroupTag] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.GroupTag]) ent.Predicate[entity.GroupTag] {
+	return ent.Not(predicate)
+}
+
 // Columns holds all SQL columns for grouptag fields.
 var Columns = []string{
 	FieldID,
@@ -58,37 +100,6 @@ func ValidColumn(column string) bool {
 	return false
 }
 
-// OrderOption defines the ordering options for the GroupTag queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByTagID orders the results by the tag_id field.
-func ByTagID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldTagID, opts...).ToFunc()
-}
-
-// ByGroupID orders the results by the group_id field.
-func ByGroupID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldGroupID, opts...).ToFunc()
-}
-
-// ByTagField orders the results by tag field.
-func ByTagField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newTagStep(), sql.OrderByField(field, opts...))
-	}
-}
-
-// ByGroupField orders the results by group field.
-func ByGroupField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newGroupStep(), sql.OrderByField(field, opts...))
-	}
-}
 func newTagStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),

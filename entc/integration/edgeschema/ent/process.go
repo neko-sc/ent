@@ -11,6 +11,7 @@ import (
 
 	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/process"
 )
 
@@ -21,8 +22,7 @@ type Process struct {
 	ID int `json:"id,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the ProcessQuery when eager-loading is set.
-	Edges        ProcessEdges `json:"edges"`
-	selectValues sql.SelectValues
+	Edges ProcessEdges `json:"edges"`
 }
 
 // ProcessEdges holds the relations/edges for other nodes in the graph.
@@ -34,6 +34,34 @@ type ProcessEdges struct {
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes [2]bool
+	counts      map[string]int
+}
+
+func (e ProcessEdges) Loaded[N, K any](edge ent.RelationOf[entity.Process, N, K]) bool {
+	switch edge.Ref().Name {
+	case "files":
+		return e.loadedTypes[0]
+	case "attached_files":
+		return e.loadedTypes[1]
+
+	default:
+		return false
+	}
+}
+
+func (e *ProcessEdges) SetLoaded[N, K any](edge ent.RelationOf[entity.Process, N, K], loaded bool) {
+	switch edge.Ref().Name {
+	case "files":
+		e.loadedTypes[0] = loaded
+	case "attached_files":
+		e.loadedTypes[1] = loaded
+
+	}
+}
+
+func (e ProcessEdges) Count[N, K any](edge ent.Relation[entity.Process, N, K]) (int, bool) {
+	count, loaded := e.counts[edge.Ref().Name]
+	return count, loaded
 }
 
 // FilesOrErr returns the Files value or an error if the edge
@@ -60,7 +88,7 @@ func (*Process) scanValues(columns []string) ([]any, error) {
 	for i := range columns {
 		switch columns[i] {
 		case process.FieldID:
-			values[i] = new(sql.NullInt64)
+			values[i] = new(*int)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -77,22 +105,15 @@ func (_m *Process) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case process.FieldID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field id", values[i])
-			} else if value.Valid {
-				_m.ID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.ID = **value
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the Process.
-// This includes values selected through modifiers, order, etc.
-func (_m *Process) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // QueryFiles queries the "files" edge of the Process entity.

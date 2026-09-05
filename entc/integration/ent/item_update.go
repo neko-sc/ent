@@ -10,86 +10,190 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/ent/item"
-	"github.com/neko-sc/ent/entc/integration/ent/predicate"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// ItemUpdate is the builder for updating Item entities.
 type ItemUpdate struct {
 	config
-	hooks     []Hook
 	mutation  *ItemMutation
+	err       error
+	returning *sqlgraph.Returning
+
 	modifiers []func(*sql.UpdateBuilder)
 }
 
-// Where appends a list predicates to the ItemUpdate builder.
-func (_u *ItemUpdate) Where(ps ...predicate.Item) *ItemUpdate {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// SetText sets the "text" field.
-func (_u *ItemUpdate) SetText(v string) *ItemUpdate {
-	_u.mutation.SetText(v)
-	return _u
-}
-
-// SetNillableText sets the "text" field if the given value is not nil.
-func (_u *ItemUpdate) SetNillableText(v *string) *ItemUpdate {
-	if v != nil {
-		_u.SetText(*v)
+func (b *ItemUpdate) Set[T any](column ent.ColumnOf[entity.Item, T], value T) *ItemUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
+
+	return b
+}
+func (b *ItemUpdate) SetOptional[T any](column ent.ColumnOf[entity.Item, T], value ent.Option[T]) *ItemUpdate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *ItemUpdate) SetExpr[T any](column ent.ColumnOf[entity.Item, T], value ent.Expr[T]) *ItemUpdate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case item.FieldText:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Item is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *ItemUpdate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Item, N, K], id K) *ItemUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *ItemUpdate) AddIDs[N, K any](edge ent.Relation[entity.Item, N, K], ids ...K) *ItemUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *ItemUpdate) Mutation() *ItemMutation { return b.mutation }
+
+func (b *ItemUpdate) Patch() *ItemPatch             { return b.mutation.patch }
+func (b *ItemUpdate) Apply(p ItemPatch) *ItemUpdate { b.mutation.patch.apply(p); return b }
+func (b *ItemUpdate) Add[T ent.Number](column ent.ColumnOf[entity.Item, T], delta T) *ItemUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *ItemUpdate) Append[T any](column ent.ColumnOf[entity.Item, T], values T) *ItemUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *ItemUpdate) Clear[T any](column ent.ColumnOf[entity.Item, T]) *ItemUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *ItemUpdate) RemoveIDs[N, K any](edge ent.Relation[entity.Item, N, K], ids ...K) *ItemUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *ItemUpdate) ClearEdge[N, K any](edge ent.RelationOf[entity.Item, N, K]) *ItemUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// ClearText clears the value of the "text" field.
-func (_u *ItemUpdate) ClearText() *ItemUpdate {
-	_u.mutation.ClearText()
-	return _u
+func (b *ItemUpdate) Where(predicates ...ent.Predicate[entity.Item]) *ItemUpdate {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Mutation returns the ItemMutation object of the builder.
-func (_u *ItemUpdate) Mutation() *ItemMutation {
-	return _u.mutation
+func (b *ItemUpdate) Save(ctx context.Context) (int, error) {
+	if b.err != nil {
+		return 0, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return 0, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Save executes the query and returns the number of nodes affected by the update operation.
-func (_u *ItemUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *ItemUpdate) SaveX(ctx context.Context) int {
-	affected, err := _u.Save(ctx)
+func (b *ItemUpdate) SaveX(ctx context.Context) int {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return affected
+	return result
 }
 
-// Exec executes the query.
-func (_u *ItemUpdate) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *ItemUpdate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *ItemUpdate) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *ItemUpdate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_u *ItemUpdate) check() error {
-	if v, ok := _u.mutation.Text(); ok {
+func (b *ItemUpdate) Returning(ctx context.Context) ([]*Item, error) {
+	nodes := make([]*Item, 0)
+	b.returning = &sqlgraph.Returning{Columns: item.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Item{config: b.config}
+		values, err := _node.scanValues(item.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(item.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Save(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
+}
+
+func (b *ItemUpdate) defaults() error {
+
+	return nil
+}
+
+func (b *ItemUpdate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if v, ok := b.mutation.patch.Text.Get(); ok && b.mutation.patch.expressions[item.FieldText] == nil {
+
 		if err := item.TextValidator(v); err != nil {
 			return &ValidationError{Name: "text", err: fmt.Errorf(`ent: validator failed for field "Item.text": %w`, err)}
 		}
+
 	}
+
 	return nil
 }
 
@@ -111,13 +215,18 @@ func (_u *ItemUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.Text(); ok {
+	if value, ok := _u.mutation.patch.Text.Get(); ok {
 		_spec.SetField(item.FieldText, field.TypeString, value)
 	}
-	if _u.mutation.TextCleared() {
+	if _u.mutation.patch.Text.IsNull() {
 		_spec.ClearField(item.FieldText, field.TypeString)
 	}
+	_spec.Returning = _u.returning
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
 	_spec.AddModifiers(_u.modifiers...)
+
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{item.Label}
@@ -126,91 +235,186 @@ func (_u *ItemUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		return 0, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }
 
-// ItemUpdateOne is the builder for updating a single Item entity.
 type ItemUpdateOne struct {
 	config
-	fields    []string
-	hooks     []Hook
-	mutation  *ItemMutation
+	mutation *ItemMutation
+	err      error
+
+	fields []string
+	old    *Item
+
 	modifiers []func(*sql.UpdateBuilder)
 }
 
-// SetText sets the "text" field.
-func (_u *ItemUpdateOne) SetText(v string) *ItemUpdateOne {
-	_u.mutation.SetText(v)
-	return _u
-}
-
-// SetNillableText sets the "text" field if the given value is not nil.
-func (_u *ItemUpdateOne) SetNillableText(v *string) *ItemUpdateOne {
-	if v != nil {
-		_u.SetText(*v)
+func (b *ItemUpdateOne) Set[T any](column ent.ColumnOf[entity.Item, T], value T) *ItemUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
+
+	return b
+}
+func (b *ItemUpdateOne) SetOptional[T any](column ent.ColumnOf[entity.Item, T], value ent.Option[T]) *ItemUpdateOne {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *ItemUpdateOne) SetExpr[T any](column ent.ColumnOf[entity.Item, T], value ent.Expr[T]) *ItemUpdateOne {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case item.FieldText:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Item is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *ItemUpdateOne) SetEdge[N, K any](edge ent.UniqueRelation[entity.Item, N, K], id K) *ItemUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *ItemUpdateOne) AddIDs[N, K any](edge ent.Relation[entity.Item, N, K], ids ...K) *ItemUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *ItemUpdateOne) Mutation() *ItemMutation { return b.mutation }
+
+func (b *ItemUpdateOne) Patch() *ItemPatch                { return b.mutation.patch }
+func (b *ItemUpdateOne) Apply(p ItemPatch) *ItemUpdateOne { b.mutation.patch.apply(p); return b }
+func (b *ItemUpdateOne) Add[T ent.Number](column ent.ColumnOf[entity.Item, T], delta T) *ItemUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *ItemUpdateOne) Append[T any](column ent.ColumnOf[entity.Item, T], values T) *ItemUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *ItemUpdateOne) Clear[T any](column ent.ColumnOf[entity.Item, T]) *ItemUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *ItemUpdateOne) RemoveIDs[N, K any](edge ent.Relation[entity.Item, N, K], ids ...K) *ItemUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *ItemUpdateOne) ClearEdge[N, K any](edge ent.RelationOf[entity.Item, N, K]) *ItemUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// ClearText clears the value of the "text" field.
-func (_u *ItemUpdateOne) ClearText() *ItemUpdateOne {
-	_u.mutation.ClearText()
-	return _u
+func (b *ItemUpdateOne) Where(predicates ...ent.Predicate[entity.Item]) *ItemUpdateOne {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Mutation returns the ItemMutation object of the builder.
-func (_u *ItemUpdateOne) Mutation() *ItemMutation {
-	return _u.mutation
+func (b *ItemUpdateOne) Save(ctx context.Context) (*Item, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Where appends a list predicates to the ItemUpdate builder.
-func (_u *ItemUpdateOne) Where(ps ...predicate.Item) *ItemUpdateOne {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// Select allows selecting one or more fields (columns) of the returned entity.
-// The default is selecting all fields defined in the entity schema.
-func (_u *ItemUpdateOne) Select(field string, fields ...string) *ItemUpdateOne {
-	_u.fields = append([]string{field}, fields...)
-	return _u
-}
-
-// Save executes the query and returns the updated Item entity.
-func (_u *ItemUpdateOne) Save(ctx context.Context) (*Item, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *ItemUpdateOne) SaveX(ctx context.Context) *Item {
-	node, err := _u.Save(ctx)
+func (b *ItemUpdateOne) SaveX(ctx context.Context) *Item {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return node
+	return result
 }
 
-// Exec executes the query on the entity.
-func (_u *ItemUpdateOne) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *ItemUpdateOne) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *ItemUpdateOne) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *ItemUpdateOne) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_u *ItemUpdateOne) check() error {
-	if v, ok := _u.mutation.Text(); ok {
+func (b *ItemUpdateOne) Select(columns ...ent.EntityColumn[entity.Item]) *ItemUpdateOne {
+	if len(columns) == 0 {
+		panic("ent: Select requires at least one column")
+	}
+	b.fields = make([]string, len(columns))
+	for index, column := range columns {
+		b.fields[index] = column.Ref().Name
+	}
+	return b
+}
+
+func (b *ItemUpdateOne) SaveOld(ctx context.Context) (old *Item, updated *Item, err error) {
+	if !b.driver.Capabilities().ReturningOld {
+		return nil, nil, &dialect.UnsupportedError{Feature: "RETURNING OLD", Dialect: dialect.Dialect(b.driver.Dialect())}
+	}
+	b.old = &Item{config: b.config}
+	defer func() { b.old = nil }()
+	updated, err = b.Save(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return b.old, updated, nil
+}
+
+func (b *ItemUpdateOne) defaults() error {
+
+	return nil
+}
+
+func (b *ItemUpdateOne) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if v, ok := b.mutation.patch.Text.Get(); ok && b.mutation.patch.expressions[item.FieldText] == nil {
+
 		if err := item.TextValidator(v); err != nil {
 			return &ValidationError{Name: "text", err: fmt.Errorf(`ent: validator failed for field "Item.text": %w`, err)}
 		}
+
 	}
+
 	return nil
 }
 
@@ -249,16 +453,24 @@ func (_u *ItemUpdateOne) sqlSave(ctx context.Context) (_node *Item, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.Text(); ok {
+	if value, ok := _u.mutation.patch.Text.Get(); ok {
 		_spec.SetField(item.FieldText, field.TypeString, value)
 	}
-	if _u.mutation.TextCleared() {
+	if _u.mutation.patch.Text.IsNull() {
 		_spec.ClearField(item.FieldText, field.TypeString)
 	}
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
 	_spec.AddModifiers(_u.modifiers...)
+
 	_node = &Item{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
+	if _u.old != nil {
+		_spec.OldScanValues = _u.old.scanValues
+		_spec.OldAssign = _u.old.assignValues
+	}
 	if err = sqlgraph.UpdateNode(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{item.Label}
@@ -267,6 +479,5 @@ func (_u *ItemUpdateOne) sqlSave(ctx context.Context) (_node *Item, err error) {
 		}
 		return nil, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }

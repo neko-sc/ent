@@ -40,23 +40,23 @@ func Do(ctx context.Context, client *ent.Client) error {
 	// Unlike `Save`, `SaveX` panics if an error occurs.
 	hub := client.Group.
 		Create().
-		SetName("GitHub").
+		Set(group.Name, "GitHub").
 		SaveX(ctx)
 	lab := client.Group.
 		Create().
-		SetName("GitLab").
+		Set(group.Name, "GitLab").
 		SaveX(ctx)
 	a8m := client.User.
 		Create().
-		SetAge(30).
-		SetName("a8m").
-		AddGroups(hub, lab).
+		Set(user.Age, 30).
+		Set(user.Name, "a8m").
+		AddIDs(user.Groups, hub.ID, lab.ID).
 		SaveX(ctx)
 	nati := client.User.
 		Create().
-		SetAge(28).
-		SetName("nati").
-		AddGroups(hub).
+		Set(user.Age, 28).
+		Set(user.Name, "nati").
+		AddIDs(user.Groups, hub.ID).
 		SaveX(ctx)
 
 	// Query the edges.
@@ -83,11 +83,11 @@ func Do(ctx context.Context, client *ent.Client) error {
 
 	// Traverse the graph.
 	users, err := a8m.
-		QueryGroups().                                           // [hub, lab]
-		Where(group.Not(group.HasUsersWith(user.Name("nati")))). // [lab]
-		QueryUsers().                                            // [a8m]
-		QueryGroups().                                           // [hub, lab]
-		QueryUsers().                                            // [a8m, nati]
+		QueryGroups().                                               // [hub, lab]
+		Where(group.Not(group.Users.HasWith(user.Name.EQ("nati")))). // [lab]
+		QueryUsers().                                                // [a8m]
+		QueryGroups().                                               // [hub, lab]
+		QueryUsers().                                                // [a8m, nati]
 		All(ctx)
 	if err != nil {
 		return fmt.Errorf("traversing the graph: %w", err)

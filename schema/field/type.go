@@ -29,6 +29,7 @@ const (
 	TypeUint64
 	TypeFloat32
 	TypeFloat64
+	TypeArray
 	endTypes
 )
 
@@ -42,7 +43,7 @@ func (t Type) String() string {
 
 // Numeric reports whether t is numeric.
 func (t Type) Numeric() bool {
-	return t >= TypeInt8 && t < endTypes
+	return t >= TypeInt8 && t <= TypeFloat64
 }
 
 // Float reports whether t is floating point.
@@ -78,6 +79,7 @@ var (
 		TypeInvalid: "invalid",
 		TypeBool:    "bool",
 		TypeTime:    "time.Time",
+		TypeArray:   "array",
 		TypeJSON:    "json.RawMessage",
 		TypeUUID:    "[16]byte",
 		TypeBytes:   "[]byte",

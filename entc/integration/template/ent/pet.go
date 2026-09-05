@@ -7,10 +7,11 @@ package ent
 
 import (
 	"fmt"
-	"time"
+	time2 "time"
 
 	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/entc/integration/template/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/template/ent/pet"
 	"github.com/neko-sc/ent/entc/integration/template/ent/user"
 )
@@ -23,12 +24,11 @@ type Pet struct {
 	// Age holds the value of the "age" field.
 	Age int `json:"age,omitempty"`
 	// LicensedAt holds the value of the "licensed_at" field.
-	LicensedAt *time.Time `json:"licensed_at,omitempty"`
+	LicensedAt *time2.Time `json:"licensed_at,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the PetQuery when eager-loading is set.
-	Edges        PetEdges `json:"edges"`
-	user_pets    *int
-	selectValues sql.SelectValues
+	Edges     PetEdges `json:"edges"`
+	user_pets *int
 }
 
 // PetEdges holds the relations/edges for other nodes in the graph.
@@ -38,6 +38,30 @@ type PetEdges struct {
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes [1]bool
+	counts      map[string]int
+}
+
+func (e PetEdges) Loaded[N, K any](edge ent.RelationOf[entity.Pet, N, K]) bool {
+	switch edge.Ref().Name {
+	case "owner":
+		return e.loadedTypes[0]
+
+	default:
+		return false
+	}
+}
+
+func (e *PetEdges) SetLoaded[N, K any](edge ent.RelationOf[entity.Pet, N, K], loaded bool) {
+	switch edge.Ref().Name {
+	case "owner":
+		e.loadedTypes[0] = loaded
+
+	}
+}
+
+func (e PetEdges) Count[N, K any](edge ent.Relation[entity.Pet, N, K]) (int, bool) {
+	count, loaded := e.counts[edge.Ref().Name]
+	return count, loaded
 }
 
 // OwnerOrErr returns the Owner value or an error if the edge
@@ -57,11 +81,11 @@ func (*Pet) scanValues(columns []string) ([]any, error) {
 	for i := range columns {
 		switch columns[i] {
 		case pet.FieldID, pet.FieldAge:
-			values[i] = new(sql.NullInt64)
+			values[i] = new(*int)
 		case pet.FieldLicensedAt:
-			values[i] = new(sql.NullTime)
+			values[i] = new(*time2.Time)
 		case pet.ForeignKeys[0]: // user_pets
-			values[i] = new(sql.NullInt64)
+			values[i] = new(*int)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -78,42 +102,36 @@ func (_m *Pet) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case pet.FieldID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field id", values[i])
-			} else if value.Valid {
-				_m.ID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.ID = **value
 			}
 		case pet.FieldAge:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field age", values[i])
-			} else if value.Valid {
-				_m.Age = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.Age = **value
 			}
 		case pet.FieldLicensedAt:
-			if value, ok := values[i].(*sql.NullTime); !ok {
+
+			if value, ok := values[i].(**time2.Time); !ok {
 				return fmt.Errorf("unexpected type %T for field licensed_at", values[i])
-			} else if value.Valid {
-				_m.LicensedAt = new(time.Time)
-				*_m.LicensedAt = time.Time(value.Time)
+			} else if value != nil && *value != nil {
+				_m.LicensedAt = *value
 			}
 		case pet.ForeignKeys[0]:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field user_pets", values[i])
-			} else if value.Valid {
-				_m.user_pets = new(int)
-				*_m.user_pets = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.user_pets = *value
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the Pet.
-// This includes values selected through modifiers, order, etc.
-func (_m *Pet) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // QueryOwner queries the "owner" edge of the Pet entity.

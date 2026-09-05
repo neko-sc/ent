@@ -8,9 +8,11 @@ package ent
 import (
 	"context"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
-	"github.com/neko-sc/ent/entc/integration/ent/predicate"
+	"github.com/neko-sc/ent/entc/integration/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/ent/spec"
 	"github.com/neko-sc/ent/schema/field"
 )
@@ -18,19 +20,44 @@ import (
 // SpecDelete is the builder for deleting a Spec entity.
 type SpecDelete struct {
 	config
-	hooks    []Hook
-	mutation *SpecMutation
+
+	mutation  *SpecMutation
+	returning *sqlgraph.Returning
 }
 
 // Where appends a list predicates to the SpecDelete builder.
-func (_d *SpecDelete) Where(ps ...predicate.Spec) *SpecDelete {
-	_d.mutation.Where(ps...)
+func (_d *SpecDelete) Where(predicates ...ent.Predicate[entity.Spec]) *SpecDelete {
+	_d.mutation.Where(predicates...)
 	return _d
 }
 
 // Exec executes the deletion query and returns how many vertices were deleted.
 func (_d *SpecDelete) Exec(ctx context.Context) (int, error) {
-	return withHooks(ctx, _d.sqlExec, _d.mutation, _d.hooks)
+	return _d.sqlExec(ctx)
+}
+
+func (b *SpecDelete) Returning(ctx context.Context) ([]*Spec, error) {
+	nodes := make([]*Spec, 0)
+	b.returning = &sqlgraph.Returning{Columns: spec.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Spec{config: b.config}
+		values, err := _node.scanValues(spec.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(spec.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Exec(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
 }
 
 // ExecX is like Exec, but panics if an error occurs.
@@ -51,11 +78,11 @@ func (_d *SpecDelete) sqlExec(ctx context.Context) (int, error) {
 			}
 		}
 	}
+	_spec.Returning = _d.returning
 	affected, err := sqlgraph.DeleteNodes(ctx, _d.driver, _spec)
 	if err != nil && sqlgraph.IsConstraintError(err) {
 		err = &ConstraintError{msg: err.Error(), wrap: err}
 	}
-	_d.mutation.done = true
 	return affected, err
 }
 
@@ -65,8 +92,8 @@ type SpecDeleteOne struct {
 }
 
 // Where appends a list predicates to the SpecDelete builder.
-func (_d *SpecDeleteOne) Where(ps ...predicate.Spec) *SpecDeleteOne {
-	_d._d.mutation.Where(ps...)
+func (_d *SpecDeleteOne) Where(predicates ...ent.Predicate[entity.Spec]) *SpecDeleteOne {
+	_d._d.mutation.Where(predicates...)
 	return _d
 }
 

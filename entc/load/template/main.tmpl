@@ -22,7 +22,18 @@ type TypeID = entload.TypeID
 type TypeCapabilities = entload.TypeCapabilities
 type TypeCompatibility = entload.TypeCompatibility
 
+var typeExpressionFor = entload.TypeExpressionOfRuntime
 var FieldTypeOf = entload.FieldTypeOf
+const (
+ LogicalTypeJSON = entload.LogicalTypeJSON
+ LogicalTypeTime = entload.LogicalTypeTime
+ LogicalTypeUUID = entload.LogicalTypeUUID
+ LogicalTypeString = entload.LogicalTypeString
+ LogicalTypeBool = entload.LogicalTypeBool
+ LogicalTypeInt = entload.LogicalTypeInt
+ LogicalTypeFloat = entload.LogicalTypeFloat
+ TypeKindSlice = entload.TypeKindSlice
+)
 
 type typeMetadata struct {
 	Expression    *TypeExpression               `json:"expression"`

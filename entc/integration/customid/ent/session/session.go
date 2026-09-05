@@ -6,9 +6,10 @@
 package session
 
 import (
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
-	"github.com/neko-sc/ent/entc/integration/customid/ent/schema"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
+	schema2 "github.com/neko-sc/ent/entc/integration/customid/ent/schema"
 )
 
 const (
@@ -28,6 +29,40 @@ const (
 	// DeviceColumn is the table column denoting the device relation/edge.
 	DeviceColumn = "device_sessions"
 )
+
+var (
+	ID     = ent.OrderedColumn[entity.Session, schema2.ID]{Table: Table, Name: FieldID}
+	Device = ent.NewUniqueRelation[entity.Session, entity.Device, schema2.ID](EdgeDevice, newDeviceStep)
+)
+
+// Alias returns the columns of the sessions table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.Session, schema2.ID]{Table: name, Name: FieldID},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.Session, schema2.ID]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.Session]) ent.Predicate[entity.Session] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.Session]) ent.Predicate[entity.Session] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.Session]) ent.Predicate[entity.Session] {
+	return ent.Not(predicate)
+}
 
 // Columns holds all SQL columns for session fields.
 var Columns = []string{
@@ -57,25 +92,11 @@ func ValidColumn(column string) bool {
 
 var (
 	// DefaultID holds the default value on creation for the "id" field.
-	DefaultID func() schema.ID
+	DefaultID func() schema2.ID
 	// IDValidator is a validator for the "id" field. It is called by the builders before save.
-	IDValidator func(schema.ID) error
+	IDValidator func(schema2.ID) error
 )
 
-// OrderOption defines the ordering options for the Session queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByDeviceField orders the results by device field.
-func ByDeviceField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newDeviceStep(), sql.OrderByField(field, opts...))
-	}
-}
 func newDeviceStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),

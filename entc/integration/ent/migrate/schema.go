@@ -12,15 +12,15 @@ import (
 )
 
 var (
-	// ApisColumns holds the columns for the "apis" table.
-	ApisColumns = []*schema.Column{
+	// APIsColumns holds the columns for the "apis" table.
+	APIsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 	}
-	// ApisTable holds the schema information for the "apis" table.
-	ApisTable = &schema.Table{
+	// APIsTable holds the schema information for the "apis" table.
+	APIsTable = &schema.Table{
 		Name:       "apis",
-		Columns:    ApisColumns,
-		PrimaryKey: []*schema.Column{ApisColumns[0]},
+		Columns:    APIsColumns,
+		PrimaryKey: []*schema.Column{APIsColumns[0]},
 	}
 	// BuildersColumns holds the columns for the "builders" table.
 	BuildersColumns = []*schema.Column{
@@ -455,6 +455,8 @@ var (
 	UsersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "optional_int", Type: field.TypeInt, Nullable: true},
+		{Name: "tags", Type: field.TypeArray, Nullable: true, SchemaType: map[string]string{"postgres": "text[]", "sqlite3": "json"}},
+		{Name: "scores", Type: field.TypeArray, Nullable: true, SchemaType: map[string]string{"postgres": "bigint[]", "sqlite3": "json"}},
 		{Name: "age", Type: field.TypeInt},
 		{Name: "name", Type: field.TypeString},
 		{Name: "last", Type: field.TypeString, Default: "unknown"},
@@ -478,19 +480,19 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "users_groups_blocked",
-				Columns:    []*schema.Column{UsersColumns[13]},
+				Columns:    []*schema.Column{UsersColumns[15]},
 				RefColumns: []*schema.Column{GroupsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "users_users_spouse",
-				Columns:    []*schema.Column{UsersColumns[14]},
+				Columns:    []*schema.Column{UsersColumns[16]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "users_users_parent",
-				Columns:    []*schema.Column{UsersColumns[15]},
+				Columns:    []*schema.Column{UsersColumns[17]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -598,7 +600,7 @@ var (
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
-		ApisTable,
+		APIsTable,
 		BuildersTable,
 		CardsTable,
 		CommentsTable,
@@ -625,7 +627,7 @@ var (
 )
 
 func init() {
-	ApisTable.Annotation = &entsql.Annotation{
+	APIsTable.Annotation = &entsql.Annotation{
 		IncrementStart: func(i int) *int { return &i }(12884901888),
 	}
 	BuildersTable.Annotation = &entsql.Annotation{

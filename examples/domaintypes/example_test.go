@@ -13,6 +13,7 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/examples/domaintypes/ent"
+	user "github.com/neko-sc/ent/examples/domaintypes/ent/user"
 	"github.com/stretchr/testify/require"
 )
 
@@ -40,8 +41,8 @@ func TestDomainTypes(t *testing.T) {
 	})
 	require.NoError(t, err)
 	t.Cleanup(func() { client.User.Delete().ExecX(ctx) })
-	err = client.User.Create().SetPostalCode("foo").Exec(ctx)
+	err = client.User.Create().Set(user.PostalCode, "foo").Exec(ctx)
 	require.EqualError(t, err, `pq: value for domain us_postal_code violates check constraint "us_postal_code_check"`)
-	err = client.User.Create().SetPostalCode("12345").Exec(ctx)
+	err = client.User.Create().Set(user.PostalCode, "12345").Exec(ctx)
 	require.NoError(t, err)
 }

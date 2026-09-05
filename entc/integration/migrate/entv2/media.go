@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/entc/integration/migrate/entv2/media"
 )
@@ -24,8 +23,7 @@ type Media struct {
 	// source_ui text
 	SourceURI string `json:"source_uri,omitempty"`
 	// media text
-	Text         string `json:"text,omitempty"`
-	selectValues sql.SelectValues
+	Text string `json:"text,omitempty"`
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -34,9 +32,9 @@ func (*Media) scanValues(columns []string) ([]any, error) {
 	for i := range columns {
 		switch columns[i] {
 		case media.FieldID:
-			values[i] = new(sql.NullInt64)
+			values[i] = new(*int)
 		case media.FieldSource, media.FieldSourceURI, media.FieldText:
-			values[i] = new(sql.NullString)
+			values[i] = new(*string)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -53,40 +51,36 @@ func (_m *Media) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case media.FieldID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field id", values[i])
-			} else if value.Valid {
-				_m.ID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.ID = **value
 			}
 		case media.FieldSource:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field source", values[i])
-			} else if value.Valid {
-				_m.Source = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.Source = **value
 			}
 		case media.FieldSourceURI:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field source_uri", values[i])
-			} else if value.Valid {
-				_m.SourceURI = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.SourceURI = **value
 			}
 		case media.FieldText:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field text", values[i])
-			} else if value.Valid {
-				_m.Text = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.Text = **value
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the Media.
-// This includes values selected through modifiers, order, etc.
-func (_m *Media) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // Update returns a builder for updating this Media.

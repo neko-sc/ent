@@ -13,6 +13,7 @@ import (
 	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/entc/integration/edgefield/ent/car"
+	"github.com/neko-sc/ent/entc/integration/edgefield/ent/entity"
 )
 
 // Car is the model entity for the Car schema.
@@ -24,8 +25,7 @@ type Car struct {
 	Number string `json:"number,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the CarQuery when eager-loading is set.
-	Edges        CarEdges `json:"edges"`
-	selectValues sql.SelectValues
+	Edges CarEdges `json:"edges"`
 }
 
 // CarEdges holds the relations/edges for other nodes in the graph.
@@ -35,7 +35,31 @@ type CarEdges struct {
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes  [1]bool
+	counts       map[string]int
 	namedRentals map[string][]*Rental
+}
+
+func (e CarEdges) Loaded[N, K any](edge ent.RelationOf[entity.Car, N, K]) bool {
+	switch edge.Ref().Name {
+	case "rentals":
+		return e.loadedTypes[0]
+
+	default:
+		return false
+	}
+}
+
+func (e *CarEdges) SetLoaded[N, K any](edge ent.RelationOf[entity.Car, N, K], loaded bool) {
+	switch edge.Ref().Name {
+	case "rentals":
+		e.loadedTypes[0] = loaded
+
+	}
+}
+
+func (e CarEdges) Count[N, K any](edge ent.Relation[entity.Car, N, K]) (int, bool) {
+	count, loaded := e.counts[edge.Ref().Name]
+	return count, loaded
 }
 
 // RentalsOrErr returns the Rentals value or an error if the edge
@@ -53,7 +77,7 @@ func (*Car) scanValues(columns []string) ([]any, error) {
 	for i := range columns {
 		switch columns[i] {
 		case car.FieldNumber:
-			values[i] = new(sql.NullString)
+			values[i] = new(*string)
 		case car.FieldID:
 			values[i] = new(uuid.UUID)
 		default:
@@ -78,22 +102,15 @@ func (_m *Car) assignValues(columns []string, values []any) error {
 				_m.ID = *value
 			}
 		case car.FieldNumber:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field number", values[i])
-			} else if value.Valid {
-				_m.Number = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.Number = **value
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the Car.
-// This includes values selected through modifiers, order, etc.
-func (_m *Car) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // QueryRentals queries the "rentals" edge of the Car entity.

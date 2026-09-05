@@ -6,7 +6,8 @@
 package pc
 
 import (
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/entc/integration/ent/entity"
 )
 
 const (
@@ -17,6 +18,37 @@ const (
 	// Table holds the table name of the pc in the database.
 	Table = "pcs"
 )
+
+var (
+	ID = ent.OrderedColumn[entity.PC, int]{Table: Table, Name: FieldID}
+)
+
+// Alias returns the columns of the pcs table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.PC, int]{Table: name, Name: FieldID},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.PC, int]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.PC]) ent.Predicate[entity.PC] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.PC]) ent.Predicate[entity.PC] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.PC]) ent.Predicate[entity.PC] { return ent.Not(predicate) }
 
 // Columns holds all SQL columns for pc fields.
 var Columns = []string{
@@ -31,14 +63,6 @@ func ValidColumn(column string) bool {
 		}
 	}
 	return false
-}
-
-// OrderOption defines the ordering options for the PC queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
 }
 
 // comment from another template.

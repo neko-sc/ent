@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/examples/extensions/ent/user"
 )
@@ -17,8 +16,7 @@ type User struct {
 	// ID of the ent.
 	ID int `json:"id,omitempty"`
 	// Location holds the value of the "location" field.
-	Location     []byte `json:"location,omitempty"`
-	selectValues sql.SelectValues
+	Location []byte `json:"location,omitempty"`
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -27,9 +25,9 @@ func (*User) scanValues(columns []string) ([]any, error) {
 	for i := range columns {
 		switch columns[i] {
 		case user.FieldLocation:
-			values[i] = new([]byte)
+			values[i] = new(*[]byte)
 		case user.FieldID:
-			values[i] = new(sql.NullInt64)
+			values[i] = new(*int)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -46,28 +44,22 @@ func (_m *User) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case user.FieldID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field id", values[i])
-			} else if value.Valid {
-				_m.ID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.ID = **value
 			}
 		case user.FieldLocation:
-			if value, ok := values[i].(*[]byte); !ok {
+
+			if value, ok := values[i].(**[]byte); !ok {
 				return fmt.Errorf("unexpected type %T for field location", values[i])
-			} else if value != nil {
-				_m.Location = *value
+			} else if value != nil && *value != nil {
+				_m.Location = **value
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the User.
-// This includes values selected through modifiers, order, etc.
-func (_m *User) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // Update returns a builder for updating this User.

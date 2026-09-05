@@ -9,9 +9,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
-	"github.com/neko-sc/ent/entc/integration/customid/ent/schema"
+	schema2 "github.com/neko-sc/ent/entc/integration/customid/ent/schema"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/valuescan"
 )
 
@@ -19,10 +18,9 @@ import (
 type ValueScan struct {
 	config `json:"-"`
 	// ID of the ent.
-	ID schema.ValueScanID `json:"id,omitempty"`
+	ID schema2.ValueScanID `json:"id,omitempty"`
 	// Name holds the value of the "name" field.
-	Name         string `json:"name,omitempty"`
-	selectValues sql.SelectValues
+	Name string `json:"name,omitempty"`
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -33,7 +31,7 @@ func (*ValueScan) scanValues(columns []string) ([]any, error) {
 		case valuescan.FieldID:
 			values[i] = valuescan.ValueScanner.ID.ScanValue()
 		case valuescan.FieldName:
-			values[i] = new(sql.NullString)
+			values[i] = new(*string)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -56,22 +54,15 @@ func (_m *ValueScan) assignValues(columns []string, values []any) error {
 				_m.ID = value
 			}
 		case valuescan.FieldName:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field name", values[i])
-			} else if value.Valid {
-				_m.Name = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.Name = **value
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the ValueScan.
-// This includes values selected through modifiers, order, etc.
-func (_m *ValueScan) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // Update returns a builder for updating this ValueScan.

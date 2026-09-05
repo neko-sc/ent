@@ -10,57 +10,177 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/entc/integration/ent/api"
-	"github.com/neko-sc/ent/entc/integration/ent/predicate"
+	"github.com/neko-sc/ent/entc/integration/ent/entity"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// APIUpdate is the builder for updating Api entities.
 type APIUpdate struct {
 	config
-	hooks     []Hook
 	mutation  *APIMutation
+	err       error
+	returning *sqlgraph.Returning
+
 	modifiers []func(*sql.UpdateBuilder)
 }
 
-// Where appends a list predicates to the APIUpdate builder.
-func (_u *APIUpdate) Where(ps ...predicate.Api) *APIUpdate {
-	_u.mutation.Where(ps...)
-	return _u
+func (b *APIUpdate) Set[T any](column ent.ColumnOf[entity.Api, T], value T) *APIUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
+	}
+
+	return b
+}
+func (b *APIUpdate) SetOptional[T any](column ent.ColumnOf[entity.Api, T], value ent.Option[T]) *APIUpdate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *APIUpdate) SetExpr[T any](column ent.ColumnOf[entity.Api, T], value ent.Expr[T]) *APIUpdate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Api is not settable", column.Ref().Name)}
+		return b
+	}
+
+}
+func (b *APIUpdate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Api, N, K], id K) *APIUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *APIUpdate) AddIDs[N, K any](edge ent.Relation[entity.Api, N, K], ids ...K) *APIUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *APIUpdate) Mutation() *APIMutation { return b.mutation }
+
+func (b *APIUpdate) Patch() *ApiPatch            { return b.mutation.patch }
+func (b *APIUpdate) Apply(p ApiPatch) *APIUpdate { b.mutation.patch.apply(p); return b }
+func (b *APIUpdate) Add[T ent.Number](column ent.ColumnOf[entity.Api, T], delta T) *APIUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *APIUpdate) Append[T any](column ent.ColumnOf[entity.Api, T], values T) *APIUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *APIUpdate) Clear[T any](column ent.ColumnOf[entity.Api, T]) *APIUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *APIUpdate) RemoveIDs[N, K any](edge ent.Relation[entity.Api, N, K], ids ...K) *APIUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *APIUpdate) ClearEdge[N, K any](edge ent.RelationOf[entity.Api, N, K]) *APIUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// Mutation returns the APIMutation object of the builder.
-func (_u *APIUpdate) Mutation() *APIMutation {
-	return _u.mutation
+func (b *APIUpdate) Where(predicates ...ent.Predicate[entity.Api]) *APIUpdate {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Save executes the query and returns the number of nodes affected by the update operation.
-func (_u *APIUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
+func (b *APIUpdate) Save(ctx context.Context) (int, error) {
+	if b.err != nil {
+		return 0, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return 0, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_u *APIUpdate) SaveX(ctx context.Context) int {
-	affected, err := _u.Save(ctx)
+func (b *APIUpdate) SaveX(ctx context.Context) int {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return affected
+	return result
 }
 
-// Exec executes the query.
-func (_u *APIUpdate) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *APIUpdate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *APIUpdate) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *APIUpdate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
+}
+
+func (b *APIUpdate) Returning(ctx context.Context) ([]*Api, error) {
+	nodes := make([]*Api, 0)
+	b.returning = &sqlgraph.Returning{Columns: api.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Api{config: b.config}
+		values, err := _node.scanValues(api.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(api.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Save(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
+}
+
+func (b *APIUpdate) defaults() error {
+
+	return nil
+}
+
+func (b *APIUpdate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	return nil
 }
 
 // Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
@@ -70,6 +190,9 @@ func (_u *APIUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *APIUpdate 
 }
 
 func (_u *APIUpdate) sqlSave(ctx context.Context) (_node int, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(api.Table, api.Columns, sqlgraph.NewFieldSpec(api.FieldID, field.TypeInt))
 	if ps := _u.mutation.Predicates(); len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -78,7 +201,12 @@ func (_u *APIUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			}
 		}
 	}
+	_spec.Returning = _u.returning
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
 	_spec.AddModifiers(_u.modifiers...)
+
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{api.Label}
@@ -87,62 +215,173 @@ func (_u *APIUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		return 0, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }
 
-// APIUpdateOne is the builder for updating a single Api entity.
 type APIUpdateOne struct {
 	config
-	fields    []string
-	hooks     []Hook
-	mutation  *APIMutation
+	mutation *APIMutation
+	err      error
+
+	fields []string
+	old    *Api
+
 	modifiers []func(*sql.UpdateBuilder)
 }
 
-// Mutation returns the APIMutation object of the builder.
-func (_u *APIUpdateOne) Mutation() *APIMutation {
-	return _u.mutation
+func (b *APIUpdateOne) Set[T any](column ent.ColumnOf[entity.Api, T], value T) *APIUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
+	}
+
+	return b
+}
+func (b *APIUpdateOne) SetOptional[T any](column ent.ColumnOf[entity.Api, T], value ent.Option[T]) *APIUpdateOne {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *APIUpdateOne) SetExpr[T any](column ent.ColumnOf[entity.Api, T], value ent.Expr[T]) *APIUpdateOne {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Api is not settable", column.Ref().Name)}
+		return b
+	}
+
+}
+func (b *APIUpdateOne) SetEdge[N, K any](edge ent.UniqueRelation[entity.Api, N, K], id K) *APIUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *APIUpdateOne) AddIDs[N, K any](edge ent.Relation[entity.Api, N, K], ids ...K) *APIUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *APIUpdateOne) Mutation() *APIMutation { return b.mutation }
+
+func (b *APIUpdateOne) Patch() *ApiPatch               { return b.mutation.patch }
+func (b *APIUpdateOne) Apply(p ApiPatch) *APIUpdateOne { b.mutation.patch.apply(p); return b }
+func (b *APIUpdateOne) Add[T ent.Number](column ent.ColumnOf[entity.Api, T], delta T) *APIUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *APIUpdateOne) Append[T any](column ent.ColumnOf[entity.Api, T], values T) *APIUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *APIUpdateOne) Clear[T any](column ent.ColumnOf[entity.Api, T]) *APIUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *APIUpdateOne) RemoveIDs[N, K any](edge ent.Relation[entity.Api, N, K], ids ...K) *APIUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *APIUpdateOne) ClearEdge[N, K any](edge ent.RelationOf[entity.Api, N, K]) *APIUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// Where appends a list predicates to the APIUpdate builder.
-func (_u *APIUpdateOne) Where(ps ...predicate.Api) *APIUpdateOne {
-	_u.mutation.Where(ps...)
-	return _u
+func (b *APIUpdateOne) Where(predicates ...ent.Predicate[entity.Api]) *APIUpdateOne {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Select allows selecting one or more fields (columns) of the returned entity.
-// The default is selecting all fields defined in the entity schema.
-func (_u *APIUpdateOne) Select(field string, fields ...string) *APIUpdateOne {
-	_u.fields = append([]string{field}, fields...)
-	return _u
+func (b *APIUpdateOne) Save(ctx context.Context) (*Api, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Save executes the query and returns the updated Api entity.
-func (_u *APIUpdateOne) Save(ctx context.Context) (*Api, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *APIUpdateOne) SaveX(ctx context.Context) *Api {
-	node, err := _u.Save(ctx)
+func (b *APIUpdateOne) SaveX(ctx context.Context) *Api {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return node
+	return result
 }
 
-// Exec executes the query on the entity.
-func (_u *APIUpdateOne) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *APIUpdateOne) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *APIUpdateOne) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *APIUpdateOne) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
+}
+
+func (b *APIUpdateOne) Select(columns ...ent.EntityColumn[entity.Api]) *APIUpdateOne {
+	if len(columns) == 0 {
+		panic("ent: Select requires at least one column")
+	}
+	b.fields = make([]string, len(columns))
+	for index, column := range columns {
+		b.fields[index] = column.Ref().Name
+	}
+	return b
+}
+
+func (b *APIUpdateOne) SaveOld(ctx context.Context) (old *Api, updated *Api, err error) {
+	if !b.driver.Capabilities().ReturningOld {
+		return nil, nil, &dialect.UnsupportedError{Feature: "RETURNING OLD", Dialect: dialect.Dialect(b.driver.Dialect())}
+	}
+	b.old = &Api{config: b.config}
+	defer func() { b.old = nil }()
+	updated, err = b.Save(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return b.old, updated, nil
+}
+
+func (b *APIUpdateOne) defaults() error {
+
+	return nil
+}
+
+func (b *APIUpdateOne) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	return nil
 }
 
 // Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
@@ -152,6 +391,9 @@ func (_u *APIUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *APIUpda
 }
 
 func (_u *APIUpdateOne) sqlSave(ctx context.Context) (_node *Api, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(api.Table, api.Columns, sqlgraph.NewFieldSpec(api.FieldID, field.TypeInt))
 	id, ok := _u.mutation.ID()
 	if !ok {
@@ -177,10 +419,18 @@ func (_u *APIUpdateOne) sqlSave(ctx context.Context) (_node *Api, err error) {
 			}
 		}
 	}
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
 	_spec.AddModifiers(_u.modifiers...)
+
 	_node = &Api{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
+	if _u.old != nil {
+		_spec.OldScanValues = _u.old.scanValues
+		_spec.OldAssign = _u.old.assignValues
+	}
 	if err = sqlgraph.UpdateNode(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{api.Label}
@@ -189,6 +439,5 @@ func (_u *APIUpdateOne) sqlSave(ctx context.Context) (_node *Api, err error) {
 		}
 		return nil, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }

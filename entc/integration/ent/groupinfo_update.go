@@ -10,129 +10,197 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/ent/group"
 	"github.com/neko-sc/ent/entc/integration/ent/groupinfo"
-	"github.com/neko-sc/ent/entc/integration/ent/predicate"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// GroupInfoUpdate is the builder for updating GroupInfo entities.
 type GroupInfoUpdate struct {
 	config
-	hooks     []Hook
 	mutation  *GroupInfoMutation
+	err       error
+	returning *sqlgraph.Returning
+
 	modifiers []func(*sql.UpdateBuilder)
 }
 
-// Where appends a list predicates to the GroupInfoUpdate builder.
-func (_u *GroupInfoUpdate) Where(ps ...predicate.GroupInfo) *GroupInfoUpdate {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// SetDesc sets the "desc" field.
-func (_u *GroupInfoUpdate) SetDesc(v string) *GroupInfoUpdate {
-	_u.mutation.SetDesc(v)
-	return _u
-}
-
-// SetNillableDesc sets the "desc" field if the given value is not nil.
-func (_u *GroupInfoUpdate) SetNillableDesc(v *string) *GroupInfoUpdate {
-	if v != nil {
-		_u.SetDesc(*v)
+func (b *GroupInfoUpdate) Set[T any](column ent.ColumnOf[entity.GroupInfo, T], value T) *GroupInfoUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// SetMaxUsers sets the "max_users" field.
-func (_u *GroupInfoUpdate) SetMaxUsers(v int) *GroupInfoUpdate {
-	_u.mutation.ResetMaxUsers()
-	_u.mutation.SetMaxUsers(v)
-	return _u
+	return b
 }
-
-// SetNillableMaxUsers sets the "max_users" field if the given value is not nil.
-func (_u *GroupInfoUpdate) SetNillableMaxUsers(v *int) *GroupInfoUpdate {
-	if v != nil {
-		_u.SetMaxUsers(*v)
+func (b *GroupInfoUpdate) SetOptional[T any](column ent.ColumnOf[entity.GroupInfo, T], value ent.Option[T]) *GroupInfoUpdate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u
-}
-
-// AddMaxUsers adds value to the "max_users" field.
-func (_u *GroupInfoUpdate) AddMaxUsers(v int) *GroupInfoUpdate {
-	_u.mutation.AddMaxUsers(v)
-	return _u
-}
-
-// AddGroupIDs adds the "groups" edge to the Group entity by IDs.
-func (_u *GroupInfoUpdate) AddGroupIDs(ids ...int) *GroupInfoUpdate {
-	_u.mutation.AddGroupIDs(ids...)
-	return _u
-}
-
-// AddGroups adds the "groups" edges to the Group entity.
-func (_u *GroupInfoUpdate) AddGroups(v ...*Group) *GroupInfoUpdate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
 	}
-	return _u.AddGroupIDs(ids...)
+	return b
 }
-
-// Mutation returns the GroupInfoMutation object of the builder.
-func (_u *GroupInfoUpdate) Mutation() *GroupInfoMutation {
-	return _u.mutation
-}
-
-// ClearGroups clears all "groups" edges to the Group entity.
-func (_u *GroupInfoUpdate) ClearGroups() *GroupInfoUpdate {
-	_u.mutation.ClearGroups()
-	return _u
-}
-
-// RemoveGroupIDs removes the "groups" edge to Group entities by IDs.
-func (_u *GroupInfoUpdate) RemoveGroupIDs(ids ...int) *GroupInfoUpdate {
-	_u.mutation.RemoveGroupIDs(ids...)
-	return _u
-}
-
-// RemoveGroups removes "groups" edges to Group entities.
-func (_u *GroupInfoUpdate) RemoveGroups(v ...*Group) *GroupInfoUpdate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+func (b *GroupInfoUpdate) SetExpr[T any](column ent.ColumnOf[entity.GroupInfo, T], value ent.Expr[T]) *GroupInfoUpdate {
+	if b.err != nil {
+		return b
 	}
-	return _u.RemoveGroupIDs(ids...)
+	switch column.Ref().Name {
+
+	case groupinfo.FieldDesc:
+
+	case groupinfo.FieldMaxUsers:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of GroupInfo is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *GroupInfoUpdate) SetEdge[N, K any](edge ent.UniqueRelation[entity.GroupInfo, N, K], id K) *GroupInfoUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *GroupInfoUpdate) AddIDs[N, K any](edge ent.Relation[entity.GroupInfo, N, K], ids ...K) *GroupInfoUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *GroupInfoUpdate) Mutation() *GroupInfoMutation { return b.mutation }
+
+func (b *GroupInfoUpdate) Patch() *GroupInfoPatch { return b.mutation.patch }
+func (b *GroupInfoUpdate) Apply(p GroupInfoPatch) *GroupInfoUpdate {
+	b.mutation.patch.apply(p)
+	return b
+}
+func (b *GroupInfoUpdate) Add[T ent.Number](column ent.ColumnOf[entity.GroupInfo, T], delta T) *GroupInfoUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *GroupInfoUpdate) Append[T any](column ent.ColumnOf[entity.GroupInfo, T], values T) *GroupInfoUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *GroupInfoUpdate) Clear[T any](column ent.ColumnOf[entity.GroupInfo, T]) *GroupInfoUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *GroupInfoUpdate) RemoveIDs[N, K any](edge ent.Relation[entity.GroupInfo, N, K], ids ...K) *GroupInfoUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *GroupInfoUpdate) ClearEdge[N, K any](edge ent.RelationOf[entity.GroupInfo, N, K]) *GroupInfoUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// Save executes the query and returns the number of nodes affected by the update operation.
-func (_u *GroupInfoUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
+func (b *GroupInfoUpdate) Where(predicates ...ent.Predicate[entity.GroupInfo]) *GroupInfoUpdate {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_u *GroupInfoUpdate) SaveX(ctx context.Context) int {
-	affected, err := _u.Save(ctx)
+func (b *GroupInfoUpdate) Save(ctx context.Context) (int, error) {
+	if b.err != nil {
+		return 0, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return 0, err
+	}
+	return b.sqlSave(ctx)
+}
+
+func (b *GroupInfoUpdate) SaveX(ctx context.Context) int {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return affected
+	return result
 }
 
-// Exec executes the query.
-func (_u *GroupInfoUpdate) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *GroupInfoUpdate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *GroupInfoUpdate) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *GroupInfoUpdate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
+}
+
+func (b *GroupInfoUpdate) Returning(ctx context.Context) ([]*GroupInfo, error) {
+	nodes := make([]*GroupInfo, 0)
+	b.returning = &sqlgraph.Returning{Columns: groupinfo.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &GroupInfo{config: b.config}
+		values, err := _node.scanValues(groupinfo.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(groupinfo.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Save(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
+}
+
+func (b *GroupInfoUpdate) defaults() error {
+
+	return nil
+}
+
+func (b *GroupInfoUpdate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.Desc.IsNull() {
+		return &ValidationError{Name: "desc", err: errors.New(`ent: field "GroupInfo.desc" is not nullable`)}
+	}
+
+	if b.mutation.patch.MaxUsers.IsNull() {
+		return &ValidationError{Name: "max_users", err: errors.New(`ent: field "GroupInfo.max_users" is not nullable`)}
+	}
+
+	return nil
 }
 
 // Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
@@ -142,6 +210,9 @@ func (_u *GroupInfoUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *Grou
 }
 
 func (_u *GroupInfoUpdate) sqlSave(ctx context.Context) (_node int, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(groupinfo.Table, groupinfo.Columns, sqlgraph.NewFieldSpec(groupinfo.FieldID, field.TypeInt))
 	if ps := _u.mutation.Predicates(); len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -150,16 +221,16 @@ func (_u *GroupInfoUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.Desc(); ok {
+	if value, ok := _u.mutation.patch.Desc.Get(); ok {
 		_spec.SetField(groupinfo.FieldDesc, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.MaxUsers(); ok {
+	if value, ok := _u.mutation.patch.MaxUsers.Get(); ok {
 		_spec.SetField(groupinfo.FieldMaxUsers, field.TypeInt, value)
 	}
-	if value, ok := _u.mutation.AddedMaxUsers(); ok {
+	if value, ok := _u.mutation.patch.MaxUsersAdd.Get(); ok {
 		_spec.AddField(groupinfo.FieldMaxUsers, field.TypeInt, value)
 	}
-	if _u.mutation.GroupsCleared() {
+	if _u.mutation.patch.Groups.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: true,
@@ -172,7 +243,7 @@ func (_u *GroupInfoUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.RemovedGroupsIDs(); len(nodes) > 0 && !_u.mutation.GroupsCleared() {
+	if nodes := _u.mutation.patch.Groups.Remove; len(nodes) > 0 && !_u.mutation.patch.Groups.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: true,
@@ -183,12 +254,17 @@ func (_u *GroupInfoUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(group.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.GroupsIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.groupsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: true,
@@ -199,12 +275,22 @@ func (_u *GroupInfoUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(group.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	_spec.Returning = _u.returning
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
 	_spec.AddModifiers(_u.modifiers...)
+
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{groupinfo.Label}
@@ -213,133 +299,192 @@ func (_u *GroupInfoUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		return 0, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }
 
-// GroupInfoUpdateOne is the builder for updating a single GroupInfo entity.
 type GroupInfoUpdateOne struct {
 	config
-	fields    []string
-	hooks     []Hook
-	mutation  *GroupInfoMutation
+	mutation *GroupInfoMutation
+	err      error
+
+	fields []string
+	old    *GroupInfo
+
 	modifiers []func(*sql.UpdateBuilder)
 }
 
-// SetDesc sets the "desc" field.
-func (_u *GroupInfoUpdateOne) SetDesc(v string) *GroupInfoUpdateOne {
-	_u.mutation.SetDesc(v)
-	return _u
-}
-
-// SetNillableDesc sets the "desc" field if the given value is not nil.
-func (_u *GroupInfoUpdateOne) SetNillableDesc(v *string) *GroupInfoUpdateOne {
-	if v != nil {
-		_u.SetDesc(*v)
+func (b *GroupInfoUpdateOne) Set[T any](column ent.ColumnOf[entity.GroupInfo, T], value T) *GroupInfoUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// SetMaxUsers sets the "max_users" field.
-func (_u *GroupInfoUpdateOne) SetMaxUsers(v int) *GroupInfoUpdateOne {
-	_u.mutation.ResetMaxUsers()
-	_u.mutation.SetMaxUsers(v)
-	return _u
+	return b
 }
-
-// SetNillableMaxUsers sets the "max_users" field if the given value is not nil.
-func (_u *GroupInfoUpdateOne) SetNillableMaxUsers(v *int) *GroupInfoUpdateOne {
-	if v != nil {
-		_u.SetMaxUsers(*v)
+func (b *GroupInfoUpdateOne) SetOptional[T any](column ent.ColumnOf[entity.GroupInfo, T], value ent.Option[T]) *GroupInfoUpdateOne {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u
-}
-
-// AddMaxUsers adds value to the "max_users" field.
-func (_u *GroupInfoUpdateOne) AddMaxUsers(v int) *GroupInfoUpdateOne {
-	_u.mutation.AddMaxUsers(v)
-	return _u
-}
-
-// AddGroupIDs adds the "groups" edge to the Group entity by IDs.
-func (_u *GroupInfoUpdateOne) AddGroupIDs(ids ...int) *GroupInfoUpdateOne {
-	_u.mutation.AddGroupIDs(ids...)
-	return _u
-}
-
-// AddGroups adds the "groups" edges to the Group entity.
-func (_u *GroupInfoUpdateOne) AddGroups(v ...*Group) *GroupInfoUpdateOne {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
 	}
-	return _u.AddGroupIDs(ids...)
+	return b
 }
-
-// Mutation returns the GroupInfoMutation object of the builder.
-func (_u *GroupInfoUpdateOne) Mutation() *GroupInfoMutation {
-	return _u.mutation
-}
-
-// ClearGroups clears all "groups" edges to the Group entity.
-func (_u *GroupInfoUpdateOne) ClearGroups() *GroupInfoUpdateOne {
-	_u.mutation.ClearGroups()
-	return _u
-}
-
-// RemoveGroupIDs removes the "groups" edge to Group entities by IDs.
-func (_u *GroupInfoUpdateOne) RemoveGroupIDs(ids ...int) *GroupInfoUpdateOne {
-	_u.mutation.RemoveGroupIDs(ids...)
-	return _u
-}
-
-// RemoveGroups removes "groups" edges to Group entities.
-func (_u *GroupInfoUpdateOne) RemoveGroups(v ...*Group) *GroupInfoUpdateOne {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+func (b *GroupInfoUpdateOne) SetExpr[T any](column ent.ColumnOf[entity.GroupInfo, T], value ent.Expr[T]) *GroupInfoUpdateOne {
+	if b.err != nil {
+		return b
 	}
-	return _u.RemoveGroupIDs(ids...)
+	switch column.Ref().Name {
+
+	case groupinfo.FieldDesc:
+
+	case groupinfo.FieldMaxUsers:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of GroupInfo is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *GroupInfoUpdateOne) SetEdge[N, K any](edge ent.UniqueRelation[entity.GroupInfo, N, K], id K) *GroupInfoUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *GroupInfoUpdateOne) AddIDs[N, K any](edge ent.Relation[entity.GroupInfo, N, K], ids ...K) *GroupInfoUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *GroupInfoUpdateOne) Mutation() *GroupInfoMutation { return b.mutation }
+
+func (b *GroupInfoUpdateOne) Patch() *GroupInfoPatch { return b.mutation.patch }
+func (b *GroupInfoUpdateOne) Apply(p GroupInfoPatch) *GroupInfoUpdateOne {
+	b.mutation.patch.apply(p)
+	return b
+}
+func (b *GroupInfoUpdateOne) Add[T ent.Number](column ent.ColumnOf[entity.GroupInfo, T], delta T) *GroupInfoUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *GroupInfoUpdateOne) Append[T any](column ent.ColumnOf[entity.GroupInfo, T], values T) *GroupInfoUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *GroupInfoUpdateOne) Clear[T any](column ent.ColumnOf[entity.GroupInfo, T]) *GroupInfoUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *GroupInfoUpdateOne) RemoveIDs[N, K any](edge ent.Relation[entity.GroupInfo, N, K], ids ...K) *GroupInfoUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *GroupInfoUpdateOne) ClearEdge[N, K any](edge ent.RelationOf[entity.GroupInfo, N, K]) *GroupInfoUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// Where appends a list predicates to the GroupInfoUpdate builder.
-func (_u *GroupInfoUpdateOne) Where(ps ...predicate.GroupInfo) *GroupInfoUpdateOne {
-	_u.mutation.Where(ps...)
-	return _u
+func (b *GroupInfoUpdateOne) Where(predicates ...ent.Predicate[entity.GroupInfo]) *GroupInfoUpdateOne {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Select allows selecting one or more fields (columns) of the returned entity.
-// The default is selecting all fields defined in the entity schema.
-func (_u *GroupInfoUpdateOne) Select(field string, fields ...string) *GroupInfoUpdateOne {
-	_u.fields = append([]string{field}, fields...)
-	return _u
+func (b *GroupInfoUpdateOne) Save(ctx context.Context) (*GroupInfo, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Save executes the query and returns the updated GroupInfo entity.
-func (_u *GroupInfoUpdateOne) Save(ctx context.Context) (*GroupInfo, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *GroupInfoUpdateOne) SaveX(ctx context.Context) *GroupInfo {
-	node, err := _u.Save(ctx)
+func (b *GroupInfoUpdateOne) SaveX(ctx context.Context) *GroupInfo {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return node
+	return result
 }
 
-// Exec executes the query on the entity.
-func (_u *GroupInfoUpdateOne) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *GroupInfoUpdateOne) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *GroupInfoUpdateOne) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *GroupInfoUpdateOne) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
+}
+
+func (b *GroupInfoUpdateOne) Select(columns ...ent.EntityColumn[entity.GroupInfo]) *GroupInfoUpdateOne {
+	if len(columns) == 0 {
+		panic("ent: Select requires at least one column")
+	}
+	b.fields = make([]string, len(columns))
+	for index, column := range columns {
+		b.fields[index] = column.Ref().Name
+	}
+	return b
+}
+
+func (b *GroupInfoUpdateOne) SaveOld(ctx context.Context) (old *GroupInfo, updated *GroupInfo, err error) {
+	if !b.driver.Capabilities().ReturningOld {
+		return nil, nil, &dialect.UnsupportedError{Feature: "RETURNING OLD", Dialect: dialect.Dialect(b.driver.Dialect())}
+	}
+	b.old = &GroupInfo{config: b.config}
+	defer func() { b.old = nil }()
+	updated, err = b.Save(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return b.old, updated, nil
+}
+
+func (b *GroupInfoUpdateOne) defaults() error {
+
+	return nil
+}
+
+func (b *GroupInfoUpdateOne) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.Desc.IsNull() {
+		return &ValidationError{Name: "desc", err: errors.New(`ent: field "GroupInfo.desc" is not nullable`)}
+	}
+
+	if b.mutation.patch.MaxUsers.IsNull() {
+		return &ValidationError{Name: "max_users", err: errors.New(`ent: field "GroupInfo.max_users" is not nullable`)}
+	}
+
+	return nil
 }
 
 // Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
@@ -349,6 +494,9 @@ func (_u *GroupInfoUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *G
 }
 
 func (_u *GroupInfoUpdateOne) sqlSave(ctx context.Context) (_node *GroupInfo, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(groupinfo.Table, groupinfo.Columns, sqlgraph.NewFieldSpec(groupinfo.FieldID, field.TypeInt))
 	id, ok := _u.mutation.ID()
 	if !ok {
@@ -374,16 +522,16 @@ func (_u *GroupInfoUpdateOne) sqlSave(ctx context.Context) (_node *GroupInfo, er
 			}
 		}
 	}
-	if value, ok := _u.mutation.Desc(); ok {
+	if value, ok := _u.mutation.patch.Desc.Get(); ok {
 		_spec.SetField(groupinfo.FieldDesc, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.MaxUsers(); ok {
+	if value, ok := _u.mutation.patch.MaxUsers.Get(); ok {
 		_spec.SetField(groupinfo.FieldMaxUsers, field.TypeInt, value)
 	}
-	if value, ok := _u.mutation.AddedMaxUsers(); ok {
+	if value, ok := _u.mutation.patch.MaxUsersAdd.Get(); ok {
 		_spec.AddField(groupinfo.FieldMaxUsers, field.TypeInt, value)
 	}
-	if _u.mutation.GroupsCleared() {
+	if _u.mutation.patch.Groups.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: true,
@@ -396,7 +544,7 @@ func (_u *GroupInfoUpdateOne) sqlSave(ctx context.Context) (_node *GroupInfo, er
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.RemovedGroupsIDs(); len(nodes) > 0 && !_u.mutation.GroupsCleared() {
+	if nodes := _u.mutation.patch.Groups.Remove; len(nodes) > 0 && !_u.mutation.patch.Groups.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: true,
@@ -407,12 +555,17 @@ func (_u *GroupInfoUpdateOne) sqlSave(ctx context.Context) (_node *GroupInfo, er
 				IDSpec: sqlgraph.NewFieldSpec(group.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.GroupsIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.groupsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: true,
@@ -423,15 +576,28 @@ func (_u *GroupInfoUpdateOne) sqlSave(ctx context.Context) (_node *GroupInfo, er
 				IDSpec: sqlgraph.NewFieldSpec(group.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
 	_spec.AddModifiers(_u.modifiers...)
+
 	_node = &GroupInfo{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
+	if _u.old != nil {
+		_spec.OldScanValues = _u.old.scanValues
+		_spec.OldAssign = _u.old.assignValues
+	}
 	if err = sqlgraph.UpdateNode(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{groupinfo.Label}
@@ -440,6 +606,5 @@ func (_u *GroupInfoUpdateOne) sqlSave(ctx context.Context) (_node *GroupInfo, er
 		}
 		return nil, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }

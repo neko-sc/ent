@@ -6,9 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
-	"github.com/neko-sc/ent/examples/compositetypes/ent/schema"
+	schema2 "github.com/neko-sc/ent/examples/compositetypes/ent/schema"
 	"github.com/neko-sc/ent/examples/compositetypes/ent/user"
 )
 
@@ -18,8 +17,7 @@ type User struct {
 	// ID of the ent.
 	ID int `json:"id,omitempty"`
 	// Address holds the value of the "address" field.
-	Address      *schema.Address `json:"address,omitempty"`
-	selectValues sql.SelectValues
+	Address *schema2.Address `json:"address,omitempty"`
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -28,7 +26,7 @@ func (*User) scanValues(columns []string) ([]any, error) {
 	for i := range columns {
 		switch columns[i] {
 		case user.FieldID:
-			values[i] = new(sql.NullInt64)
+			values[i] = new(*int)
 		case user.FieldAddress:
 			values[i] = user.ValueScanner.Address.ScanValue()
 		default:
@@ -47,10 +45,11 @@ func (_m *User) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case user.FieldID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field id", values[i])
-			} else if value.Valid {
-				_m.ID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.ID = **value
 			}
 		case user.FieldAddress:
 			if value, err := user.ValueScanner.Address.FromValue(values[i]); err != nil {
@@ -58,17 +57,9 @@ func (_m *User) assignValues(columns []string, values []any) error {
 			} else {
 				_m.Address = value
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the User.
-// This includes values selected through modifiers, order, etc.
-func (_m *User) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // Update returns a builder for updating this User.

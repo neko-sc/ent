@@ -8,29 +8,56 @@ package ent
 import (
 	"context"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/examples/start/ent/car"
-	"github.com/neko-sc/ent/examples/start/ent/predicate"
+	"github.com/neko-sc/ent/examples/start/ent/entity"
 	"github.com/neko-sc/ent/schema/field"
 )
 
 // CarDelete is the builder for deleting a Car entity.
 type CarDelete struct {
 	config
-	hooks    []Hook
-	mutation *CarMutation
+
+	mutation  *CarMutation
+	returning *sqlgraph.Returning
 }
 
 // Where appends a list predicates to the CarDelete builder.
-func (_d *CarDelete) Where(ps ...predicate.Car) *CarDelete {
-	_d.mutation.Where(ps...)
+func (_d *CarDelete) Where(predicates ...ent.Predicate[entity.Car]) *CarDelete {
+	_d.mutation.Where(predicates...)
 	return _d
 }
 
 // Exec executes the deletion query and returns how many vertices were deleted.
 func (_d *CarDelete) Exec(ctx context.Context) (int, error) {
-	return withHooks(ctx, _d.sqlExec, _d.mutation, _d.hooks)
+	return _d.sqlExec(ctx)
+}
+
+func (b *CarDelete) Returning(ctx context.Context) ([]*Car, error) {
+	nodes := make([]*Car, 0)
+	b.returning = &sqlgraph.Returning{Columns: car.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Car{config: b.config}
+		values, err := _node.scanValues(car.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(car.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Exec(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
 }
 
 // ExecX is like Exec, but panics if an error occurs.
@@ -51,11 +78,11 @@ func (_d *CarDelete) sqlExec(ctx context.Context) (int, error) {
 			}
 		}
 	}
+	_spec.Returning = _d.returning
 	affected, err := sqlgraph.DeleteNodes(ctx, _d.driver, _spec)
 	if err != nil && sqlgraph.IsConstraintError(err) {
 		err = &ConstraintError{msg: err.Error(), wrap: err}
 	}
-	_d.mutation.done = true
 	return affected, err
 }
 
@@ -65,8 +92,8 @@ type CarDeleteOne struct {
 }
 
 // Where appends a list predicates to the CarDelete builder.
-func (_d *CarDeleteOne) Where(ps ...predicate.Car) *CarDeleteOne {
-	_d._d.mutation.Where(ps...)
+func (_d *CarDeleteOne) Where(predicates ...ent.Predicate[entity.Car]) *CarDeleteOne {
+	_d._d.mutation.Where(predicates...)
 	return _d
 }
 

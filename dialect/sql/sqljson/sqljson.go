@@ -495,7 +495,7 @@ func (p *PathOptions) value(b *sql.Builder) {
 		b.Ident(p.Ident)
 	case b.Dialect() == dialect.Postgres:
 		if p.Cast != "" {
-			b.WriteByte('(')
+			b.Byte('(')
 			defer b.WriteString(")::" + p.Cast)
 		}
 		p.pgTextPath(b)
@@ -510,7 +510,7 @@ func (p *PathOptions) length(b *sql.Builder) {
 	case b.Dialect() == dialect.Postgres:
 		b.WriteString("JSONB_ARRAY_LENGTH(")
 		p.pgTextPath(b)
-		b.WriteByte(')')
+		b.Byte(')')
 	default:
 		p.jsonExtract("JSON_ARRAY_LENGTH", b)
 	}
@@ -519,10 +519,10 @@ func (p *PathOptions) length(b *sql.Builder) {
 // jsonExtract writes a JSON function call with a dollar-path argument.
 // For example: `JSON_EXTRACT("a", '$.b.c')`.
 func (p *PathOptions) jsonExtract(fn string, b *sql.Builder) {
-	b.WriteString(fn).WriteByte('(')
+	b.WriteString(fn).Byte('(')
 	b.Ident(p.Ident).Comma()
 	p.jsonPath(b)
-	b.WriteByte(')')
+	b.Byte(')')
 }
 
 // jsonPath writes the JSON path in dollar-sign format: `'$.a.b[1].c'`.
@@ -538,7 +538,7 @@ func (p *PathOptions) jsonPath(b *sql.Builder) {
 			b.WriteString(`."` + p + `"`)
 		}
 	}
-	b.WriteByte('\'')
+	b.Byte('\'')
 }
 
 // pgTextPath writes the JSON path in PostgreSQL text format: `"a"->'b'->>'c'`.

@@ -1,69 +1,30 @@
-// Copyright 2019-2026 Facebook Inc.
-// SPDX-License-Identifier: Apache-2.0
-
 package sqlgraph
 
 import (
 	"errors"
-	"strings"
+
+	"github.com/neko-sc/ent/dialect"
 )
 
-// IsConstraintError returns true if the error resulted from a database constraint violation.
 func IsConstraintError(err error) bool {
-	var e *ConstraintError
-	return errors.As(err, &e) ||
-		IsUniqueConstraintError(err) ||
-		IsForeignKeyConstraintError(err) ||
-		IsCheckConstraintError(err)
+	if _, ok := errors.AsType[*ConstraintError](err); ok {
+		return true
+	}
+	_, ok := errors.AsType[*dialect.ConstraintError](err)
+	return ok
 }
 
-// IsUniqueConstraintError reports if the error resulted from a DB uniqueness constraint violation.
-// e.g. duplicate value in unique index.
 func IsUniqueConstraintError(err error) bool {
-	if err == nil {
-		return false
-	}
-	for _, s := range []string{
-		"violates unique constraint", // Postgres
-		"UNIQUE constraint failed",   // SQLite
-	} {
-		if strings.Contains(err.Error(), s) {
-			return true
-		}
-	}
-	return false
+	constraint, ok := errors.AsType[*dialect.ConstraintError](err)
+	return ok && constraint != nil && constraint.Kind == dialect.Unique
 }
 
-// IsForeignKeyConstraintError reports if the error resulted from a database foreign-key constraint violation.
-// e.g. parent row does not exist.
 func IsForeignKeyConstraintError(err error) bool {
-	if err == nil {
-		return false
-	}
-	for _, s := range []string{
-		"violates foreign key constraint", // Postgres
-		"FOREIGN KEY constraint failed",   // SQLite
-	} {
-		if strings.Contains(err.Error(), s) {
-			return true
-		}
-	}
-	return false
+	constraint, ok := errors.AsType[*dialect.ConstraintError](err)
+	return ok && constraint != nil && constraint.Kind == dialect.ForeignKey
 }
 
-// IsCheckConstraintError reports if the error resulted from a database check constraint violation.
-// e.g. a value does not satisfy a check condition.
 func IsCheckConstraintError(err error) bool {
-	if err == nil {
-		return false
-	}
-	for _, s := range []string{
-		"violates check constraint", // Postgres
-		"CHECK constraint failed",   // SQLite
-	} {
-		if strings.Contains(err.Error(), s) {
-			return true
-		}
-	}
-	return false
+	constraint, ok := errors.AsType[*dialect.ConstraintError](err)
+	return ok && constraint != nil && constraint.Kind == dialect.Check
 }

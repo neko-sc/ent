@@ -170,37 +170,37 @@ var (
 		Columns:    LinksColumns,
 		PrimaryKey: []*schema.Column{LinksColumns[0]},
 	}
-	// MixinIdsColumns holds the columns for the "mixin_ids" table.
-	MixinIdsColumns = []*schema.Column{
+	// MixinIDsColumns holds the columns for the "mixin_ids" table.
+	MixinIDsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
 		{Name: "some_field", Type: field.TypeString},
 		{Name: "mixin_field", Type: field.TypeString},
 	}
-	// MixinIdsTable holds the schema information for the "mixin_ids" table.
-	MixinIdsTable = &schema.Table{
+	// MixinIDsTable holds the schema information for the "mixin_ids" table.
+	MixinIDsTable = &schema.Table{
 		Name:       "mixin_ids",
-		Columns:    MixinIdsColumns,
-		PrimaryKey: []*schema.Column{MixinIdsColumns[0]},
+		Columns:    MixinIDsColumns,
+		PrimaryKey: []*schema.Column{MixinIDsColumns[0]},
 		Indexes: []*schema.Index{
 			{
 				Name:    "mixinid_id",
 				Unique:  false,
-				Columns: []*schema.Column{MixinIdsColumns[0]},
+				Columns: []*schema.Column{MixinIDsColumns[0]},
 			},
 			{
 				Name:    "mixinid_id_some_field",
 				Unique:  false,
-				Columns: []*schema.Column{MixinIdsColumns[0], MixinIdsColumns[1]},
+				Columns: []*schema.Column{MixinIDsColumns[0], MixinIDsColumns[1]},
 			},
 			{
 				Name:    "mixinid_id_mixin_field",
 				Unique:  false,
-				Columns: []*schema.Column{MixinIdsColumns[0], MixinIdsColumns[2]},
+				Columns: []*schema.Column{MixinIDsColumns[0], MixinIDsColumns[2]},
 			},
 			{
 				Name:    "mixinid_id_mixin_field_some_field",
 				Unique:  false,
-				Columns: []*schema.Column{MixinIdsColumns[0], MixinIdsColumns[2], MixinIdsColumns[1]},
+				Columns: []*schema.Column{MixinIDsColumns[0], MixinIDsColumns[2], MixinIDsColumns[1]},
 			},
 		},
 	}
@@ -425,7 +425,7 @@ var (
 		GroupsTable,
 		IntSiDsTable,
 		LinksTable,
-		MixinIdsTable,
+		MixinIDsTable,
 		NotesTable,
 		OthersTable,
 		PetsTable,

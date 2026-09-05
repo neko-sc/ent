@@ -9,105 +9,197 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/multischema/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/multischema/ent/friendship"
 	"github.com/neko-sc/ent/entc/integration/multischema/ent/internal"
-	"github.com/neko-sc/ent/entc/integration/multischema/ent/predicate"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// FriendshipUpdate is the builder for updating Friendship entities.
 type FriendshipUpdate struct {
 	config
-	hooks     []Hook
 	mutation  *FriendshipMutation
+	err       error
+	returning *sqlgraph.Returning
+
 	modifiers []func(*sql.UpdateBuilder)
 }
 
-// Where appends a list predicates to the FriendshipUpdate builder.
-func (_u *FriendshipUpdate) Where(ps ...predicate.Friendship) *FriendshipUpdate {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// SetWeight sets the "weight" field.
-func (_u *FriendshipUpdate) SetWeight(v int) *FriendshipUpdate {
-	_u.mutation.ResetWeight()
-	_u.mutation.SetWeight(v)
-	return _u
-}
-
-// SetNillableWeight sets the "weight" field if the given value is not nil.
-func (_u *FriendshipUpdate) SetNillableWeight(v *int) *FriendshipUpdate {
-	if v != nil {
-		_u.SetWeight(*v)
+func (b *FriendshipUpdate) Set[T any](column ent.ColumnOf[entity.Friendship, T], value T) *FriendshipUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// AddWeight adds value to the "weight" field.
-func (_u *FriendshipUpdate) AddWeight(v int) *FriendshipUpdate {
-	_u.mutation.AddWeight(v)
-	return _u
+	return b
 }
-
-// SetCreatedAt sets the "created_at" field.
-func (_u *FriendshipUpdate) SetCreatedAt(v time.Time) *FriendshipUpdate {
-	_u.mutation.SetCreatedAt(v)
-	return _u
-}
-
-// SetNillableCreatedAt sets the "created_at" field if the given value is not nil.
-func (_u *FriendshipUpdate) SetNillableCreatedAt(v *time.Time) *FriendshipUpdate {
-	if v != nil {
-		_u.SetCreatedAt(*v)
+func (b *FriendshipUpdate) SetOptional[T any](column ent.ColumnOf[entity.Friendship, T], value ent.Option[T]) *FriendshipUpdate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *FriendshipUpdate) SetExpr[T any](column ent.ColumnOf[entity.Friendship, T], value ent.Expr[T]) *FriendshipUpdate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case friendship.FieldWeight:
+
+	case friendship.FieldCreatedAt:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Friendship is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *FriendshipUpdate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Friendship, N, K], id K) *FriendshipUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *FriendshipUpdate) AddIDs[N, K any](edge ent.Relation[entity.Friendship, N, K], ids ...K) *FriendshipUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *FriendshipUpdate) Mutation() *FriendshipMutation { return b.mutation }
+
+func (b *FriendshipUpdate) Patch() *FriendshipPatch { return b.mutation.patch }
+func (b *FriendshipUpdate) Apply(p FriendshipPatch) *FriendshipUpdate {
+	b.mutation.patch.apply(p)
+	return b
+}
+func (b *FriendshipUpdate) Add[T ent.Number](column ent.ColumnOf[entity.Friendship, T], delta T) *FriendshipUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *FriendshipUpdate) Append[T any](column ent.ColumnOf[entity.Friendship, T], values T) *FriendshipUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *FriendshipUpdate) Clear[T any](column ent.ColumnOf[entity.Friendship, T]) *FriendshipUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *FriendshipUpdate) RemoveIDs[N, K any](edge ent.Relation[entity.Friendship, N, K], ids ...K) *FriendshipUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *FriendshipUpdate) ClearEdge[N, K any](edge ent.RelationOf[entity.Friendship, N, K]) *FriendshipUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// Mutation returns the FriendshipMutation object of the builder.
-func (_u *FriendshipUpdate) Mutation() *FriendshipMutation {
-	return _u.mutation
+func (b *FriendshipUpdate) Where(predicates ...ent.Predicate[entity.Friendship]) *FriendshipUpdate {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Save executes the query and returns the number of nodes affected by the update operation.
-func (_u *FriendshipUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
+func (b *FriendshipUpdate) Save(ctx context.Context) (int, error) {
+	if b.err != nil {
+		return 0, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return 0, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_u *FriendshipUpdate) SaveX(ctx context.Context) int {
-	affected, err := _u.Save(ctx)
+func (b *FriendshipUpdate) SaveX(ctx context.Context) int {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return affected
+	return result
 }
 
-// Exec executes the query.
-func (_u *FriendshipUpdate) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *FriendshipUpdate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *FriendshipUpdate) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *FriendshipUpdate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_u *FriendshipUpdate) check() error {
-	if _u.mutation.UserCleared() && len(_u.mutation.UserIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "Friendship.user"`)
+func (b *FriendshipUpdate) Returning(ctx context.Context) ([]*Friendship, error) {
+	nodes := make([]*Friendship, 0)
+	b.returning = &sqlgraph.Returning{Columns: friendship.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Friendship{config: b.config}
+		values, err := _node.scanValues(friendship.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(friendship.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Save(ctx); err != nil {
+		return nil, err
 	}
-	if _u.mutation.FriendCleared() && len(_u.mutation.FriendIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "Friendship.friend"`)
+	return nodes, nil
+}
+
+func (b *FriendshipUpdate) defaults() error {
+
+	return nil
+}
+
+func (b *FriendshipUpdate) check() error {
+	if b.err != nil {
+		return b.err
 	}
+
+	if b.mutation.patch.Weight.IsNull() {
+		return &ValidationError{Name: "weight", err: errors.New(`ent: field "Friendship.weight" is not nullable`)}
+	}
+
+	if b.mutation.patch.CreatedAt.IsNull() {
+		return &ValidationError{Name: "created_at", err: errors.New(`ent: field "Friendship.created_at" is not nullable`)}
+	}
+
 	return nil
 }
 
@@ -129,18 +221,23 @@ func (_u *FriendshipUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 			}
 		}
 	}
-	if value, ok := _u.mutation.Weight(); ok {
+	if value, ok := _u.mutation.patch.Weight.Get(); ok {
 		_spec.SetField(friendship.FieldWeight, field.TypeInt, value)
 	}
-	if value, ok := _u.mutation.AddedWeight(); ok {
+	if value, ok := _u.mutation.patch.WeightAdd.Get(); ok {
 		_spec.AddField(friendship.FieldWeight, field.TypeInt, value)
 	}
-	if value, ok := _u.mutation.CreatedAt(); ok {
+	if value, ok := _u.mutation.patch.CreatedAt.Get(); ok {
 		_spec.SetField(friendship.FieldCreatedAt, field.TypeTime, value)
+	}
+	_spec.Returning = _u.returning
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
 	}
 	_spec.Node.Schema = _u.schemaConfig.Friendship
 	ctx = internal.NewSchemaConfigContext(ctx, _u.schemaConfig)
 	_spec.AddModifiers(_u.modifiers...)
+
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{friendship.Label}
@@ -149,107 +246,191 @@ func (_u *FriendshipUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 		}
 		return 0, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }
 
-// FriendshipUpdateOne is the builder for updating a single Friendship entity.
 type FriendshipUpdateOne struct {
 	config
-	fields    []string
-	hooks     []Hook
-	mutation  *FriendshipMutation
+	mutation *FriendshipMutation
+	err      error
+
+	fields []string
+	old    *Friendship
+
 	modifiers []func(*sql.UpdateBuilder)
 }
 
-// SetWeight sets the "weight" field.
-func (_u *FriendshipUpdateOne) SetWeight(v int) *FriendshipUpdateOne {
-	_u.mutation.ResetWeight()
-	_u.mutation.SetWeight(v)
-	return _u
-}
-
-// SetNillableWeight sets the "weight" field if the given value is not nil.
-func (_u *FriendshipUpdateOne) SetNillableWeight(v *int) *FriendshipUpdateOne {
-	if v != nil {
-		_u.SetWeight(*v)
+func (b *FriendshipUpdateOne) Set[T any](column ent.ColumnOf[entity.Friendship, T], value T) *FriendshipUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// AddWeight adds value to the "weight" field.
-func (_u *FriendshipUpdateOne) AddWeight(v int) *FriendshipUpdateOne {
-	_u.mutation.AddWeight(v)
-	return _u
+	return b
 }
-
-// SetCreatedAt sets the "created_at" field.
-func (_u *FriendshipUpdateOne) SetCreatedAt(v time.Time) *FriendshipUpdateOne {
-	_u.mutation.SetCreatedAt(v)
-	return _u
-}
-
-// SetNillableCreatedAt sets the "created_at" field if the given value is not nil.
-func (_u *FriendshipUpdateOne) SetNillableCreatedAt(v *time.Time) *FriendshipUpdateOne {
-	if v != nil {
-		_u.SetCreatedAt(*v)
+func (b *FriendshipUpdateOne) SetOptional[T any](column ent.ColumnOf[entity.Friendship, T], value ent.Option[T]) *FriendshipUpdateOne {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *FriendshipUpdateOne) SetExpr[T any](column ent.ColumnOf[entity.Friendship, T], value ent.Expr[T]) *FriendshipUpdateOne {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case friendship.FieldWeight:
+
+	case friendship.FieldCreatedAt:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Friendship is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *FriendshipUpdateOne) SetEdge[N, K any](edge ent.UniqueRelation[entity.Friendship, N, K], id K) *FriendshipUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *FriendshipUpdateOne) AddIDs[N, K any](edge ent.Relation[entity.Friendship, N, K], ids ...K) *FriendshipUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *FriendshipUpdateOne) Mutation() *FriendshipMutation { return b.mutation }
+
+func (b *FriendshipUpdateOne) Patch() *FriendshipPatch { return b.mutation.patch }
+func (b *FriendshipUpdateOne) Apply(p FriendshipPatch) *FriendshipUpdateOne {
+	b.mutation.patch.apply(p)
+	return b
+}
+func (b *FriendshipUpdateOne) Add[T ent.Number](column ent.ColumnOf[entity.Friendship, T], delta T) *FriendshipUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *FriendshipUpdateOne) Append[T any](column ent.ColumnOf[entity.Friendship, T], values T) *FriendshipUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *FriendshipUpdateOne) Clear[T any](column ent.ColumnOf[entity.Friendship, T]) *FriendshipUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *FriendshipUpdateOne) RemoveIDs[N, K any](edge ent.Relation[entity.Friendship, N, K], ids ...K) *FriendshipUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *FriendshipUpdateOne) ClearEdge[N, K any](edge ent.RelationOf[entity.Friendship, N, K]) *FriendshipUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// Mutation returns the FriendshipMutation object of the builder.
-func (_u *FriendshipUpdateOne) Mutation() *FriendshipMutation {
-	return _u.mutation
+func (b *FriendshipUpdateOne) Where(predicates ...ent.Predicate[entity.Friendship]) *FriendshipUpdateOne {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Where appends a list predicates to the FriendshipUpdate builder.
-func (_u *FriendshipUpdateOne) Where(ps ...predicate.Friendship) *FriendshipUpdateOne {
-	_u.mutation.Where(ps...)
-	return _u
+func (b *FriendshipUpdateOne) Save(ctx context.Context) (*Friendship, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Select allows selecting one or more fields (columns) of the returned entity.
-// The default is selecting all fields defined in the entity schema.
-func (_u *FriendshipUpdateOne) Select(field string, fields ...string) *FriendshipUpdateOne {
-	_u.fields = append([]string{field}, fields...)
-	return _u
-}
-
-// Save executes the query and returns the updated Friendship entity.
-func (_u *FriendshipUpdateOne) Save(ctx context.Context) (*Friendship, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *FriendshipUpdateOne) SaveX(ctx context.Context) *Friendship {
-	node, err := _u.Save(ctx)
+func (b *FriendshipUpdateOne) SaveX(ctx context.Context) *Friendship {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return node
+	return result
 }
 
-// Exec executes the query on the entity.
-func (_u *FriendshipUpdateOne) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *FriendshipUpdateOne) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *FriendshipUpdateOne) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *FriendshipUpdateOne) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_u *FriendshipUpdateOne) check() error {
-	if _u.mutation.UserCleared() && len(_u.mutation.UserIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "Friendship.user"`)
+func (b *FriendshipUpdateOne) Select(columns ...ent.EntityColumn[entity.Friendship]) *FriendshipUpdateOne {
+	if len(columns) == 0 {
+		panic("ent: Select requires at least one column")
 	}
-	if _u.mutation.FriendCleared() && len(_u.mutation.FriendIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "Friendship.friend"`)
+	b.fields = make([]string, len(columns))
+	for index, column := range columns {
+		b.fields[index] = column.Ref().Name
 	}
+	return b
+}
+
+func (b *FriendshipUpdateOne) SaveOld(ctx context.Context) (old *Friendship, updated *Friendship, err error) {
+	if !b.driver.Capabilities().ReturningOld {
+		return nil, nil, &dialect.UnsupportedError{Feature: "RETURNING OLD", Dialect: dialect.Dialect(b.driver.Dialect())}
+	}
+	b.old = &Friendship{config: b.config}
+	defer func() { b.old = nil }()
+	updated, err = b.Save(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return b.old, updated, nil
+}
+
+func (b *FriendshipUpdateOne) defaults() error {
+
+	return nil
+}
+
+func (b *FriendshipUpdateOne) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.Weight.IsNull() {
+		return &ValidationError{Name: "weight", err: errors.New(`ent: field "Friendship.weight" is not nullable`)}
+	}
+
+	if b.mutation.patch.CreatedAt.IsNull() {
+		return &ValidationError{Name: "created_at", err: errors.New(`ent: field "Friendship.created_at" is not nullable`)}
+	}
+
 	return nil
 }
 
@@ -288,21 +469,29 @@ func (_u *FriendshipUpdateOne) sqlSave(ctx context.Context) (_node *Friendship, 
 			}
 		}
 	}
-	if value, ok := _u.mutation.Weight(); ok {
+	if value, ok := _u.mutation.patch.Weight.Get(); ok {
 		_spec.SetField(friendship.FieldWeight, field.TypeInt, value)
 	}
-	if value, ok := _u.mutation.AddedWeight(); ok {
+	if value, ok := _u.mutation.patch.WeightAdd.Get(); ok {
 		_spec.AddField(friendship.FieldWeight, field.TypeInt, value)
 	}
-	if value, ok := _u.mutation.CreatedAt(); ok {
+	if value, ok := _u.mutation.patch.CreatedAt.Get(); ok {
 		_spec.SetField(friendship.FieldCreatedAt, field.TypeTime, value)
+	}
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
 	}
 	_spec.Node.Schema = _u.schemaConfig.Friendship
 	ctx = internal.NewSchemaConfigContext(ctx, _u.schemaConfig)
 	_spec.AddModifiers(_u.modifiers...)
+
 	_node = &Friendship{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
+	if _u.old != nil {
+		_spec.OldScanValues = _u.old.scanValues
+		_spec.OldAssign = _u.old.assignValues
+	}
 	if err = sqlgraph.UpdateNode(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{friendship.Label}
@@ -311,6 +500,5 @@ func (_u *FriendshipUpdateOne) sqlSave(ctx context.Context) (_node *Friendship, 
 		}
 		return nil, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }

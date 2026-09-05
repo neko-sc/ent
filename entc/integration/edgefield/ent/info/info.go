@@ -6,8 +6,11 @@
 package info
 
 import (
-	"github.com/neko-sc/ent/dialect/sql"
+	"encoding/json"
+
+	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/edgefield/ent/entity"
 )
 
 const (
@@ -30,6 +33,41 @@ const (
 	UserColumn = "id"
 )
 
+var (
+	ID      = ent.OrderedColumn[entity.Info, int]{Table: Table, Name: FieldID}
+	Content = ent.JSONColumn[entity.Info, json.RawMessage]{Table: Table, Name: FieldContent}
+	User    = ent.NewUniqueRelation[entity.Info, entity.User, int](EdgeUser, newUserStep)
+)
+
+// Alias returns the columns of the infos table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.Info, int]{Table: name, Name: FieldID},
+		Content:    ent.JSONColumn[entity.Info, json.RawMessage]{Table: name, Name: FieldContent},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.Info, int]
+	Content    ent.JSONColumn[entity.Info, json.RawMessage]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.Info]) ent.Predicate[entity.Info] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.Info]) ent.Predicate[entity.Info] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.Info]) ent.Predicate[entity.Info] { return ent.Not(predicate) }
+
 // Columns holds all SQL columns for info fields.
 var Columns = []string{
 	FieldID,
@@ -46,20 +84,6 @@ func ValidColumn(column string) bool {
 	return false
 }
 
-// OrderOption defines the ordering options for the Info queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByUserField orders the results by user field.
-func ByUserField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newUserStep(), sql.OrderByField(field, opts...))
-	}
-}
 func newUserStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),

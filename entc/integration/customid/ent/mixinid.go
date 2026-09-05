@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/mixinid"
 )
@@ -23,8 +22,7 @@ type MixinID struct {
 	// SomeField holds the value of the "some_field" field.
 	SomeField string `json:"some_field,omitempty"`
 	// MixinField holds the value of the "mixin_field" field.
-	MixinField   string `json:"mixin_field,omitempty"`
-	selectValues sql.SelectValues
+	MixinField string `json:"mixin_field,omitempty"`
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -33,7 +31,7 @@ func (*MixinID) scanValues(columns []string) ([]any, error) {
 	for i := range columns {
 		switch columns[i] {
 		case mixinid.FieldSomeField, mixinid.FieldMixinField:
-			values[i] = new(sql.NullString)
+			values[i] = new(*string)
 		case mixinid.FieldID:
 			values[i] = new(uuid.UUID)
 		default:
@@ -58,28 +56,22 @@ func (_m *MixinID) assignValues(columns []string, values []any) error {
 				_m.ID = *value
 			}
 		case mixinid.FieldSomeField:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field some_field", values[i])
-			} else if value.Valid {
-				_m.SomeField = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.SomeField = **value
 			}
 		case mixinid.FieldMixinField:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field mixin_field", values[i])
-			} else if value.Valid {
-				_m.MixinField = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.MixinField = **value
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the MixinID.
-// This includes values selected through modifiers, order, etc.
-func (_m *MixinID) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // Update returns a builder for updating this MixinID.

@@ -8,9 +8,11 @@ package entv2
 import (
 	"context"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
-	"github.com/neko-sc/ent/entc/integration/migrate/entv2/predicate"
+	"github.com/neko-sc/ent/entc/integration/migrate/entv2/entity"
 	"github.com/neko-sc/ent/entc/integration/migrate/entv2/zoo"
 	"github.com/neko-sc/ent/schema/field"
 )
@@ -18,19 +20,44 @@ import (
 // ZooDelete is the builder for deleting a Zoo entity.
 type ZooDelete struct {
 	config
-	hooks    []Hook
-	mutation *ZooMutation
+
+	mutation  *ZooMutation
+	returning *sqlgraph.Returning
 }
 
 // Where appends a list predicates to the ZooDelete builder.
-func (_d *ZooDelete) Where(ps ...predicate.Zoo) *ZooDelete {
-	_d.mutation.Where(ps...)
+func (_d *ZooDelete) Where(predicates ...ent.Predicate[entity.Zoo]) *ZooDelete {
+	_d.mutation.Where(predicates...)
 	return _d
 }
 
 // Exec executes the deletion query and returns how many vertices were deleted.
 func (_d *ZooDelete) Exec(ctx context.Context) (int, error) {
-	return withHooks(ctx, _d.sqlExec, _d.mutation, _d.hooks)
+	return _d.sqlExec(ctx)
+}
+
+func (b *ZooDelete) Returning(ctx context.Context) ([]*Zoo, error) {
+	nodes := make([]*Zoo, 0)
+	b.returning = &sqlgraph.Returning{Columns: zoo.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Zoo{config: b.config}
+		values, err := _node.scanValues(zoo.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(zoo.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Exec(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
 }
 
 // ExecX is like Exec, but panics if an error occurs.
@@ -51,11 +78,11 @@ func (_d *ZooDelete) sqlExec(ctx context.Context) (int, error) {
 			}
 		}
 	}
+	_spec.Returning = _d.returning
 	affected, err := sqlgraph.DeleteNodes(ctx, _d.driver, _spec)
 	if err != nil && sqlgraph.IsConstraintError(err) {
 		err = &ConstraintError{msg: err.Error(), wrap: err}
 	}
-	_d.mutation.done = true
 	return affected, err
 }
 
@@ -65,8 +92,8 @@ type ZooDeleteOne struct {
 }
 
 // Where appends a list predicates to the ZooDelete builder.
-func (_d *ZooDeleteOne) Where(ps ...predicate.Zoo) *ZooDeleteOne {
-	_d._d.mutation.Where(ps...)
+func (_d *ZooDeleteOne) Where(predicates ...ent.Predicate[entity.Zoo]) *ZooDeleteOne {
+	_d._d.mutation.Where(predicates...)
 	return _d
 }
 

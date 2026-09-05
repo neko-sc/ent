@@ -39,15 +39,15 @@ func Example_recursiveTraversal() {
 	//	│  └─ cb
 	//	└─ d (deleted)
 	//
-	a := client.File.Create().SetName("a").SaveX(ctx)
-	b := client.File.Create().SetName("b").SetParent(a).SaveX(ctx)
-	client.File.Create().SetName("ba").SetParent(b).SaveX(ctx)
-	client.File.Create().SetName("bb").SetParent(b).SaveX(ctx)
-	client.File.Create().SetName("bc").SetParent(b).SetDeleted(true).SaveX(ctx)
-	c := client.File.Create().SetName("c").SetParent(a).SetDeleted(true).SaveX(ctx)
-	client.File.Create().SetName("ca").SetParent(c).SaveX(ctx)
-	client.File.Create().SetName("cb").SetParent(c).SaveX(ctx)
-	client.File.Create().SetName("d").SetParent(a).SetDeleted(true).SaveX(ctx)
+	a := client.File.Create().Set(file.Name, "a").SaveX(ctx)
+	b := client.File.Create().Set(file.Name, "b").SetEdge(file.Parent, a.ID).SaveX(ctx)
+	client.File.Create().Set(file.Name, "ba").SetEdge(file.Parent, b.ID).SaveX(ctx)
+	client.File.Create().Set(file.Name, "bb").SetEdge(file.Parent, b.ID).SaveX(ctx)
+	client.File.Create().Set(file.Name, "bc").SetEdge(file.Parent, b.ID).Set(file.Deleted, true).SaveX(ctx)
+	c := client.File.Create().Set(file.Name, "c").SetEdge(file.Parent, a.ID).Set(file.Deleted, true).SaveX(ctx)
+	client.File.Create().Set(file.Name, "ca").SetEdge(file.Parent, c.ID).SaveX(ctx)
+	client.File.Create().Set(file.Name, "cb").SetEdge(file.Parent, c.ID).SaveX(ctx)
+	client.File.Create().Set(file.Name, "d").SetEdge(file.Parent, a.ID).Set(file.Deleted, true).SaveX(ctx)
 
 	// Query undeleted files:
 	//
@@ -56,7 +56,7 @@ func Example_recursiveTraversal() {
 	//	   ├─ ba
 	//	   └─ bb
 	//
-	names := client.File.Query().
+	names, projectionError := ent.Values(ctx, client.File.Query().
 		Where(func(s *sql.Selector) {
 			t1, t2 := sql.Table(file.Table), sql.Table(file.Table)
 			with := sql.WithRecursive("undeleted", file.FieldID, file.FieldParentID)
@@ -87,8 +87,10 @@ func Example_recursiveTraversal() {
 			// Join the root `SELECT` query with the CTE result (`WITH` clause).
 			s.Prefix(with).Join(with).On(s.C(file.FieldID), with.C(file.FieldID))
 		}).
-		Select(file.FieldName).
-		StringsX(ctx)
+		Select(file.Name), file.Name)
+	if projectionError != nil {
+		panic(projectionError)
+	}
 	fmt.Printf("%q\n", names)
 
 	// Output:

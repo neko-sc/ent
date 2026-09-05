@@ -24,7 +24,8 @@ func (Comment) Fields() []ent.Field {
 		field.Int("nillable_int").
 			Optional().
 			Nillable(),
-		field.String("table").
+		field.String("table_name").
+			StorageKey("table").
 			Optional(),
 		field.JSON[schemadir.Dir]("dir").
 			Optional(),

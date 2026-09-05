@@ -7,9 +7,11 @@ package payment
 
 import (
 	"fmt"
+	time2 "time"
 
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/examples/migration/ent/entity"
 )
 
 const (
@@ -42,6 +44,58 @@ const (
 	CardColumn = "card_id"
 )
 
+var (
+	ID          = ent.OrderedColumn[entity.Payment, int]{Table: Table, Name: FieldID}
+	CardID      = ent.OrderedColumn[entity.Payment, int]{Table: Table, Name: FieldCardID}
+	Amount      = ent.OrderedColumn[entity.Payment, float64]{Table: Table, Name: FieldAmount}
+	Currency    = ent.StringColumn[entity.Payment, CurrencyValue]{Table: Table, Name: FieldCurrency}
+	Time        = ent.OrderedColumn[entity.Payment, time2.Time]{Table: Table, Name: FieldTime}
+	Description = ent.StringColumn[entity.Payment, string]{Table: Table, Name: FieldDescription}
+	Status      = ent.StringColumn[entity.Payment, StatusValue]{Table: Table, Name: FieldStatus}
+	Card        = ent.NewUniqueRelation[entity.Payment, entity.Card, int](EdgeCard, newCardStep)
+)
+
+// Alias returns the columns of the payments table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias:  name,
+		ID:          ent.OrderedColumn[entity.Payment, int]{Table: name, Name: FieldID},
+		CardID:      ent.OrderedColumn[entity.Payment, int]{Table: name, Name: FieldCardID},
+		Amount:      ent.OrderedColumn[entity.Payment, float64]{Table: name, Name: FieldAmount},
+		Currency:    ent.StringColumn[entity.Payment, CurrencyValue]{Table: name, Name: FieldCurrency},
+		Time:        ent.OrderedColumn[entity.Payment, time2.Time]{Table: name, Name: FieldTime},
+		Description: ent.StringColumn[entity.Payment, string]{Table: name, Name: FieldDescription},
+		Status:      ent.StringColumn[entity.Payment, StatusValue]{Table: name, Name: FieldStatus},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias  string
+	ID          ent.OrderedColumn[entity.Payment, int]
+	CardID      ent.OrderedColumn[entity.Payment, int]
+	Amount      ent.OrderedColumn[entity.Payment, float64]
+	Currency    ent.StringColumn[entity.Payment, CurrencyValue]
+	Time        ent.OrderedColumn[entity.Payment, time2.Time]
+	Description ent.StringColumn[entity.Payment, string]
+	Status      ent.StringColumn[entity.Payment, StatusValue]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.Payment]) ent.Predicate[entity.Payment] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.Payment]) ent.Predicate[entity.Payment] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.Payment]) ent.Predicate[entity.Payment] {
+	return ent.Not(predicate)
+}
+
 // Columns holds all SQL columns for payment fields.
 var Columns = []string{
 	FieldID,
@@ -68,23 +122,23 @@ var (
 	AmountValidator func(float64) error
 )
 
-// Currency defines the type for the "currency" enum field.
-type Currency string
+// CurrencyValue defines the type for the "currency" enum field.
+type CurrencyValue string
 
-// Currency values.
+// CurrencyValue values.
 const (
-	CurrencyUSD Currency = "USD"
-	CurrencyEUR Currency = "EUR"
-	CurrencyVND Currency = "VND"
-	CurrencyILS Currency = "ILS"
+	CurrencyUSD CurrencyValue = "USD"
+	CurrencyEUR CurrencyValue = "EUR"
+	CurrencyVND CurrencyValue = "VND"
+	CurrencyILS CurrencyValue = "ILS"
 )
 
-func (c Currency) String() string {
+func (c CurrencyValue) String() string {
 	return string(c)
 }
 
 // CurrencyValidator is a validator for the "currency" field enum values. It is called by the builders before save.
-func CurrencyValidator(c Currency) error {
+func CurrencyValidator(c CurrencyValue) error {
 	switch c {
 	case CurrencyUSD, CurrencyEUR, CurrencyVND, CurrencyILS:
 		return nil
@@ -93,22 +147,22 @@ func CurrencyValidator(c Currency) error {
 	}
 }
 
-// Status defines the type for the "status" enum field.
-type Status string
+// StatusValue defines the type for the "status" enum field.
+type StatusValue string
 
-// Status values.
+// StatusValue values.
 const (
-	StatusPending   Status = "pending"
-	StatusCompleted Status = "completed"
-	StatusFailed    Status = "failed"
+	StatusPending   StatusValue = "pending"
+	StatusCompleted StatusValue = "completed"
+	StatusFailed    StatusValue = "failed"
 )
 
-func (s Status) String() string {
+func (s StatusValue) String() string {
 	return string(s)
 }
 
 // StatusValidator is a validator for the "status" field enum values. It is called by the builders before save.
-func StatusValidator(s Status) error {
+func StatusValidator(s StatusValue) error {
 	switch s {
 	case StatusPending, StatusCompleted, StatusFailed:
 		return nil
@@ -117,50 +171,6 @@ func StatusValidator(s Status) error {
 	}
 }
 
-// OrderOption defines the ordering options for the Payment queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByCardID orders the results by the card_id field.
-func ByCardID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldCardID, opts...).ToFunc()
-}
-
-// ByAmount orders the results by the amount field.
-func ByAmount(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldAmount, opts...).ToFunc()
-}
-
-// ByCurrency orders the results by the currency field.
-func ByCurrency(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldCurrency, opts...).ToFunc()
-}
-
-// ByTime orders the results by the time field.
-func ByTime(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldTime, opts...).ToFunc()
-}
-
-// ByDescription orders the results by the description field.
-func ByDescription(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldDescription, opts...).ToFunc()
-}
-
-// ByStatus orders the results by the status field.
-func ByStatus(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldStatus, opts...).ToFunc()
-}
-
-// ByCardField orders the results by card field.
-func ByCardField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newCardStep(), sql.OrderByField(field, opts...))
-	}
-}
 func newCardStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),

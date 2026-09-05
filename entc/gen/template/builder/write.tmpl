@@ -1,0 +1,79 @@
+{{ define "write/methods" }}
+{{ $builder := $.Scope.Builder }}
+{{ $create := eq $builder $.CreateName }}
+{{ $slot := "patch" }}{{ $fields := $.MutableFields }}{{ if $create }}{{ $slot = "insert" }}{{ $fields = $.InsertFields }}{{ end }}
+func (b *{{ $builder }}) Set[T any](column ent.ColumnOf[entity.{{ $.Name }}, T], value T) *{{ $builder }} {
+    if b.err == nil { b.err = b.mutation.{{ $slot }}.set(column.Ref().Name, value) }
+    {{ if $create }}if b.present == nil { b.present = make(map[string]struct{}) }; b.present[column.Ref().Name] = struct{}{}{{ end }}
+    return b
+}
+func (b *{{ $builder }}) SetOptional[T any](column ent.ColumnOf[entity.{{ $.Name }}, T], value ent.Option[T]) *{{ $builder }} {
+    if value.IsNull() { if b.err == nil { b.err = b.mutation.{{ $slot }}.setNull(column.Ref().Name) }; return b }
+    if value, ok := value.Get(); ok { return b.Set(column, value) }
+    return b
+}
+func (b *{{ $builder }}) SetExpr[T any](column ent.ColumnOf[entity.{{ $.Name }}, T], value ent.Expr[T]) *{{ $builder }} {
+    if b.err != nil { return b }
+    switch column.Ref().Name {
+    {{ range $f := $fields }}
+    case {{ $.Package }}.{{ $f.Constant }}:
+    {{ end }}
+    default:
+        b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of {{ $.Name }} is not settable", column.Ref().Name)}
+        return b
+    }
+    {{ if $fields }}
+    b.mutation.{{ $slot }}.setExpr(column.Ref().Name, value.Render)
+    {{ if $create }}if b.present == nil { b.present = make(map[string]struct{}) }; b.present[column.Ref().Name] = struct{}{}{{ end }}
+    return b
+    {{ end }}
+}
+func (b *{{ $builder }}) SetEdge[N, K any](edge ent.UniqueRelation[entity.{{ $.Name }}, N, K], id K) *{{ $builder }} {
+    if b.err == nil { b.err = b.mutation.{{ $slot }}.setEdge(edge.Ref().Name, id) }
+    {{ if $create }}
+    switch edge.Ref().Name {
+    {{ range $e := $.EdgesWithID }}{{ if $e.Field }}case {{ $.Package }}.{{ $e.Constant }}:
+        if b.present == nil { b.present = make(map[string]struct{}) }; b.present[{{ $.Package }}.{{ $e.Field.Constant }}] = struct{}{}
+    {{ end }}{{ end }}
+    }
+    {{ end }}
+    return b
+}
+func (b *{{ $builder }}) AddIDs[N, K any](edge ent.Relation[entity.{{ $.Name }}, N, K], ids ...K) *{{ $builder }} {
+    values := make([]any, len(ids))
+    for index := range ids { values[index] = ids[index] }
+    if b.err == nil { b.err = b.mutation.{{ $slot }}.addIDs(edge.Ref().Name, values...) }
+    return b
+}
+func (b *{{ $builder }}) Mutation() *{{ $.MutationName }} { return b.mutation }
+{{ if $create }}
+func (b *{{ $builder }}) Insert() *{{ $.Name }}Insert { return b.mutation.insert }
+{{ else }}
+func (b *{{ $builder }}) Patch() *{{ $.Name }}Patch { return b.mutation.patch }
+func (b *{{ $builder }}) Apply(p {{ $.Name }}Patch) *{{ $builder }} { b.mutation.patch.apply(p); return b }
+func (b *{{ $builder }}) Add[T ent.Number](column ent.ColumnOf[entity.{{ $.Name }}, T], delta T) *{{ $builder }} {
+    if b.err == nil { b.err = b.mutation.patch.add(column.Ref().Name, delta) }; return b
+}
+func (b *{{ $builder }}) Append[T any](column ent.ColumnOf[entity.{{ $.Name }}, T], values T) *{{ $builder }} {
+    if b.err == nil { b.err = b.mutation.patch.appendValues(column.Ref().Name, values) }; return b
+}
+func (b *{{ $builder }}) Clear[T any](column ent.ColumnOf[entity.{{ $.Name }}, T]) *{{ $builder }} {
+    if b.err == nil { b.err = b.mutation.patch.setNull(column.Ref().Name) }; return b
+}
+func (b *{{ $builder }}) RemoveIDs[N, K any](edge ent.Relation[entity.{{ $.Name }}, N, K], ids ...K) *{{ $builder }} {
+    values := make([]any, len(ids))
+    for index := range ids { values[index] = ids[index] }
+    if b.err == nil { b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...) }; return b
+}
+func (b *{{ $builder }}) ClearEdge[N, K any](edge ent.RelationOf[entity.{{ $.Name }}, N, K]) *{{ $builder }} {
+    if b.err == nil { b.err = b.mutation.patch.clearEdge(edge.Ref().Name) }; return b
+}
+{{ end }}
+{{ end }}
+
+{{ define "write/validate" }}
+{{ $f := $.Scope.Field }}
+{{ if $f.IsEnum }}if err := {{ $.Package }}.{{ $f.EnumValidator }}(v); err != nil { return &ValidationError{Name: "{{ $f.Name }}", err: fmt.Errorf(`ent: validator failed for field "{{ $.Name }}.{{ $f.Name }}": %w`, err)} }{{ end }}
+{{ if $f.Validators }}if err := {{ $.Package }}.{{ $f.Validator }}(v); err != nil { return &ValidationError{Name: "{{ $f.Name }}", err: fmt.Errorf(`ent: validator failed for field "{{ $.Name }}.{{ $f.Name }}": %w`, err)} }
+{{ else if $f.TypeValidator }}if err := v.Validate(); err != nil { return &ValidationError{Name: "{{ $f.Name }}", err: fmt.Errorf(`ent: validator failed for field "{{ $.Name }}.{{ $f.Name }}": %w`, err)} }{{ end }}
+{{ end }}

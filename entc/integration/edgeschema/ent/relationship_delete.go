@@ -8,28 +8,55 @@ package ent
 import (
 	"context"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
-	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/predicate"
+	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/relationship"
 )
 
 // RelationshipDelete is the builder for deleting a Relationship entity.
 type RelationshipDelete struct {
 	config
-	hooks    []Hook
-	mutation *RelationshipMutation
+
+	mutation  *RelationshipMutation
+	returning *sqlgraph.Returning
 }
 
 // Where appends a list predicates to the RelationshipDelete builder.
-func (_d *RelationshipDelete) Where(ps ...predicate.Relationship) *RelationshipDelete {
-	_d.mutation.Where(ps...)
+func (_d *RelationshipDelete) Where(predicates ...ent.Predicate[entity.Relationship]) *RelationshipDelete {
+	_d.mutation.Where(predicates...)
 	return _d
 }
 
 // Exec executes the deletion query and returns how many vertices were deleted.
 func (_d *RelationshipDelete) Exec(ctx context.Context) (int, error) {
-	return withHooks(ctx, _d.sqlExec, _d.mutation, _d.hooks)
+	return _d.sqlExec(ctx)
+}
+
+func (b *RelationshipDelete) Returning(ctx context.Context) ([]*Relationship, error) {
+	nodes := make([]*Relationship, 0)
+	b.returning = &sqlgraph.Returning{Columns: relationship.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Relationship{config: b.config}
+		values, err := _node.scanValues(relationship.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(relationship.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Exec(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
 }
 
 // ExecX is like Exec, but panics if an error occurs.
@@ -50,11 +77,11 @@ func (_d *RelationshipDelete) sqlExec(ctx context.Context) (int, error) {
 			}
 		}
 	}
+	_spec.Returning = _d.returning
 	affected, err := sqlgraph.DeleteNodes(ctx, _d.driver, _spec)
 	if err != nil && sqlgraph.IsConstraintError(err) {
 		err = &ConstraintError{msg: err.Error(), wrap: err}
 	}
-	_d.mutation.done = true
 	return affected, err
 }
 
@@ -64,8 +91,8 @@ type RelationshipDeleteOne struct {
 }
 
 // Where appends a list predicates to the RelationshipDelete builder.
-func (_d *RelationshipDeleteOne) Where(ps ...predicate.Relationship) *RelationshipDeleteOne {
-	_d._d.mutation.Where(ps...)
+func (_d *RelationshipDeleteOne) Where(predicates ...ent.Predicate[entity.Relationship]) *RelationshipDeleteOne {
+	_d._d.mutation.Where(predicates...)
 	return _d
 }
 

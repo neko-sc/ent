@@ -10,119 +10,199 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/migrate/entv2/entity"
 	"github.com/neko-sc/ent/entc/integration/migrate/entv2/media"
-	"github.com/neko-sc/ent/entc/integration/migrate/entv2/predicate"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// MediaUpdate is the builder for updating Media entities.
 type MediaUpdate struct {
 	config
-	hooks    []Hook
-	mutation *MediaMutation
+	mutation  *MediaMutation
+	err       error
+	returning *sqlgraph.Returning
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// Where appends a list predicates to the MediaUpdate builder.
-func (_u *MediaUpdate) Where(ps ...predicate.Media) *MediaUpdate {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// SetSource sets the "source" field.
-func (_u *MediaUpdate) SetSource(v string) *MediaUpdate {
-	_u.mutation.SetSource(v)
-	return _u
-}
-
-// SetNillableSource sets the "source" field if the given value is not nil.
-func (_u *MediaUpdate) SetNillableSource(v *string) *MediaUpdate {
-	if v != nil {
-		_u.SetSource(*v)
+func (b *MediaUpdate) Set[T any](column ent.ColumnOf[entity.Media, T], value T) *MediaUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// ClearSource clears the value of the "source" field.
-func (_u *MediaUpdate) ClearSource() *MediaUpdate {
-	_u.mutation.ClearSource()
-	return _u
+	return b
 }
-
-// SetSourceURI sets the "source_uri" field.
-func (_u *MediaUpdate) SetSourceURI(v string) *MediaUpdate {
-	_u.mutation.SetSourceURI(v)
-	return _u
-}
-
-// SetNillableSourceURI sets the "source_uri" field if the given value is not nil.
-func (_u *MediaUpdate) SetNillableSourceURI(v *string) *MediaUpdate {
-	if v != nil {
-		_u.SetSourceURI(*v)
+func (b *MediaUpdate) SetOptional[T any](column ent.ColumnOf[entity.Media, T], value ent.Option[T]) *MediaUpdate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u
-}
-
-// ClearSourceURI clears the value of the "source_uri" field.
-func (_u *MediaUpdate) ClearSourceURI() *MediaUpdate {
-	_u.mutation.ClearSourceURI()
-	return _u
-}
-
-// SetText sets the "text" field.
-func (_u *MediaUpdate) SetText(v string) *MediaUpdate {
-	_u.mutation.SetText(v)
-	return _u
-}
-
-// SetNillableText sets the "text" field if the given value is not nil.
-func (_u *MediaUpdate) SetNillableText(v *string) *MediaUpdate {
-	if v != nil {
-		_u.SetText(*v)
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
 	}
-	return _u
+	return b
+}
+func (b *MediaUpdate) SetExpr[T any](column ent.ColumnOf[entity.Media, T], value ent.Expr[T]) *MediaUpdate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case media.FieldSource:
+
+	case media.FieldSourceURI:
+
+	case media.FieldText:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Media is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *MediaUpdate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Media, N, K], id K) *MediaUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *MediaUpdate) AddIDs[N, K any](edge ent.Relation[entity.Media, N, K], ids ...K) *MediaUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *MediaUpdate) Mutation() *MediaMutation { return b.mutation }
+
+func (b *MediaUpdate) Patch() *MediaPatch              { return b.mutation.patch }
+func (b *MediaUpdate) Apply(p MediaPatch) *MediaUpdate { b.mutation.patch.apply(p); return b }
+func (b *MediaUpdate) Add[T ent.Number](column ent.ColumnOf[entity.Media, T], delta T) *MediaUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *MediaUpdate) Append[T any](column ent.ColumnOf[entity.Media, T], values T) *MediaUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *MediaUpdate) Clear[T any](column ent.ColumnOf[entity.Media, T]) *MediaUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *MediaUpdate) RemoveIDs[N, K any](edge ent.Relation[entity.Media, N, K], ids ...K) *MediaUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *MediaUpdate) ClearEdge[N, K any](edge ent.RelationOf[entity.Media, N, K]) *MediaUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// ClearText clears the value of the "text" field.
-func (_u *MediaUpdate) ClearText() *MediaUpdate {
-	_u.mutation.ClearText()
-	return _u
+func (b *MediaUpdate) Where(predicates ...ent.Predicate[entity.Media]) *MediaUpdate {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Mutation returns the MediaMutation object of the builder.
-func (_u *MediaUpdate) Mutation() *MediaMutation {
-	return _u.mutation
+func (b *MediaUpdate) Save(ctx context.Context) (int, error) {
+	if b.err != nil {
+		return 0, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return 0, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Save executes the query and returns the number of nodes affected by the update operation.
-func (_u *MediaUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *MediaUpdate) SaveX(ctx context.Context) int {
-	affected, err := _u.Save(ctx)
+func (b *MediaUpdate) SaveX(ctx context.Context) int {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return affected
+	return result
 }
 
-// Exec executes the query.
-func (_u *MediaUpdate) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *MediaUpdate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *MediaUpdate) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *MediaUpdate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
+func (b *MediaUpdate) Returning(ctx context.Context) ([]*Media, error) {
+	nodes := make([]*Media, 0)
+	b.returning = &sqlgraph.Returning{Columns: media.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Media{config: b.config}
+		values, err := _node.scanValues(media.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(media.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Save(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
+}
+
+func (b *MediaUpdate) defaults() error {
+
+	return nil
+}
+
+func (b *MediaUpdate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *MediaUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *MediaUpdate {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *MediaUpdate) sqlSave(ctx context.Context) (_node int, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(media.Table, media.Columns, sqlgraph.NewFieldSpec(media.FieldID, field.TypeInt))
 	if ps := _u.mutation.Predicates(); len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -131,24 +211,30 @@ func (_u *MediaUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.Source(); ok {
+	if value, ok := _u.mutation.patch.Source.Get(); ok {
 		_spec.SetField(media.FieldSource, field.TypeString, value)
 	}
-	if _u.mutation.SourceCleared() {
+	if _u.mutation.patch.Source.IsNull() {
 		_spec.ClearField(media.FieldSource, field.TypeString)
 	}
-	if value, ok := _u.mutation.SourceURI(); ok {
+	if value, ok := _u.mutation.patch.SourceURI.Get(); ok {
 		_spec.SetField(media.FieldSourceURI, field.TypeString, value)
 	}
-	if _u.mutation.SourceURICleared() {
+	if _u.mutation.patch.SourceURI.IsNull() {
 		_spec.ClearField(media.FieldSourceURI, field.TypeString)
 	}
-	if value, ok := _u.mutation.Text(); ok {
+	if value, ok := _u.mutation.patch.Text.Get(); ok {
 		_spec.SetField(media.FieldText, field.TypeString, value)
 	}
-	if _u.mutation.TextCleared() {
+	if _u.mutation.patch.Text.IsNull() {
 		_spec.ClearField(media.FieldText, field.TypeString)
 	}
+	_spec.Returning = _u.returning
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{media.Label}
@@ -157,124 +243,195 @@ func (_u *MediaUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		return 0, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }
 
-// MediaUpdateOne is the builder for updating a single Media entity.
 type MediaUpdateOne struct {
 	config
-	fields   []string
-	hooks    []Hook
 	mutation *MediaMutation
+	err      error
+
+	fields []string
+	old    *Media
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// SetSource sets the "source" field.
-func (_u *MediaUpdateOne) SetSource(v string) *MediaUpdateOne {
-	_u.mutation.SetSource(v)
-	return _u
-}
-
-// SetNillableSource sets the "source" field if the given value is not nil.
-func (_u *MediaUpdateOne) SetNillableSource(v *string) *MediaUpdateOne {
-	if v != nil {
-		_u.SetSource(*v)
+func (b *MediaUpdateOne) Set[T any](column ent.ColumnOf[entity.Media, T], value T) *MediaUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// ClearSource clears the value of the "source" field.
-func (_u *MediaUpdateOne) ClearSource() *MediaUpdateOne {
-	_u.mutation.ClearSource()
-	return _u
+	return b
 }
-
-// SetSourceURI sets the "source_uri" field.
-func (_u *MediaUpdateOne) SetSourceURI(v string) *MediaUpdateOne {
-	_u.mutation.SetSourceURI(v)
-	return _u
-}
-
-// SetNillableSourceURI sets the "source_uri" field if the given value is not nil.
-func (_u *MediaUpdateOne) SetNillableSourceURI(v *string) *MediaUpdateOne {
-	if v != nil {
-		_u.SetSourceURI(*v)
+func (b *MediaUpdateOne) SetOptional[T any](column ent.ColumnOf[entity.Media, T], value ent.Option[T]) *MediaUpdateOne {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u
-}
-
-// ClearSourceURI clears the value of the "source_uri" field.
-func (_u *MediaUpdateOne) ClearSourceURI() *MediaUpdateOne {
-	_u.mutation.ClearSourceURI()
-	return _u
-}
-
-// SetText sets the "text" field.
-func (_u *MediaUpdateOne) SetText(v string) *MediaUpdateOne {
-	_u.mutation.SetText(v)
-	return _u
-}
-
-// SetNillableText sets the "text" field if the given value is not nil.
-func (_u *MediaUpdateOne) SetNillableText(v *string) *MediaUpdateOne {
-	if v != nil {
-		_u.SetText(*v)
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
 	}
-	return _u
+	return b
+}
+func (b *MediaUpdateOne) SetExpr[T any](column ent.ColumnOf[entity.Media, T], value ent.Expr[T]) *MediaUpdateOne {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case media.FieldSource:
+
+	case media.FieldSourceURI:
+
+	case media.FieldText:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Media is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *MediaUpdateOne) SetEdge[N, K any](edge ent.UniqueRelation[entity.Media, N, K], id K) *MediaUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *MediaUpdateOne) AddIDs[N, K any](edge ent.Relation[entity.Media, N, K], ids ...K) *MediaUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *MediaUpdateOne) Mutation() *MediaMutation { return b.mutation }
+
+func (b *MediaUpdateOne) Patch() *MediaPatch                 { return b.mutation.patch }
+func (b *MediaUpdateOne) Apply(p MediaPatch) *MediaUpdateOne { b.mutation.patch.apply(p); return b }
+func (b *MediaUpdateOne) Add[T ent.Number](column ent.ColumnOf[entity.Media, T], delta T) *MediaUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *MediaUpdateOne) Append[T any](column ent.ColumnOf[entity.Media, T], values T) *MediaUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *MediaUpdateOne) Clear[T any](column ent.ColumnOf[entity.Media, T]) *MediaUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *MediaUpdateOne) RemoveIDs[N, K any](edge ent.Relation[entity.Media, N, K], ids ...K) *MediaUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *MediaUpdateOne) ClearEdge[N, K any](edge ent.RelationOf[entity.Media, N, K]) *MediaUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// ClearText clears the value of the "text" field.
-func (_u *MediaUpdateOne) ClearText() *MediaUpdateOne {
-	_u.mutation.ClearText()
-	return _u
+func (b *MediaUpdateOne) Where(predicates ...ent.Predicate[entity.Media]) *MediaUpdateOne {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Mutation returns the MediaMutation object of the builder.
-func (_u *MediaUpdateOne) Mutation() *MediaMutation {
-	return _u.mutation
+func (b *MediaUpdateOne) Save(ctx context.Context) (*Media, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Where appends a list predicates to the MediaUpdate builder.
-func (_u *MediaUpdateOne) Where(ps ...predicate.Media) *MediaUpdateOne {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// Select allows selecting one or more fields (columns) of the returned entity.
-// The default is selecting all fields defined in the entity schema.
-func (_u *MediaUpdateOne) Select(field string, fields ...string) *MediaUpdateOne {
-	_u.fields = append([]string{field}, fields...)
-	return _u
-}
-
-// Save executes the query and returns the updated Media entity.
-func (_u *MediaUpdateOne) Save(ctx context.Context) (*Media, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *MediaUpdateOne) SaveX(ctx context.Context) *Media {
-	node, err := _u.Save(ctx)
+func (b *MediaUpdateOne) SaveX(ctx context.Context) *Media {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return node
+	return result
 }
 
-// Exec executes the query on the entity.
-func (_u *MediaUpdateOne) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *MediaUpdateOne) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *MediaUpdateOne) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *MediaUpdateOne) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
+func (b *MediaUpdateOne) Select(columns ...ent.EntityColumn[entity.Media]) *MediaUpdateOne {
+	if len(columns) == 0 {
+		panic("ent: Select requires at least one column")
+	}
+	b.fields = make([]string, len(columns))
+	for index, column := range columns {
+		b.fields[index] = column.Ref().Name
+	}
+	return b
+}
+
+func (b *MediaUpdateOne) SaveOld(ctx context.Context) (old *Media, updated *Media, err error) {
+	if !b.driver.Capabilities().ReturningOld {
+		return nil, nil, &dialect.UnsupportedError{Feature: "RETURNING OLD", Dialect: dialect.Dialect(b.driver.Dialect())}
+	}
+	b.old = &Media{config: b.config}
+	defer func() { b.old = nil }()
+	updated, err = b.Save(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return b.old, updated, nil
+}
+
+func (b *MediaUpdateOne) defaults() error {
+
+	return nil
+}
+
+func (b *MediaUpdateOne) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *MediaUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *MediaUpdateOne {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *MediaUpdateOne) sqlSave(ctx context.Context) (_node *Media, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(media.Table, media.Columns, sqlgraph.NewFieldSpec(media.FieldID, field.TypeInt))
 	id, ok := _u.mutation.ID()
 	if !ok {
@@ -300,27 +457,36 @@ func (_u *MediaUpdateOne) sqlSave(ctx context.Context) (_node *Media, err error)
 			}
 		}
 	}
-	if value, ok := _u.mutation.Source(); ok {
+	if value, ok := _u.mutation.patch.Source.Get(); ok {
 		_spec.SetField(media.FieldSource, field.TypeString, value)
 	}
-	if _u.mutation.SourceCleared() {
+	if _u.mutation.patch.Source.IsNull() {
 		_spec.ClearField(media.FieldSource, field.TypeString)
 	}
-	if value, ok := _u.mutation.SourceURI(); ok {
+	if value, ok := _u.mutation.patch.SourceURI.Get(); ok {
 		_spec.SetField(media.FieldSourceURI, field.TypeString, value)
 	}
-	if _u.mutation.SourceURICleared() {
+	if _u.mutation.patch.SourceURI.IsNull() {
 		_spec.ClearField(media.FieldSourceURI, field.TypeString)
 	}
-	if value, ok := _u.mutation.Text(); ok {
+	if value, ok := _u.mutation.patch.Text.Get(); ok {
 		_spec.SetField(media.FieldText, field.TypeString, value)
 	}
-	if _u.mutation.TextCleared() {
+	if _u.mutation.patch.Text.IsNull() {
 		_spec.ClearField(media.FieldText, field.TypeString)
 	}
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	_node = &Media{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
+	if _u.old != nil {
+		_spec.OldScanValues = _u.old.scanValues
+		_spec.OldAssign = _u.old.assignValues
+	}
 	if err = sqlgraph.UpdateNode(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{media.Label}
@@ -329,6 +495,5 @@ func (_u *MediaUpdateOne) sqlSave(ctx context.Context) (_node *Media, err error)
 		}
 		return nil, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }

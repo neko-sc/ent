@@ -8,29 +8,56 @@ package ent
 import (
 	"context"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/other"
-	"github.com/neko-sc/ent/entc/integration/customid/ent/predicate"
 	"github.com/neko-sc/ent/schema/field"
 )
 
 // OtherDelete is the builder for deleting a Other entity.
 type OtherDelete struct {
 	config
-	hooks    []Hook
-	mutation *OtherMutation
+
+	mutation  *OtherMutation
+	returning *sqlgraph.Returning
 }
 
 // Where appends a list predicates to the OtherDelete builder.
-func (_d *OtherDelete) Where(ps ...predicate.Other) *OtherDelete {
-	_d.mutation.Where(ps...)
+func (_d *OtherDelete) Where(predicates ...ent.Predicate[entity.Other]) *OtherDelete {
+	_d.mutation.Where(predicates...)
 	return _d
 }
 
 // Exec executes the deletion query and returns how many vertices were deleted.
 func (_d *OtherDelete) Exec(ctx context.Context) (int, error) {
-	return withHooks(ctx, _d.sqlExec, _d.mutation, _d.hooks)
+	return _d.sqlExec(ctx)
+}
+
+func (b *OtherDelete) Returning(ctx context.Context) ([]*Other, error) {
+	nodes := make([]*Other, 0)
+	b.returning = &sqlgraph.Returning{Columns: other.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Other{config: b.config}
+		values, err := _node.scanValues(other.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(other.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Exec(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
 }
 
 // ExecX is like Exec, but panics if an error occurs.
@@ -51,11 +78,11 @@ func (_d *OtherDelete) sqlExec(ctx context.Context) (int, error) {
 			}
 		}
 	}
+	_spec.Returning = _d.returning
 	affected, err := sqlgraph.DeleteNodes(ctx, _d.driver, _spec)
 	if err != nil && sqlgraph.IsConstraintError(err) {
 		err = &ConstraintError{msg: err.Error(), wrap: err}
 	}
-	_d.mutation.done = true
 	return affected, err
 }
 
@@ -65,8 +92,8 @@ type OtherDeleteOne struct {
 }
 
 // Where appends a list predicates to the OtherDelete builder.
-func (_d *OtherDeleteOne) Where(ps ...predicate.Other) *OtherDeleteOne {
-	_d._d.mutation.Where(ps...)
+func (_d *OtherDeleteOne) Where(predicates ...ent.Predicate[entity.Other]) *OtherDeleteOne {
+	_d._d.mutation.Where(predicates...)
 	return _d
 }
 

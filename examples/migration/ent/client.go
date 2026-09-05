@@ -13,10 +13,10 @@ import (
 	"reflect"
 
 	"github.com/google/uuid"
-	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/examples/migration/ent/migrate"
 
 	"github.com/neko-sc/ent/dialect"
+	"github.com/neko-sc/ent/dialect/pg"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/examples/migration/ent/card"
@@ -47,7 +47,7 @@ type Client struct {
 }
 
 // NewClient creates a new client configured with the given options.
-func NewClient(opts ...Option) *Client {
+func NewClient(opts ...ClientOption) *Client {
 	client := &Client{config: newConfig(opts...)}
 	client.init()
 	return client
@@ -72,24 +72,20 @@ type (
 		debug bool
 		// log used for logging on debug mode.
 		log func(...any)
-		// hooks to execute on mutations.
-		hooks *hooks
-		// interceptors to execute on queries.
-		inters *inters
 	}
-	// Option function to configure the client.
-	Option func(*config)
+	// ClientOption function to configure the client.
+	ClientOption func(*config)
 )
 
 // newConfig creates a new config for the client.
-func newConfig(opts ...Option) config {
-	cfg := config{log: log.Println, hooks: &hooks{}, inters: &inters{}}
+func newConfig(opts ...ClientOption) config {
+	cfg := config{log: log.Println}
 	cfg.options(opts...)
 	return cfg
 }
 
 // options applies the options on the config object.
-func (c *config) options(opts ...Option) {
+func (c *config) options(opts ...ClientOption) {
 	for _, opt := range opts {
 		opt(c)
 	}
@@ -99,21 +95,21 @@ func (c *config) options(opts ...Option) {
 }
 
 // Debug enables debug logging on the ent.Driver.
-func Debug() Option {
+func Debug() ClientOption {
 	return func(c *config) {
 		c.debug = true
 	}
 }
 
 // Log sets the logging function for debug mode.
-func Log(fn func(...any)) Option {
+func Log(fn func(...any)) ClientOption {
 	return func(c *config) {
 		c.log = fn
 	}
 }
 
 // Driver configures the client driver.
-func Driver(driver dialect.Driver) Option {
+func Driver(driver dialect.Driver) ClientOption {
 	return func(c *config) {
 		c.driver = driver
 	}
@@ -121,11 +117,17 @@ func Driver(driver dialect.Driver) Option {
 
 // Open opens a database/sql.DB specified by the driver name and
 // the data source name, and returns a new client attached to it.
-// Optional parameters can be added for configuring the client.
-func Open(driverName, dataSourceName string, options ...Option) (*Client, error) {
+// ClientOptional parameters can be added for configuring the client.
+func Open(driverName, dataSourceName string, options ...ClientOption) (*Client, error) {
 	switch driverName {
 	case dialect.Postgres, dialect.SQLite:
-		drv, err := sql.Open(driverName, dataSourceName)
+		var drv dialect.Driver
+		var err error
+		if driverName == dialect.Postgres {
+			drv, err = pg.Open(context.Background(), dataSourceName)
+		} else {
+			drv, err = sql.Open(dialect.Dialect(driverName), dataSourceName)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -167,9 +169,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	if _, ok := c.driver.(*txDriver); ok {
 		return nil, errors.New("ent: cannot start a transaction within a transaction")
 	}
-	tx, err := c.driver.(interface {
-		BeginTx(context.Context, *sql.TxOptions) (dialect.Tx, error)
-	}).BeginTx(ctx, opts)
+	tx, err := c.driver.BeginTx(ctx, opts)
 	if err != nil {
 		return nil, fmt.Errorf("ent: starting a transaction: %w", err)
 	}
@@ -209,28 +209,8 @@ func (c *Client) Close() error {
 	return c.driver.Close()
 }
 
-// Use adds the mutation hooks to all the entity clients.
-// In order to add hooks to a specific client, call: `client.Node.Use(...)`.
-func (c *Client) Use(hooks ...Hook) {
-	for _, n := range []interface{ Use(...Hook) }{
-		c.Card, c.Payment, c.Pet, c.Session, c.SessionDevice, c.User,
-	} {
-		n.Use(hooks...)
-	}
-}
-
-// Intercept adds the query interceptors to all the entity clients.
-// In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
-func (c *Client) Intercept(interceptors ...Interceptor) {
-	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.Card, c.Payment, c.Pet, c.Session, c.SessionDevice, c.User,
-	} {
-		n.Intercept(interceptors...)
-	}
-}
-
-// Mutate implements the ent.Mutator interface.
-func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
+// Mutate executes the given mutation.
+func (c *Client) Mutate(ctx context.Context, m Mutation) (any, error) {
 	switch m := m.(type) {
 	case *CardMutation:
 		return c.Card.mutate(ctx, m)
@@ -259,22 +239,24 @@ func NewCardClient(c config) *CardClient {
 	return &CardClient{config: c}
 }
 
-// Use adds a list of mutation hooks to the hooks stack.
-// A call to `Use(f, g, h)` equals to `card.Hooks(f(g(h())))`.
-func (c *CardClient) Use(hooks ...Hook) {
-	c.hooks.Card = append(c.hooks.Card, hooks...)
-}
-
-// Intercept adds a list of query interceptors to the interceptors stack.
-// A call to `Intercept(f, g, h)` equals to `card.Intercept(f(g(h())))`.
-func (c *CardClient) Intercept(interceptors ...Interceptor) {
-	c.inters.Card = append(c.inters.Card, interceptors...)
-}
-
 // Create returns a builder for creating a Card entity.
 func (c *CardClient) Create() *CardCreate {
 	mutation := newCardMutation(c.config, OpCreate)
-	return &CardCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &CardCreate{config: c.config, mutation: mutation, fromBuilder: true}
+}
+
+func (c *CardClient) Insert(value CardInsert) *CardCreate {
+	mutation := newCardMutation(c.config, OpCreate)
+	mutation.insert = &value
+	return &CardCreate{config: c.config, mutation: mutation}
+}
+
+func (c *CardClient) InsertBulk(values ...CardInsert) *CardCreateBulk {
+	builders := make([]*CardCreate, len(values))
+	for index := range values {
+		builders[index] = c.Insert(values[index])
+	}
+	return c.CreateBulk(builders...)
 }
 
 // CreateBulk returns a builder for creating a bulk of Card entities.
@@ -300,25 +282,26 @@ func (c *CardClient) MapCreateBulk(slice any, setFunc func(*CardCreate, int)) *C
 // Update returns an update builder for Card.
 func (c *CardClient) Update() *CardUpdate {
 	mutation := newCardMutation(c.config, OpUpdate)
-	return &CardUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &CardUpdate{config: c.config, mutation: mutation}
 }
 
 // UpdateOne returns an update builder for the given entity.
 func (c *CardClient) UpdateOne(_m *Card) *CardUpdateOne {
-	mutation := newCardMutation(c.config, OpUpdateOne, withCard(_m))
-	return &CardUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return c.UpdateOneID(_m.ID)
+
 }
 
 // UpdateOneID returns an update builder for the given id.
 func (c *CardClient) UpdateOneID(id int) *CardUpdateOne {
-	mutation := newCardMutation(c.config, OpUpdateOne, withCardID(id))
-	return &CardUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	mutation := newCardMutation(c.config, OpUpdateOne)
+	mutation.id = &id
+	return &CardUpdateOne{config: c.config, mutation: mutation}
 }
 
 // Delete returns a delete builder for Card.
 func (c *CardClient) Delete() *CardDelete {
 	mutation := newCardMutation(c.config, OpDelete)
-	return &CardDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &CardDelete{config: c.config, mutation: mutation}
 }
 
 // DeleteOne returns a builder for deleting the given entity.
@@ -328,9 +311,9 @@ func (c *CardClient) DeleteOne(_m *Card) *CardDeleteOne {
 
 // DeleteOneID returns a builder for deleting the given entity by its id.
 func (c *CardClient) DeleteOneID(id int) *CardDeleteOne {
-	builder := c.Delete().Where(card.ID(id))
+	builder := c.Delete().Where(card.ID.EQ(id))
 	builder.mutation.id = &id
-	builder.mutation.SetOp(OpDeleteOne)
+	builder.mutation.op = OpDeleteOne
 	return &CardDeleteOne{builder}
 }
 
@@ -339,13 +322,12 @@ func (c *CardClient) Query() *CardQuery {
 	return &CardQuery{
 		config: c.config,
 		ctx:    &QueryContext{Type: TypeCard},
-		inters: c.Interceptors(),
 	}
 }
 
 // Get returns a Card entity by its id.
 func (c *CardClient) Get(ctx context.Context, id int) (*Card, error) {
-	return c.Query().Where(card.ID(id)).Only(ctx)
+	return c.Query().Where(card.ID.EQ(id)).Only(ctx)
 }
 
 // GetX is like Get, but panics if an error occurs.
@@ -389,26 +371,16 @@ func (c *CardClient) QueryPayments(_m *Card) *PaymentQuery {
 	return query
 }
 
-// Hooks returns the client hooks.
-func (c *CardClient) Hooks() []Hook {
-	return c.hooks.Card
-}
-
-// Interceptors returns the client interceptors.
-func (c *CardClient) Interceptors() []Interceptor {
-	return c.inters.Card
-}
-
-func (c *CardClient) mutate(ctx context.Context, m *CardMutation) (Value, error) {
+func (c *CardClient) mutate(ctx context.Context, m *CardMutation) (any, error) {
 	switch m.Op() {
 	case OpCreate:
-		return (&CardCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&CardCreate{config: c.config, mutation: m}).Save(ctx)
 	case OpUpdate:
-		return (&CardUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&CardUpdate{config: c.config, mutation: m}).Save(ctx)
 	case OpUpdateOne:
-		return (&CardUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&CardUpdateOne{config: c.config, mutation: m}).Save(ctx)
 	case OpDelete, OpDeleteOne:
-		return (&CardDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+		return (&CardDelete{config: c.config, mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown Card mutation op: %q", m.Op())
 	}
@@ -424,22 +396,24 @@ func NewPaymentClient(c config) *PaymentClient {
 	return &PaymentClient{config: c}
 }
 
-// Use adds a list of mutation hooks to the hooks stack.
-// A call to `Use(f, g, h)` equals to `payment.Hooks(f(g(h())))`.
-func (c *PaymentClient) Use(hooks ...Hook) {
-	c.hooks.Payment = append(c.hooks.Payment, hooks...)
-}
-
-// Intercept adds a list of query interceptors to the interceptors stack.
-// A call to `Intercept(f, g, h)` equals to `payment.Intercept(f(g(h())))`.
-func (c *PaymentClient) Intercept(interceptors ...Interceptor) {
-	c.inters.Payment = append(c.inters.Payment, interceptors...)
-}
-
 // Create returns a builder for creating a Payment entity.
 func (c *PaymentClient) Create() *PaymentCreate {
 	mutation := newPaymentMutation(c.config, OpCreate)
-	return &PaymentCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &PaymentCreate{config: c.config, mutation: mutation, fromBuilder: true}
+}
+
+func (c *PaymentClient) Insert(value PaymentInsert) *PaymentCreate {
+	mutation := newPaymentMutation(c.config, OpCreate)
+	mutation.insert = &value
+	return &PaymentCreate{config: c.config, mutation: mutation}
+}
+
+func (c *PaymentClient) InsertBulk(values ...PaymentInsert) *PaymentCreateBulk {
+	builders := make([]*PaymentCreate, len(values))
+	for index := range values {
+		builders[index] = c.Insert(values[index])
+	}
+	return c.CreateBulk(builders...)
 }
 
 // CreateBulk returns a builder for creating a bulk of Payment entities.
@@ -465,25 +439,26 @@ func (c *PaymentClient) MapCreateBulk(slice any, setFunc func(*PaymentCreate, in
 // Update returns an update builder for Payment.
 func (c *PaymentClient) Update() *PaymentUpdate {
 	mutation := newPaymentMutation(c.config, OpUpdate)
-	return &PaymentUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &PaymentUpdate{config: c.config, mutation: mutation}
 }
 
 // UpdateOne returns an update builder for the given entity.
 func (c *PaymentClient) UpdateOne(_m *Payment) *PaymentUpdateOne {
-	mutation := newPaymentMutation(c.config, OpUpdateOne, withPayment(_m))
-	return &PaymentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return c.UpdateOneID(_m.ID)
+
 }
 
 // UpdateOneID returns an update builder for the given id.
 func (c *PaymentClient) UpdateOneID(id int) *PaymentUpdateOne {
-	mutation := newPaymentMutation(c.config, OpUpdateOne, withPaymentID(id))
-	return &PaymentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	mutation := newPaymentMutation(c.config, OpUpdateOne)
+	mutation.id = &id
+	return &PaymentUpdateOne{config: c.config, mutation: mutation}
 }
 
 // Delete returns a delete builder for Payment.
 func (c *PaymentClient) Delete() *PaymentDelete {
 	mutation := newPaymentMutation(c.config, OpDelete)
-	return &PaymentDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &PaymentDelete{config: c.config, mutation: mutation}
 }
 
 // DeleteOne returns a builder for deleting the given entity.
@@ -493,9 +468,9 @@ func (c *PaymentClient) DeleteOne(_m *Payment) *PaymentDeleteOne {
 
 // DeleteOneID returns a builder for deleting the given entity by its id.
 func (c *PaymentClient) DeleteOneID(id int) *PaymentDeleteOne {
-	builder := c.Delete().Where(payment.ID(id))
+	builder := c.Delete().Where(payment.ID.EQ(id))
 	builder.mutation.id = &id
-	builder.mutation.SetOp(OpDeleteOne)
+	builder.mutation.op = OpDeleteOne
 	return &PaymentDeleteOne{builder}
 }
 
@@ -504,13 +479,12 @@ func (c *PaymentClient) Query() *PaymentQuery {
 	return &PaymentQuery{
 		config: c.config,
 		ctx:    &QueryContext{Type: TypePayment},
-		inters: c.Interceptors(),
 	}
 }
 
 // Get returns a Payment entity by its id.
 func (c *PaymentClient) Get(ctx context.Context, id int) (*Payment, error) {
-	return c.Query().Where(payment.ID(id)).Only(ctx)
+	return c.Query().Where(payment.ID.EQ(id)).Only(ctx)
 }
 
 // GetX is like Get, but panics if an error occurs.
@@ -538,26 +512,16 @@ func (c *PaymentClient) QueryCard(_m *Payment) *CardQuery {
 	return query
 }
 
-// Hooks returns the client hooks.
-func (c *PaymentClient) Hooks() []Hook {
-	return c.hooks.Payment
-}
-
-// Interceptors returns the client interceptors.
-func (c *PaymentClient) Interceptors() []Interceptor {
-	return c.inters.Payment
-}
-
-func (c *PaymentClient) mutate(ctx context.Context, m *PaymentMutation) (Value, error) {
+func (c *PaymentClient) mutate(ctx context.Context, m *PaymentMutation) (any, error) {
 	switch m.Op() {
 	case OpCreate:
-		return (&PaymentCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&PaymentCreate{config: c.config, mutation: m}).Save(ctx)
 	case OpUpdate:
-		return (&PaymentUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&PaymentUpdate{config: c.config, mutation: m}).Save(ctx)
 	case OpUpdateOne:
-		return (&PaymentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&PaymentUpdateOne{config: c.config, mutation: m}).Save(ctx)
 	case OpDelete, OpDeleteOne:
-		return (&PaymentDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+		return (&PaymentDelete{config: c.config, mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown Payment mutation op: %q", m.Op())
 	}
@@ -573,22 +537,24 @@ func NewPetClient(c config) *PetClient {
 	return &PetClient{config: c}
 }
 
-// Use adds a list of mutation hooks to the hooks stack.
-// A call to `Use(f, g, h)` equals to `pet.Hooks(f(g(h())))`.
-func (c *PetClient) Use(hooks ...Hook) {
-	c.hooks.Pet = append(c.hooks.Pet, hooks...)
-}
-
-// Intercept adds a list of query interceptors to the interceptors stack.
-// A call to `Intercept(f, g, h)` equals to `pet.Intercept(f(g(h())))`.
-func (c *PetClient) Intercept(interceptors ...Interceptor) {
-	c.inters.Pet = append(c.inters.Pet, interceptors...)
-}
-
 // Create returns a builder for creating a Pet entity.
 func (c *PetClient) Create() *PetCreate {
 	mutation := newPetMutation(c.config, OpCreate)
-	return &PetCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &PetCreate{config: c.config, mutation: mutation, fromBuilder: true}
+}
+
+func (c *PetClient) Insert(value PetInsert) *PetCreate {
+	mutation := newPetMutation(c.config, OpCreate)
+	mutation.insert = &value
+	return &PetCreate{config: c.config, mutation: mutation}
+}
+
+func (c *PetClient) InsertBulk(values ...PetInsert) *PetCreateBulk {
+	builders := make([]*PetCreate, len(values))
+	for index := range values {
+		builders[index] = c.Insert(values[index])
+	}
+	return c.CreateBulk(builders...)
 }
 
 // CreateBulk returns a builder for creating a bulk of Pet entities.
@@ -614,25 +580,26 @@ func (c *PetClient) MapCreateBulk(slice any, setFunc func(*PetCreate, int)) *Pet
 // Update returns an update builder for Pet.
 func (c *PetClient) Update() *PetUpdate {
 	mutation := newPetMutation(c.config, OpUpdate)
-	return &PetUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &PetUpdate{config: c.config, mutation: mutation}
 }
 
 // UpdateOne returns an update builder for the given entity.
 func (c *PetClient) UpdateOne(_m *Pet) *PetUpdateOne {
-	mutation := newPetMutation(c.config, OpUpdateOne, withPet(_m))
-	return &PetUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return c.UpdateOneID(_m.ID)
+
 }
 
 // UpdateOneID returns an update builder for the given id.
 func (c *PetClient) UpdateOneID(id uuid.UUID) *PetUpdateOne {
-	mutation := newPetMutation(c.config, OpUpdateOne, withPetID(id))
-	return &PetUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	mutation := newPetMutation(c.config, OpUpdateOne)
+	mutation.id = &id
+	return &PetUpdateOne{config: c.config, mutation: mutation}
 }
 
 // Delete returns a delete builder for Pet.
 func (c *PetClient) Delete() *PetDelete {
 	mutation := newPetMutation(c.config, OpDelete)
-	return &PetDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &PetDelete{config: c.config, mutation: mutation}
 }
 
 // DeleteOne returns a builder for deleting the given entity.
@@ -642,9 +609,9 @@ func (c *PetClient) DeleteOne(_m *Pet) *PetDeleteOne {
 
 // DeleteOneID returns a builder for deleting the given entity by its id.
 func (c *PetClient) DeleteOneID(id uuid.UUID) *PetDeleteOne {
-	builder := c.Delete().Where(pet.ID(id))
+	builder := c.Delete().Where(pet.ID.EQ(id))
 	builder.mutation.id = &id
-	builder.mutation.SetOp(OpDeleteOne)
+	builder.mutation.op = OpDeleteOne
 	return &PetDeleteOne{builder}
 }
 
@@ -653,13 +620,12 @@ func (c *PetClient) Query() *PetQuery {
 	return &PetQuery{
 		config: c.config,
 		ctx:    &QueryContext{Type: TypePet},
-		inters: c.Interceptors(),
 	}
 }
 
 // Get returns a Pet entity by its id.
 func (c *PetClient) Get(ctx context.Context, id uuid.UUID) (*Pet, error) {
-	return c.Query().Where(pet.ID(id)).Only(ctx)
+	return c.Query().Where(pet.ID.EQ(id)).Only(ctx)
 }
 
 // GetX is like Get, but panics if an error occurs.
@@ -703,26 +669,16 @@ func (c *PetClient) QueryOwner(_m *Pet) *UserQuery {
 	return query
 }
 
-// Hooks returns the client hooks.
-func (c *PetClient) Hooks() []Hook {
-	return c.hooks.Pet
-}
-
-// Interceptors returns the client interceptors.
-func (c *PetClient) Interceptors() []Interceptor {
-	return c.inters.Pet
-}
-
-func (c *PetClient) mutate(ctx context.Context, m *PetMutation) (Value, error) {
+func (c *PetClient) mutate(ctx context.Context, m *PetMutation) (any, error) {
 	switch m.Op() {
 	case OpCreate:
-		return (&PetCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&PetCreate{config: c.config, mutation: m}).Save(ctx)
 	case OpUpdate:
-		return (&PetUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&PetUpdate{config: c.config, mutation: m}).Save(ctx)
 	case OpUpdateOne:
-		return (&PetUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&PetUpdateOne{config: c.config, mutation: m}).Save(ctx)
 	case OpDelete, OpDeleteOne:
-		return (&PetDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+		return (&PetDelete{config: c.config, mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown Pet mutation op: %q", m.Op())
 	}
@@ -738,22 +694,24 @@ func NewSessionClient(c config) *SessionClient {
 	return &SessionClient{config: c}
 }
 
-// Use adds a list of mutation hooks to the hooks stack.
-// A call to `Use(f, g, h)` equals to `session.Hooks(f(g(h())))`.
-func (c *SessionClient) Use(hooks ...Hook) {
-	c.hooks.Session = append(c.hooks.Session, hooks...)
-}
-
-// Intercept adds a list of query interceptors to the interceptors stack.
-// A call to `Intercept(f, g, h)` equals to `session.Intercept(f(g(h())))`.
-func (c *SessionClient) Intercept(interceptors ...Interceptor) {
-	c.inters.Session = append(c.inters.Session, interceptors...)
-}
-
 // Create returns a builder for creating a Session entity.
 func (c *SessionClient) Create() *SessionCreate {
 	mutation := newSessionMutation(c.config, OpCreate)
-	return &SessionCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &SessionCreate{config: c.config, mutation: mutation, fromBuilder: true}
+}
+
+func (c *SessionClient) Insert(value SessionInsert) *SessionCreate {
+	mutation := newSessionMutation(c.config, OpCreate)
+	mutation.insert = &value
+	return &SessionCreate{config: c.config, mutation: mutation}
+}
+
+func (c *SessionClient) InsertBulk(values ...SessionInsert) *SessionCreateBulk {
+	builders := make([]*SessionCreate, len(values))
+	for index := range values {
+		builders[index] = c.Insert(values[index])
+	}
+	return c.CreateBulk(builders...)
 }
 
 // CreateBulk returns a builder for creating a bulk of Session entities.
@@ -779,25 +737,26 @@ func (c *SessionClient) MapCreateBulk(slice any, setFunc func(*SessionCreate, in
 // Update returns an update builder for Session.
 func (c *SessionClient) Update() *SessionUpdate {
 	mutation := newSessionMutation(c.config, OpUpdate)
-	return &SessionUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &SessionUpdate{config: c.config, mutation: mutation}
 }
 
 // UpdateOne returns an update builder for the given entity.
 func (c *SessionClient) UpdateOne(_m *Session) *SessionUpdateOne {
-	mutation := newSessionMutation(c.config, OpUpdateOne, withSession(_m))
-	return &SessionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return c.UpdateOneID(_m.ID)
+
 }
 
 // UpdateOneID returns an update builder for the given id.
 func (c *SessionClient) UpdateOneID(id uuid.UUID) *SessionUpdateOne {
-	mutation := newSessionMutation(c.config, OpUpdateOne, withSessionID(id))
-	return &SessionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	mutation := newSessionMutation(c.config, OpUpdateOne)
+	mutation.id = &id
+	return &SessionUpdateOne{config: c.config, mutation: mutation}
 }
 
 // Delete returns a delete builder for Session.
 func (c *SessionClient) Delete() *SessionDelete {
 	mutation := newSessionMutation(c.config, OpDelete)
-	return &SessionDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &SessionDelete{config: c.config, mutation: mutation}
 }
 
 // DeleteOne returns a builder for deleting the given entity.
@@ -807,9 +766,9 @@ func (c *SessionClient) DeleteOne(_m *Session) *SessionDeleteOne {
 
 // DeleteOneID returns a builder for deleting the given entity by its id.
 func (c *SessionClient) DeleteOneID(id uuid.UUID) *SessionDeleteOne {
-	builder := c.Delete().Where(session.ID(id))
+	builder := c.Delete().Where(session.ID.EQ(id))
 	builder.mutation.id = &id
-	builder.mutation.SetOp(OpDeleteOne)
+	builder.mutation.op = OpDeleteOne
 	return &SessionDeleteOne{builder}
 }
 
@@ -818,13 +777,12 @@ func (c *SessionClient) Query() *SessionQuery {
 	return &SessionQuery{
 		config: c.config,
 		ctx:    &QueryContext{Type: TypeSession},
-		inters: c.Interceptors(),
 	}
 }
 
 // Get returns a Session entity by its id.
 func (c *SessionClient) Get(ctx context.Context, id uuid.UUID) (*Session, error) {
-	return c.Query().Where(session.ID(id)).Only(ctx)
+	return c.Query().Where(session.ID.EQ(id)).Only(ctx)
 }
 
 // GetX is like Get, but panics if an error occurs.
@@ -852,26 +810,16 @@ func (c *SessionClient) QueryDevice(_m *Session) *SessionDeviceQuery {
 	return query
 }
 
-// Hooks returns the client hooks.
-func (c *SessionClient) Hooks() []Hook {
-	return c.hooks.Session
-}
-
-// Interceptors returns the client interceptors.
-func (c *SessionClient) Interceptors() []Interceptor {
-	return c.inters.Session
-}
-
-func (c *SessionClient) mutate(ctx context.Context, m *SessionMutation) (Value, error) {
+func (c *SessionClient) mutate(ctx context.Context, m *SessionMutation) (any, error) {
 	switch m.Op() {
 	case OpCreate:
-		return (&SessionCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&SessionCreate{config: c.config, mutation: m}).Save(ctx)
 	case OpUpdate:
-		return (&SessionUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&SessionUpdate{config: c.config, mutation: m}).Save(ctx)
 	case OpUpdateOne:
-		return (&SessionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&SessionUpdateOne{config: c.config, mutation: m}).Save(ctx)
 	case OpDelete, OpDeleteOne:
-		return (&SessionDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+		return (&SessionDelete{config: c.config, mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown Session mutation op: %q", m.Op())
 	}
@@ -887,22 +835,24 @@ func NewSessionDeviceClient(c config) *SessionDeviceClient {
 	return &SessionDeviceClient{config: c}
 }
 
-// Use adds a list of mutation hooks to the hooks stack.
-// A call to `Use(f, g, h)` equals to `sessiondevice.Hooks(f(g(h())))`.
-func (c *SessionDeviceClient) Use(hooks ...Hook) {
-	c.hooks.SessionDevice = append(c.hooks.SessionDevice, hooks...)
-}
-
-// Intercept adds a list of query interceptors to the interceptors stack.
-// A call to `Intercept(f, g, h)` equals to `sessiondevice.Intercept(f(g(h())))`.
-func (c *SessionDeviceClient) Intercept(interceptors ...Interceptor) {
-	c.inters.SessionDevice = append(c.inters.SessionDevice, interceptors...)
-}
-
 // Create returns a builder for creating a SessionDevice entity.
 func (c *SessionDeviceClient) Create() *SessionDeviceCreate {
 	mutation := newSessionDeviceMutation(c.config, OpCreate)
-	return &SessionDeviceCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &SessionDeviceCreate{config: c.config, mutation: mutation, fromBuilder: true}
+}
+
+func (c *SessionDeviceClient) Insert(value SessionDeviceInsert) *SessionDeviceCreate {
+	mutation := newSessionDeviceMutation(c.config, OpCreate)
+	mutation.insert = &value
+	return &SessionDeviceCreate{config: c.config, mutation: mutation}
+}
+
+func (c *SessionDeviceClient) InsertBulk(values ...SessionDeviceInsert) *SessionDeviceCreateBulk {
+	builders := make([]*SessionDeviceCreate, len(values))
+	for index := range values {
+		builders[index] = c.Insert(values[index])
+	}
+	return c.CreateBulk(builders...)
 }
 
 // CreateBulk returns a builder for creating a bulk of SessionDevice entities.
@@ -928,25 +878,26 @@ func (c *SessionDeviceClient) MapCreateBulk(slice any, setFunc func(*SessionDevi
 // Update returns an update builder for SessionDevice.
 func (c *SessionDeviceClient) Update() *SessionDeviceUpdate {
 	mutation := newSessionDeviceMutation(c.config, OpUpdate)
-	return &SessionDeviceUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &SessionDeviceUpdate{config: c.config, mutation: mutation}
 }
 
 // UpdateOne returns an update builder for the given entity.
 func (c *SessionDeviceClient) UpdateOne(_m *SessionDevice) *SessionDeviceUpdateOne {
-	mutation := newSessionDeviceMutation(c.config, OpUpdateOne, withSessionDevice(_m))
-	return &SessionDeviceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return c.UpdateOneID(_m.ID)
+
 }
 
 // UpdateOneID returns an update builder for the given id.
 func (c *SessionDeviceClient) UpdateOneID(id uuid.UUID) *SessionDeviceUpdateOne {
-	mutation := newSessionDeviceMutation(c.config, OpUpdateOne, withSessionDeviceID(id))
-	return &SessionDeviceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	mutation := newSessionDeviceMutation(c.config, OpUpdateOne)
+	mutation.id = &id
+	return &SessionDeviceUpdateOne{config: c.config, mutation: mutation}
 }
 
 // Delete returns a delete builder for SessionDevice.
 func (c *SessionDeviceClient) Delete() *SessionDeviceDelete {
 	mutation := newSessionDeviceMutation(c.config, OpDelete)
-	return &SessionDeviceDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &SessionDeviceDelete{config: c.config, mutation: mutation}
 }
 
 // DeleteOne returns a builder for deleting the given entity.
@@ -956,9 +907,9 @@ func (c *SessionDeviceClient) DeleteOne(_m *SessionDevice) *SessionDeviceDeleteO
 
 // DeleteOneID returns a builder for deleting the given entity by its id.
 func (c *SessionDeviceClient) DeleteOneID(id uuid.UUID) *SessionDeviceDeleteOne {
-	builder := c.Delete().Where(sessiondevice.ID(id))
+	builder := c.Delete().Where(sessiondevice.ID.EQ(id))
 	builder.mutation.id = &id
-	builder.mutation.SetOp(OpDeleteOne)
+	builder.mutation.op = OpDeleteOne
 	return &SessionDeviceDeleteOne{builder}
 }
 
@@ -967,13 +918,12 @@ func (c *SessionDeviceClient) Query() *SessionDeviceQuery {
 	return &SessionDeviceQuery{
 		config: c.config,
 		ctx:    &QueryContext{Type: TypeSessionDevice},
-		inters: c.Interceptors(),
 	}
 }
 
 // Get returns a SessionDevice entity by its id.
 func (c *SessionDeviceClient) Get(ctx context.Context, id uuid.UUID) (*SessionDevice, error) {
-	return c.Query().Where(sessiondevice.ID(id)).Only(ctx)
+	return c.Query().Where(sessiondevice.ID.EQ(id)).Only(ctx)
 }
 
 // GetX is like Get, but panics if an error occurs.
@@ -1001,26 +951,16 @@ func (c *SessionDeviceClient) QuerySessions(_m *SessionDevice) *SessionQuery {
 	return query
 }
 
-// Hooks returns the client hooks.
-func (c *SessionDeviceClient) Hooks() []Hook {
-	return c.hooks.SessionDevice
-}
-
-// Interceptors returns the client interceptors.
-func (c *SessionDeviceClient) Interceptors() []Interceptor {
-	return c.inters.SessionDevice
-}
-
-func (c *SessionDeviceClient) mutate(ctx context.Context, m *SessionDeviceMutation) (Value, error) {
+func (c *SessionDeviceClient) mutate(ctx context.Context, m *SessionDeviceMutation) (any, error) {
 	switch m.Op() {
 	case OpCreate:
-		return (&SessionDeviceCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&SessionDeviceCreate{config: c.config, mutation: m}).Save(ctx)
 	case OpUpdate:
-		return (&SessionDeviceUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&SessionDeviceUpdate{config: c.config, mutation: m}).Save(ctx)
 	case OpUpdateOne:
-		return (&SessionDeviceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&SessionDeviceUpdateOne{config: c.config, mutation: m}).Save(ctx)
 	case OpDelete, OpDeleteOne:
-		return (&SessionDeviceDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+		return (&SessionDeviceDelete{config: c.config, mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown SessionDevice mutation op: %q", m.Op())
 	}
@@ -1036,22 +976,24 @@ func NewUserClient(c config) *UserClient {
 	return &UserClient{config: c}
 }
 
-// Use adds a list of mutation hooks to the hooks stack.
-// A call to `Use(f, g, h)` equals to `user.Hooks(f(g(h())))`.
-func (c *UserClient) Use(hooks ...Hook) {
-	c.hooks.User = append(c.hooks.User, hooks...)
-}
-
-// Intercept adds a list of query interceptors to the interceptors stack.
-// A call to `Intercept(f, g, h)` equals to `user.Intercept(f(g(h())))`.
-func (c *UserClient) Intercept(interceptors ...Interceptor) {
-	c.inters.User = append(c.inters.User, interceptors...)
-}
-
 // Create returns a builder for creating a User entity.
 func (c *UserClient) Create() *UserCreate {
 	mutation := newUserMutation(c.config, OpCreate)
-	return &UserCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &UserCreate{config: c.config, mutation: mutation, fromBuilder: true}
+}
+
+func (c *UserClient) Insert(value UserInsert) *UserCreate {
+	mutation := newUserMutation(c.config, OpCreate)
+	mutation.insert = &value
+	return &UserCreate{config: c.config, mutation: mutation}
+}
+
+func (c *UserClient) InsertBulk(values ...UserInsert) *UserCreateBulk {
+	builders := make([]*UserCreate, len(values))
+	for index := range values {
+		builders[index] = c.Insert(values[index])
+	}
+	return c.CreateBulk(builders...)
 }
 
 // CreateBulk returns a builder for creating a bulk of User entities.
@@ -1077,25 +1019,26 @@ func (c *UserClient) MapCreateBulk(slice any, setFunc func(*UserCreate, int)) *U
 // Update returns an update builder for User.
 func (c *UserClient) Update() *UserUpdate {
 	mutation := newUserMutation(c.config, OpUpdate)
-	return &UserUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &UserUpdate{config: c.config, mutation: mutation}
 }
 
 // UpdateOne returns an update builder for the given entity.
 func (c *UserClient) UpdateOne(_m *User) *UserUpdateOne {
-	mutation := newUserMutation(c.config, OpUpdateOne, withUser(_m))
-	return &UserUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return c.UpdateOneID(_m.ID)
+
 }
 
 // UpdateOneID returns an update builder for the given id.
 func (c *UserClient) UpdateOneID(id int) *UserUpdateOne {
-	mutation := newUserMutation(c.config, OpUpdateOne, withUserID(id))
-	return &UserUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	mutation := newUserMutation(c.config, OpUpdateOne)
+	mutation.id = &id
+	return &UserUpdateOne{config: c.config, mutation: mutation}
 }
 
 // Delete returns a delete builder for User.
 func (c *UserClient) Delete() *UserDelete {
 	mutation := newUserMutation(c.config, OpDelete)
-	return &UserDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &UserDelete{config: c.config, mutation: mutation}
 }
 
 // DeleteOne returns a builder for deleting the given entity.
@@ -1105,9 +1048,9 @@ func (c *UserClient) DeleteOne(_m *User) *UserDeleteOne {
 
 // DeleteOneID returns a builder for deleting the given entity by its id.
 func (c *UserClient) DeleteOneID(id int) *UserDeleteOne {
-	builder := c.Delete().Where(user.ID(id))
+	builder := c.Delete().Where(user.ID.EQ(id))
 	builder.mutation.id = &id
-	builder.mutation.SetOp(OpDeleteOne)
+	builder.mutation.op = OpDeleteOne
 	return &UserDeleteOne{builder}
 }
 
@@ -1116,13 +1059,12 @@ func (c *UserClient) Query() *UserQuery {
 	return &UserQuery{
 		config: c.config,
 		ctx:    &QueryContext{Type: TypeUser},
-		inters: c.Interceptors(),
 	}
 }
 
 // Get returns a User entity by its id.
 func (c *UserClient) Get(ctx context.Context, id int) (*User, error) {
-	return c.Query().Where(user.ID(id)).Only(ctx)
+	return c.Query().Where(user.ID.EQ(id)).Only(ctx)
 }
 
 // GetX is like Get, but panics if an error occurs.
@@ -1150,37 +1092,20 @@ func (c *UserClient) QueryCards(_m *User) *CardQuery {
 	return query
 }
 
-// Hooks returns the client hooks.
-func (c *UserClient) Hooks() []Hook {
-	return c.hooks.User
-}
-
-// Interceptors returns the client interceptors.
-func (c *UserClient) Interceptors() []Interceptor {
-	return c.inters.User
-}
-
-func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error) {
+func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (any, error) {
 	switch m.Op() {
 	case OpCreate:
-		return (&UserCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&UserCreate{config: c.config, mutation: m}).Save(ctx)
 	case OpUpdate:
-		return (&UserUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&UserUpdate{config: c.config, mutation: m}).Save(ctx)
 	case OpUpdateOne:
-		return (&UserUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&UserUpdateOne{config: c.config, mutation: m}).Save(ctx)
 	case OpDelete, OpDeleteOne:
-		return (&UserDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+		return (&UserDelete{config: c.config, mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown User mutation op: %q", m.Op())
 	}
 }
 
-// hooks and interceptors per client, for fast access.
-type (
-	hooks struct {
-		Card, Payment, Pet, Session, SessionDevice, User []ent.Hook
-	}
-	inters struct {
-		Card, Payment, Pet, Session, SessionDevice, User []ent.Interceptor
-	}
-)
+// Driver returns the driver bound to this client or transaction.
+func (c *Client) Driver() dialect.Driver { return c.config.driver }

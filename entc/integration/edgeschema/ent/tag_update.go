@@ -11,221 +11,203 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/group"
 	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/grouptag"
-	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/predicate"
 	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/tag"
 	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/tweet"
 	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/tweettag"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// TagUpdate is the builder for updating Tag entities.
 type TagUpdate struct {
 	config
-	hooks    []Hook
-	mutation *TagMutation
+	mutation  *TagMutation
+	err       error
+	returning *sqlgraph.Returning
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// Where appends a list predicates to the TagUpdate builder.
-func (_u *TagUpdate) Where(ps ...predicate.Tag) *TagUpdate {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// SetValue sets the "value" field.
-func (_u *TagUpdate) SetValue(v string) *TagUpdate {
-	_u.mutation.SetValue(v)
-	return _u
-}
-
-// SetNillableValue sets the "value" field if the given value is not nil.
-func (_u *TagUpdate) SetNillableValue(v *string) *TagUpdate {
-	if v != nil {
-		_u.SetValue(*v)
+func (b *TagUpdate) Set[T any](column ent.ColumnOf[entity.Tag, T], value T) *TagUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// AddTweetIDs adds the "tweets" edge to the Tweet entity by IDs.
-func (_u *TagUpdate) AddTweetIDs(ids ...int) *TagUpdate {
-	_u.mutation.AddTweetIDs(ids...)
-	return _u
+	return b
 }
-
-// AddTweets adds the "tweets" edges to the Tweet entity.
-func (_u *TagUpdate) AddTweets(v ...*Tweet) *TagUpdate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+func (b *TagUpdate) SetOptional[T any](column ent.ColumnOf[entity.Tag, T], value ent.Option[T]) *TagUpdate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u.AddTweetIDs(ids...)
-}
-
-// AddGroupIDs adds the "groups" edge to the Group entity by IDs.
-func (_u *TagUpdate) AddGroupIDs(ids ...int) *TagUpdate {
-	_u.mutation.AddGroupIDs(ids...)
-	return _u
-}
-
-// AddGroups adds the "groups" edges to the Group entity.
-func (_u *TagUpdate) AddGroups(v ...*Group) *TagUpdate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
 	}
-	return _u.AddGroupIDs(ids...)
+	return b
 }
-
-// AddTweetTagIDs adds the "tweet_tags" edge to the TweetTag entity by IDs.
-func (_u *TagUpdate) AddTweetTagIDs(ids ...uuid.UUID) *TagUpdate {
-	_u.mutation.AddTweetTagIDs(ids...)
-	return _u
-}
-
-// AddTweetTags adds the "tweet_tags" edges to the TweetTag entity.
-func (_u *TagUpdate) AddTweetTags(v ...*TweetTag) *TagUpdate {
-	ids := make([]uuid.UUID, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+func (b *TagUpdate) SetExpr[T any](column ent.ColumnOf[entity.Tag, T], value ent.Expr[T]) *TagUpdate {
+	if b.err != nil {
+		return b
 	}
-	return _u.AddTweetTagIDs(ids...)
-}
+	switch column.Ref().Name {
 
-// AddGroupTagIDs adds the "group_tags" edge to the GroupTag entity by IDs.
-func (_u *TagUpdate) AddGroupTagIDs(ids ...int) *TagUpdate {
-	_u.mutation.AddGroupTagIDs(ids...)
-	return _u
-}
+	case tag.FieldValue:
 
-// AddGroupTags adds the "group_tags" edges to the GroupTag entity.
-func (_u *TagUpdate) AddGroupTags(v ...*GroupTag) *TagUpdate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Tag is not settable", column.Ref().Name)}
+		return b
 	}
-	return _u.AddGroupTagIDs(ids...)
-}
 
-// Mutation returns the TagMutation object of the builder.
-func (_u *TagUpdate) Mutation() *TagMutation {
-	return _u.mutation
-}
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
 
-// ClearTweets clears all "tweets" edges to the Tweet entity.
-func (_u *TagUpdate) ClearTweets() *TagUpdate {
-	_u.mutation.ClearTweets()
-	return _u
-}
+	return b
 
-// RemoveTweetIDs removes the "tweets" edge to Tweet entities by IDs.
-func (_u *TagUpdate) RemoveTweetIDs(ids ...int) *TagUpdate {
-	_u.mutation.RemoveTweetIDs(ids...)
-	return _u
 }
-
-// RemoveTweets removes "tweets" edges to Tweet entities.
-func (_u *TagUpdate) RemoveTweets(v ...*Tweet) *TagUpdate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+func (b *TagUpdate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Tag, N, K], id K) *TagUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
 	}
-	return _u.RemoveTweetIDs(ids...)
-}
 
-// ClearGroups clears all "groups" edges to the Group entity.
-func (_u *TagUpdate) ClearGroups() *TagUpdate {
-	_u.mutation.ClearGroups()
-	return _u
+	return b
 }
-
-// RemoveGroupIDs removes the "groups" edge to Group entities by IDs.
-func (_u *TagUpdate) RemoveGroupIDs(ids ...int) *TagUpdate {
-	_u.mutation.RemoveGroupIDs(ids...)
-	return _u
-}
-
-// RemoveGroups removes "groups" edges to Group entities.
-func (_u *TagUpdate) RemoveGroups(v ...*Group) *TagUpdate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+func (b *TagUpdate) AddIDs[N, K any](edge ent.Relation[entity.Tag, N, K], ids ...K) *TagUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
 	}
-	return _u.RemoveGroupIDs(ids...)
-}
-
-// ClearTweetTags clears all "tweet_tags" edges to the TweetTag entity.
-func (_u *TagUpdate) ClearTweetTags() *TagUpdate {
-	_u.mutation.ClearTweetTags()
-	return _u
-}
-
-// RemoveTweetTagIDs removes the "tweet_tags" edge to TweetTag entities by IDs.
-func (_u *TagUpdate) RemoveTweetTagIDs(ids ...uuid.UUID) *TagUpdate {
-	_u.mutation.RemoveTweetTagIDs(ids...)
-	return _u
-}
-
-// RemoveTweetTags removes "tweet_tags" edges to TweetTag entities.
-func (_u *TagUpdate) RemoveTweetTags(v ...*TweetTag) *TagUpdate {
-	ids := make([]uuid.UUID, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
 	}
-	return _u.RemoveTweetTagIDs(ids...)
+	return b
 }
+func (b *TagUpdate) Mutation() *TagMutation { return b.mutation }
 
-// ClearGroupTags clears all "group_tags" edges to the GroupTag entity.
-func (_u *TagUpdate) ClearGroupTags() *TagUpdate {
-	_u.mutation.ClearGroupTags()
-	return _u
-}
-
-// RemoveGroupTagIDs removes the "group_tags" edge to GroupTag entities by IDs.
-func (_u *TagUpdate) RemoveGroupTagIDs(ids ...int) *TagUpdate {
-	_u.mutation.RemoveGroupTagIDs(ids...)
-	return _u
-}
-
-// RemoveGroupTags removes "group_tags" edges to GroupTag entities.
-func (_u *TagUpdate) RemoveGroupTags(v ...*GroupTag) *TagUpdate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+func (b *TagUpdate) Patch() *TagPatch            { return b.mutation.patch }
+func (b *TagUpdate) Apply(p TagPatch) *TagUpdate { b.mutation.patch.apply(p); return b }
+func (b *TagUpdate) Add[T ent.Number](column ent.ColumnOf[entity.Tag, T], delta T) *TagUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
 	}
-	return _u.RemoveGroupTagIDs(ids...)
+	return b
+}
+func (b *TagUpdate) Append[T any](column ent.ColumnOf[entity.Tag, T], values T) *TagUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *TagUpdate) Clear[T any](column ent.ColumnOf[entity.Tag, T]) *TagUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *TagUpdate) RemoveIDs[N, K any](edge ent.Relation[entity.Tag, N, K], ids ...K) *TagUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *TagUpdate) ClearEdge[N, K any](edge ent.RelationOf[entity.Tag, N, K]) *TagUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// Save executes the query and returns the number of nodes affected by the update operation.
-func (_u *TagUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
+func (b *TagUpdate) Where(predicates ...ent.Predicate[entity.Tag]) *TagUpdate {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_u *TagUpdate) SaveX(ctx context.Context) int {
-	affected, err := _u.Save(ctx)
+func (b *TagUpdate) Save(ctx context.Context) (int, error) {
+	if b.err != nil {
+		return 0, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return 0, err
+	}
+	return b.sqlSave(ctx)
+}
+
+func (b *TagUpdate) SaveX(ctx context.Context) int {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return affected
+	return result
 }
 
-// Exec executes the query.
-func (_u *TagUpdate) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *TagUpdate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *TagUpdate) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *TagUpdate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
+func (b *TagUpdate) Returning(ctx context.Context) ([]*Tag, error) {
+	nodes := make([]*Tag, 0)
+	b.returning = &sqlgraph.Returning{Columns: tag.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Tag{config: b.config}
+		values, err := _node.scanValues(tag.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(tag.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Save(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
+}
+
+func (b *TagUpdate) defaults() error {
+
+	return nil
+}
+
+func (b *TagUpdate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.Value.IsNull() {
+		return &ValidationError{Name: "value", err: errors.New(`ent: field "Tag.value" is not nullable`)}
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *TagUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *TagUpdate {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *TagUpdate) sqlSave(ctx context.Context) (_node int, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(tag.Table, tag.Columns, sqlgraph.NewFieldSpec(tag.FieldID, field.TypeInt))
 	if ps := _u.mutation.Predicates(); len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -234,10 +216,10 @@ func (_u *TagUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.Value(); ok {
+	if value, ok := _u.mutation.patch.Value.Get(); ok {
 		_spec.SetField(tag.FieldValue, field.TypeString, value)
 	}
-	if _u.mutation.TweetsCleared() {
+	if _u.mutation.patch.Tweets.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: false,
@@ -249,15 +231,20 @@ func (_u *TagUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			},
 		}
 		createE := &TweetTagCreate{config: _u.config, mutation: newTweetTagMutation(_u.config, OpCreate)}
-		createE.defaults()
-		_, specE := createE.createSpec()
+		if err := createE.defaults(); err != nil {
+			return 0, err
+		}
+		_, specE, err := createE.createSpec()
+		if err != nil {
+			return 0, err
+		}
 		edge.Target.Fields = specE.Fields
 		if specE.ID.Value != nil {
 			edge.Target.Fields = append(edge.Target.Fields, specE.ID)
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.RemovedTweetsIDs(); len(nodes) > 0 && !_u.mutation.TweetsCleared() {
+	if nodes := _u.mutation.patch.Tweets.Remove; len(nodes) > 0 && !_u.mutation.patch.Tweets.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: false,
@@ -268,19 +255,29 @@ func (_u *TagUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(tweet.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		createE := &TweetTagCreate{config: _u.config, mutation: newTweetTagMutation(_u.config, OpCreate)}
-		createE.defaults()
-		_, specE := createE.createSpec()
+		if err := createE.defaults(); err != nil {
+			return 0, err
+		}
+		_, specE, err := createE.createSpec()
+		if err != nil {
+			return 0, err
+		}
 		edge.Target.Fields = specE.Fields
 		if specE.ID.Value != nil {
 			edge.Target.Fields = append(edge.Target.Fields, specE.ID)
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.TweetsIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.tweetsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: false,
@@ -291,19 +288,29 @@ func (_u *TagUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(tweet.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		createE := &TweetTagCreate{config: _u.config, mutation: newTweetTagMutation(_u.config, OpCreate)}
-		createE.defaults()
-		_, specE := createE.createSpec()
+		if err := createE.defaults(); err != nil {
+			return 0, err
+		}
+		_, specE, err := createE.createSpec()
+		if err != nil {
+			return 0, err
+		}
 		edge.Target.Fields = specE.Fields
 		if specE.ID.Value != nil {
 			edge.Target.Fields = append(edge.Target.Fields, specE.ID)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
-	if _u.mutation.GroupsCleared() {
+	if _u.mutation.patch.Groups.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: false,
@@ -316,7 +323,7 @@ func (_u *TagUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.RemovedGroupsIDs(); len(nodes) > 0 && !_u.mutation.GroupsCleared() {
+	if nodes := _u.mutation.patch.Groups.Remove; len(nodes) > 0 && !_u.mutation.patch.Groups.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: false,
@@ -327,12 +334,17 @@ func (_u *TagUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(group.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.GroupsIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.groupsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: false,
@@ -343,12 +355,17 @@ func (_u *TagUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(group.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
-	if _u.mutation.TweetTagsCleared() {
+	if _u.mutation.patch.TweetTags.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: true,
@@ -361,7 +378,7 @@ func (_u *TagUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.RemovedTweetTagsIDs(); len(nodes) > 0 && !_u.mutation.TweetTagsCleared() {
+	if nodes := _u.mutation.patch.TweetTags.Remove; len(nodes) > 0 && !_u.mutation.patch.TweetTags.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: true,
@@ -372,12 +389,17 @@ func (_u *TagUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(tweettag.FieldID, field.TypeUUID),
 			},
 		}
+		seen := make(map[uuid.UUID]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.TweetTagsIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.tweettagsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: true,
@@ -388,12 +410,17 @@ func (_u *TagUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(tweettag.FieldID, field.TypeUUID),
 			},
 		}
+		seen := make(map[uuid.UUID]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
-	if _u.mutation.GroupTagsCleared() {
+	if _u.mutation.patch.GroupTags.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: true,
@@ -406,7 +433,7 @@ func (_u *TagUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.RemovedGroupTagsIDs(); len(nodes) > 0 && !_u.mutation.GroupTagsCleared() {
+	if nodes := _u.mutation.patch.GroupTags.Remove; len(nodes) > 0 && !_u.mutation.patch.GroupTags.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: true,
@@ -417,12 +444,17 @@ func (_u *TagUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(grouptag.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.GroupTagsIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.grouptagsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: true,
@@ -433,11 +465,22 @@ func (_u *TagUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(grouptag.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	_spec.Returning = _u.returning
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{tag.Label}
@@ -446,222 +489,195 @@ func (_u *TagUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		return 0, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }
 
-// TagUpdateOne is the builder for updating a single Tag entity.
 type TagUpdateOne struct {
 	config
-	fields   []string
-	hooks    []Hook
 	mutation *TagMutation
+	err      error
+
+	fields []string
+	old    *Tag
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// SetValue sets the "value" field.
-func (_u *TagUpdateOne) SetValue(v string) *TagUpdateOne {
-	_u.mutation.SetValue(v)
-	return _u
-}
-
-// SetNillableValue sets the "value" field if the given value is not nil.
-func (_u *TagUpdateOne) SetNillableValue(v *string) *TagUpdateOne {
-	if v != nil {
-		_u.SetValue(*v)
+func (b *TagUpdateOne) Set[T any](column ent.ColumnOf[entity.Tag, T], value T) *TagUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// AddTweetIDs adds the "tweets" edge to the Tweet entity by IDs.
-func (_u *TagUpdateOne) AddTweetIDs(ids ...int) *TagUpdateOne {
-	_u.mutation.AddTweetIDs(ids...)
-	return _u
+	return b
 }
-
-// AddTweets adds the "tweets" edges to the Tweet entity.
-func (_u *TagUpdateOne) AddTweets(v ...*Tweet) *TagUpdateOne {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+func (b *TagUpdateOne) SetOptional[T any](column ent.ColumnOf[entity.Tag, T], value ent.Option[T]) *TagUpdateOne {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u.AddTweetIDs(ids...)
-}
-
-// AddGroupIDs adds the "groups" edge to the Group entity by IDs.
-func (_u *TagUpdateOne) AddGroupIDs(ids ...int) *TagUpdateOne {
-	_u.mutation.AddGroupIDs(ids...)
-	return _u
-}
-
-// AddGroups adds the "groups" edges to the Group entity.
-func (_u *TagUpdateOne) AddGroups(v ...*Group) *TagUpdateOne {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
 	}
-	return _u.AddGroupIDs(ids...)
+	return b
 }
-
-// AddTweetTagIDs adds the "tweet_tags" edge to the TweetTag entity by IDs.
-func (_u *TagUpdateOne) AddTweetTagIDs(ids ...uuid.UUID) *TagUpdateOne {
-	_u.mutation.AddTweetTagIDs(ids...)
-	return _u
-}
-
-// AddTweetTags adds the "tweet_tags" edges to the TweetTag entity.
-func (_u *TagUpdateOne) AddTweetTags(v ...*TweetTag) *TagUpdateOne {
-	ids := make([]uuid.UUID, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+func (b *TagUpdateOne) SetExpr[T any](column ent.ColumnOf[entity.Tag, T], value ent.Expr[T]) *TagUpdateOne {
+	if b.err != nil {
+		return b
 	}
-	return _u.AddTweetTagIDs(ids...)
-}
+	switch column.Ref().Name {
 
-// AddGroupTagIDs adds the "group_tags" edge to the GroupTag entity by IDs.
-func (_u *TagUpdateOne) AddGroupTagIDs(ids ...int) *TagUpdateOne {
-	_u.mutation.AddGroupTagIDs(ids...)
-	return _u
-}
+	case tag.FieldValue:
 
-// AddGroupTags adds the "group_tags" edges to the GroupTag entity.
-func (_u *TagUpdateOne) AddGroupTags(v ...*GroupTag) *TagUpdateOne {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Tag is not settable", column.Ref().Name)}
+		return b
 	}
-	return _u.AddGroupTagIDs(ids...)
-}
 
-// Mutation returns the TagMutation object of the builder.
-func (_u *TagUpdateOne) Mutation() *TagMutation {
-	return _u.mutation
-}
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
 
-// ClearTweets clears all "tweets" edges to the Tweet entity.
-func (_u *TagUpdateOne) ClearTweets() *TagUpdateOne {
-	_u.mutation.ClearTweets()
-	return _u
-}
+	return b
 
-// RemoveTweetIDs removes the "tweets" edge to Tweet entities by IDs.
-func (_u *TagUpdateOne) RemoveTweetIDs(ids ...int) *TagUpdateOne {
-	_u.mutation.RemoveTweetIDs(ids...)
-	return _u
 }
-
-// RemoveTweets removes "tweets" edges to Tweet entities.
-func (_u *TagUpdateOne) RemoveTweets(v ...*Tweet) *TagUpdateOne {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+func (b *TagUpdateOne) SetEdge[N, K any](edge ent.UniqueRelation[entity.Tag, N, K], id K) *TagUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
 	}
-	return _u.RemoveTweetIDs(ids...)
-}
 
-// ClearGroups clears all "groups" edges to the Group entity.
-func (_u *TagUpdateOne) ClearGroups() *TagUpdateOne {
-	_u.mutation.ClearGroups()
-	return _u
+	return b
 }
-
-// RemoveGroupIDs removes the "groups" edge to Group entities by IDs.
-func (_u *TagUpdateOne) RemoveGroupIDs(ids ...int) *TagUpdateOne {
-	_u.mutation.RemoveGroupIDs(ids...)
-	return _u
-}
-
-// RemoveGroups removes "groups" edges to Group entities.
-func (_u *TagUpdateOne) RemoveGroups(v ...*Group) *TagUpdateOne {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+func (b *TagUpdateOne) AddIDs[N, K any](edge ent.Relation[entity.Tag, N, K], ids ...K) *TagUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
 	}
-	return _u.RemoveGroupIDs(ids...)
-}
-
-// ClearTweetTags clears all "tweet_tags" edges to the TweetTag entity.
-func (_u *TagUpdateOne) ClearTweetTags() *TagUpdateOne {
-	_u.mutation.ClearTweetTags()
-	return _u
-}
-
-// RemoveTweetTagIDs removes the "tweet_tags" edge to TweetTag entities by IDs.
-func (_u *TagUpdateOne) RemoveTweetTagIDs(ids ...uuid.UUID) *TagUpdateOne {
-	_u.mutation.RemoveTweetTagIDs(ids...)
-	return _u
-}
-
-// RemoveTweetTags removes "tweet_tags" edges to TweetTag entities.
-func (_u *TagUpdateOne) RemoveTweetTags(v ...*TweetTag) *TagUpdateOne {
-	ids := make([]uuid.UUID, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
 	}
-	return _u.RemoveTweetTagIDs(ids...)
+	return b
 }
+func (b *TagUpdateOne) Mutation() *TagMutation { return b.mutation }
 
-// ClearGroupTags clears all "group_tags" edges to the GroupTag entity.
-func (_u *TagUpdateOne) ClearGroupTags() *TagUpdateOne {
-	_u.mutation.ClearGroupTags()
-	return _u
-}
-
-// RemoveGroupTagIDs removes the "group_tags" edge to GroupTag entities by IDs.
-func (_u *TagUpdateOne) RemoveGroupTagIDs(ids ...int) *TagUpdateOne {
-	_u.mutation.RemoveGroupTagIDs(ids...)
-	return _u
-}
-
-// RemoveGroupTags removes "group_tags" edges to GroupTag entities.
-func (_u *TagUpdateOne) RemoveGroupTags(v ...*GroupTag) *TagUpdateOne {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+func (b *TagUpdateOne) Patch() *TagPatch               { return b.mutation.patch }
+func (b *TagUpdateOne) Apply(p TagPatch) *TagUpdateOne { b.mutation.patch.apply(p); return b }
+func (b *TagUpdateOne) Add[T ent.Number](column ent.ColumnOf[entity.Tag, T], delta T) *TagUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
 	}
-	return _u.RemoveGroupTagIDs(ids...)
+	return b
+}
+func (b *TagUpdateOne) Append[T any](column ent.ColumnOf[entity.Tag, T], values T) *TagUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *TagUpdateOne) Clear[T any](column ent.ColumnOf[entity.Tag, T]) *TagUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *TagUpdateOne) RemoveIDs[N, K any](edge ent.Relation[entity.Tag, N, K], ids ...K) *TagUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *TagUpdateOne) ClearEdge[N, K any](edge ent.RelationOf[entity.Tag, N, K]) *TagUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// Where appends a list predicates to the TagUpdate builder.
-func (_u *TagUpdateOne) Where(ps ...predicate.Tag) *TagUpdateOne {
-	_u.mutation.Where(ps...)
-	return _u
+func (b *TagUpdateOne) Where(predicates ...ent.Predicate[entity.Tag]) *TagUpdateOne {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Select allows selecting one or more fields (columns) of the returned entity.
-// The default is selecting all fields defined in the entity schema.
-func (_u *TagUpdateOne) Select(field string, fields ...string) *TagUpdateOne {
-	_u.fields = append([]string{field}, fields...)
-	return _u
+func (b *TagUpdateOne) Save(ctx context.Context) (*Tag, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Save executes the query and returns the updated Tag entity.
-func (_u *TagUpdateOne) Save(ctx context.Context) (*Tag, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *TagUpdateOne) SaveX(ctx context.Context) *Tag {
-	node, err := _u.Save(ctx)
+func (b *TagUpdateOne) SaveX(ctx context.Context) *Tag {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return node
+	return result
 }
 
-// Exec executes the query on the entity.
-func (_u *TagUpdateOne) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *TagUpdateOne) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *TagUpdateOne) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *TagUpdateOne) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
+func (b *TagUpdateOne) Select(columns ...ent.EntityColumn[entity.Tag]) *TagUpdateOne {
+	if len(columns) == 0 {
+		panic("ent: Select requires at least one column")
+	}
+	b.fields = make([]string, len(columns))
+	for index, column := range columns {
+		b.fields[index] = column.Ref().Name
+	}
+	return b
+}
+
+func (b *TagUpdateOne) SaveOld(ctx context.Context) (old *Tag, updated *Tag, err error) {
+	if !b.driver.Capabilities().ReturningOld {
+		return nil, nil, &dialect.UnsupportedError{Feature: "RETURNING OLD", Dialect: dialect.Dialect(b.driver.Dialect())}
+	}
+	b.old = &Tag{config: b.config}
+	defer func() { b.old = nil }()
+	updated, err = b.Save(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return b.old, updated, nil
+}
+
+func (b *TagUpdateOne) defaults() error {
+
+	return nil
+}
+
+func (b *TagUpdateOne) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.Value.IsNull() {
+		return &ValidationError{Name: "value", err: errors.New(`ent: field "Tag.value" is not nullable`)}
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *TagUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *TagUpdateOne {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *TagUpdateOne) sqlSave(ctx context.Context) (_node *Tag, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(tag.Table, tag.Columns, sqlgraph.NewFieldSpec(tag.FieldID, field.TypeInt))
 	id, ok := _u.mutation.ID()
 	if !ok {
@@ -687,10 +703,10 @@ func (_u *TagUpdateOne) sqlSave(ctx context.Context) (_node *Tag, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.Value(); ok {
+	if value, ok := _u.mutation.patch.Value.Get(); ok {
 		_spec.SetField(tag.FieldValue, field.TypeString, value)
 	}
-	if _u.mutation.TweetsCleared() {
+	if _u.mutation.patch.Tweets.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: false,
@@ -702,15 +718,20 @@ func (_u *TagUpdateOne) sqlSave(ctx context.Context) (_node *Tag, err error) {
 			},
 		}
 		createE := &TweetTagCreate{config: _u.config, mutation: newTweetTagMutation(_u.config, OpCreate)}
-		createE.defaults()
-		_, specE := createE.createSpec()
+		if err := createE.defaults(); err != nil {
+			return nil, err
+		}
+		_, specE, err := createE.createSpec()
+		if err != nil {
+			return nil, err
+		}
 		edge.Target.Fields = specE.Fields
 		if specE.ID.Value != nil {
 			edge.Target.Fields = append(edge.Target.Fields, specE.ID)
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.RemovedTweetsIDs(); len(nodes) > 0 && !_u.mutation.TweetsCleared() {
+	if nodes := _u.mutation.patch.Tweets.Remove; len(nodes) > 0 && !_u.mutation.patch.Tweets.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: false,
@@ -721,19 +742,29 @@ func (_u *TagUpdateOne) sqlSave(ctx context.Context) (_node *Tag, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(tweet.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		createE := &TweetTagCreate{config: _u.config, mutation: newTweetTagMutation(_u.config, OpCreate)}
-		createE.defaults()
-		_, specE := createE.createSpec()
+		if err := createE.defaults(); err != nil {
+			return nil, err
+		}
+		_, specE, err := createE.createSpec()
+		if err != nil {
+			return nil, err
+		}
 		edge.Target.Fields = specE.Fields
 		if specE.ID.Value != nil {
 			edge.Target.Fields = append(edge.Target.Fields, specE.ID)
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.TweetsIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.tweetsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: false,
@@ -744,19 +775,29 @@ func (_u *TagUpdateOne) sqlSave(ctx context.Context) (_node *Tag, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(tweet.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		createE := &TweetTagCreate{config: _u.config, mutation: newTweetTagMutation(_u.config, OpCreate)}
-		createE.defaults()
-		_, specE := createE.createSpec()
+		if err := createE.defaults(); err != nil {
+			return nil, err
+		}
+		_, specE, err := createE.createSpec()
+		if err != nil {
+			return nil, err
+		}
 		edge.Target.Fields = specE.Fields
 		if specE.ID.Value != nil {
 			edge.Target.Fields = append(edge.Target.Fields, specE.ID)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
-	if _u.mutation.GroupsCleared() {
+	if _u.mutation.patch.Groups.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: false,
@@ -769,7 +810,7 @@ func (_u *TagUpdateOne) sqlSave(ctx context.Context) (_node *Tag, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.RemovedGroupsIDs(); len(nodes) > 0 && !_u.mutation.GroupsCleared() {
+	if nodes := _u.mutation.patch.Groups.Remove; len(nodes) > 0 && !_u.mutation.patch.Groups.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: false,
@@ -780,12 +821,17 @@ func (_u *TagUpdateOne) sqlSave(ctx context.Context) (_node *Tag, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(group.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.GroupsIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.groupsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: false,
@@ -796,12 +842,17 @@ func (_u *TagUpdateOne) sqlSave(ctx context.Context) (_node *Tag, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(group.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
-	if _u.mutation.TweetTagsCleared() {
+	if _u.mutation.patch.TweetTags.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: true,
@@ -814,7 +865,7 @@ func (_u *TagUpdateOne) sqlSave(ctx context.Context) (_node *Tag, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.RemovedTweetTagsIDs(); len(nodes) > 0 && !_u.mutation.TweetTagsCleared() {
+	if nodes := _u.mutation.patch.TweetTags.Remove; len(nodes) > 0 && !_u.mutation.patch.TweetTags.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: true,
@@ -825,12 +876,17 @@ func (_u *TagUpdateOne) sqlSave(ctx context.Context) (_node *Tag, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(tweettag.FieldID, field.TypeUUID),
 			},
 		}
+		seen := make(map[uuid.UUID]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.TweetTagsIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.tweettagsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: true,
@@ -841,12 +897,17 @@ func (_u *TagUpdateOne) sqlSave(ctx context.Context) (_node *Tag, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(tweettag.FieldID, field.TypeUUID),
 			},
 		}
+		seen := make(map[uuid.UUID]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
-	if _u.mutation.GroupTagsCleared() {
+	if _u.mutation.patch.GroupTags.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: true,
@@ -859,7 +920,7 @@ func (_u *TagUpdateOne) sqlSave(ctx context.Context) (_node *Tag, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.RemovedGroupTagsIDs(); len(nodes) > 0 && !_u.mutation.GroupTagsCleared() {
+	if nodes := _u.mutation.patch.GroupTags.Remove; len(nodes) > 0 && !_u.mutation.patch.GroupTags.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: true,
@@ -870,12 +931,17 @@ func (_u *TagUpdateOne) sqlSave(ctx context.Context) (_node *Tag, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(grouptag.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.GroupTagsIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.grouptagsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: true,
@@ -886,14 +952,28 @@ func (_u *TagUpdateOne) sqlSave(ctx context.Context) (_node *Tag, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(grouptag.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	_node = &Tag{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
+	if _u.old != nil {
+		_spec.OldScanValues = _u.old.scanValues
+		_spec.OldAssign = _u.old.assignValues
+	}
 	if err = sqlgraph.UpdateNode(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{tag.Label}
@@ -902,6 +982,5 @@ func (_u *TagUpdateOne) sqlSave(ctx context.Context) (_node *Tag, err error) {
 		}
 		return nil, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }

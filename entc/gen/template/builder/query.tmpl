@@ -21,9 +21,11 @@ SPDX-License-Identifier: Apache-2.0
 type {{ $builder }} struct {
 	config
 	ctx			*QueryContext
-	order		[]{{ $.Package }}.OrderOption
-	inters		[]Interceptor
-	predicates 	[]predicate.{{ $.Name }}
+	order		[]ent.OrderOption[entity.{{ $.Name }}]
+	joins []func(*sql.Selector)
+	withCounts []ent.RelationRef
+
+	predicates 	[]ent.Predicate[entity.{{ $.Name }}]
 	{{- /* Eager loading fields. */}}
 	{{- range $e := $.Edges }}
 		{{ $e.EagerLoadField }} *{{ $e.Type.QueryName }}
@@ -39,8 +41,38 @@ type {{ $builder }} struct {
 }
 
 // Where adds a new predicate for the {{ $builder }} builder.
-func ({{ $receiver }} *{{ $builder }}) Where(ps ...predicate.{{ $.Name }}) *{{ $builder }} {
-	{{ $receiver}}.predicates = append({{ $receiver }}.predicates, ps...)
+func ({{ $receiver }} *{{ $builder }}) Where(predicates ...ent.Predicate[entity.{{ $.Name }}]) *{{ $builder }} {
+	{{ $receiver}}.predicates = append({{ $receiver }}.predicates, predicates...)
+	return {{ $receiver }}
+}
+
+func ({{ $receiver }} *{{ $builder }}) WhereP(predicates ...func(*sql.Selector)) *{{ $builder }} {
+	for _, predicate := range predicates { {{ $receiver }}.predicates = append({{ $receiver }}.predicates, predicate) }
+	return {{ $receiver }}
+}
+
+{{ range $method := list "Join" "LeftJoin" }}
+func ({{ $receiver }} *{{ $builder }}) {{ $method }}(table string, on ...func(*sql.Selector)) *{{ $builder }} {
+	return {{ $receiver }}.{{ $method }}As(table, "", on...)
+}
+
+func ({{ $receiver }} *{{ $builder }}) {{ $method }}As(table, alias string, on ...func(*sql.Selector)) *{{ $builder }} {
+	on = append([]func(*sql.Selector){}, on...)
+	{{ $receiver }}.joins = append({{ $receiver }}.joins, func(selector *sql.Selector) {
+		joined := sql.Dialect(selector.Dialect()).Table(table)
+		if alias != "" { joined.As(alias) } else { joined.As(table) }
+		condition := sql.Dialect(selector.Dialect()).Select().From(selector.Table())
+		for _, predicate := range on { predicate(condition) }
+		if err := condition.Err(); err != nil { selector.AddError(err) }
+		selector.{{ $method }}(joined).OnP(condition.P())
+	})
+	return {{ $receiver }}
+}
+{{ end }}
+
+func ({{ $receiver }} *{{ $builder }}) WithCount[N, K any](edge ent.Relation[entity.{{ $.Name }}, N, K]) *{{ $builder }} {
+	for _, requested := range {{ $receiver }}.withCounts { if requested.Name == edge.Ref().Name { return {{ $receiver }} } }
+	{{ $receiver }}.withCounts = append({{ $receiver }}.withCounts, edge.Ref())
 	return {{ $receiver }}
 }
 
@@ -64,7 +96,7 @@ func ({{ $receiver }} *{{ $builder }}) Unique(unique bool) *{{ $builder }} {
 }
 
 // Order specifies how the records should be ordered.
-func ({{ $receiver }} *{{ $builder }}) Order(o ...{{ $.Package }}.OrderOption) *{{ $builder }} {
+func ({{ $receiver }} *{{ $builder }}) Order(o ...ent.OrderOption[entity.{{ $.Name }}]) *{{ $builder }} {
 	{{ $receiver }}.order = append({{ $receiver }}.order, o...)
 	return {{ $receiver }}
 }
@@ -89,10 +121,10 @@ func ({{ $receiver }} *{{ $builder }}) Order(o ...{{ $.Package }}.OrderOption) *
 	}
 {{ end }}
 
-// First returns the first {{ $.Name }} entity from the query. 
+// First returns the first {{ $.Name }} entity from the query.
 // Returns a *NotFoundError when no {{ $.Name }} was found.
 func ({{ $receiver }} *{{ $builder }}) First(ctx context.Context) (*{{ $.Name }}, error) {
-	nodes, err := {{ $receiver }}.Limit(1).All(setContextOp(ctx, {{ $receiver }}.ctx, ent.OpQueryFirst))
+	nodes, err := {{ $receiver }}.Limit(1).All(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +148,7 @@ func ({{ $receiver }} *{{ $builder }}) FirstX(ctx context.Context) *{{ $.Name }}
 	// Returns a *NotFoundError when no {{ $.Name }} ID was found.
 	func ({{ $receiver }} *{{ $builder }}) FirstID(ctx context.Context) (id {{ $.ID.GoType }}, err error) {
 		var ids []{{ $.ID.GoType }}
-		if ids, err = {{ $receiver }}.Limit(1).IDs(setContextOp(ctx, {{ $receiver }}.ctx, ent.OpQueryFirstID)); err != nil {
+		if ids, err = {{ $receiver }}.Limit(1).IDs(ctx); err != nil {
 			return
 		}
 		if len(ids) == 0 {
@@ -140,7 +172,7 @@ func ({{ $receiver }} *{{ $builder }}) FirstX(ctx context.Context) *{{ $.Name }}
 // Returns a *NotSingularError when more than one {{ $.Name }} entity is found.
 // Returns a *NotFoundError when no {{ $.Name }} entities are found.
 func ({{ $receiver }} *{{ $builder }}) Only(ctx context.Context) (*{{ $.Name }}, error) {
-	nodes, err := {{ $receiver }}.Limit(2).All(setContextOp(ctx, {{ $receiver }}.ctx, ent.OpQueryOnly))
+	nodes, err := {{ $receiver }}.Limit(2).All(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -169,7 +201,7 @@ func ({{ $receiver }} *{{ $builder }}) OnlyX(ctx context.Context) *{{ $.Name }} 
 	// Returns a *NotFoundError when no entities are found.
 	func ({{ $receiver }} *{{ $builder }}) OnlyID(ctx context.Context) (id {{ $.ID.GoType }}, err error) {
 		var ids []{{ $.ID.GoType }}
-		if ids, err = {{ $receiver }}.Limit(2).IDs(setContextOp(ctx, {{ $receiver }}.ctx, ent.OpQueryOnlyID)); err != nil {
+		if ids, err = {{ $receiver }}.Limit(2).IDs(ctx); err != nil {
 			return
 		}
 		switch len(ids) {
@@ -195,12 +227,10 @@ func ({{ $receiver }} *{{ $builder }}) OnlyX(ctx context.Context) *{{ $.Name }} 
 
 // All executes the query and returns a list of {{ plural $.Name }}.
 func ({{ $receiver }} *{{ $builder }}) All(ctx context.Context) ([]*{{ $.Name }}, error) {
-	ctx = setContextOp(ctx, {{ $receiver }}.ctx, ent.OpQueryAll)
 	if err := {{ $receiver }}.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
-	qr := querierAll[[]*{{ $.Name }}, *{{ $builder }}]()
-	return withInterceptors[[]*{{ $.Name }}](ctx, {{ $receiver }}, qr, {{ $receiver }}.inters)
+	return {{ $receiver }}.{{ $.Storage }}All(ctx)
 }
 
 // AllX is like All, but panics if an error occurs.
@@ -219,10 +249,10 @@ func ({{ $receiver }} *{{ $builder }}) AllX(ctx context.Context) []*{{ $.Name }}
 		if {{ $receiver }}.ctx.Unique == nil && {{ $receiver }}.path != nil {
 			{{ $receiver }}.Unique(true)
 		}
-		ctx = setContextOp(ctx, {{ $receiver }}.ctx, ent.OpQueryIDs)
 		{{- if and $.ID.HasValueScanner (eq $.Storage.Name "sql") }}
 			var nodes []*{{ $.Name }}
-			if nodes, err = {{ $receiver }}.Select({{ $.Package }}.FieldID).All(ctx); err != nil {
+			{{ $receiver }}.ctx.Fields = []string{ {{ $.Package }}.FieldID }
+			if nodes, err = {{ $receiver }}.All(ctx); err != nil {
 				return nil, err
 			}
 			ids = make([]{{ $.ID.GoType }}, len(nodes))
@@ -230,7 +260,7 @@ func ({{ $receiver }} *{{ $builder }}) AllX(ctx context.Context) []*{{ $.Name }}
 				ids[i] = nodes[i].ID
 			}
 		{{- else }}
-			if err = {{ $receiver }}.Select({{ $.Package }}.FieldID).Scan(ctx, &ids); err != nil {
+			if ids, err = ent.Values(ctx, {{ $receiver }}.Select({{ $.Package }}.ID), {{ $.Package }}.ID); err != nil {
 				return nil, err
 			}
 		{{- end }}
@@ -249,11 +279,10 @@ func ({{ $receiver }} *{{ $builder }}) AllX(ctx context.Context) []*{{ $.Name }}
 
 // Count returns the count of the given query.
 func ({{ $receiver }} *{{ $builder }}) Count(ctx context.Context) (int, error) {
-	ctx = setContextOp(ctx, {{ $receiver }}.ctx, ent.OpQueryCount)
 	if err := {{ $receiver }}.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
-	return withInterceptors[int](ctx, {{ $receiver }}, querierCount[*{{ $builder }}](), {{ $receiver }}.inters)
+	return {{ $receiver }}.{{ $.Storage }}Count(ctx)
 }
 
 // CountX is like Count, but panics if an error occurs.
@@ -267,7 +296,6 @@ func ({{ $receiver }} *{{ $builder }}) CountX(ctx context.Context) int {
 
 // Exist returns true if the query has elements in the graph.
 func ({{ $receiver }} *{{ $builder }}) Exist(ctx context.Context) (bool, error) {
-	ctx = setContextOp(ctx, {{ $receiver }}.ctx, ent.OpQueryExist)
 	switch _, err := {{ $receiver }}.First{{ if $.HasOneFieldID }}ID{{ end }}(ctx);{
 	case IsNotFound(err):
 		return false, nil
@@ -293,22 +321,29 @@ func ({{ $receiver }} *{{ $builder }}) Clone() *{{ $builder }} {
 	if {{ $receiver }} == nil {
 		return nil
 	}
-	return &{{ $builder }}{
+	cloned := &{{ $builder }}{
 		config: 	{{ $receiver }}.config,
 		ctx: 		{{ $receiver }}.ctx.Clone(),
-		order: 		append([]{{ $.Package }}.OrderOption{}, {{ $receiver }}.order...),
-		inters: 	append([]Interceptor{}, {{ $receiver }}.inters...),
-		predicates: append([]predicate.{{ $.Name }}{}, {{ $receiver }}.predicates...),
+		order: 		append([]ent.OrderOption[entity.{{ $.Name }}]{}, {{ $receiver }}.order...),
+		predicates: append([]ent.Predicate[entity.{{ $.Name }}]{}, {{ $receiver }}.predicates...),
+		joins: append([]func(*sql.Selector){}, {{ $receiver }}.joins...),
+		withCounts: append([]ent.RelationRef{}, {{ $receiver }}.withCounts...),
+		{{ with $.UnexportedForeignKeys }}withFKs: {{ $receiver }}.withFKs,{{ end }}
 		{{- range $e := $.Edges }}
 			{{ $e.EagerLoadField }}: {{ $receiver }}.{{ $e.EagerLoadField }}.Clone(),
 		{{- end }}
 		// clone intermediate query.
 		{{ $.Storage }}: {{ $receiver }}.{{ $.Storage }}.Clone(),
 		path: {{ $receiver }}.path,
-		{{- if $.FeatureEnabled "sql/modifier" }}
-			modifiers: append([]func(*sql.Selector){}, {{ $receiver }}.modifiers...),
-		{{- end }}
+		modifiers: append([]func(*sql.Selector){}, {{ $receiver }}.modifiers...),
 	}
+	{{ if $.FeatureEnabled "namedges" }}{{ range $edge := $.Edges }}{{ if not $edge.Unique }}
+	if {{ $receiver }}.{{ $edge.EagerLoadNamedField }} != nil {
+		cloned.{{ $edge.EagerLoadNamedField }} = make(map[string]*{{ $edge.Type.QueryName }}, len({{ $receiver }}.{{ $edge.EagerLoadNamedField }}))
+		for name, query := range {{ $receiver }}.{{ $edge.EagerLoadNamedField }} { cloned.{{ $edge.EagerLoadNamedField }}[name] = query.Clone() }
+	}
+	{{ end }}{{ end }}{{ end }}
+	return cloned
 }
 
 {{- range $e := $.Edges }}
@@ -329,7 +364,7 @@ func ({{ $receiver }} *{{ $builder }}) Clone() *{{ $builder }} {
 {{ $groupBuilder := pascal $.Name | printf "%sGroupBy" }}
 
 // GroupBy is used to group vertices by one or more fields/columns.
-// It is often used with aggregate functions, like: {{ join (keys aggregate) ", " }}.
+// It can be combined with typed aggregate selections.
 {{- with len $.Fields }}
 {{- $f := index $.Fields 0 }}
 //
@@ -341,18 +376,14 @@ func ({{ $receiver }} *{{ $builder }}) Clone() *{{ $builder }} {
 //	}
 //
 //	client.{{ pascal $.Name }}.Query().
-//		GroupBy({{ $.Package }}.{{ $f.Constant }}).
+//		GroupBy({{ $.Package }}.{{ $f.StructField }}).
 //		Aggregate({{ $pkg }}.Count()).
 //		Scan(ctx, &v)
 //
 {{- end }}
-func ({{ $receiver }} *{{ $builder }}) GroupBy(field string, fields ...string) *{{ $groupBuilder }} {
-	{{ $receiver }}.ctx.Fields = append([]string{field}, fields...)
-	grbuild := &{{ $groupBuilder }}{build: {{ $receiver }}}
-	grbuild.flds = &{{ $receiver }}.ctx.Fields
-	grbuild.label = {{ $.Package }}.Label
-	grbuild.scan = grbuild.Scan
-	return grbuild
+func ({{ $receiver }} *{{ $builder }}) GroupBy(columns ...ent.EntityColumn[entity.{{ $.Name }}]) *{{ $groupBuilder }} {
+	if len(columns) == 0 { panic("ent: GroupBy requires at least one column") }
+	return &{{ $groupBuilder }}{query: {{ $receiver }}, columns: append([]ent.EntityColumn[entity.{{ $.Name }}](nil), columns...)}
 }
 
 {{ $selectBuilder := pascal $.Name | printf "%sSelect" }}
@@ -369,34 +400,20 @@ func ({{ $receiver }} *{{ $builder }}) GroupBy(field string, fields ...string) *
 //	}
 //
 //	client.{{ pascal $.Name }}.Query().
-//		Select({{ $.Package }}.{{ $f.Constant }}).
+//		Select({{ $.Package }}.{{ $f.StructField }}).
 //		Scan(ctx, &v)
 //
 {{- end }}
-func ({{ $receiver }} *{{ $builder }}) Select(fields ...string) *{{ $selectBuilder }} {
-	{{ $receiver }}.ctx.Fields = append({{ $receiver }}.ctx.Fields, fields...)
-	sbuild := &{{ $selectBuilder }}{ {{ $builder }}: {{ $receiver }} }
-	sbuild.label = {{ $.Package }}.Label
-	sbuild.flds, sbuild.scan = &{{ $receiver }}.ctx.Fields, sbuild.Scan
-	return sbuild
+func ({{ $receiver }} *{{ $builder }}) Select(selections ...ent.Selection) *{{ $selectBuilder }} {
+	return &{{ $selectBuilder }}{query: {{ $receiver }}, selections: append([]ent.Selection(nil), selections...)}
 }
 
 // Aggregate returns a {{ $selectBuilder }} configured with the given aggregations.
-func ({{ $receiver }} *{{ $builder }}) Aggregate(fns ...AggregateFunc) *{{ $selectBuilder }} {
-	return {{ $receiver }}.Select().Aggregate(fns...)
+func ({{ $receiver }} *{{ $builder }}) Aggregate(selections ...ent.Selection) *{{ $selectBuilder }} {
+	return {{ $receiver }}.Select(selections...)
 }
 
 func ({{ $receiver }} *{{ $builder }}) prepareQuery(ctx context.Context) error {
-	for _, inter := range {{ $receiver }}.inters {
-		if inter == nil {
-			return fmt.Errorf("{{ $pkg }}: uninitialized interceptor (forgotten import {{ $pkg }}/runtime?)")
-		}
-		if trv, ok := inter.(Traverser); ok {
-			if err := trv.Traverse(ctx, {{ $receiver }}); err != nil {
-				return err
-			}
-		}
-	}
 	{{- /* Optional prepare checks per dialect. */}}
 	{{- $tmpl = printf "dialect/%s/query/preparecheck" $.Storage }}
 	{{- if hasTemplate $tmpl }}
@@ -411,14 +428,6 @@ func ({{ $receiver }} *{{ $builder }}) prepareQuery(ctx context.Context) error {
 		}
 		{{ $receiver }}.{{ $.Storage }} = prev
 	}
-	{{- if $.NumPolicy }}
-		if {{ $.Package }}.Policy == nil {
-			return errors.New("{{ $pkg }}: uninitialized {{ $.Package }}.Policy (forgotten import {{ $pkg }}/runtime?)")
-		}
-		if err := {{ $.Package }}.Policy.EvalQuery(ctx, {{ $receiver }}); err != nil {
-			return err
-		}
-	{{- end }}
 	return nil
 }
 
@@ -435,30 +444,28 @@ func ({{ $receiver }} *{{ $builder }}) prepareQuery(ctx context.Context) error {
 	{{- end }}
 {{- end }}
 
-
 {{/* groupby builder */}}
 
 {{ $groupReceiver := $.GroupReceiver }}
 
 // {{ $groupBuilder }} is the group-by builder for {{ $.Name }} entities.
 type {{ $groupBuilder }} struct {
-	selector
-	build *{{ $builder }}
+	query *{{ $builder }}
+	columns []ent.EntityColumn[entity.{{ $.Name }}]
+	aggregates []ent.Selection
 }
 
-// Aggregate adds the given aggregation functions to the group-by query.
-func ({{ $groupReceiver }} *{{ $groupBuilder }}) Aggregate(fns ...AggregateFunc) *{{ $groupBuilder }} {
-	{{ $groupReceiver }}.fns = append({{ $groupReceiver }}.fns, fns...)
+func ({{ $groupReceiver }} *{{ $groupBuilder }}) Aggregate(selections ...ent.Selection) *{{ $groupBuilder }} {
+	{{ $groupReceiver }}.aggregates = append({{ $groupReceiver }}.aggregates, selections...)
 	return {{ $groupReceiver }}
 }
 
-// Scan applies the selector query and scans the result into the given value.
 func ({{ $groupReceiver }} *{{ $groupBuilder }}) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, {{ $groupReceiver }}.build.ctx, ent.OpQueryGroupBy)
-	if err := {{ $groupReceiver }}.build.prepareQuery(ctx); err != nil {
-		return err
-	}
-	return scanWithInterceptors[*{{ $builder }}, *{{ $groupBuilder }}](ctx, {{ $groupReceiver }}.build, {{ $groupReceiver }}, {{ $groupReceiver }}.build.inters, v)
+	return {{ $groupReceiver }}.selectQuery().Scan(ctx, v)
+}
+
+func ({{ $groupReceiver }} *{{ $groupBuilder }}) Rows(ctx context.Context) ([]*ent.Row, error) {
+	return {{ $groupReceiver }}.selectQuery().Rows(ctx)
 }
 
 {{ with extend $ "Receiver" $groupReceiver "Builder" $groupBuilder }}
@@ -472,23 +479,24 @@ func ({{ $groupReceiver }} *{{ $groupBuilder }}) Scan(ctx context.Context, v any
 
 // {{ $selectBuilder }} is the builder for selecting fields of {{ pascal $.Name }} entities.
 type {{ $selectBuilder }} struct {
-	*{{ $builder }}
-	selector
+	query *{{ $builder }}
+	selections []ent.Selection
+	groups []ent.EntityColumn[entity.{{ $.Name }}]
 }
 
-// Aggregate adds the given aggregation functions to the selector query.
-func ({{ $selectReceiver }} *{{ $selectBuilder }}) Aggregate(fns ...AggregateFunc) *{{ $selectBuilder }} {
-	{{ $selectReceiver }}.fns = append({{ $selectReceiver }}.fns, fns...)
+func ({{ $selectReceiver }} *{{ $selectBuilder }}) Aggregate(selections ...ent.Selection) *{{ $selectBuilder }} {
+	{{ $selectReceiver }}.selections = append({{ $selectReceiver }}.selections, selections...)
 	return {{ $selectReceiver }}
 }
 
-// Scan applies the selector query and scans the result into the given value.
-func ({{ $selectReceiver }} *{{ $selectBuilder }}) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, {{ $selectReceiver }}.ctx, ent.OpQuerySelect)
-	if err := {{ $selectReceiver }}.prepareQuery(ctx); err != nil {
-		return err
+func ({{ $selectReceiver }} *{{ $selectBuilder }}) Row(ctx context.Context) (*ent.Row, error) {
+	rows, err := {{ $selectReceiver }}.Rows(ctx)
+	if err != nil { return nil, err }
+	switch len(rows) {
+	case 0: return nil, &NotFoundError{ {{ $.Package }}.Label }
+	case 1: return rows[0], nil
+	default: return nil, &NotSingularError{ {{ $.Package }}.Label }
 	}
-	return scanWithInterceptors[*{{ $builder }}, *{{ $selectBuilder }}](ctx, {{ $selectReceiver }}.{{ $.QueryName }}, {{ $selectReceiver }}, {{ $selectReceiver }}.inters, v)
 }
 
 {{ with extend $ "Receiver" $selectReceiver "Builder" $selectBuilder }}

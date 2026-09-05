@@ -104,105 +104,16 @@ func TestNewType_AcceptsDefinedBytesForFamilyValidators(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestFieldOps_SemanticLogicalProjection(t *testing.T) {
-	bytesSemantic := builtinFieldType(field.TypeBytes)
-	bytesSemantic.Capabilities.AssignableToLogical = false
-	bytesSemantic.Capabilities.ConvertibleToLogical = false
-	bytesSemantic.Capabilities.LogicalProjection = "[:]"
-	bytesOps := fieldOps(&Field{Type: field.TypeBytes, Semantic: bytesSemantic})
-	require.Contains(t, bytesOps, EQ)
-	require.Contains(t, bytesOps, In)
-	require.NotContains(t, bytesOps, GT)
-
-	timeOps := fieldOps(&Field{Type: field.TypeTime, Semantic: builtinFieldType(field.TypeTime)})
-	require.Contains(t, timeOps, EQ)
-	require.Contains(t, timeOps, GT)
-
-	otherSemantic := builtinFieldType(field.TypeOther)
-	otherSemantic.Capabilities.Valuer = true
-	otherOps := fieldOps(&Field{Name: "id", Type: field.TypeOther, Semantic: otherSemantic})
-	require.Contains(t, otherOps, EQ)
-	require.Contains(t, otherOps, In)
-	require.NotContains(t, otherOps, GT)
-}
-
-func TestFieldOps_StringID(t *testing.T) {
-	drivers := []*Storage{
-		{
-			Ops: func(f *Field) []Op {
-				if f.IsString() && f.RepresentationIsBase() {
-					return []Op{EqualFold, ContainsFold}
-				}
-				return nil
-			},
-		},
-	}
-	alias, err := load.FieldTypeOf(field.TypeString, &load.TypeExpression{
-		Kind:   load.TypeKindAlias,
-		Alias:  &load.TypeName{Package: load.Package{Path: "example.com/schema", Name: "schema"}, Name: "IDAlias"},
-		Target: builtinFieldType(field.TypeString).Base,
-	})
-	require.NoError(t, err)
-	alias.Capabilities.AssignableToLogical = true
-	defined := func() *load.FieldType {
-		semantic, err := load.FieldTypeOf(field.TypeString, &load.TypeExpression{
-			Kind:  load.TypeKindNamed,
-			Named: &load.TypeName{Package: load.Package{Path: "example.com/schema", Name: "schema"}, Name: "ID"},
-		})
-		require.NoError(t, err)
-		semantic.Capabilities.ConvertibleToLogical = true
-		return semantic
-	}
-	unsupported := defined()
-	unsupported.Capabilities.ConvertibleToLogical = false
-	codecOnly := defined()
-	codecOnly.Capabilities.ConvertibleToLogical = false
-	tests := []struct {
-		name       string
-		field      *Field
-		contains   []Op
-		notContain []Op
+func TestFieldColumnKind(t *testing.T) {
+	for _, test := range []struct {
+		logical field.Type
+		kind    string
 	}{
-		{
-			name:       "built-in",
-			field:      &Field{Name: "id", Type: field.TypeString, Semantic: builtinFieldType(field.TypeString)},
-			contains:   []Op{EQ, In, GT, GTE, LT, LTE, EqualFold, ContainsFold},
-			notContain: []Op{Contains, HasPrefix, HasSuffix},
-		},
-		{
-			name:       "alias",
-			field:      &Field{Name: "id", Type: field.TypeString, Semantic: alias},
-			contains:   []Op{EQ, In, GT, GTE, LT, LTE, EqualFold, ContainsFold},
-			notContain: []Op{Contains, HasPrefix, HasSuffix},
-		},
-		{
-			name:       "defined",
-			field:      &Field{Name: "id", Type: field.TypeString, Semantic: defined()},
-			contains:   []Op{EQ, In, GT, GTE, LT, LTE},
-			notContain: []Op{EqualFold, Contains, ContainsFold, HasPrefix, HasSuffix},
-		},
-		{
-			name:       "unsupported",
-			field:      &Field{Name: "id", Type: field.TypeString, Semantic: unsupported},
-			notContain: []Op{EQ, In, GT, GTE, LT, LTE, EqualFold, ContainsFold},
-		},
-		{
-			name:       "codec only",
-			field:      &Field{Name: "id", Type: field.TypeString, Semantic: codecOnly, def: &load.Field{ValueScanner: true}},
-			notContain: []Op{EQ, In, GT, GTE, LT, LTE, EqualFold, Contains, ContainsFold, HasPrefix, HasSuffix},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tt.field.cfg = &Config{Storage: drivers[0]}
-			ops := tt.field.Ops()
-			for _, op := range tt.contains {
-				require.Contains(t, ops, op)
-			}
-			for _, op := range tt.notContain {
-				require.NotContains(t, ops, op)
-			}
-		})
+		{field.TypeJSON, "JSONColumn"}, {field.TypeBool, "Column"}, {field.TypeString, "StringColumn"},
+		{field.TypeEnum, "StringColumn"}, {field.TypeTime, "OrderedColumn"}, {field.TypeInt, "OrderedColumn"},
+		{field.TypeUUID, "OrderedColumn"}, {field.TypeBytes, "OrderedColumn"},
+	} {
+		require.Equal(t, test.kind, (Field{Type: test.logical, Semantic: builtinFieldType(test.logical)}).ColumnKind())
 	}
 }
 
@@ -363,8 +274,8 @@ func TestType(t *testing.T) {
 	require.EqualError(err, "schema lowercase name conflicts with Go keyword \"type\"")
 	_, err = NewType(&Config{Package: "entc/gen"}, &load.Schema{Name: "Int"})
 	require.EqualError(err, "schema lowercase name conflicts with Go predeclared identifier \"int\"")
-	_, err = NewType(&Config{Package: "entc/gen"}, &load.Schema{Name: "Value"})
-	require.EqualError(err, "schema name conflicts with ent predeclared identifier \"Value\"")
+	_, err = NewType(&Config{Package: "entc/gen"}, &load.Schema{Name: "Row"})
+	require.EqualError(err, "schema name conflicts with ent predeclared identifier \"Row\"")
 }
 
 func TestType_Label(t *testing.T) {
@@ -418,13 +329,6 @@ func TestField_EnumName(t *testing.T) {
 	for _, tt := range tests {
 		require.Equal(t, tt.enum, Field{Name: "Type"}.EnumName(tt.name))
 	}
-}
-
-func TestType_HasUpdateCheckersWithNativeValidator(t *testing.T) {
-	semantic := builtinFieldType(field.TypeString)
-	semantic.Capabilities.Validator = true
-	typeInfo := &Type{Fields: []*Field{{Type: field.TypeString, Semantic: semantic}}}
-	require.True(t, typeInfo.HasUpdateCheckers())
 }
 
 func TestType_WithRuntimeMixin(t *testing.T) {
@@ -586,10 +490,6 @@ func TestEdge(t *testing.T) {
 	require.True(t, users.IsInverse())
 	require.False(t, groups.IsInverse())
 
-	require.Equal(t, "GroupsLabel", users.LabelConstant())
-	require.Equal(t, "GroupsLabel", groups.LabelConstant())
-
-	require.Equal(t, "UsersInverseLabel", users.InverseLabelConstant())
 	require.Equal(t, "user_groups", users.Label())
 	require.Equal(t, "user_groups", groups.Label())
 }

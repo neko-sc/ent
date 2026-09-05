@@ -31,4 +31,4 @@ type (
 func (Enum) Values() []string { return nil }
 
 // The cause for cycle.
-var _ fakent.Hook = nil
+var _ fakent.Mutation = nil

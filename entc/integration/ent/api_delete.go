@@ -8,29 +8,56 @@ package ent
 import (
 	"context"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/entc/integration/ent/api"
-	"github.com/neko-sc/ent/entc/integration/ent/predicate"
+	"github.com/neko-sc/ent/entc/integration/ent/entity"
 	"github.com/neko-sc/ent/schema/field"
 )
 
 // APIDelete is the builder for deleting a Api entity.
 type APIDelete struct {
 	config
-	hooks    []Hook
-	mutation *APIMutation
+
+	mutation  *APIMutation
+	returning *sqlgraph.Returning
 }
 
 // Where appends a list predicates to the APIDelete builder.
-func (_d *APIDelete) Where(ps ...predicate.Api) *APIDelete {
-	_d.mutation.Where(ps...)
+func (_d *APIDelete) Where(predicates ...ent.Predicate[entity.Api]) *APIDelete {
+	_d.mutation.Where(predicates...)
 	return _d
 }
 
 // Exec executes the deletion query and returns how many vertices were deleted.
 func (_d *APIDelete) Exec(ctx context.Context) (int, error) {
-	return withHooks(ctx, _d.sqlExec, _d.mutation, _d.hooks)
+	return _d.sqlExec(ctx)
+}
+
+func (b *APIDelete) Returning(ctx context.Context) ([]*Api, error) {
+	nodes := make([]*Api, 0)
+	b.returning = &sqlgraph.Returning{Columns: api.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Api{config: b.config}
+		values, err := _node.scanValues(api.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(api.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Exec(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
 }
 
 // ExecX is like Exec, but panics if an error occurs.
@@ -51,11 +78,11 @@ func (_d *APIDelete) sqlExec(ctx context.Context) (int, error) {
 			}
 		}
 	}
+	_spec.Returning = _d.returning
 	affected, err := sqlgraph.DeleteNodes(ctx, _d.driver, _spec)
 	if err != nil && sqlgraph.IsConstraintError(err) {
 		err = &ConstraintError{msg: err.Error(), wrap: err}
 	}
-	_d.mutation.done = true
 	return affected, err
 }
 
@@ -65,8 +92,8 @@ type APIDeleteOne struct {
 }
 
 // Where appends a list predicates to the APIDelete builder.
-func (_d *APIDeleteOne) Where(ps ...predicate.Api) *APIDeleteOne {
-	_d._d.mutation.Where(ps...)
+func (_d *APIDeleteOne) Where(predicates ...ent.Predicate[entity.Api]) *APIDeleteOne {
+	_d._d.mutation.Where(predicates...)
 	return _d
 }
 

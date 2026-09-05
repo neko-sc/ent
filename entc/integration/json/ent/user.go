@@ -12,9 +12,8 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
-	"github.com/neko-sc/ent/entc/integration/json/ent/schema"
+	schema2 "github.com/neko-sc/ent/entc/integration/json/ent/schema"
 	"github.com/neko-sc/ent/entc/integration/json/ent/user"
 )
 
@@ -24,7 +23,7 @@ type User struct {
 	// ID of the ent.
 	ID int `json:"id,omitempty"`
 	// T holds the value of the "t" field.
-	T *schema.T `json:"t,omitempty"`
+	T *schema2.T `json:"t,omitempty"`
 	// URL holds the value of the "url" field.
 	URL *url.URL `json:"url,omitempty"`
 	// URLs holds the value of the "URLs" field.
@@ -46,10 +45,9 @@ type User struct {
 	// StringsValidate holds the value of the "strings_validate" field.
 	StringsValidate []string `json:"strings_validate,omitempty"`
 	// Addr holds the value of the "addr" field.
-	Addr schema.Addr `json:"-"`
+	Addr schema2.Addr `json:"-"`
 	// Unknown holds the value of the "unknown" field.
-	Unknown      any `json:"unknown,omitempty"`
-	selectValues sql.SelectValues
+	Unknown any `json:"unknown,omitempty"`
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -57,10 +55,10 @@ func (*User) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case user.FieldID:
+			values[i] = new(*int)
 		case user.FieldT, user.FieldURL, user.FieldURLs, user.FieldRaw, user.FieldDirs, user.FieldInts, user.FieldFloats, user.FieldStrings, user.FieldIntsValidate, user.FieldFloatsValidate, user.FieldStringsValidate, user.FieldAddr, user.FieldUnknown:
 			values[i] = new([]byte)
-		case user.FieldID:
-			values[i] = new(sql.NullInt64)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -77,10 +75,11 @@ func (_m *User) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case user.FieldID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field id", values[i])
-			} else if value.Valid {
-				_m.ID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.ID = **value
 			}
 		case user.FieldT:
 			if value, ok := values[i].(*[]byte); !ok {
@@ -186,17 +185,9 @@ func (_m *User) assignValues(columns []string, values []any) error {
 					return fmt.Errorf("unmarshal field unknown: %w", err)
 				}
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the User.
-// This includes values selected through modifiers, order, etc.
-func (_m *User) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // Update returns a builder for updating this User.

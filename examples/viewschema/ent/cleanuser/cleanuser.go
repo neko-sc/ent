@@ -3,7 +3,8 @@
 package cleanuser
 
 import (
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/examples/viewschema/ent/entity"
 )
 
 const (
@@ -18,6 +19,45 @@ const (
 	// Table holds the table name of the cleanuser in the database.
 	Table = "clean_users"
 )
+
+var (
+	ID         = ent.OrderedColumn[entity.CleanUser, int]{Table: Table, Name: FieldID}
+	Name       = ent.StringColumn[entity.CleanUser, string]{Table: Table, Name: FieldName}
+	PublicInfo = ent.StringColumn[entity.CleanUser, string]{Table: Table, Name: FieldPublicInfo}
+)
+
+// Alias returns the columns of the clean_users table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.CleanUser, int]{Table: name, Name: FieldID},
+		Name:       ent.StringColumn[entity.CleanUser, string]{Table: name, Name: FieldName},
+		PublicInfo: ent.StringColumn[entity.CleanUser, string]{Table: name, Name: FieldPublicInfo},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.CleanUser, int]
+	Name       ent.StringColumn[entity.CleanUser, string]
+	PublicInfo ent.StringColumn[entity.CleanUser, string]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.CleanUser]) ent.Predicate[entity.CleanUser] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.CleanUser]) ent.Predicate[entity.CleanUser] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.CleanUser]) ent.Predicate[entity.CleanUser] {
+	return ent.Not(predicate)
+}
 
 // Columns holds all SQL columns for cleanuser fields.
 var Columns = []string{
@@ -34,22 +74,4 @@ func ValidColumn(column string) bool {
 		}
 	}
 	return false
-}
-
-// OrderOption defines the ordering options for the CleanUser queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByName orders the results by the name field.
-func ByName(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldName, opts...).ToFunc()
-}
-
-// ByPublicInfo orders the results by the public_info field.
-func ByPublicInfo(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldPublicInfo, opts...).ToFunc()
 }

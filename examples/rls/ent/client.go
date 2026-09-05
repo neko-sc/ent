@@ -9,10 +9,10 @@ import (
 	"log"
 	"reflect"
 
-	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/examples/rls/ent/migrate"
 
 	"github.com/neko-sc/ent/dialect"
+	"github.com/neko-sc/ent/dialect/pg"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/examples/rls/ent/tenant"
 	"github.com/neko-sc/ent/examples/rls/ent/user"
@@ -30,7 +30,7 @@ type Client struct {
 }
 
 // NewClient creates a new client configured with the given options.
-func NewClient(opts ...Option) *Client {
+func NewClient(opts ...ClientOption) *Client {
 	client := &Client{config: newConfig(opts...)}
 	client.init()
 	return client
@@ -51,24 +51,20 @@ type (
 		debug bool
 		// log used for logging on debug mode.
 		log func(...any)
-		// hooks to execute on mutations.
-		hooks *hooks
-		// interceptors to execute on queries.
-		inters *inters
 	}
-	// Option function to configure the client.
-	Option func(*config)
+	// ClientOption function to configure the client.
+	ClientOption func(*config)
 )
 
 // newConfig creates a new config for the client.
-func newConfig(opts ...Option) config {
-	cfg := config{log: log.Println, hooks: &hooks{}, inters: &inters{}}
+func newConfig(opts ...ClientOption) config {
+	cfg := config{log: log.Println}
 	cfg.options(opts...)
 	return cfg
 }
 
 // options applies the options on the config object.
-func (c *config) options(opts ...Option) {
+func (c *config) options(opts ...ClientOption) {
 	for _, opt := range opts {
 		opt(c)
 	}
@@ -78,21 +74,21 @@ func (c *config) options(opts ...Option) {
 }
 
 // Debug enables debug logging on the ent.Driver.
-func Debug() Option {
+func Debug() ClientOption {
 	return func(c *config) {
 		c.debug = true
 	}
 }
 
 // Log sets the logging function for debug mode.
-func Log(fn func(...any)) Option {
+func Log(fn func(...any)) ClientOption {
 	return func(c *config) {
 		c.log = fn
 	}
 }
 
 // Driver configures the client driver.
-func Driver(driver dialect.Driver) Option {
+func Driver(driver dialect.Driver) ClientOption {
 	return func(c *config) {
 		c.driver = driver
 	}
@@ -100,11 +96,17 @@ func Driver(driver dialect.Driver) Option {
 
 // Open opens a database/sql.DB specified by the driver name and
 // the data source name, and returns a new client attached to it.
-// Optional parameters can be added for configuring the client.
-func Open(driverName, dataSourceName string, options ...Option) (*Client, error) {
+// ClientOptional parameters can be added for configuring the client.
+func Open(driverName, dataSourceName string, options ...ClientOption) (*Client, error) {
 	switch driverName {
 	case dialect.Postgres, dialect.SQLite:
-		drv, err := sql.Open(driverName, dataSourceName)
+		var drv dialect.Driver
+		var err error
+		if driverName == dialect.Postgres {
+			drv, err = pg.Open(context.Background(), dataSourceName)
+		} else {
+			drv, err = sql.Open(dialect.Dialect(driverName), dataSourceName)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -142,9 +144,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	if _, ok := c.driver.(*txDriver); ok {
 		return nil, errors.New("ent: cannot start a transaction within a transaction")
 	}
-	tx, err := c.driver.(interface {
-		BeginTx(context.Context, *sql.TxOptions) (dialect.Tx, error)
-	}).BeginTx(ctx, opts)
+	tx, err := c.driver.BeginTx(ctx, opts)
 	if err != nil {
 		return nil, fmt.Errorf("ent: starting a transaction: %w", err)
 	}
@@ -180,22 +180,8 @@ func (c *Client) Close() error {
 	return c.driver.Close()
 }
 
-// Use adds the mutation hooks to all the entity clients.
-// In order to add hooks to a specific client, call: `client.Node.Use(...)`.
-func (c *Client) Use(hooks ...Hook) {
-	c.Tenant.Use(hooks...)
-	c.User.Use(hooks...)
-}
-
-// Intercept adds the query interceptors to all the entity clients.
-// In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
-func (c *Client) Intercept(interceptors ...Interceptor) {
-	c.Tenant.Intercept(interceptors...)
-	c.User.Intercept(interceptors...)
-}
-
-// Mutate implements the ent.Mutator interface.
-func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
+// Mutate executes the given mutation.
+func (c *Client) Mutate(ctx context.Context, m Mutation) (any, error) {
 	switch m := m.(type) {
 	case *TenantMutation:
 		return c.Tenant.mutate(ctx, m)
@@ -216,22 +202,24 @@ func NewTenantClient(c config) *TenantClient {
 	return &TenantClient{config: c}
 }
 
-// Use adds a list of mutation hooks to the hooks stack.
-// A call to `Use(f, g, h)` equals to `tenant.Hooks(f(g(h())))`.
-func (c *TenantClient) Use(hooks ...Hook) {
-	c.hooks.Tenant = append(c.hooks.Tenant, hooks...)
-}
-
-// Intercept adds a list of query interceptors to the interceptors stack.
-// A call to `Intercept(f, g, h)` equals to `tenant.Intercept(f(g(h())))`.
-func (c *TenantClient) Intercept(interceptors ...Interceptor) {
-	c.inters.Tenant = append(c.inters.Tenant, interceptors...)
-}
-
 // Create returns a builder for creating a Tenant entity.
 func (c *TenantClient) Create() *TenantCreate {
 	mutation := newTenantMutation(c.config, OpCreate)
-	return &TenantCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &TenantCreate{config: c.config, mutation: mutation, fromBuilder: true}
+}
+
+func (c *TenantClient) Insert(value TenantInsert) *TenantCreate {
+	mutation := newTenantMutation(c.config, OpCreate)
+	mutation.insert = &value
+	return &TenantCreate{config: c.config, mutation: mutation}
+}
+
+func (c *TenantClient) InsertBulk(values ...TenantInsert) *TenantCreateBulk {
+	builders := make([]*TenantCreate, len(values))
+	for index := range values {
+		builders[index] = c.Insert(values[index])
+	}
+	return c.CreateBulk(builders...)
 }
 
 // CreateBulk returns a builder for creating a bulk of Tenant entities.
@@ -257,25 +245,26 @@ func (c *TenantClient) MapCreateBulk(slice any, setFunc func(*TenantCreate, int)
 // Update returns an update builder for Tenant.
 func (c *TenantClient) Update() *TenantUpdate {
 	mutation := newTenantMutation(c.config, OpUpdate)
-	return &TenantUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &TenantUpdate{config: c.config, mutation: mutation}
 }
 
 // UpdateOne returns an update builder for the given entity.
 func (c *TenantClient) UpdateOne(_m *Tenant) *TenantUpdateOne {
-	mutation := newTenantMutation(c.config, OpUpdateOne, withTenant(_m))
-	return &TenantUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return c.UpdateOneID(_m.ID)
+
 }
 
 // UpdateOneID returns an update builder for the given id.
 func (c *TenantClient) UpdateOneID(id int) *TenantUpdateOne {
-	mutation := newTenantMutation(c.config, OpUpdateOne, withTenantID(id))
-	return &TenantUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	mutation := newTenantMutation(c.config, OpUpdateOne)
+	mutation.id = &id
+	return &TenantUpdateOne{config: c.config, mutation: mutation}
 }
 
 // Delete returns a delete builder for Tenant.
 func (c *TenantClient) Delete() *TenantDelete {
 	mutation := newTenantMutation(c.config, OpDelete)
-	return &TenantDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &TenantDelete{config: c.config, mutation: mutation}
 }
 
 // DeleteOne returns a builder for deleting the given entity.
@@ -285,9 +274,9 @@ func (c *TenantClient) DeleteOne(_m *Tenant) *TenantDeleteOne {
 
 // DeleteOneID returns a builder for deleting the given entity by its id.
 func (c *TenantClient) DeleteOneID(id int) *TenantDeleteOne {
-	builder := c.Delete().Where(tenant.ID(id))
+	builder := c.Delete().Where(tenant.ID.EQ(id))
 	builder.mutation.id = &id
-	builder.mutation.SetOp(OpDeleteOne)
+	builder.mutation.op = OpDeleteOne
 	return &TenantDeleteOne{builder}
 }
 
@@ -296,13 +285,12 @@ func (c *TenantClient) Query() *TenantQuery {
 	return &TenantQuery{
 		config: c.config,
 		ctx:    &QueryContext{Type: TypeTenant},
-		inters: c.Interceptors(),
 	}
 }
 
 // Get returns a Tenant entity by its id.
 func (c *TenantClient) Get(ctx context.Context, id int) (*Tenant, error) {
-	return c.Query().Where(tenant.ID(id)).Only(ctx)
+	return c.Query().Where(tenant.ID.EQ(id)).Only(ctx)
 }
 
 // GetX is like Get, but panics if an error occurs.
@@ -314,26 +302,16 @@ func (c *TenantClient) GetX(ctx context.Context, id int) *Tenant {
 	return obj
 }
 
-// Hooks returns the client hooks.
-func (c *TenantClient) Hooks() []Hook {
-	return c.hooks.Tenant
-}
-
-// Interceptors returns the client interceptors.
-func (c *TenantClient) Interceptors() []Interceptor {
-	return c.inters.Tenant
-}
-
-func (c *TenantClient) mutate(ctx context.Context, m *TenantMutation) (Value, error) {
+func (c *TenantClient) mutate(ctx context.Context, m *TenantMutation) (any, error) {
 	switch m.Op() {
 	case OpCreate:
-		return (&TenantCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&TenantCreate{config: c.config, mutation: m}).Save(ctx)
 	case OpUpdate:
-		return (&TenantUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&TenantUpdate{config: c.config, mutation: m}).Save(ctx)
 	case OpUpdateOne:
-		return (&TenantUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&TenantUpdateOne{config: c.config, mutation: m}).Save(ctx)
 	case OpDelete, OpDeleteOne:
-		return (&TenantDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+		return (&TenantDelete{config: c.config, mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown Tenant mutation op: %q", m.Op())
 	}
@@ -349,22 +327,24 @@ func NewUserClient(c config) *UserClient {
 	return &UserClient{config: c}
 }
 
-// Use adds a list of mutation hooks to the hooks stack.
-// A call to `Use(f, g, h)` equals to `user.Hooks(f(g(h())))`.
-func (c *UserClient) Use(hooks ...Hook) {
-	c.hooks.User = append(c.hooks.User, hooks...)
-}
-
-// Intercept adds a list of query interceptors to the interceptors stack.
-// A call to `Intercept(f, g, h)` equals to `user.Intercept(f(g(h())))`.
-func (c *UserClient) Intercept(interceptors ...Interceptor) {
-	c.inters.User = append(c.inters.User, interceptors...)
-}
-
 // Create returns a builder for creating a User entity.
 func (c *UserClient) Create() *UserCreate {
 	mutation := newUserMutation(c.config, OpCreate)
-	return &UserCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &UserCreate{config: c.config, mutation: mutation, fromBuilder: true}
+}
+
+func (c *UserClient) Insert(value UserInsert) *UserCreate {
+	mutation := newUserMutation(c.config, OpCreate)
+	mutation.insert = &value
+	return &UserCreate{config: c.config, mutation: mutation}
+}
+
+func (c *UserClient) InsertBulk(values ...UserInsert) *UserCreateBulk {
+	builders := make([]*UserCreate, len(values))
+	for index := range values {
+		builders[index] = c.Insert(values[index])
+	}
+	return c.CreateBulk(builders...)
 }
 
 // CreateBulk returns a builder for creating a bulk of User entities.
@@ -390,25 +370,26 @@ func (c *UserClient) MapCreateBulk(slice any, setFunc func(*UserCreate, int)) *U
 // Update returns an update builder for User.
 func (c *UserClient) Update() *UserUpdate {
 	mutation := newUserMutation(c.config, OpUpdate)
-	return &UserUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &UserUpdate{config: c.config, mutation: mutation}
 }
 
 // UpdateOne returns an update builder for the given entity.
 func (c *UserClient) UpdateOne(_m *User) *UserUpdateOne {
-	mutation := newUserMutation(c.config, OpUpdateOne, withUser(_m))
-	return &UserUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return c.UpdateOneID(_m.ID)
+
 }
 
 // UpdateOneID returns an update builder for the given id.
 func (c *UserClient) UpdateOneID(id int) *UserUpdateOne {
-	mutation := newUserMutation(c.config, OpUpdateOne, withUserID(id))
-	return &UserUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	mutation := newUserMutation(c.config, OpUpdateOne)
+	mutation.id = &id
+	return &UserUpdateOne{config: c.config, mutation: mutation}
 }
 
 // Delete returns a delete builder for User.
 func (c *UserClient) Delete() *UserDelete {
 	mutation := newUserMutation(c.config, OpDelete)
-	return &UserDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &UserDelete{config: c.config, mutation: mutation}
 }
 
 // DeleteOne returns a builder for deleting the given entity.
@@ -418,9 +399,9 @@ func (c *UserClient) DeleteOne(_m *User) *UserDeleteOne {
 
 // DeleteOneID returns a builder for deleting the given entity by its id.
 func (c *UserClient) DeleteOneID(id int) *UserDeleteOne {
-	builder := c.Delete().Where(user.ID(id))
+	builder := c.Delete().Where(user.ID.EQ(id))
 	builder.mutation.id = &id
-	builder.mutation.SetOp(OpDeleteOne)
+	builder.mutation.op = OpDeleteOne
 	return &UserDeleteOne{builder}
 }
 
@@ -429,13 +410,12 @@ func (c *UserClient) Query() *UserQuery {
 	return &UserQuery{
 		config: c.config,
 		ctx:    &QueryContext{Type: TypeUser},
-		inters: c.Interceptors(),
 	}
 }
 
 // Get returns a User entity by its id.
 func (c *UserClient) Get(ctx context.Context, id int) (*User, error) {
-	return c.Query().Where(user.ID(id)).Only(ctx)
+	return c.Query().Where(user.ID.EQ(id)).Only(ctx)
 }
 
 // GetX is like Get, but panics if an error occurs.
@@ -447,37 +427,20 @@ func (c *UserClient) GetX(ctx context.Context, id int) *User {
 	return obj
 }
 
-// Hooks returns the client hooks.
-func (c *UserClient) Hooks() []Hook {
-	return c.hooks.User
-}
-
-// Interceptors returns the client interceptors.
-func (c *UserClient) Interceptors() []Interceptor {
-	return c.inters.User
-}
-
-func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error) {
+func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (any, error) {
 	switch m.Op() {
 	case OpCreate:
-		return (&UserCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&UserCreate{config: c.config, mutation: m}).Save(ctx)
 	case OpUpdate:
-		return (&UserUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&UserUpdate{config: c.config, mutation: m}).Save(ctx)
 	case OpUpdateOne:
-		return (&UserUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&UserUpdateOne{config: c.config, mutation: m}).Save(ctx)
 	case OpDelete, OpDeleteOne:
-		return (&UserDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+		return (&UserDelete{config: c.config, mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown User mutation op: %q", m.Op())
 	}
 }
 
-// hooks and interceptors per client, for fast access.
-type (
-	hooks struct {
-		Tenant, User []ent.Hook
-	}
-	inters struct {
-		Tenant, User []ent.Interceptor
-	}
-)
+// Driver returns the driver bound to this client or transaction.
+func (c *Client) Driver() dialect.Driver { return c.config.driver }

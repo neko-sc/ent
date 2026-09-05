@@ -34,6 +34,53 @@ const (
 	{{- xtemplate $tmpl $ }}
 )
 
+var (
+	{{- range $field := $.ColumnFields }}
+		{{ $field.StructField }} = {{ template "meta/column" (extend $ "Field" $field "Table" "Table") }}
+	{{- end }}
+	{{- range $edge := $.Edges }}
+		{{ $edge.StructField }} = ent.New{{ if $edge.Unique }}Unique{{ end }}Relation[entity.{{ $.Name }}, entity.{{ $edge.Type.Name }}, {{ $.EdgeKeyType $edge }}]({{ $edge.Constant }}, new{{ pascal $edge.Name }}Step)
+	{{- end }}
+)
+
+{{ if $.FeatureEnabled "sql/schemaconfig" }}
+func init() {
+	{{- range $edge := $.Edges }}
+		{{ $edge.StructField }}.Configure = func(s *sql.Selector, step *sqlgraph.Step) {
+			schemaConfig := internal.SchemaConfigFromContext(s.Context())
+			{{- template "dialect/sql/query/step/ctxschemaconfig" (extend $ "Edge" $edge) }}
+		}
+	{{- end }}
+}
+{{ end }}
+
+// Alias returns the columns of the {{ $.Table }} table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		{{- range $field := $.ColumnFields }}
+			{{ $field.StructField }}: {{ template "meta/column" (extend $ "Field" $field "Table" "name") }},
+		{{- end }}
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	{{- range $field := $.ColumnFields }}
+		{{ $field.StructField }} ent.{{ $field.ColumnKind }}[entity.{{ $.Name }}, {{ trimPackage $field.GoType $.Package }}]
+	{{- end }}
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.{{ $.Name }}]) ent.Predicate[entity.{{ $.Name }}] { return ent.And(predicates...) }
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.{{ $.Name }}]) ent.Predicate[entity.{{ $.Name }}] { return ent.Or(predicates...) }
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.{{ $.Name }}]) ent.Predicate[entity.{{ $.Name }}] { return ent.Not(predicate) }
+
 {{ $tmpl = printf "dialect/%s/meta/variables" $.Storage }}
 {{ if hasTemplate $tmpl }}
 	{{ xtemplate $tmpl $ }}
@@ -48,30 +95,9 @@ const (
 {{ $fields := $.Fields }}{{ if $.HasOneFieldID }}{{ if $.ID.UserDefined }}{{ $fields = append $fields $.ID }}{{ end }}{{ end }}
 {{ $hasDefault := false }}{{ range $f := $fields }}{{ if and $f.Default (or (not $f.IsEnum) $f.DefaultFunc) }}{{ $hasDefault = true }}{{ end }}{{ end }}
 
-{{/* Generate global variables for hooks, validators and policy checkers */}}
-{{ if or $hasDefault $.HasUpdateDefault $.HasValidators $.NumHooks $.NumPolicy $.NumInterceptors $.HasValueScanner }}
-	{{- $numHooks := $.NumHooks }}
-	{{- if $.NumPolicy }}
-		{{- $numHooks = add $numHooks 1 }}
-	{{- end }}
-	{{- if or $numHooks $.NumInterceptors }}
-		// Note that the variables below are initialized by the runtime
-		// package on the initialization of the application. Therefore,
-		// it should be imported in the main as follows:
-		//
-		//	import _ "{{ $.Config.Package }}/runtime"
-		//
-	{{- end }}
+{{/* Generate global variables for defaults, validators and value scanners */}}
+{{ if or $hasDefault $.HasUpdateDefault $.HasValidators $.HasValueScanner }}
 	var (
-		{{- if $n := $numHooks }}
-			Hooks [{{ $n }}]ent.Hook
-		{{- end }}
-		{{- if $n := $.NumInterceptors }}
-			Interceptors [{{ $n }}]ent.Interceptor
-		{{- end }}
-		{{- if $.NumPolicy }}
-			Policy ent.Policy
-		{{- end }}
 		{{- $fields := $.Fields }}{{ if $.HasOneFieldID }}{{ if $.ID.UserDefined }}{{ $fields = append $fields $.ID }}{{ end }}{{ end }}
 		{{- range $f := $fields }}
 			{{- $goType := $f.GoType }}{{ if $f.DefinesEnumType }}{{ $goType = trimPackage $goType $.Package }}{{ end }}
@@ -153,8 +179,6 @@ const (
 {{ end }}
 
 {{ $tmpl = printf "dialect/%s/meta/order" $.Storage }}
-// OrderOption defines the ordering options for the {{ $.Name }} queries.
-type OrderOption func({{ $.Config.Storage.Builder }})
 {{ if hasTemplate $tmpl }}
 	{{ xtemplate $tmpl $ }}
 {{ end }}
@@ -171,3 +195,14 @@ type OrderOption func({{ $.Config.Storage.Builder }})
 
 {{/* A template that can be overridden in order to add additional code for the type package. */}}
 {{ define "meta/additional" }}{{ end }}
+
+{{ define "meta/column" -}}
+	{{- $field := $.Scope.Field -}}
+	{{- $type := trimPackage $field.GoType $.Package -}}
+	ent.{{ $field.ColumnKind }}[entity.{{ $.Name }}, {{ $type }}]{Table: {{ $.Scope.Table }}, Name: {{ $field.Constant }}
+	{{- if $field.HasValueScanner }}, Valuer: func(value {{ $type }}) (driver.Value, error) { return ValueScanner.{{ $field.StructField }}.Value(value) }
+	{{- else if and (not $field.TypeValuer) (not $field.IsJSON) }}
+		{{- $projection := $field.BasicType "value" }}
+		{{- if and $projection (ne $projection "value") }}, Valuer: func(value {{ $type }}) (driver.Value, error) { return {{ $projection }}, nil }{{ end }}
+	{{- end -}}}
+{{- end }}

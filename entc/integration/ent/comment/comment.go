@@ -6,7 +6,9 @@
 package comment
 
 import (
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/entc/integration/ent/entity"
+	schemadir "github.com/neko-sc/ent/entc/integration/ent/schema/dir"
 )
 
 const (
@@ -20,8 +22,8 @@ const (
 	FieldUniqueFloat = "unique_float"
 	// FieldNillableInt holds the string denoting the nillable_int field in the database.
 	FieldNillableInt = "nillable_int"
-	// FieldTable holds the string denoting the table field in the database.
-	FieldTable = "table"
+	// FieldTableName holds the string denoting the table_name field in the database.
+	FieldTableName = "table"
 	// FieldDir holds the string denoting the dir field in the database.
 	FieldDir = "dir"
 	// FieldClient holds the string denoting the client field in the database.
@@ -30,13 +32,64 @@ const (
 	Table = "comments"
 )
 
+var (
+	ID          = ent.OrderedColumn[entity.Comment, int]{Table: Table, Name: FieldID}
+	UniqueInt   = ent.OrderedColumn[entity.Comment, int]{Table: Table, Name: FieldUniqueInt}
+	UniqueFloat = ent.OrderedColumn[entity.Comment, float64]{Table: Table, Name: FieldUniqueFloat}
+	NillableInt = ent.OrderedColumn[entity.Comment, int]{Table: Table, Name: FieldNillableInt}
+	TableName   = ent.StringColumn[entity.Comment, string]{Table: Table, Name: FieldTableName}
+	Dir         = ent.JSONColumn[entity.Comment, schemadir.Dir]{Table: Table, Name: FieldDir}
+	Client      = ent.StringColumn[entity.Comment, string]{Table: Table, Name: FieldClient}
+)
+
+// Alias returns the columns of the comments table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias:  name,
+		ID:          ent.OrderedColumn[entity.Comment, int]{Table: name, Name: FieldID},
+		UniqueInt:   ent.OrderedColumn[entity.Comment, int]{Table: name, Name: FieldUniqueInt},
+		UniqueFloat: ent.OrderedColumn[entity.Comment, float64]{Table: name, Name: FieldUniqueFloat},
+		NillableInt: ent.OrderedColumn[entity.Comment, int]{Table: name, Name: FieldNillableInt},
+		TableName:   ent.StringColumn[entity.Comment, string]{Table: name, Name: FieldTableName},
+		Dir:         ent.JSONColumn[entity.Comment, schemadir.Dir]{Table: name, Name: FieldDir},
+		Client:      ent.StringColumn[entity.Comment, string]{Table: name, Name: FieldClient},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias  string
+	ID          ent.OrderedColumn[entity.Comment, int]
+	UniqueInt   ent.OrderedColumn[entity.Comment, int]
+	UniqueFloat ent.OrderedColumn[entity.Comment, float64]
+	NillableInt ent.OrderedColumn[entity.Comment, int]
+	TableName   ent.StringColumn[entity.Comment, string]
+	Dir         ent.JSONColumn[entity.Comment, schemadir.Dir]
+	Client      ent.StringColumn[entity.Comment, string]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.Comment]) ent.Predicate[entity.Comment] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.Comment]) ent.Predicate[entity.Comment] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.Comment]) ent.Predicate[entity.Comment] {
+	return ent.Not(predicate)
+}
+
 // Columns holds all SQL columns for comment fields.
 var Columns = []string{
 	FieldID,
 	FieldUniqueInt,
 	FieldUniqueFloat,
 	FieldNillableInt,
-	FieldTable,
+	FieldTableName,
 	FieldDir,
 	FieldClient,
 }
@@ -49,39 +102,6 @@ func ValidColumn(column string) bool {
 		}
 	}
 	return false
-}
-
-// OrderOption defines the ordering options for the Comment queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByUniqueInt orders the results by the unique_int field.
-func ByUniqueInt(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldUniqueInt, opts...).ToFunc()
-}
-
-// ByUniqueFloat orders the results by the unique_float field.
-func ByUniqueFloat(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldUniqueFloat, opts...).ToFunc()
-}
-
-// ByNillableInt orders the results by the nillable_int field.
-func ByNillableInt(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldNillableInt, opts...).ToFunc()
-}
-
-// ByTable orders the results by the table field.
-func ByTable(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldTable, opts...).ToFunc()
-}
-
-// ByClient orders the results by the client field.
-func ByClient(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldClient, opts...).ToFunc()
 }
 
 // comment from another template.

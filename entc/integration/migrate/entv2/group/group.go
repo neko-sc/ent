@@ -6,7 +6,8 @@
 package group
 
 import (
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/entc/integration/migrate/entv2/entity"
 )
 
 const (
@@ -17,6 +18,39 @@ const (
 	// Table holds the table name of the group in the database.
 	Table = "groups"
 )
+
+var (
+	ID = ent.OrderedColumn[entity.Group, int]{Table: Table, Name: FieldID}
+)
+
+// Alias returns the columns of the groups table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.Group, int]{Table: name, Name: FieldID},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.Group, int]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.Group]) ent.Predicate[entity.Group] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.Group]) ent.Predicate[entity.Group] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.Group]) ent.Predicate[entity.Group] {
+	return ent.Not(predicate)
+}
 
 // Columns holds all SQL columns for group fields.
 var Columns = []string{
@@ -31,12 +65,4 @@ func ValidColumn(column string) bool {
 		}
 	}
 	return false
-}
-
-// OrderOption defines the ordering options for the Group queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
 }

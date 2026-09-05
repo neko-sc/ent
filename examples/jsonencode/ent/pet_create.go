@@ -10,88 +10,164 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
+	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/examples/jsonencode/ent/entity"
 	"github.com/neko-sc/ent/examples/jsonencode/ent/pet"
 	"github.com/neko-sc/ent/examples/jsonencode/ent/user"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// PetCreate is the builder for creating a Pet entity.
 type PetCreate struct {
 	config
-	mutation *PetMutation
-	hooks    []Hook
+	mutation    *PetMutation
+	err         error
+	fromBuilder bool
+	present     map[string]struct{}
+
+	conflict []sql.ConflictOption
 }
 
-// SetAge sets the "age" field.
-func (_c *PetCreate) SetAge(v int) *PetCreate {
-	_c.mutation.SetAge(v)
-	return _c
+func (b *PetCreate) Set[T any](column ent.ColumnOf[entity.Pet, T], value T) *PetCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.set(column.Ref().Name, value)
+	}
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+}
+func (b *PetCreate) SetOptional[T any](column ent.ColumnOf[entity.Pet, T], value ent.Option[T]) *PetCreate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.insert.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *PetCreate) SetExpr[T any](column ent.ColumnOf[entity.Pet, T], value ent.Expr[T]) *PetCreate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case pet.FieldAge:
+
+	case pet.FieldName:
+
+	case pet.FieldOwnerID:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Pet is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.insert.setExpr(column.Ref().Name, value.Render)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+
+}
+func (b *PetCreate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Pet, N, K], id K) *PetCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.setEdge(edge.Ref().Name, id)
+	}
+
+	switch edge.Ref().Name {
+	case pet.EdgeOwner:
+		if b.present == nil {
+			b.present = make(map[string]struct{})
+		}
+		b.present[pet.FieldOwnerID] = struct{}{}
+
+	}
+
+	return b
+}
+func (b *PetCreate) AddIDs[N, K any](edge ent.Relation[entity.Pet, N, K], ids ...K) *PetCreate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.insert.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *PetCreate) Mutation() *PetMutation { return b.mutation }
+
+func (b *PetCreate) Insert() *PetInsert { return b.mutation.insert }
+
+func (b *PetCreate) Save(ctx context.Context) (*Pet, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// SetName sets the "name" field.
-func (_c *PetCreate) SetName(v string) *PetCreate {
-	_c.mutation.SetName(v)
-	return _c
-}
-
-// SetOwnerID sets the "owner_id" field.
-func (_c *PetCreate) SetOwnerID(v int) *PetCreate {
-	_c.mutation.SetOwnerID(v)
-	return _c
-}
-
-// SetOwner sets the "owner" edge to the User entity.
-func (_c *PetCreate) SetOwner(v *User) *PetCreate {
-	return _c.SetOwnerID(v.ID)
-}
-
-// Mutation returns the PetMutation object of the builder.
-func (_c *PetCreate) Mutation() *PetMutation {
-	return _c.mutation
-}
-
-// Save creates the Pet in the database.
-func (_c *PetCreate) Save(ctx context.Context) (*Pet, error) {
-	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
-}
-
-// SaveX calls Save and panics if Save returns an error.
-func (_c *PetCreate) SaveX(ctx context.Context) *Pet {
-	v, err := _c.Save(ctx)
+func (b *PetCreate) SaveX(ctx context.Context) *Pet {
+	node, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return node
 }
 
-// Exec executes the query.
-func (_c *PetCreate) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *PetCreate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *PetCreate) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *PetCreate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_c *PetCreate) check() error {
-	if _, ok := _c.mutation.Age(); !ok {
-		return &ValidationError{Name: "age", err: errors.New(`ent: missing required field "Pet.age"`)}
+func (b *PetCreate) defaults() error {
+
+	return nil
+}
+
+func (b *PetCreate) check() error {
+	if b.err != nil {
+		return b.err
 	}
-	if _, ok := _c.mutation.Name(); !ok {
-		return &ValidationError{Name: "name", err: errors.New(`ent: missing required field "Pet.name"`)}
+
+	switch b.driver.Dialect() {
+	case dialect.Postgres, dialect.SQLite:
+		if _, present := b.present[pet.FieldAge]; b.fromBuilder && !present {
+			return &ValidationError{Name: "age", err: errors.New(`ent: missing required field "Pet.age"`)}
+		}
 	}
-	if _, ok := _c.mutation.OwnerID(); !ok {
-		return &ValidationError{Name: "owner_id", err: errors.New(`ent: missing required field "Pet.owner_id"`)}
+
+	switch b.driver.Dialect() {
+	case dialect.Postgres, dialect.SQLite:
+		if _, present := b.present[pet.FieldName]; b.fromBuilder && !present {
+			return &ValidationError{Name: "name", err: errors.New(`ent: missing required field "Pet.name"`)}
+		}
 	}
-	if len(_c.mutation.OwnerIDs()) == 0 {
+
+	switch b.driver.Dialect() {
+	case dialect.Postgres, dialect.SQLite:
+		if _, present := b.present[pet.FieldOwnerID]; b.fromBuilder && !present {
+			return &ValidationError{Name: "owner_id", err: errors.New(`ent: missing required field "Pet.owner_id"`)}
+		}
+	}
+
+	if len(b.mutation.insert.ownerIDs()) == 0 {
 		return &ValidationError{Name: "owner", err: errors.New(`ent: missing required edge "Pet.owner"`)}
 	}
+
 	return nil
 }
 
@@ -99,34 +175,42 @@ func (_c *PetCreate) sqlSave(ctx context.Context) (*Pet, error) {
 	if err := _c.check(); err != nil {
 		return nil, err
 	}
-	_node, _spec := _c.createSpec()
-	if err := sqlgraph.CreateNode(ctx, _c.driver, _spec); err != nil {
+	node, spec, err := _c.createSpec()
+	if err != nil {
+		return nil, err
+	}
+	if err := sqlgraph.CreateNode(ctx, _c.driver, spec); err != nil {
 		if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
 		return nil, err
 	}
-	id := _spec.ID.Value.(int64)
-	_node.ID = int(id)
-	_c.mutation.id = &_node.ID
-	_c.mutation.done = true
-	return _node, nil
+	_c.mutation.id = &node.ID
+	return node, nil
 }
 
-func (_c *PetCreate) createSpec() (*Pet, *sqlgraph.CreateSpec) {
-	var (
-		_node = &Pet{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(pet.Table, sqlgraph.NewFieldSpec(pet.FieldID, field.TypeInt))
-	)
-	if value, ok := _c.mutation.Age(); ok {
+func (_c *PetCreate) createSpec() (*Pet, *sqlgraph.CreateSpec, error) {
+	_node := &Pet{config: _c.config}
+	_spec := sqlgraph.NewCreateSpec(pet.Table, sqlgraph.NewFieldSpec(pet.FieldID, field.TypeInt))
+
+	_spec.OnConflict = _c.conflict
+
+	if _, present := _c.present[pet.FieldAge]; !_c.fromBuilder || present {
+		value := _c.mutation.insert.Age
 		_spec.SetField(pet.FieldAge, field.TypeInt, value)
-		_node.Age = value
 	}
-	if value, ok := _c.mutation.Name(); ok {
+
+	if _, present := _c.present[pet.FieldName]; !_c.fromBuilder || present {
+		value := _c.mutation.insert.Name
 		_spec.SetField(pet.FieldName, field.TypeString, value)
-		_node.Name = value
 	}
-	if nodes := _c.mutation.OwnerIDs(); len(nodes) > 0 {
+
+	_spec.Expressions = _c.mutation.insert.expressions
+
+	if nodes := _c.mutation.insert.ownerIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -137,98 +221,394 @@ func (_c *PetCreate) createSpec() (*Pet, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
-		_node.OwnerID = nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	return _node, _spec
+
+	_spec.Returning = &sqlgraph.Returning{Columns: pet.Columns, Scan: func(rows dialect.Rows) error {
+		values, err := _node.scanValues(pet.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(pet.Columns, values); err != nil {
+			return err
+		}
+
+		_spec.ID.Value = _node.ID
+
+		return nil
+	}}
+	return _node, _spec, nil
 }
 
-// PetCreateBulk is the builder for creating many Pet entities in bulk.
+type PetUpsertOne struct{ create *PetCreate }
+
+func (b *PetCreate) OnConflict(columns ...ent.EntityColumn[entity.Pet]) *PetUpsertOne {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
+	}
+	if len(names) == 0 {
+		return b.OnConflictOptions()
+	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
+}
+
+func (b *PetCreate) OnConflictConstraint(name string) *PetUpsertOne {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
+}
+
+func (b *PetCreate) OnConflictOptions(options ...sql.ConflictOption) *PetUpsertOne {
+	b.conflict = options
+	return &PetUpsertOne{create: b}
+}
+
+func (u *PetUpsertOne) DoNothing() *PetUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+func (u *PetUpsertOne) DoSelect() *PetUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *PetUpsertOne) Ignore() *PetUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *PetUpsertOne) DoUpdate(set func(*PetUpsert)) *PetUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&PetUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *PetUpsertOne) UpdateNewValues() *PetUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case pet.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
+	}))
+	return u
+}
+
+func (u *PetUpsertOne) Where(predicates ...ent.Predicate[entity.Pet]) *PetUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(pet.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *PetUpsertOne) UpdateWhere(predicates ...ent.Predicate[entity.Pet]) *PetUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(pet.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *PetUpsertOne) Save(ctx context.Context) (*Pet, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for PetCreate.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *PetUpsertOne) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
+func (u *PetUpsertOne) ExecX(ctx context.Context) {
+	if err := u.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+func (u *PetUpsertOne) ID(ctx context.Context) (id int, err error) {
+	node, err := u.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+func (u *PetUpsertOne) IDX(ctx context.Context) int {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
+type PetUpsert struct{ *sql.UpdateSet }
+
+func (u *PetUpsert) Set[T any](column ent.ColumnOf[entity.Pet, T], value T) *PetUpsert {
+	switch column.Ref().Name {
+
+	case pet.FieldAge:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case pet.FieldName:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case pet.FieldOwnerID:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Pet is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *PetUpsert) SetExpr[T any](column ent.ColumnOf[entity.Pet, T], value ent.Expr[T]) *PetUpsert {
+	switch column.Ref().Name {
+
+	case pet.FieldAge:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case pet.FieldName:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case pet.FieldOwnerID:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Pet is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *PetUpsert) UpdateNewValue[T any](column ent.ColumnOf[entity.Pet, T]) *PetUpsert {
+	switch column.Ref().Name {
+
+	case pet.FieldAge:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case pet.FieldName:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case pet.FieldOwnerID:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Pet is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *PetUpsert) Add[T ent.Number](column ent.ColumnOf[entity.Pet, T], delta T) *PetUpsert {
+	switch column.Ref().Name {
+
+	case pet.FieldAge:
+		u.UpdateSet.Add(column.Ref().Name, delta)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Pet does not support addition", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *PetUpsert) Clear[T any](column ent.ColumnOf[entity.Pet, T]) *PetUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Pet is not nullable", column.Ref().Name)})
+	}
+	return u
+}
+
 type PetCreateBulk struct {
 	config
 	err      error
 	builders []*PetCreate
+
+	conflict []sql.ConflictOption
 }
 
-// Save creates the Pet entities in the database.
 func (_c *PetCreateBulk) Save(ctx context.Context) ([]*Pet, error) {
 	if _c.err != nil {
 		return nil, _c.err
 	}
-	specs := make([]*sqlgraph.CreateSpec, len(_c.builders))
 	nodes := make([]*Pet, len(_c.builders))
-	mutators := make([]Mutator, len(_c.builders))
-	for i := range _c.builders {
-		func(i int, root context.Context) {
-			builder := _c.builders[i]
-			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*PetMutation)
-				if !ok {
-					return nil, fmt.Errorf("unexpected mutation type %T", m)
-				}
-				if err := builder.check(); err != nil {
-					return nil, err
-				}
-				builder.mutation = mutation
-				var err error
-				nodes[i], specs[i] = builder.createSpec()
-				if i < len(mutators)-1 {
-					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
-				} else {
-					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
-					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
-						if sqlgraph.IsConstraintError(err) {
-							err = &ConstraintError{msg: err.Error(), wrap: err}
-						}
-					}
-				}
-				if err != nil {
-					return nil, err
-				}
-				mutation.id = &nodes[i].ID
-				if specs[i].ID.Value != nil {
-					id := specs[i].ID.Value.(int64)
-					nodes[i].ID = int(id)
-				}
-				mutation.done = true
-				return nodes[i], nil
-			})
-			for i := len(builder.hooks) - 1; i >= 0; i-- {
-				mut = builder.hooks[i](mut)
-			}
-			mutators[i] = mut
-		}(i, ctx)
-	}
-	if len(mutators) > 0 {
-		if _, err := mutators[0].Mutate(ctx, _c.builders[0].mutation); err != nil {
+	specs := make([]*sqlgraph.CreateSpec, len(nodes))
+	for index, builder := range _c.builders {
+		if builder.err != nil {
+			return nil, builder.err
+		}
+		if err := builder.defaults(); err != nil {
+			return nil, err
+		}
+		if err := builder.check(); err != nil {
+			return nil, err
+		}
+		var err error
+		nodes[index], specs[index], err = builder.createSpec()
+		if err != nil {
 			return nil, err
 		}
 	}
-	return nodes, nil
+	if len(specs) == 0 {
+		return nodes, nil
+	}
+	spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+
+	spec.OnConflict = _c.conflict
+
+	if err := sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
+		if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{msg: err.Error(), wrap: err}
+		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
+		return nil, err
+	}
+	result := nodes[:0]
+	for index, builder := range _c.builders {
+		if specs[index].Skipped {
+			continue
+		}
+		builder.mutation.id = &nodes[index].ID
+		result = append(result, nodes[index])
+	}
+	return result, nil
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_c *PetCreateBulk) SaveX(ctx context.Context) []*Pet {
-	v, err := _c.Save(ctx)
+func (b *PetCreateBulk) SaveX(ctx context.Context) []*Pet {
+	nodes, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return nodes
 }
 
-// Exec executes the query.
-func (_c *PetCreateBulk) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
+func (b *PetCreateBulk) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
+
+func (b *PetCreateBulk) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+type PetUpsertBulk struct{ create *PetCreateBulk }
+
+func (b *PetCreateBulk) OnConflict(columns ...ent.EntityColumn[entity.Pet]) *PetUpsertBulk {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
+	}
+	if len(names) == 0 {
+		return b.OnConflictOptions()
+	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
+}
+
+func (b *PetCreateBulk) OnConflictConstraint(name string) *PetUpsertBulk {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
+}
+
+func (b *PetCreateBulk) OnConflictOptions(options ...sql.ConflictOption) *PetUpsertBulk {
+	b.conflict = options
+	return &PetUpsertBulk{create: b}
+}
+
+func (u *PetUpsertBulk) DoNothing() *PetUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+func (u *PetUpsertBulk) DoSelect() *PetUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *PetUpsertBulk) Ignore() *PetUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *PetUpsertBulk) DoUpdate(set func(*PetUpsert)) *PetUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&PetUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *PetUpsertBulk) UpdateNewValues() *PetUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case pet.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
+	}))
+	return u
+}
+
+func (u *PetUpsertBulk) Where(predicates ...ent.Predicate[entity.Pet]) *PetUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(pet.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *PetUpsertBulk) UpdateWhere(predicates ...ent.Predicate[entity.Pet]) *PetUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(pet.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *PetUpsertBulk) Save(ctx context.Context) ([]*Pet, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for PetCreateBulk.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *PetUpsertBulk) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
 	return err
 }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *PetCreateBulk) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (u *PetUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

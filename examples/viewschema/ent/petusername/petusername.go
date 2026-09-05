@@ -3,7 +3,8 @@
 package petusername
 
 import (
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/examples/viewschema/ent/entity"
 )
 
 const (
@@ -14,6 +15,39 @@ const (
 	// Table holds the table name of the petusername in the database.
 	Table = "pet_user_names"
 )
+
+var (
+	Name = ent.StringColumn[entity.PetUserName, string]{Table: Table, Name: FieldName}
+)
+
+// Alias returns the columns of the pet_user_names table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		Name:       ent.StringColumn[entity.PetUserName, string]{Table: name, Name: FieldName},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	Name       ent.StringColumn[entity.PetUserName, string]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.PetUserName]) ent.Predicate[entity.PetUserName] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.PetUserName]) ent.Predicate[entity.PetUserName] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.PetUserName]) ent.Predicate[entity.PetUserName] {
+	return ent.Not(predicate)
+}
 
 // Columns holds all SQL columns for petusername fields.
 var Columns = []string{
@@ -28,12 +62,4 @@ func ValidColumn(column string) bool {
 		}
 	}
 	return false
-}
-
-// OrderOption defines the ordering options for the PetUserName queries.
-type OrderOption func(*sql.Selector)
-
-// ByName orders the results by the name field.
-func ByName(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldName, opts...).ToFunc()
 }

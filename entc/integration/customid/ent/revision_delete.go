@@ -8,9 +8,11 @@ package ent
 import (
 	"context"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
-	"github.com/neko-sc/ent/entc/integration/customid/ent/predicate"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/revision"
 	"github.com/neko-sc/ent/schema/field"
 )
@@ -18,19 +20,44 @@ import (
 // RevisionDelete is the builder for deleting a Revision entity.
 type RevisionDelete struct {
 	config
-	hooks    []Hook
-	mutation *RevisionMutation
+
+	mutation  *RevisionMutation
+	returning *sqlgraph.Returning
 }
 
 // Where appends a list predicates to the RevisionDelete builder.
-func (_d *RevisionDelete) Where(ps ...predicate.Revision) *RevisionDelete {
-	_d.mutation.Where(ps...)
+func (_d *RevisionDelete) Where(predicates ...ent.Predicate[entity.Revision]) *RevisionDelete {
+	_d.mutation.Where(predicates...)
 	return _d
 }
 
 // Exec executes the deletion query and returns how many vertices were deleted.
 func (_d *RevisionDelete) Exec(ctx context.Context) (int, error) {
-	return withHooks(ctx, _d.sqlExec, _d.mutation, _d.hooks)
+	return _d.sqlExec(ctx)
+}
+
+func (b *RevisionDelete) Returning(ctx context.Context) ([]*Revision, error) {
+	nodes := make([]*Revision, 0)
+	b.returning = &sqlgraph.Returning{Columns: revision.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Revision{config: b.config}
+		values, err := _node.scanValues(revision.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(revision.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Exec(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
 }
 
 // ExecX is like Exec, but panics if an error occurs.
@@ -51,11 +78,11 @@ func (_d *RevisionDelete) sqlExec(ctx context.Context) (int, error) {
 			}
 		}
 	}
+	_spec.Returning = _d.returning
 	affected, err := sqlgraph.DeleteNodes(ctx, _d.driver, _spec)
 	if err != nil && sqlgraph.IsConstraintError(err) {
 		err = &ConstraintError{msg: err.Error(), wrap: err}
 	}
-	_d.mutation.done = true
 	return affected, err
 }
 
@@ -65,8 +92,8 @@ type RevisionDeleteOne struct {
 }
 
 // Where appends a list predicates to the RevisionDelete builder.
-func (_d *RevisionDeleteOne) Where(ps ...predicate.Revision) *RevisionDeleteOne {
-	_d._d.mutation.Where(ps...)
+func (_d *RevisionDeleteOne) Where(predicates ...ent.Predicate[entity.Revision]) *RevisionDeleteOne {
+	_d._d.mutation.Where(predicates...)
 	return _d
 }
 

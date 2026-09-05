@@ -7,7 +7,10 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"encoding/json"
+	"errors"
 	"testing"
+
+	"github.com/neko-sc/ent/dialect"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
@@ -312,6 +315,21 @@ func TestScanValue(t *testing.T) {
 	n, err := ScanValue(toRows(mock))
 	require.NoError(t, err)
 	require.EqualValues(t, 10, n)
+}
+
+type failedRows struct {
+	dialect.Rows
+	err error
+}
+
+func (*failedRows) Next() bool                 { return false }
+func (rows *failedRows) Err() error            { return rows.err }
+func (*failedRows) Columns() ([]string, error) { return nil, nil }
+
+func TestScanOneQueryError(t *testing.T) {
+	failure := errors.New("query failed before row description")
+	require.ErrorIs(t, ScanOne(&failedRows{err: failure}, new(int)), failure)
+	require.ErrorIs(t, ScanOne(&failedRows{}, new(int)), dialect.ErrNoRows)
 }
 
 func TestScanOne(t *testing.T) {

@@ -6,8 +6,11 @@
 package card
 
 import (
-	"github.com/neko-sc/ent/dialect/sql"
+	time2 "time"
+
+	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/examples/migration/ent/entity"
 )
 
 const (
@@ -47,6 +50,54 @@ const (
 	PaymentsColumn = "card_id"
 )
 
+var (
+	ID         = ent.OrderedColumn[entity.Card, int]{Table: Table, Name: FieldID}
+	Type       = ent.StringColumn[entity.Card, string]{Table: Table, Name: FieldType}
+	NumberHash = ent.StringColumn[entity.Card, string]{Table: Table, Name: FieldNumberHash}
+	CvvHash    = ent.StringColumn[entity.Card, string]{Table: Table, Name: FieldCvvHash}
+	ExpiresAt  = ent.OrderedColumn[entity.Card, time2.Time]{Table: Table, Name: FieldExpiresAt}
+	OwnerID    = ent.OrderedColumn[entity.Card, int]{Table: Table, Name: FieldOwnerID}
+	Owner      = ent.NewUniqueRelation[entity.Card, entity.User, int](EdgeOwner, newOwnerStep)
+	Payments   = ent.NewRelation[entity.Card, entity.Payment, int](EdgePayments, newPaymentsStep)
+)
+
+// Alias returns the columns of the cards table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.Card, int]{Table: name, Name: FieldID},
+		Type:       ent.StringColumn[entity.Card, string]{Table: name, Name: FieldType},
+		NumberHash: ent.StringColumn[entity.Card, string]{Table: name, Name: FieldNumberHash},
+		CvvHash:    ent.StringColumn[entity.Card, string]{Table: name, Name: FieldCvvHash},
+		ExpiresAt:  ent.OrderedColumn[entity.Card, time2.Time]{Table: name, Name: FieldExpiresAt},
+		OwnerID:    ent.OrderedColumn[entity.Card, int]{Table: name, Name: FieldOwnerID},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.Card, int]
+	Type       ent.StringColumn[entity.Card, string]
+	NumberHash ent.StringColumn[entity.Card, string]
+	CvvHash    ent.StringColumn[entity.Card, string]
+	ExpiresAt  ent.OrderedColumn[entity.Card, time2.Time]
+	OwnerID    ent.OrderedColumn[entity.Card, int]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.Card]) ent.Predicate[entity.Card] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.Card]) ent.Predicate[entity.Card] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.Card]) ent.Predicate[entity.Card] { return ent.Not(predicate) }
+
 // Columns holds all SQL columns for card fields.
 var Columns = []string{
 	FieldID,
@@ -74,59 +125,6 @@ var (
 	DefaultOwnerID int
 )
 
-// OrderOption defines the ordering options for the Card queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByType orders the results by the type field.
-func ByType(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldType, opts...).ToFunc()
-}
-
-// ByNumberHash orders the results by the number_hash field.
-func ByNumberHash(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldNumberHash, opts...).ToFunc()
-}
-
-// ByCvvHash orders the results by the cvv_hash field.
-func ByCvvHash(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldCvvHash, opts...).ToFunc()
-}
-
-// ByExpiresAt orders the results by the expires_at field.
-func ByExpiresAt(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldExpiresAt, opts...).ToFunc()
-}
-
-// ByOwnerID orders the results by the owner_id field.
-func ByOwnerID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldOwnerID, opts...).ToFunc()
-}
-
-// ByOwnerField orders the results by owner field.
-func ByOwnerField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newOwnerStep(), sql.OrderByField(field, opts...))
-	}
-}
-
-// ByPaymentsCount orders the results by payments count.
-func ByPaymentsCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newPaymentsStep(), opts...)
-	}
-}
-
-// ByPayments orders the results by payments terms.
-func ByPayments(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newPaymentsStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
 func newOwnerStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),

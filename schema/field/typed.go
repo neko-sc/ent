@@ -117,6 +117,21 @@ func JSON[T any](name string) *JSONBuilder[T] {
 	return builder
 }
 
+// Array returns a native array field represented by a Go slice T.
+func Array[T any](name string) *ArrayBuilder[T] {
+	builder := &ArrayBuilder[T]{}
+	builder.typedFieldBuilder = newTypedBuilder[T](name, TypeArray, builder)
+	if reflect.TypeFor[T]() == nil || reflect.TypeFor[T]().Kind() != reflect.Slice {
+		builder.desc.Err = errors.New("array representation must be a slice")
+	}
+	return builder
+}
+
+// ArrayBuilder builds an array field represented by T.
+type ArrayBuilder[T any] struct {
+	*typedFieldBuilder[T, *ArrayBuilder[T]]
+}
+
 // Other returns an otherwise unsupported field represented by T.
 func Other[T any](name string) *OtherBuilder[T] {
 	builder := &OtherBuilder[T]{}

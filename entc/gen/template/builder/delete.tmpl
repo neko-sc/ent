@@ -23,19 +23,36 @@ import (
 // {{ $builder }} is the builder for deleting a {{ $.Name }} entity.
 type {{ $builder }} struct {
 	config
-	hooks      []Hook
+
 	mutation   *{{ $.MutationName }}
+    returning *sqlgraph.Returning
 }
 
 // Where appends a list predicates to the {{ $builder }} builder.
-func ({{ $receiver }} *{{ $builder }}) Where(ps ...predicate.{{ $.Name }}) *{{ $builder }} {
-	{{ $mutation }}.Where(ps...)
+func ({{ $receiver }} *{{ $builder }}) Where(predicates ...ent.Predicate[entity.{{ $.Name }}]) *{{ $builder }} {
+	{{ $mutation }}.Where(predicates...)
 	return {{ $receiver }}
 }
 
 // Exec executes the deletion query and returns how many vertices were deleted.
 func ({{ $receiver }} *{{ $builder }}) Exec(ctx context.Context) (int, error) {
-	return withHooks(ctx, {{ $receiver }}.{{ $.Storage }}Exec, {{ $mutation }}, {{ $receiver }}.hooks)
+	return {{ $receiver }}.{{ $.Storage }}Exec(ctx)
+}
+
+func (b *{{ $builder }}) Returning(ctx context.Context) ([]*{{ $.Name }}, error) {
+    nodes := make([]*{{ $.Name }}, 0)
+    b.returning = &sqlgraph.Returning{Columns: {{ $.Package }}.Columns, Scan: func(rows dialect.Rows) error {
+        _node := &{{ $.Name }}{config: b.config}
+        values, err := _node.scanValues({{ $.Package }}.Columns)
+        if err != nil { return err }
+        if err := rows.Scan(values...); err != nil { return err }
+        if err := _node.assignValues({{ $.Package }}.Columns, values); err != nil { return err }
+        nodes = append(nodes, _node)
+        return nil
+    }}
+    defer func() { b.returning = nil }()
+    if _, err := b.Exec(ctx); err != nil { return nil, err }
+    return nodes, nil
 }
 
 // ExecX is like Exec, but panics if an error occurs.
@@ -68,8 +85,8 @@ type {{ $onebuilder }} struct {
 }
 
 // Where appends a list predicates to the {{ $builder }} builder.
-func ({{ $oneReceiver }} *{{ $onebuilder }}) Where(ps ...predicate.{{ $.Name }}) *{{ $onebuilder }} {
-	{{ $oneReceiver }}.{{ $mutation }}.Where(ps...)
+func ({{ $oneReceiver }} *{{ $onebuilder }}) Where(predicates ...ent.Predicate[entity.{{ $.Name }}]) *{{ $onebuilder }} {
+	{{ $oneReceiver }}.{{ $mutation }}.Where(predicates...)
 	return {{ $oneReceiver }}
 }
 

@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/examples/jsonencode/ent/card"
 )
@@ -20,8 +19,7 @@ type Card struct {
 	// ID of the ent.
 	ID int `json:"id,omitempty"`
 	// Number holds the value of the "number" field.
-	Number       string `json:"number,omitempty"`
-	selectValues sql.SelectValues
+	Number string `json:"number,omitempty"`
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -30,9 +28,9 @@ func (*Card) scanValues(columns []string) ([]any, error) {
 	for i := range columns {
 		switch columns[i] {
 		case card.FieldID:
-			values[i] = new(sql.NullInt64)
+			values[i] = new(*int)
 		case card.FieldNumber:
-			values[i] = new(sql.NullString)
+			values[i] = new(*string)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -49,28 +47,22 @@ func (_m *Card) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case card.FieldID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field id", values[i])
-			} else if value.Valid {
-				_m.ID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.ID = **value
 			}
 		case card.FieldNumber:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field number", values[i])
-			} else if value.Valid {
-				_m.Number = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.Number = **value
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the Card.
-// This includes values selected through modifiers, order, etc.
-func (_m *Card) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // Update returns a builder for updating this Card.

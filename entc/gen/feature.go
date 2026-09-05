@@ -9,39 +9,6 @@ import (
 )
 
 var (
-	// FeaturePrivacy provides a feature-flag for the privacy extension.
-	FeaturePrivacy = Feature{
-		Name:        "privacy",
-		Stage:       Alpha,
-		Default:     false,
-		Description: "Privacy provides a privacy layer for ent through the schema configuration",
-		cleanup: func(c *Config) error {
-			return os.RemoveAll(filepath.Join(c.Target, "privacy"))
-		},
-	}
-
-	// FeatureIntercept provides a feature-flag for the interceptors' extension.
-	FeatureIntercept = Feature{
-		Name:        "intercept",
-		Stage:       Alpha,
-		Default:     false,
-		Description: "Intercept generates a helper package to make working with interceptors easier",
-		cleanup: func(c *Config) error {
-			return os.RemoveAll(filepath.Join(c.Target, "intercept"))
-		},
-	}
-
-	// FeatureEntQL provides a feature-flag for the EntQL extension.
-	FeatureEntQL = Feature{
-		Name:        "entql",
-		Stage:       Experimental,
-		Default:     false,
-		Description: "EntQL provides a generic filtering capability at runtime",
-		cleanup: func(c *Config) error {
-			return os.RemoveAll(filepath.Join(c.Target, "entql.go"))
-		},
-	}
-
 	// FeatureNamedEdges provides a feature-flag for eager-loading edges with dynamic names.
 	FeatureNamedEdges = Feature{
 		Name:        "namedges",
@@ -104,38 +71,6 @@ var (
 		Stage: Beta,
 	}
 
-	// FeatureLock provides a feature-flag for sql locking extension.
-	FeatureLock = Feature{
-		Name:        "sql/lock",
-		Stage:       Experimental,
-		Default:     false,
-		Description: "Allows users to use row-level locking in SQL using the 'FOR {UPDATE|SHARE}' clauses",
-	}
-
-	// FeatureModifier provides a feature-flag for adding query modifiers.
-	FeatureModifier = Feature{
-		Name:        "sql/modifier",
-		Stage:       Experimental,
-		Default:     false,
-		Description: "Allows users to attach custom modifiers to queries",
-	}
-
-	// FeatureExecQuery provides a feature-flag for exposing the ExecContext/QueryContext methods of the underlying SQL drivers.
-	FeatureExecQuery = Feature{
-		Name:        "sql/execquery",
-		Stage:       Experimental,
-		Default:     false,
-		Description: "Allows users to execute statements using the ExecContext/QueryContext methods of the underlying driver",
-	}
-
-	// FeatureUpsert provides a feature-flag for adding upsert (ON CONFLICT) capabilities to create builders.
-	FeatureUpsert = Feature{
-		Name:        "sql/upsert",
-		Stage:       Experimental,
-		Default:     false,
-		Description: "Allows users to configure the `ON CONFLICT`/`ON DUPLICATE KEY` clause for `INSERT` statements",
-	}
-
 	FeatureVersionedMigration = Feature{
 		Name:        "sql/versioned-migration",
 		Stage:       Experimental,
@@ -160,17 +95,10 @@ var (
 
 	// AllFeatures holds a list of all feature-flags.
 	AllFeatures = []Feature{
-		FeaturePrivacy,
-		FeatureIntercept,
-		FeatureEntQL,
 		FeatureNamedEdges,
 		FeatureBidiEdgeRefs,
 		FeatureSnapshot,
 		FeatureSchemaConfig,
-		FeatureLock,
-		FeatureModifier,
-		FeatureExecQuery,
-		FeatureUpsert,
 		FeatureVersionedMigration,
 		FeatureGlobalID,
 	}

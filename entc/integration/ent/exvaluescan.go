@@ -11,7 +11,6 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/entc/integration/ent/exvaluescan"
 )
@@ -37,7 +36,6 @@ type ExValueScan struct {
 	Custom string `json:"custom,omitempty"`
 	// CustomOptional holds the value of the "custom_optional" field.
 	CustomOptional string `json:"custom_optional,omitempty"`
-	selectValues   sql.SelectValues
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -46,7 +44,7 @@ func (*ExValueScan) scanValues(columns []string) ([]any, error) {
 	for i := range columns {
 		switch columns[i] {
 		case exvaluescan.FieldID:
-			values[i] = new(sql.NullInt64)
+			values[i] = new(*int)
 		case exvaluescan.FieldBinary:
 			values[i] = exvaluescan.ValueScanner.Binary.ScanValue()
 		case exvaluescan.FieldBinaryBytes:
@@ -79,10 +77,11 @@ func (_m *ExValueScan) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case exvaluescan.FieldID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field id", values[i])
-			} else if value.Valid {
-				_m.ID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.ID = **value
 			}
 		case exvaluescan.FieldBinary:
 			if value, err := exvaluescan.ValueScanner.Binary.FromValue(values[i]); err != nil {
@@ -132,17 +131,9 @@ func (_m *ExValueScan) assignValues(columns []string, values []any) error {
 			} else {
 				_m.CustomOptional = value
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the ExValueScan.
-// This includes values selected through modifiers, order, etc.
-func (_m *ExValueScan) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // Update returns a builder for updating this ExValueScan.

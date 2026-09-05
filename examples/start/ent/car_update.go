@@ -9,115 +9,207 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/examples/start/ent/car"
-	"github.com/neko-sc/ent/examples/start/ent/predicate"
+	"github.com/neko-sc/ent/examples/start/ent/entity"
 	"github.com/neko-sc/ent/examples/start/ent/user"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// CarUpdate is the builder for updating Car entities.
 type CarUpdate struct {
 	config
-	hooks    []Hook
-	mutation *CarMutation
+	mutation  *CarMutation
+	err       error
+	returning *sqlgraph.Returning
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// Where appends a list predicates to the CarUpdate builder.
-func (_u *CarUpdate) Where(ps ...predicate.Car) *CarUpdate {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// SetModel sets the "model" field.
-func (_u *CarUpdate) SetModel(v string) *CarUpdate {
-	_u.mutation.SetModel(v)
-	return _u
-}
-
-// SetNillableModel sets the "model" field if the given value is not nil.
-func (_u *CarUpdate) SetNillableModel(v *string) *CarUpdate {
-	if v != nil {
-		_u.SetModel(*v)
+func (b *CarUpdate) Set[T any](column ent.ColumnOf[entity.Car, T], value T) *CarUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// SetRegisteredAt sets the "registered_at" field.
-func (_u *CarUpdate) SetRegisteredAt(v time.Time) *CarUpdate {
-	_u.mutation.SetRegisteredAt(v)
-	return _u
+	return b
 }
-
-// SetNillableRegisteredAt sets the "registered_at" field if the given value is not nil.
-func (_u *CarUpdate) SetNillableRegisteredAt(v *time.Time) *CarUpdate {
-	if v != nil {
-		_u.SetRegisteredAt(*v)
+func (b *CarUpdate) SetOptional[T any](column ent.ColumnOf[entity.Car, T], value ent.Option[T]) *CarUpdate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u
-}
-
-// SetOwnerID sets the "owner" edge to the User entity by ID.
-func (_u *CarUpdate) SetOwnerID(id int) *CarUpdate {
-	_u.mutation.SetOwnerID(id)
-	return _u
-}
-
-// SetNillableOwnerID sets the "owner" edge to the User entity by ID if the given value is not nil.
-func (_u *CarUpdate) SetNillableOwnerID(id *int) *CarUpdate {
-	if id != nil {
-		_u = _u.SetOwnerID(*id)
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
 	}
-	return _u
+	return b
+}
+func (b *CarUpdate) SetExpr[T any](column ent.ColumnOf[entity.Car, T], value ent.Expr[T]) *CarUpdate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case car.FieldModel:
+
+	case car.FieldRegisteredAt:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Car is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *CarUpdate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Car, N, K], id K) *CarUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *CarUpdate) AddIDs[N, K any](edge ent.Relation[entity.Car, N, K], ids ...K) *CarUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *CarUpdate) Mutation() *CarMutation { return b.mutation }
+
+func (b *CarUpdate) Patch() *CarPatch            { return b.mutation.patch }
+func (b *CarUpdate) Apply(p CarPatch) *CarUpdate { b.mutation.patch.apply(p); return b }
+func (b *CarUpdate) Add[T ent.Number](column ent.ColumnOf[entity.Car, T], delta T) *CarUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *CarUpdate) Append[T any](column ent.ColumnOf[entity.Car, T], values T) *CarUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *CarUpdate) Clear[T any](column ent.ColumnOf[entity.Car, T]) *CarUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *CarUpdate) RemoveIDs[N, K any](edge ent.Relation[entity.Car, N, K], ids ...K) *CarUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *CarUpdate) ClearEdge[N, K any](edge ent.RelationOf[entity.Car, N, K]) *CarUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// SetOwner sets the "owner" edge to the User entity.
-func (_u *CarUpdate) SetOwner(v *User) *CarUpdate {
-	return _u.SetOwnerID(v.ID)
+func (b *CarUpdate) Where(predicates ...ent.Predicate[entity.Car]) *CarUpdate {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Mutation returns the CarMutation object of the builder.
-func (_u *CarUpdate) Mutation() *CarMutation {
-	return _u.mutation
+func (b *CarUpdate) Save(ctx context.Context) (int, error) {
+	if b.err != nil {
+		return 0, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return 0, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// ClearOwner clears the "owner" edge to the User entity.
-func (_u *CarUpdate) ClearOwner() *CarUpdate {
-	_u.mutation.ClearOwner()
-	return _u
-}
-
-// Save executes the query and returns the number of nodes affected by the update operation.
-func (_u *CarUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *CarUpdate) SaveX(ctx context.Context) int {
-	affected, err := _u.Save(ctx)
+func (b *CarUpdate) SaveX(ctx context.Context) int {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return affected
+	return result
 }
 
-// Exec executes the query.
-func (_u *CarUpdate) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *CarUpdate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *CarUpdate) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *CarUpdate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
+func (b *CarUpdate) Returning(ctx context.Context) ([]*Car, error) {
+	nodes := make([]*Car, 0)
+	b.returning = &sqlgraph.Returning{Columns: car.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Car{config: b.config}
+		values, err := _node.scanValues(car.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(car.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Save(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
+}
+
+func (b *CarUpdate) defaults() error {
+
+	return nil
+}
+
+func (b *CarUpdate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.Model.IsNull() {
+		return &ValidationError{Name: "model", err: errors.New(`ent: field "Car.model" is not nullable`)}
+	}
+
+	if b.mutation.patch.RegisteredAt.IsNull() {
+		return &ValidationError{Name: "registered_at", err: errors.New(`ent: field "Car.registered_at" is not nullable`)}
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *CarUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *CarUpdate {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *CarUpdate) sqlSave(ctx context.Context) (_node int, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(car.Table, car.Columns, sqlgraph.NewFieldSpec(car.FieldID, field.TypeInt))
 	if ps := _u.mutation.Predicates(); len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -126,13 +218,13 @@ func (_u *CarUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.Model(); ok {
+	if value, ok := _u.mutation.patch.Model.Get(); ok {
 		_spec.SetField(car.FieldModel, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.RegisteredAt(); ok {
+	if value, ok := _u.mutation.patch.RegisteredAt.Get(); ok {
 		_spec.SetField(car.FieldRegisteredAt, field.TypeTime, value)
 	}
-	if _u.mutation.OwnerCleared() {
+	if _u.mutation.patch.OwnerID.IsNull() || _u.mutation.patch.clearedEdges[car.EdgeOwner] {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -145,7 +237,7 @@ func (_u *CarUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.OwnerIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.ownerIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -156,11 +248,22 @@ func (_u *CarUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	_spec.Returning = _u.returning
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{car.Label}
@@ -169,117 +272,201 @@ func (_u *CarUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		return 0, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }
 
-// CarUpdateOne is the builder for updating a single Car entity.
 type CarUpdateOne struct {
 	config
-	fields   []string
-	hooks    []Hook
 	mutation *CarMutation
+	err      error
+
+	fields []string
+	old    *Car
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// SetModel sets the "model" field.
-func (_u *CarUpdateOne) SetModel(v string) *CarUpdateOne {
-	_u.mutation.SetModel(v)
-	return _u
-}
-
-// SetNillableModel sets the "model" field if the given value is not nil.
-func (_u *CarUpdateOne) SetNillableModel(v *string) *CarUpdateOne {
-	if v != nil {
-		_u.SetModel(*v)
+func (b *CarUpdateOne) Set[T any](column ent.ColumnOf[entity.Car, T], value T) *CarUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// SetRegisteredAt sets the "registered_at" field.
-func (_u *CarUpdateOne) SetRegisteredAt(v time.Time) *CarUpdateOne {
-	_u.mutation.SetRegisteredAt(v)
-	return _u
+	return b
 }
-
-// SetNillableRegisteredAt sets the "registered_at" field if the given value is not nil.
-func (_u *CarUpdateOne) SetNillableRegisteredAt(v *time.Time) *CarUpdateOne {
-	if v != nil {
-		_u.SetRegisteredAt(*v)
+func (b *CarUpdateOne) SetOptional[T any](column ent.ColumnOf[entity.Car, T], value ent.Option[T]) *CarUpdateOne {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u
-}
-
-// SetOwnerID sets the "owner" edge to the User entity by ID.
-func (_u *CarUpdateOne) SetOwnerID(id int) *CarUpdateOne {
-	_u.mutation.SetOwnerID(id)
-	return _u
-}
-
-// SetNillableOwnerID sets the "owner" edge to the User entity by ID if the given value is not nil.
-func (_u *CarUpdateOne) SetNillableOwnerID(id *int) *CarUpdateOne {
-	if id != nil {
-		_u = _u.SetOwnerID(*id)
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
 	}
-	return _u
+	return b
+}
+func (b *CarUpdateOne) SetExpr[T any](column ent.ColumnOf[entity.Car, T], value ent.Expr[T]) *CarUpdateOne {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case car.FieldModel:
+
+	case car.FieldRegisteredAt:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Car is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *CarUpdateOne) SetEdge[N, K any](edge ent.UniqueRelation[entity.Car, N, K], id K) *CarUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *CarUpdateOne) AddIDs[N, K any](edge ent.Relation[entity.Car, N, K], ids ...K) *CarUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *CarUpdateOne) Mutation() *CarMutation { return b.mutation }
+
+func (b *CarUpdateOne) Patch() *CarPatch               { return b.mutation.patch }
+func (b *CarUpdateOne) Apply(p CarPatch) *CarUpdateOne { b.mutation.patch.apply(p); return b }
+func (b *CarUpdateOne) Add[T ent.Number](column ent.ColumnOf[entity.Car, T], delta T) *CarUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *CarUpdateOne) Append[T any](column ent.ColumnOf[entity.Car, T], values T) *CarUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *CarUpdateOne) Clear[T any](column ent.ColumnOf[entity.Car, T]) *CarUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *CarUpdateOne) RemoveIDs[N, K any](edge ent.Relation[entity.Car, N, K], ids ...K) *CarUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *CarUpdateOne) ClearEdge[N, K any](edge ent.RelationOf[entity.Car, N, K]) *CarUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// SetOwner sets the "owner" edge to the User entity.
-func (_u *CarUpdateOne) SetOwner(v *User) *CarUpdateOne {
-	return _u.SetOwnerID(v.ID)
+func (b *CarUpdateOne) Where(predicates ...ent.Predicate[entity.Car]) *CarUpdateOne {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Mutation returns the CarMutation object of the builder.
-func (_u *CarUpdateOne) Mutation() *CarMutation {
-	return _u.mutation
+func (b *CarUpdateOne) Save(ctx context.Context) (*Car, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// ClearOwner clears the "owner" edge to the User entity.
-func (_u *CarUpdateOne) ClearOwner() *CarUpdateOne {
-	_u.mutation.ClearOwner()
-	return _u
-}
-
-// Where appends a list predicates to the CarUpdate builder.
-func (_u *CarUpdateOne) Where(ps ...predicate.Car) *CarUpdateOne {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// Select allows selecting one or more fields (columns) of the returned entity.
-// The default is selecting all fields defined in the entity schema.
-func (_u *CarUpdateOne) Select(field string, fields ...string) *CarUpdateOne {
-	_u.fields = append([]string{field}, fields...)
-	return _u
-}
-
-// Save executes the query and returns the updated Car entity.
-func (_u *CarUpdateOne) Save(ctx context.Context) (*Car, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *CarUpdateOne) SaveX(ctx context.Context) *Car {
-	node, err := _u.Save(ctx)
+func (b *CarUpdateOne) SaveX(ctx context.Context) *Car {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return node
+	return result
 }
 
-// Exec executes the query on the entity.
-func (_u *CarUpdateOne) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *CarUpdateOne) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *CarUpdateOne) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *CarUpdateOne) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
+func (b *CarUpdateOne) Select(columns ...ent.EntityColumn[entity.Car]) *CarUpdateOne {
+	if len(columns) == 0 {
+		panic("ent: Select requires at least one column")
+	}
+	b.fields = make([]string, len(columns))
+	for index, column := range columns {
+		b.fields[index] = column.Ref().Name
+	}
+	return b
+}
+
+func (b *CarUpdateOne) SaveOld(ctx context.Context) (old *Car, updated *Car, err error) {
+	if !b.driver.Capabilities().ReturningOld {
+		return nil, nil, &dialect.UnsupportedError{Feature: "RETURNING OLD", Dialect: dialect.Dialect(b.driver.Dialect())}
+	}
+	b.old = &Car{config: b.config}
+	defer func() { b.old = nil }()
+	updated, err = b.Save(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return b.old, updated, nil
+}
+
+func (b *CarUpdateOne) defaults() error {
+
+	return nil
+}
+
+func (b *CarUpdateOne) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.Model.IsNull() {
+		return &ValidationError{Name: "model", err: errors.New(`ent: field "Car.model" is not nullable`)}
+	}
+
+	if b.mutation.patch.RegisteredAt.IsNull() {
+		return &ValidationError{Name: "registered_at", err: errors.New(`ent: field "Car.registered_at" is not nullable`)}
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *CarUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *CarUpdateOne {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *CarUpdateOne) sqlSave(ctx context.Context) (_node *Car, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(car.Table, car.Columns, sqlgraph.NewFieldSpec(car.FieldID, field.TypeInt))
 	id, ok := _u.mutation.ID()
 	if !ok {
@@ -305,13 +492,13 @@ func (_u *CarUpdateOne) sqlSave(ctx context.Context) (_node *Car, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.Model(); ok {
+	if value, ok := _u.mutation.patch.Model.Get(); ok {
 		_spec.SetField(car.FieldModel, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.RegisteredAt(); ok {
+	if value, ok := _u.mutation.patch.RegisteredAt.Get(); ok {
 		_spec.SetField(car.FieldRegisteredAt, field.TypeTime, value)
 	}
-	if _u.mutation.OwnerCleared() {
+	if _u.mutation.patch.OwnerID.IsNull() || _u.mutation.patch.clearedEdges[car.EdgeOwner] {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -324,7 +511,7 @@ func (_u *CarUpdateOne) sqlSave(ctx context.Context) (_node *Car, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.OwnerIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.ownerIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -335,14 +522,28 @@ func (_u *CarUpdateOne) sqlSave(ctx context.Context) (_node *Car, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	_node = &Car{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
+	if _u.old != nil {
+		_spec.OldScanValues = _u.old.scanValues
+		_spec.OldAssign = _u.old.assignValues
+	}
 	if err = sqlgraph.UpdateNode(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{car.Label}
@@ -351,6 +552,5 @@ func (_u *CarUpdateOne) sqlSave(ctx context.Context) (_node *Car, err error) {
 		}
 		return nil, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }

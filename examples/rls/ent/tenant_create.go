@@ -7,61 +7,136 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
+	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/examples/rls/ent/entity"
 	"github.com/neko-sc/ent/examples/rls/ent/tenant"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// TenantCreate is the builder for creating a Tenant entity.
 type TenantCreate struct {
 	config
-	mutation *TenantMutation
-	hooks    []Hook
+	mutation    *TenantMutation
+	err         error
+	fromBuilder bool
+	present     map[string]struct{}
+
+	conflict []sql.ConflictOption
 }
 
-// SetName sets the "name" field.
-func (_c *TenantCreate) SetName(v string) *TenantCreate {
-	_c.mutation.SetName(v)
-	return _c
+func (b *TenantCreate) Set[T any](column ent.ColumnOf[entity.Tenant, T], value T) *TenantCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.set(column.Ref().Name, value)
+	}
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+}
+func (b *TenantCreate) SetOptional[T any](column ent.ColumnOf[entity.Tenant, T], value ent.Option[T]) *TenantCreate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.insert.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *TenantCreate) SetExpr[T any](column ent.ColumnOf[entity.Tenant, T], value ent.Expr[T]) *TenantCreate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case tenant.FieldName:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Tenant is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.insert.setExpr(column.Ref().Name, value.Render)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+
+}
+func (b *TenantCreate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Tenant, N, K], id K) *TenantCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.setEdge(edge.Ref().Name, id)
+	}
+
+	switch edge.Ref().Name {
+
+	}
+
+	return b
+}
+func (b *TenantCreate) AddIDs[N, K any](edge ent.Relation[entity.Tenant, N, K], ids ...K) *TenantCreate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.insert.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *TenantCreate) Mutation() *TenantMutation { return b.mutation }
+
+func (b *TenantCreate) Insert() *TenantInsert { return b.mutation.insert }
+
+func (b *TenantCreate) Save(ctx context.Context) (*Tenant, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Mutation returns the TenantMutation object of the builder.
-func (_c *TenantCreate) Mutation() *TenantMutation {
-	return _c.mutation
-}
-
-// Save creates the Tenant in the database.
-func (_c *TenantCreate) Save(ctx context.Context) (*Tenant, error) {
-	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
-}
-
-// SaveX calls Save and panics if Save returns an error.
-func (_c *TenantCreate) SaveX(ctx context.Context) *Tenant {
-	v, err := _c.Save(ctx)
+func (b *TenantCreate) SaveX(ctx context.Context) *Tenant {
+	node, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return node
 }
 
-// Exec executes the query.
-func (_c *TenantCreate) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *TenantCreate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *TenantCreate) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *TenantCreate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_c *TenantCreate) check() error {
-	if _, ok := _c.mutation.Name(); !ok {
-		return &ValidationError{Name: "name", err: errors.New(`ent: missing required field "Tenant.name"`)}
+func (b *TenantCreate) defaults() error {
+
+	return nil
+}
+
+func (b *TenantCreate) check() error {
+	if b.err != nil {
+		return b.err
 	}
+
+	switch b.driver.Dialect() {
+	case dialect.Postgres, dialect.SQLite:
+		if _, present := b.present[tenant.FieldName]; b.fromBuilder && !present {
+			return &ValidationError{Name: "name", err: errors.New(`ent: missing required field "Tenant.name"`)}
+		}
+	}
+
 	return nil
 }
 
@@ -69,115 +144,392 @@ func (_c *TenantCreate) sqlSave(ctx context.Context) (*Tenant, error) {
 	if err := _c.check(); err != nil {
 		return nil, err
 	}
-	_node, _spec := _c.createSpec()
-	if err := sqlgraph.CreateNode(ctx, _c.driver, _spec); err != nil {
+	node, spec, err := _c.createSpec()
+	if err != nil {
+		return nil, err
+	}
+	if err := sqlgraph.CreateNode(ctx, _c.driver, spec); err != nil {
 		if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
 		return nil, err
 	}
-	id := _spec.ID.Value.(int64)
-	_node.ID = int(id)
-	_c.mutation.id = &_node.ID
-	_c.mutation.done = true
-	return _node, nil
+	_c.mutation.id = &node.ID
+	return node, nil
 }
 
-func (_c *TenantCreate) createSpec() (*Tenant, *sqlgraph.CreateSpec) {
-	var (
-		_node = &Tenant{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(tenant.Table, sqlgraph.NewFieldSpec(tenant.FieldID, field.TypeInt))
-	)
-	if value, ok := _c.mutation.Name(); ok {
+func (_c *TenantCreate) createSpec() (*Tenant, *sqlgraph.CreateSpec, error) {
+	_node := &Tenant{config: _c.config}
+	_spec := sqlgraph.NewCreateSpec(tenant.Table, sqlgraph.NewFieldSpec(tenant.FieldID, field.TypeInt))
+
+	_spec.OnConflict = _c.conflict
+
+	if _, present := _c.present[tenant.FieldName]; !_c.fromBuilder || present {
+		value := _c.mutation.insert.Name
 		_spec.SetField(tenant.FieldName, field.TypeString, value)
-		_node.Name = value
 	}
-	return _node, _spec
+
+	_spec.Expressions = _c.mutation.insert.expressions
+
+	_spec.Returning = &sqlgraph.Returning{Columns: tenant.Columns, Scan: func(rows dialect.Rows) error {
+		values, err := _node.scanValues(tenant.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(tenant.Columns, values); err != nil {
+			return err
+		}
+
+		_spec.ID.Value = _node.ID
+
+		return nil
+	}}
+	return _node, _spec, nil
 }
 
-// TenantCreateBulk is the builder for creating many Tenant entities in bulk.
+type TenantUpsertOne struct{ create *TenantCreate }
+
+func (b *TenantCreate) OnConflict(columns ...ent.EntityColumn[entity.Tenant]) *TenantUpsertOne {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
+	}
+	if len(names) == 0 {
+		return b.OnConflictOptions()
+	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
+}
+
+func (b *TenantCreate) OnConflictConstraint(name string) *TenantUpsertOne {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
+}
+
+func (b *TenantCreate) OnConflictOptions(options ...sql.ConflictOption) *TenantUpsertOne {
+	b.conflict = options
+	return &TenantUpsertOne{create: b}
+}
+
+func (u *TenantUpsertOne) DoNothing() *TenantUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+func (u *TenantUpsertOne) DoSelect() *TenantUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *TenantUpsertOne) Ignore() *TenantUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *TenantUpsertOne) DoUpdate(set func(*TenantUpsert)) *TenantUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&TenantUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *TenantUpsertOne) UpdateNewValues() *TenantUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case tenant.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
+	}))
+	return u
+}
+
+func (u *TenantUpsertOne) Where(predicates ...ent.Predicate[entity.Tenant]) *TenantUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(tenant.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *TenantUpsertOne) UpdateWhere(predicates ...ent.Predicate[entity.Tenant]) *TenantUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(tenant.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *TenantUpsertOne) Save(ctx context.Context) (*Tenant, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for TenantCreate.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *TenantUpsertOne) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
+func (u *TenantUpsertOne) ExecX(ctx context.Context) {
+	if err := u.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+func (u *TenantUpsertOne) ID(ctx context.Context) (id int, err error) {
+	node, err := u.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+func (u *TenantUpsertOne) IDX(ctx context.Context) int {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
+type TenantUpsert struct{ *sql.UpdateSet }
+
+func (u *TenantUpsert) Set[T any](column ent.ColumnOf[entity.Tenant, T], value T) *TenantUpsert {
+	switch column.Ref().Name {
+
+	case tenant.FieldName:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Tenant is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *TenantUpsert) SetExpr[T any](column ent.ColumnOf[entity.Tenant, T], value ent.Expr[T]) *TenantUpsert {
+	switch column.Ref().Name {
+
+	case tenant.FieldName:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Tenant is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *TenantUpsert) UpdateNewValue[T any](column ent.ColumnOf[entity.Tenant, T]) *TenantUpsert {
+	switch column.Ref().Name {
+
+	case tenant.FieldName:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Tenant is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *TenantUpsert) Add[T ent.Number](column ent.ColumnOf[entity.Tenant, T], delta T) *TenantUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Tenant does not support addition", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *TenantUpsert) Clear[T any](column ent.ColumnOf[entity.Tenant, T]) *TenantUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Tenant is not nullable", column.Ref().Name)})
+	}
+	return u
+}
+
 type TenantCreateBulk struct {
 	config
 	err      error
 	builders []*TenantCreate
+
+	conflict []sql.ConflictOption
 }
 
-// Save creates the Tenant entities in the database.
 func (_c *TenantCreateBulk) Save(ctx context.Context) ([]*Tenant, error) {
 	if _c.err != nil {
 		return nil, _c.err
 	}
-	specs := make([]*sqlgraph.CreateSpec, len(_c.builders))
 	nodes := make([]*Tenant, len(_c.builders))
-	mutators := make([]Mutator, len(_c.builders))
-	for i := range _c.builders {
-		func(i int, root context.Context) {
-			builder := _c.builders[i]
-			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*TenantMutation)
-				if !ok {
-					return nil, fmt.Errorf("unexpected mutation type %T", m)
-				}
-				if err := builder.check(); err != nil {
-					return nil, err
-				}
-				builder.mutation = mutation
-				var err error
-				nodes[i], specs[i] = builder.createSpec()
-				if i < len(mutators)-1 {
-					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
-				} else {
-					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
-					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
-						if sqlgraph.IsConstraintError(err) {
-							err = &ConstraintError{msg: err.Error(), wrap: err}
-						}
-					}
-				}
-				if err != nil {
-					return nil, err
-				}
-				mutation.id = &nodes[i].ID
-				if specs[i].ID.Value != nil {
-					id := specs[i].ID.Value.(int64)
-					nodes[i].ID = int(id)
-				}
-				mutation.done = true
-				return nodes[i], nil
-			})
-			for i := len(builder.hooks) - 1; i >= 0; i-- {
-				mut = builder.hooks[i](mut)
-			}
-			mutators[i] = mut
-		}(i, ctx)
-	}
-	if len(mutators) > 0 {
-		if _, err := mutators[0].Mutate(ctx, _c.builders[0].mutation); err != nil {
+	specs := make([]*sqlgraph.CreateSpec, len(nodes))
+	for index, builder := range _c.builders {
+		if builder.err != nil {
+			return nil, builder.err
+		}
+		if err := builder.defaults(); err != nil {
+			return nil, err
+		}
+		if err := builder.check(); err != nil {
+			return nil, err
+		}
+		var err error
+		nodes[index], specs[index], err = builder.createSpec()
+		if err != nil {
 			return nil, err
 		}
 	}
-	return nodes, nil
+	if len(specs) == 0 {
+		return nodes, nil
+	}
+	spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+
+	spec.OnConflict = _c.conflict
+
+	if err := sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
+		if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{msg: err.Error(), wrap: err}
+		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
+		return nil, err
+	}
+	result := nodes[:0]
+	for index, builder := range _c.builders {
+		if specs[index].Skipped {
+			continue
+		}
+		builder.mutation.id = &nodes[index].ID
+		result = append(result, nodes[index])
+	}
+	return result, nil
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_c *TenantCreateBulk) SaveX(ctx context.Context) []*Tenant {
-	v, err := _c.Save(ctx)
+func (b *TenantCreateBulk) SaveX(ctx context.Context) []*Tenant {
+	nodes, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return nodes
 }
 
-// Exec executes the query.
-func (_c *TenantCreateBulk) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
+func (b *TenantCreateBulk) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
+
+func (b *TenantCreateBulk) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+type TenantUpsertBulk struct{ create *TenantCreateBulk }
+
+func (b *TenantCreateBulk) OnConflict(columns ...ent.EntityColumn[entity.Tenant]) *TenantUpsertBulk {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
+	}
+	if len(names) == 0 {
+		return b.OnConflictOptions()
+	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
+}
+
+func (b *TenantCreateBulk) OnConflictConstraint(name string) *TenantUpsertBulk {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
+}
+
+func (b *TenantCreateBulk) OnConflictOptions(options ...sql.ConflictOption) *TenantUpsertBulk {
+	b.conflict = options
+	return &TenantUpsertBulk{create: b}
+}
+
+func (u *TenantUpsertBulk) DoNothing() *TenantUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+func (u *TenantUpsertBulk) DoSelect() *TenantUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *TenantUpsertBulk) Ignore() *TenantUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *TenantUpsertBulk) DoUpdate(set func(*TenantUpsert)) *TenantUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&TenantUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *TenantUpsertBulk) UpdateNewValues() *TenantUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case tenant.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
+	}))
+	return u
+}
+
+func (u *TenantUpsertBulk) Where(predicates ...ent.Predicate[entity.Tenant]) *TenantUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(tenant.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *TenantUpsertBulk) UpdateWhere(predicates ...ent.Predicate[entity.Tenant]) *TenantUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(tenant.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *TenantUpsertBulk) Save(ctx context.Context) ([]*Tenant, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for TenantCreateBulk.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *TenantUpsertBulk) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
 	return err
 }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *TenantCreateBulk) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (u *TenantUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

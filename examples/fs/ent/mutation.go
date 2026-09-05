@@ -9,102 +9,62 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
 
 	"github.com/neko-sc/ent"
-	"github.com/neko-sc/ent/examples/fs/ent/file"
+	"github.com/neko-sc/ent/examples/fs/ent/entity"
 )
 
 const (
-	// Operation types.
 	OpCreate    = ent.OpCreate
-	OpDelete    = ent.OpDelete
-	OpDeleteOne = ent.OpDeleteOne
 	OpUpdate    = ent.OpUpdate
 	OpUpdateOne = ent.OpUpdateOne
+	OpDelete    = ent.OpDelete
+	OpDeleteOne = ent.OpDeleteOne
 
-	// Node types.
 	TypeFile = "File"
 )
 
-// FileMutation represents an operation that mutates the File nodes in the graph.
 type FileMutation struct {
-	file.Mutation
 	config
-	id       *int
-	done     bool
-	oldValue func(context.Context) (*File, error)
+	op         ent.Op
+	id         *int
+	insert     *FileInsert
+	patch      *FilePatch
+	predicates []ent.Predicate[entity.File]
 }
 
-var _ ent.Mutation = (*FileMutation)(nil)
-
-// fileOption allows management of the mutation configuration using functional options.
-type fileOption func(*FileMutation)
-
-// newFileMutation creates new mutation for the File entity.
-func newFileMutation(c config, op Op, opts ...fileOption) *FileMutation {
-	m := &FileMutation{
-		Mutation: *file.NewMutation(op),
-		config:   c,
+func newFileMutation(c config, op ent.Op) *FileMutation {
+	m := &FileMutation{config: c, op: op}
+	if op.Is(OpCreate) {
+		m.insert = &FileInsert{}
 	}
-	for _, opt := range opts {
-		opt(m)
+	if op.Is(OpUpdate | OpUpdateOne) {
+		m.patch = &FilePatch{}
 	}
 	return m
 }
 
-// ID returns the ID value in the mutation. Note that the ID is only available
-// if it was provided to the builder or after it was returned from the database.
-func (m *FileMutation) ID() (id int, exists bool) {
-	if m.id == nil {
-		return
-	}
-	return *m.id, true
+func (m *FileMutation) Op() ent.Op { return m.op }
+
+func (m *FileMutation) Type() string { return "File" }
+
+func (m *FileMutation) Insert() *FileInsert { return m.insert }
+
+func (m *FileMutation) Patch() *FilePatch { return m.patch }
+
+func (m *FileMutation) Predicates() []ent.Predicate[entity.File] { return m.predicates }
+
+func (m *FileMutation) Where(predicates ...ent.Predicate[entity.File]) {
+	m.predicates = append(m.predicates, predicates...)
 }
 
-// withFileID sets the ID field of the mutation.
-func withFileID(id int) fileOption {
-	return func(m *FileMutation) {
-		var (
-			err   error
-			once  sync.Once
-			value *File
-		)
-		m.oldValue = func(ctx context.Context) (*File, error) {
-			once.Do(func() {
-				if m.done {
-					err = errors.New("querying old values post mutation is not allowed")
-				} else {
-					value, err = m.Client().File.Get(ctx, id)
-				}
-			})
-			return value, err
-		}
-		m.id = &id
-	}
-}
-
-// withFile sets the old File of the mutation.
-func withFile(node *File) fileOption {
-	return func(m *FileMutation) {
-		m.oldValue = func(context.Context) (*File, error) {
-			return node, nil
-		}
-		m.id = &node.ID
-	}
-}
-
-// Client returns a new `ent.Client` from the mutation. If the mutation was
-// executed in a transaction (ent.Tx), a transactional client is returned.
-func (m FileMutation) Client() *Client {
+func (m *FileMutation) Client() *Client {
 	client := &Client{config: m.config}
 	client.init()
 	return client
 }
 
-// Tx returns an `ent.Tx` for mutations that were executed in transactions;
-// it returns an error otherwise.
-func (m FileMutation) Tx() (*Tx, error) {
+func (m *FileMutation) Tx() (*Tx, error) {
 	if _, ok := m.driver.(*txDriver); !ok {
 		return nil, errors.New("ent: mutation is not running in a transaction")
 	}
@@ -113,87 +73,24 @@ func (m FileMutation) Tx() (*Tx, error) {
 	return tx, nil
 }
 
-// IDs queries the database and returns the entity ids that match the mutation's predicate.
-// That means, if the mutation is applied within a transaction with an isolation level such
-// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
-// or updated by the mutation.
+func (m *FileMutation) ID() (id int, exists bool) {
+	if m.id != nil {
+		return *m.id, true
+	}
+
+	return id, false
+}
+
 func (m *FileMutation) IDs(ctx context.Context) ([]int, error) {
 	switch {
-	case m.Op().Is(OpUpdateOne | OpDeleteOne):
-		id, exists := m.ID()
-		if exists {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		if id, exists := m.ID(); exists {
 			return []int{id}, nil
 		}
 		fallthrough
-	case m.Op().Is(OpUpdate | OpDelete):
-		return m.Client().File.Query().Where(m.Predicates()...).IDs(ctx)
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().File.Query().Where(m.predicates...).IDs(ctx)
 	default:
-		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.Op())
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
 	}
-}
-
-// OldName returns the old "name" field's value of the File entity.
-// If the File object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *FileMutation) OldName(ctx context.Context) (v string, err error) {
-	if !m.Op().Is(OpUpdateOne) {
-		return v, errors.New("OldName is only allowed on UpdateOne operations")
-	}
-	if _, exists := m.ID(); !exists || m.oldValue == nil {
-		return v, errors.New("OldName requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldName: %w", err)
-	}
-	return oldValue.Name, nil
-}
-
-// OldDeleted returns the old "deleted" field's value of the File entity.
-// If the File object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *FileMutation) OldDeleted(ctx context.Context) (v bool, err error) {
-	if !m.Op().Is(OpUpdateOne) {
-		return v, errors.New("OldDeleted is only allowed on UpdateOne operations")
-	}
-	if _, exists := m.ID(); !exists || m.oldValue == nil {
-		return v, errors.New("OldDeleted requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldDeleted: %w", err)
-	}
-	return oldValue.Deleted, nil
-}
-
-// OldParentID returns the old "parent_id" field's value of the File entity.
-// If the File object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *FileMutation) OldParentID(ctx context.Context) (v int, err error) {
-	if !m.Op().Is(OpUpdateOne) {
-		return v, errors.New("OldParentID is only allowed on UpdateOne operations")
-	}
-	if _, exists := m.ID(); !exists || m.oldValue == nil {
-		return v, errors.New("OldParentID requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldParentID: %w", err)
-	}
-	return oldValue.ParentID, nil
-}
-
-// OldField returns the old value of the field from the database. An error is
-// returned if the mutation operation is not UpdateOne, or the query to the
-// database failed.
-func (m *FileMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
-	switch name {
-	case file.FieldName:
-		return m.OldName(ctx)
-	case file.FieldDeleted:
-		return m.OldDeleted(ctx)
-	case file.FieldParentID:
-		return m.OldParentID(ctx)
-	}
-	return nil, fmt.Errorf("unknown File field %s", name)
 }

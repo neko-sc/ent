@@ -6,8 +6,9 @@
 package user
 
 import (
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/idtype/ent/entity"
 )
 
 const (
@@ -34,6 +35,43 @@ const (
 	// FollowingTable is the table that holds the following relation/edge. The primary key declared below.
 	FollowingTable = "user_following"
 )
+
+var (
+	ID        = ent.OrderedColumn[entity.User, uint64]{Table: Table, Name: FieldID}
+	Name      = ent.StringColumn[entity.User, string]{Table: Table, Name: FieldName}
+	Spouse    = ent.NewUniqueRelation[entity.User, entity.User, uint64](EdgeSpouse, newSpouseStep)
+	Followers = ent.NewRelation[entity.User, entity.User, uint64](EdgeFollowers, newFollowersStep)
+	Following = ent.NewRelation[entity.User, entity.User, uint64](EdgeFollowing, newFollowingStep)
+)
+
+// Alias returns the columns of the users table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.User, uint64]{Table: name, Name: FieldID},
+		Name:       ent.StringColumn[entity.User, string]{Table: name, Name: FieldName},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.User, uint64]
+	Name       ent.StringColumn[entity.User, string]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.User]) ent.Predicate[entity.User] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.User]) ent.Predicate[entity.User] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.User]) ent.Predicate[entity.User] { return ent.Not(predicate) }
 
 // Columns holds all SQL columns for user fields.
 var Columns = []string{
@@ -71,53 +109,6 @@ func ValidColumn(column string) bool {
 	return false
 }
 
-// OrderOption defines the ordering options for the User queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByName orders the results by the name field.
-func ByName(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldName, opts...).ToFunc()
-}
-
-// BySpouseField orders the results by spouse field.
-func BySpouseField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newSpouseStep(), sql.OrderByField(field, opts...))
-	}
-}
-
-// ByFollowersCount orders the results by followers count.
-func ByFollowersCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newFollowersStep(), opts...)
-	}
-}
-
-// ByFollowers orders the results by followers terms.
-func ByFollowers(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newFollowersStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
-// ByFollowingCount orders the results by following count.
-func ByFollowingCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newFollowingStep(), opts...)
-	}
-}
-
-// ByFollowing orders the results by following terms.
-func ByFollowing(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newFollowingStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
 func newSpouseStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),

@@ -9,113 +9,151 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/role"
 	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/user"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// RoleCreate is the builder for creating a Role entity.
 type RoleCreate struct {
 	config
-	mutation *RoleMutation
-	hooks    []Hook
+	mutation    *RoleMutation
+	err         error
+	fromBuilder bool
+	present     map[string]struct{}
+
 	conflict []sql.ConflictOption
 }
 
-// SetName sets the "name" field.
-func (_c *RoleCreate) SetName(v string) *RoleCreate {
-	_c.mutation.SetName(v)
-	return _c
-}
-
-// SetCreatedAt sets the "created_at" field.
-func (_c *RoleCreate) SetCreatedAt(v time.Time) *RoleCreate {
-	_c.mutation.SetCreatedAt(v)
-	return _c
-}
-
-// SetNillableCreatedAt sets the "created_at" field if the given value is not nil.
-func (_c *RoleCreate) SetNillableCreatedAt(v *time.Time) *RoleCreate {
-	if v != nil {
-		_c.SetCreatedAt(*v)
+func (b *RoleCreate) Set[T any](column ent.ColumnOf[entity.Role, T], value T) *RoleCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.set(column.Ref().Name, value)
 	}
-	return _c
-}
-
-// AddUserIDs adds the "user" edge to the User entity by IDs.
-func (_c *RoleCreate) AddUserIDs(ids ...int) *RoleCreate {
-	_c.mutation.AddUserIDs(ids...)
-	return _c
-}
-
-// AddUser adds the "user" edges to the User entity.
-func (_c *RoleCreate) AddUser(v ...*User) *RoleCreate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+	if b.present == nil {
+		b.present = make(map[string]struct{})
 	}
-	return _c.AddUserIDs(ids...)
+	b.present[column.Ref().Name] = struct{}{}
+	return b
 }
-
-// Mutation returns the RoleMutation object of the builder.
-func (_c *RoleCreate) Mutation() *RoleMutation {
-	return _c.mutation
+func (b *RoleCreate) SetOptional[T any](column ent.ColumnOf[entity.Role, T], value ent.Option[T]) *RoleCreate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.insert.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
 }
+func (b *RoleCreate) SetExpr[T any](column ent.ColumnOf[entity.Role, T], value ent.Expr[T]) *RoleCreate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
 
-// Save creates the Role in the database.
-func (_c *RoleCreate) Save(ctx context.Context) (*Role, error) {
-	if err := _c.defaults(); err != nil {
+	case role.FieldName:
+
+	case role.FieldCreatedAt:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Role is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.insert.setExpr(column.Ref().Name, value.Render)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+
+}
+func (b *RoleCreate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Role, N, K], id K) *RoleCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.setEdge(edge.Ref().Name, id)
+	}
+
+	switch edge.Ref().Name {
+
+	}
+
+	return b
+}
+func (b *RoleCreate) AddIDs[N, K any](edge ent.Relation[entity.Role, N, K], ids ...K) *RoleCreate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.insert.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *RoleCreate) Mutation() *RoleMutation { return b.mutation }
+
+func (b *RoleCreate) Insert() *RoleInsert { return b.mutation.insert }
+
+func (b *RoleCreate) Save(ctx context.Context) (*Role, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
 		return nil, err
 	}
-	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
+	return b.sqlSave(ctx)
 }
 
-// SaveX calls Save and panics if Save returns an error.
-func (_c *RoleCreate) SaveX(ctx context.Context) *Role {
-	v, err := _c.Save(ctx)
+func (b *RoleCreate) SaveX(ctx context.Context) *Role {
+	node, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return node
 }
 
-// Exec executes the query.
-func (_c *RoleCreate) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *RoleCreate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *RoleCreate) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *RoleCreate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// defaults sets the default values of the builder before save.
-func (_c *RoleCreate) defaults() error {
-	if _, ok := _c.mutation.CreatedAt(); !ok {
+func (b *RoleCreate) defaults() error {
+
+	if b.mutation.insert.CreatedAt.IsUnset() && b.mutation.insert.expressions[role.FieldCreatedAt] == nil {
 		if role.DefaultCreatedAt == nil {
-			return fmt.Errorf("ent: uninitialized role.DefaultCreatedAt (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized role.DefaultCreatedAt")
 		}
-		v := role.DefaultCreatedAt()
-		_c.mutation.SetCreatedAt(v)
+		b.mutation.insert.CreatedAt = ent.Some(role.DefaultCreatedAt())
 	}
+
 	return nil
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_c *RoleCreate) check() error {
-	if _, ok := _c.mutation.Name(); !ok {
-		return &ValidationError{Name: "name", err: errors.New(`ent: missing required field "Role.name"`)}
+func (b *RoleCreate) check() error {
+	if b.err != nil {
+		return b.err
 	}
-	if _, ok := _c.mutation.CreatedAt(); !ok {
-		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "Role.created_at"`)}
+
+	switch b.driver.Dialect() {
+	case dialect.Postgres, dialect.SQLite:
+		if _, present := b.present[role.FieldName]; b.fromBuilder && !present {
+			return &ValidationError{Name: "name", err: errors.New(`ent: missing required field "Role.name"`)}
+		}
 	}
+
+	if b.mutation.insert.CreatedAt.IsNull() {
+		return &ValidationError{Name: "created_at", err: errors.New(`ent: field "Role.created_at" is not nullable`)}
+	}
+
 	return nil
 }
 
@@ -123,35 +161,44 @@ func (_c *RoleCreate) sqlSave(ctx context.Context) (*Role, error) {
 	if err := _c.check(); err != nil {
 		return nil, err
 	}
-	_node, _spec := _c.createSpec()
-	if err := sqlgraph.CreateNode(ctx, _c.driver, _spec); err != nil {
+	node, spec, err := _c.createSpec()
+	if err != nil {
+		return nil, err
+	}
+	if err := sqlgraph.CreateNode(ctx, _c.driver, spec); err != nil {
 		if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
 		return nil, err
 	}
-	id := _spec.ID.Value.(int64)
-	_node.ID = int(id)
-	_c.mutation.id = &_node.ID
-	_c.mutation.done = true
-	return _node, nil
+	_c.mutation.id = &node.ID
+	return node, nil
 }
 
-func (_c *RoleCreate) createSpec() (*Role, *sqlgraph.CreateSpec) {
-	var (
-		_node = &Role{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(role.Table, sqlgraph.NewFieldSpec(role.FieldID, field.TypeInt))
-	)
+func (_c *RoleCreate) createSpec() (*Role, *sqlgraph.CreateSpec, error) {
+	_node := &Role{config: _c.config}
+	_spec := sqlgraph.NewCreateSpec(role.Table, sqlgraph.NewFieldSpec(role.FieldID, field.TypeInt))
+
 	_spec.OnConflict = _c.conflict
-	if value, ok := _c.mutation.Name(); ok {
+
+	if _, present := _c.present[role.FieldName]; !_c.fromBuilder || present {
+		value := _c.mutation.insert.Name
 		_spec.SetField(role.FieldName, field.TypeString, value)
-		_node.Name = value
 	}
-	if value, ok := _c.mutation.CreatedAt(); ok {
+
+	if value, ok := _c.mutation.insert.CreatedAt.Get(); ok {
 		_spec.SetField(role.FieldCreatedAt, field.TypeTime, value)
-		_node.CreatedAt = value
 	}
-	if nodes := _c.mutation.UserIDs(); len(nodes) > 0 {
+	if _c.mutation.insert.CreatedAt.IsNull() {
+		_spec.SetField(role.FieldCreatedAt, field.TypeTime, nil)
+	}
+
+	_spec.Expressions = _c.mutation.insert.expressions
+
+	if nodes := _c.mutation.insert.userIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: true,
@@ -162,184 +209,151 @@ func (_c *RoleCreate) createSpec() (*Role, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		createE := &RoleUserCreate{config: _c.config, mutation: newRoleUserMutation(_c.config, OpCreate)}
-		createE.defaults()
-		_, specE := createE.createSpec()
+		if err := createE.defaults(); err != nil {
+			return nil, nil, err
+		}
+		_, specE, err := createE.createSpec()
+		if err != nil {
+			return nil, nil, err
+		}
 		edge.Target.Fields = specE.Fields
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	return _node, _spec
+
+	_spec.Returning = &sqlgraph.Returning{Columns: role.Columns, Scan: func(rows dialect.Rows) error {
+		values, err := _node.scanValues(role.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(role.Columns, values); err != nil {
+			return err
+		}
+
+		_spec.ID.Value = _node.ID
+
+		return nil
+	}}
+	return _node, _spec, nil
 }
 
-// OnConflict allows configuring the `ON CONFLICT` clause of the `INSERT`
-// statement. For example:
-//
-//	client.Role.Create().
-//		SetName(v).
-//		OnConflict(
-//			// Update the row with the new values
-//			// the was proposed for insertion.
-//			sql.ResolveWithNewValues(),
-//		).
-//		// Override some of the fields with custom
-//		// update values.
-//		Update(func(u *ent.RoleUpsert) {
-//			SetName(v+v).
-//		}).
-//		Exec(ctx)
-func (_c *RoleCreate) OnConflict(opts ...sql.ConflictOption) *RoleUpsertOne {
-	_c.conflict = opts
-	return &RoleUpsertOne{
-		create: _c,
+type RoleUpsertOne struct{ create *RoleCreate }
+
+func (b *RoleCreate) OnConflict(columns ...ent.EntityColumn[entity.Role]) *RoleUpsertOne {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
 	}
-}
-
-// OnConflictColumns calls `OnConflict` and configures the columns
-// as conflict target. Using this option is equivalent to using:
-//
-//	client.Role.Create().
-//		OnConflict(sql.ConflictColumns(columns...)).
-//		Exec(ctx)
-func (_c *RoleCreate) OnConflictColumns(columns ...string) *RoleUpsertOne {
-	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
-	return &RoleUpsertOne{
-		create: _c,
+	if len(names) == 0 {
+		return b.OnConflictOptions()
 	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
 }
 
-type (
-	// RoleUpsertOne is the builder for "upsert"-ing
-	//  one Role node.
-	RoleUpsertOne struct {
-		create *RoleCreate
-	}
-
-	// RoleUpsert is the "OnConflict" setter.
-	RoleUpsert struct {
-		*sql.UpdateSet
-	}
-)
-
-// SetName sets the "name" field.
-func (u *RoleUpsert) SetName(v string) *RoleUpsert {
-	u.Set(role.FieldName, v)
-	return u
+func (b *RoleCreate) OnConflictConstraint(name string) *RoleUpsertOne {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
 }
 
-// UpdateName sets the "name" field to the value that was provided on create.
-func (u *RoleUpsert) UpdateName() *RoleUpsert {
-	u.SetExcluded(role.FieldName)
-	return u
+func (b *RoleCreate) OnConflictOptions(options ...sql.ConflictOption) *RoleUpsertOne {
+	b.conflict = options
+	return &RoleUpsertOne{create: b}
 }
 
-// SetCreatedAt sets the "created_at" field.
-func (u *RoleUpsert) SetCreatedAt(v time.Time) *RoleUpsert {
-	u.Set(role.FieldCreatedAt, v)
-	return u
-}
-
-// UpdateCreatedAt sets the "created_at" field to the value that was provided on create.
-func (u *RoleUpsert) UpdateCreatedAt() *RoleUpsert {
-	u.SetExcluded(role.FieldCreatedAt)
-	return u
-}
-
-// UpdateNewValues updates the mutable fields using the new values that were set on create.
-// Using this option is equivalent to using:
-//
-//	client.Role.Create().
-//		OnConflict(
-//			sql.ResolveWithNewValues(),
-//		).
-//		Exec(ctx)
-func (u *RoleUpsertOne) UpdateNewValues() *RoleUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
-	return u
-}
-
-// Ignore sets each column to itself in case of conflict.
-// Using this option is equivalent to using:
-//
-//	client.Role.Create().
-//	    OnConflict(sql.ResolveWithIgnore()).
-//	    Exec(ctx)
-func (u *RoleUpsertOne) Ignore() *RoleUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
-	return u
-}
-
-// DoNothing configures the conflict_action to `DO NOTHING`.
-// Supported only by SQLite and PostgreSQL.
 func (u *RoleUpsertOne) DoNothing() *RoleUpsertOne {
 	u.create.conflict = append(u.create.conflict, sql.DoNothing())
 	return u
 }
 
-// Update allows overriding fields `UPDATE` values. See the RoleCreate.OnConflict
-// documentation for more info.
-func (u *RoleUpsertOne) Update(set func(*RoleUpsert)) *RoleUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
-		set(&RoleUpsert{UpdateSet: update})
+func (u *RoleUpsertOne) DoSelect() *RoleUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *RoleUpsertOne) Ignore() *RoleUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *RoleUpsertOne) DoUpdate(set func(*RoleUpsert)) *RoleUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&RoleUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *RoleUpsertOne) UpdateNewValues() *RoleUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case role.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
 	}))
 	return u
 }
 
-// SetName sets the "name" field.
-func (u *RoleUpsertOne) SetName(v string) *RoleUpsertOne {
-	return u.Update(func(s *RoleUpsert) {
-		s.SetName(v)
-	})
+func (u *RoleUpsertOne) Where(predicates ...ent.Predicate[entity.Role]) *RoleUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(role.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// UpdateName sets the "name" field to the value that was provided on create.
-func (u *RoleUpsertOne) UpdateName() *RoleUpsertOne {
-	return u.Update(func(s *RoleUpsert) {
-		s.UpdateName()
-	})
+func (u *RoleUpsertOne) UpdateWhere(predicates ...ent.Predicate[entity.Role]) *RoleUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(role.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// SetCreatedAt sets the "created_at" field.
-func (u *RoleUpsertOne) SetCreatedAt(v time.Time) *RoleUpsertOne {
-	return u.Update(func(s *RoleUpsert) {
-		s.SetCreatedAt(v)
-	})
-}
-
-// UpdateCreatedAt sets the "created_at" field to the value that was provided on create.
-func (u *RoleUpsertOne) UpdateCreatedAt() *RoleUpsertOne {
-	return u.Update(func(s *RoleUpsert) {
-		s.UpdateCreatedAt()
-	})
-}
-
-// Exec executes the query.
-func (u *RoleUpsertOne) Exec(ctx context.Context) error {
+func (u *RoleUpsertOne) Save(ctx context.Context) (*Role, error) {
 	if len(u.create.conflict) == 0 {
-		return errors.New("ent: missing options for RoleCreate.OnConflict")
+		return nil, errors.New("ent: missing options for RoleCreate.OnConflict")
 	}
-	return u.create.Exec(ctx)
+	return u.create.Save(ctx)
 }
 
-// ExecX is like Exec, but panics if an error occurs.
+func (u *RoleUpsertOne) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
 func (u *RoleUpsertOne) ExecX(ctx context.Context) {
-	if err := u.create.Exec(ctx); err != nil {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// Exec executes the UPSERT query and returns the inserted/updated ID.
 func (u *RoleUpsertOne) ID(ctx context.Context) (id int, err error) {
-	node, err := u.create.Save(ctx)
+	node, err := u.Save(ctx)
 	if err != nil {
 		return id, err
 	}
 	return node.ID, nil
 }
 
-// IDX is like ID, but panics if an error occurs.
 func (u *RoleUpsertOne) IDX(ctx context.Context) int {
 	id, err := u.ID(ctx)
 	if err != nil {
@@ -348,224 +362,238 @@ func (u *RoleUpsertOne) IDX(ctx context.Context) int {
 	return id
 }
 
-// RoleCreateBulk is the builder for creating many Role entities in bulk.
+type RoleUpsert struct{ *sql.UpdateSet }
+
+func (u *RoleUpsert) Set[T any](column ent.ColumnOf[entity.Role, T], value T) *RoleUpsert {
+	switch column.Ref().Name {
+
+	case role.FieldName:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case role.FieldCreatedAt:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Role is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *RoleUpsert) SetExpr[T any](column ent.ColumnOf[entity.Role, T], value ent.Expr[T]) *RoleUpsert {
+	switch column.Ref().Name {
+
+	case role.FieldName:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case role.FieldCreatedAt:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Role is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *RoleUpsert) UpdateNewValue[T any](column ent.ColumnOf[entity.Role, T]) *RoleUpsert {
+	switch column.Ref().Name {
+
+	case role.FieldName:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case role.FieldCreatedAt:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Role is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *RoleUpsert) Add[T ent.Number](column ent.ColumnOf[entity.Role, T], delta T) *RoleUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Role does not support addition", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *RoleUpsert) Clear[T any](column ent.ColumnOf[entity.Role, T]) *RoleUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Role is not nullable", column.Ref().Name)})
+	}
+	return u
+}
+
 type RoleCreateBulk struct {
 	config
 	err      error
 	builders []*RoleCreate
+
 	conflict []sql.ConflictOption
 }
 
-// Save creates the Role entities in the database.
 func (_c *RoleCreateBulk) Save(ctx context.Context) ([]*Role, error) {
 	if _c.err != nil {
 		return nil, _c.err
 	}
-	specs := make([]*sqlgraph.CreateSpec, len(_c.builders))
 	nodes := make([]*Role, len(_c.builders))
-	mutators := make([]Mutator, len(_c.builders))
-	for i := range _c.builders {
-		func(i int, root context.Context) {
-			builder := _c.builders[i]
-			builder.defaults()
-			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*RoleMutation)
-				if !ok {
-					return nil, fmt.Errorf("unexpected mutation type %T", m)
-				}
-				if err := builder.check(); err != nil {
-					return nil, err
-				}
-				builder.mutation = mutation
-				var err error
-				nodes[i], specs[i] = builder.createSpec()
-				if i < len(mutators)-1 {
-					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
-				} else {
-					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
-					spec.OnConflict = _c.conflict
-					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
-						if sqlgraph.IsConstraintError(err) {
-							err = &ConstraintError{msg: err.Error(), wrap: err}
-						}
-					}
-				}
-				if err != nil {
-					return nil, err
-				}
-				mutation.id = &nodes[i].ID
-				if specs[i].ID.Value != nil {
-					id := specs[i].ID.Value.(int64)
-					nodes[i].ID = int(id)
-				}
-				mutation.done = true
-				return nodes[i], nil
-			})
-			for i := len(builder.hooks) - 1; i >= 0; i-- {
-				mut = builder.hooks[i](mut)
-			}
-			mutators[i] = mut
-		}(i, ctx)
-	}
-	if len(mutators) > 0 {
-		if _, err := mutators[0].Mutate(ctx, _c.builders[0].mutation); err != nil {
+	specs := make([]*sqlgraph.CreateSpec, len(nodes))
+	for index, builder := range _c.builders {
+		if builder.err != nil {
+			return nil, builder.err
+		}
+		if err := builder.defaults(); err != nil {
+			return nil, err
+		}
+		if err := builder.check(); err != nil {
+			return nil, err
+		}
+		var err error
+		nodes[index], specs[index], err = builder.createSpec()
+		if err != nil {
 			return nil, err
 		}
 	}
-	return nodes, nil
+	if len(specs) == 0 {
+		return nodes, nil
+	}
+	spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+
+	spec.OnConflict = _c.conflict
+
+	if err := sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
+		if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{msg: err.Error(), wrap: err}
+		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
+		return nil, err
+	}
+	result := nodes[:0]
+	for index, builder := range _c.builders {
+		if specs[index].Skipped {
+			continue
+		}
+		builder.mutation.id = &nodes[index].ID
+		result = append(result, nodes[index])
+	}
+	return result, nil
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_c *RoleCreateBulk) SaveX(ctx context.Context) []*Role {
-	v, err := _c.Save(ctx)
+func (b *RoleCreateBulk) SaveX(ctx context.Context) []*Role {
+	nodes, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return nodes
 }
 
-// Exec executes the query.
-func (_c *RoleCreateBulk) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *RoleCreateBulk) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *RoleCreateBulk) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *RoleCreateBulk) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// OnConflict allows configuring the `ON CONFLICT` clause of the `INSERT`
-// statement. For example:
-//
-//	client.Role.CreateBulk(builders...).
-//		OnConflict(
-//			// Update the row with the new values
-//			// the was proposed for insertion.
-//			sql.ResolveWithNewValues(),
-//		).
-//		// Override some of the fields with custom
-//		// update values.
-//		Update(func(u *ent.RoleUpsert) {
-//			SetName(v+v).
-//		}).
-//		Exec(ctx)
-func (_c *RoleCreateBulk) OnConflict(opts ...sql.ConflictOption) *RoleUpsertBulk {
-	_c.conflict = opts
-	return &RoleUpsertBulk{
-		create: _c,
+type RoleUpsertBulk struct{ create *RoleCreateBulk }
+
+func (b *RoleCreateBulk) OnConflict(columns ...ent.EntityColumn[entity.Role]) *RoleUpsertBulk {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
 	}
-}
-
-// OnConflictColumns calls `OnConflict` and configures the columns
-// as conflict target. Using this option is equivalent to using:
-//
-//	client.Role.Create().
-//		OnConflict(sql.ConflictColumns(columns...)).
-//		Exec(ctx)
-func (_c *RoleCreateBulk) OnConflictColumns(columns ...string) *RoleUpsertBulk {
-	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
-	return &RoleUpsertBulk{
-		create: _c,
+	if len(names) == 0 {
+		return b.OnConflictOptions()
 	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
 }
 
-// RoleUpsertBulk is the builder for "upsert"-ing
-// a bulk of Role nodes.
-type RoleUpsertBulk struct {
-	create *RoleCreateBulk
+func (b *RoleCreateBulk) OnConflictConstraint(name string) *RoleUpsertBulk {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
 }
 
-// UpdateNewValues updates the mutable fields using the new values that
-// were set on create. Using this option is equivalent to using:
-//
-//	client.Role.Create().
-//		OnConflict(
-//			sql.ResolveWithNewValues(),
-//		).
-//		Exec(ctx)
-func (u *RoleUpsertBulk) UpdateNewValues() *RoleUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
-	return u
+func (b *RoleCreateBulk) OnConflictOptions(options ...sql.ConflictOption) *RoleUpsertBulk {
+	b.conflict = options
+	return &RoleUpsertBulk{create: b}
 }
 
-// Ignore sets each column to itself in case of conflict.
-// Using this option is equivalent to using:
-//
-//	client.Role.Create().
-//		OnConflict(sql.ResolveWithIgnore()).
-//		Exec(ctx)
-func (u *RoleUpsertBulk) Ignore() *RoleUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
-	return u
-}
-
-// DoNothing configures the conflict_action to `DO NOTHING`.
-// Supported only by SQLite and PostgreSQL.
 func (u *RoleUpsertBulk) DoNothing() *RoleUpsertBulk {
 	u.create.conflict = append(u.create.conflict, sql.DoNothing())
 	return u
 }
 
-// Update allows overriding fields `UPDATE` values. See the RoleCreateBulk.OnConflict
-// documentation for more info.
-func (u *RoleUpsertBulk) Update(set func(*RoleUpsert)) *RoleUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
-		set(&RoleUpsert{UpdateSet: update})
+func (u *RoleUpsertBulk) DoSelect() *RoleUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *RoleUpsertBulk) Ignore() *RoleUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *RoleUpsertBulk) DoUpdate(set func(*RoleUpsert)) *RoleUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&RoleUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *RoleUpsertBulk) UpdateNewValues() *RoleUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case role.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
 	}))
 	return u
 }
 
-// SetName sets the "name" field.
-func (u *RoleUpsertBulk) SetName(v string) *RoleUpsertBulk {
-	return u.Update(func(s *RoleUpsert) {
-		s.SetName(v)
-	})
-}
-
-// UpdateName sets the "name" field to the value that was provided on create.
-func (u *RoleUpsertBulk) UpdateName() *RoleUpsertBulk {
-	return u.Update(func(s *RoleUpsert) {
-		s.UpdateName()
-	})
-}
-
-// SetCreatedAt sets the "created_at" field.
-func (u *RoleUpsertBulk) SetCreatedAt(v time.Time) *RoleUpsertBulk {
-	return u.Update(func(s *RoleUpsert) {
-		s.SetCreatedAt(v)
-	})
-}
-
-// UpdateCreatedAt sets the "created_at" field to the value that was provided on create.
-func (u *RoleUpsertBulk) UpdateCreatedAt() *RoleUpsertBulk {
-	return u.Update(func(s *RoleUpsert) {
-		s.UpdateCreatedAt()
-	})
-}
-
-// Exec executes the query.
-func (u *RoleUpsertBulk) Exec(ctx context.Context) error {
-	if u.create.err != nil {
-		return u.create.err
-	}
-	for i, b := range u.create.builders {
-		if len(b.conflict) != 0 {
-			return fmt.Errorf("ent: OnConflict was set for builder %d. Set it on the RoleCreateBulk instead", i)
+func (u *RoleUpsertBulk) Where(predicates ...ent.Predicate[entity.Role]) *RoleUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(role.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
 		}
-	}
-	if len(u.create.conflict) == 0 {
-		return errors.New("ent: missing options for RoleCreateBulk.OnConflict")
-	}
-	return u.create.Exec(ctx)
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// ExecX is like Exec, but panics if an error occurs.
+func (u *RoleUpsertBulk) UpdateWhere(predicates ...ent.Predicate[entity.Role]) *RoleUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(role.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *RoleUpsertBulk) Save(ctx context.Context) ([]*Role, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for RoleCreateBulk.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *RoleUpsertBulk) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
 func (u *RoleUpsertBulk) ExecX(ctx context.Context) {
-	if err := u.create.Exec(ctx); err != nil {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

@@ -6,8 +6,9 @@
 package file
 
 import (
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/entity"
 )
 
 const (
@@ -27,6 +28,41 @@ const (
 	// It exists in this package in order to avoid circular dependency with the "process" package.
 	ProcessesInverseTable = "processes"
 )
+
+var (
+	ID        = ent.OrderedColumn[entity.File, int]{Table: Table, Name: FieldID}
+	Name      = ent.StringColumn[entity.File, string]{Table: Table, Name: FieldName}
+	Processes = ent.NewRelation[entity.File, entity.Process, int](EdgeProcesses, newProcessesStep)
+)
+
+// Alias returns the columns of the files table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.File, int]{Table: name, Name: FieldID},
+		Name:       ent.StringColumn[entity.File, string]{Table: name, Name: FieldName},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.File, int]
+	Name       ent.StringColumn[entity.File, string]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.File]) ent.Predicate[entity.File] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.File]) ent.Predicate[entity.File] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.File]) ent.Predicate[entity.File] { return ent.Not(predicate) }
 
 // Columns holds all SQL columns for file fields.
 var Columns = []string{
@@ -50,32 +86,6 @@ func ValidColumn(column string) bool {
 	return false
 }
 
-// OrderOption defines the ordering options for the File queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByName orders the results by the name field.
-func ByName(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldName, opts...).ToFunc()
-}
-
-// ByProcessesCount orders the results by processes count.
-func ByProcessesCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newProcessesStep(), opts...)
-	}
-}
-
-// ByProcesses orders the results by processes terms.
-func ByProcesses(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newProcessesStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
 func newProcessesStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),

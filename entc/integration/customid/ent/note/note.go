@@ -6,9 +6,12 @@
 package note
 
 import (
-	"github.com/neko-sc/ent/dialect/sql"
+	"database/sql/driver"
+
+	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
-	"github.com/neko-sc/ent/entc/integration/customid/ent/schema"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
+	schema2 "github.com/neko-sc/ent/entc/integration/customid/ent/schema"
 )
 
 const (
@@ -33,6 +36,42 @@ const (
 	// ChildrenColumn is the table column denoting the children relation/edge.
 	ChildrenColumn = "note_children"
 )
+
+var (
+	ID       = ent.StringColumn[entity.Note, schema2.NoteID]{Table: Table, Name: FieldID, Valuer: func(value schema2.NoteID) (driver.Value, error) { return string(value), nil }}
+	Text     = ent.StringColumn[entity.Note, string]{Table: Table, Name: FieldText}
+	Parent   = ent.NewUniqueRelation[entity.Note, entity.Note, schema2.NoteID](EdgeParent, newParentStep)
+	Children = ent.NewRelation[entity.Note, entity.Note, schema2.NoteID](EdgeChildren, newChildrenStep)
+)
+
+// Alias returns the columns of the notes table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.StringColumn[entity.Note, schema2.NoteID]{Table: name, Name: FieldID, Valuer: func(value schema2.NoteID) (driver.Value, error) { return string(value), nil }},
+		Text:       ent.StringColumn[entity.Note, string]{Table: name, Name: FieldText},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.StringColumn[entity.Note, schema2.NoteID]
+	Text       ent.StringColumn[entity.Note, string]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.Note]) ent.Predicate[entity.Note] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.Note]) ent.Predicate[entity.Note] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.Note]) ent.Predicate[entity.Note] { return ent.Not(predicate) }
 
 // Columns holds all SQL columns for note fields.
 var Columns = []string{
@@ -63,44 +102,11 @@ func ValidColumn(column string) bool {
 
 var (
 	// DefaultID holds the default value on creation for the "id" field.
-	DefaultID func() schema.NoteID
+	DefaultID func() schema2.NoteID
 	// IDValidator is a validator for the "id" field. It is called by the builders before save.
-	IDValidator func(schema.NoteID) error
+	IDValidator func(schema2.NoteID) error
 )
 
-// OrderOption defines the ordering options for the Note queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByText orders the results by the text field.
-func ByText(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldText, opts...).ToFunc()
-}
-
-// ByParentField orders the results by parent field.
-func ByParentField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newParentStep(), sql.OrderByField(field, opts...))
-	}
-}
-
-// ByChildrenCount orders the results by children count.
-func ByChildrenCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newChildrenStep(), opts...)
-	}
-}
-
-// ByChildren orders the results by children terms.
-func ByChildren(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newChildrenStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
 func newParentStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),

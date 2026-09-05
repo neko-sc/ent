@@ -6,8 +6,9 @@
 package street
 
 import (
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/examples/edgeindex/ent/entity"
 )
 
 const (
@@ -29,6 +30,43 @@ const (
 	// CityColumn is the table column denoting the city relation/edge.
 	CityColumn = "city_streets"
 )
+
+var (
+	ID   = ent.OrderedColumn[entity.Street, int]{Table: Table, Name: FieldID}
+	Name = ent.StringColumn[entity.Street, string]{Table: Table, Name: FieldName}
+	City = ent.NewUniqueRelation[entity.Street, entity.City, int](EdgeCity, newCityStep)
+)
+
+// Alias returns the columns of the streets table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.Street, int]{Table: name, Name: FieldID},
+		Name:       ent.StringColumn[entity.Street, string]{Table: name, Name: FieldName},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.Street, int]
+	Name       ent.StringColumn[entity.Street, string]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.Street]) ent.Predicate[entity.Street] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.Street]) ent.Predicate[entity.Street] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.Street]) ent.Predicate[entity.Street] {
+	return ent.Not(predicate)
+}
 
 // Columns holds all SQL columns for street fields.
 var Columns = []string{
@@ -57,25 +95,6 @@ func ValidColumn(column string) bool {
 	return false
 }
 
-// OrderOption defines the ordering options for the Street queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByName orders the results by the name field.
-func ByName(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldName, opts...).ToFunc()
-}
-
-// ByCityField orders the results by city field.
-func ByCityField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newCityStep(), sql.OrderByField(field, opts...))
-	}
-}
 func newCityStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),

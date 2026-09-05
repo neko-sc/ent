@@ -7,73 +7,199 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
-	"github.com/neko-sc/ent/examples/rls/ent/predicate"
+	"github.com/neko-sc/ent/examples/rls/ent/entity"
 	"github.com/neko-sc/ent/examples/rls/ent/tenant"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// TenantUpdate is the builder for updating Tenant entities.
 type TenantUpdate struct {
 	config
-	hooks    []Hook
-	mutation *TenantMutation
+	mutation  *TenantMutation
+	err       error
+	returning *sqlgraph.Returning
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// Where appends a list predicates to the TenantUpdate builder.
-func (_u *TenantUpdate) Where(ps ...predicate.Tenant) *TenantUpdate {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// SetName sets the "name" field.
-func (_u *TenantUpdate) SetName(v string) *TenantUpdate {
-	_u.mutation.SetName(v)
-	return _u
-}
-
-// SetNillableName sets the "name" field if the given value is not nil.
-func (_u *TenantUpdate) SetNillableName(v *string) *TenantUpdate {
-	if v != nil {
-		_u.SetName(*v)
+func (b *TenantUpdate) Set[T any](column ent.ColumnOf[entity.Tenant, T], value T) *TenantUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
+
+	return b
+}
+func (b *TenantUpdate) SetOptional[T any](column ent.ColumnOf[entity.Tenant, T], value ent.Option[T]) *TenantUpdate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *TenantUpdate) SetExpr[T any](column ent.ColumnOf[entity.Tenant, T], value ent.Expr[T]) *TenantUpdate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case tenant.FieldName:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Tenant is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *TenantUpdate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Tenant, N, K], id K) *TenantUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *TenantUpdate) AddIDs[N, K any](edge ent.Relation[entity.Tenant, N, K], ids ...K) *TenantUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *TenantUpdate) Mutation() *TenantMutation { return b.mutation }
+
+func (b *TenantUpdate) Patch() *TenantPatch               { return b.mutation.patch }
+func (b *TenantUpdate) Apply(p TenantPatch) *TenantUpdate { b.mutation.patch.apply(p); return b }
+func (b *TenantUpdate) Add[T ent.Number](column ent.ColumnOf[entity.Tenant, T], delta T) *TenantUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *TenantUpdate) Append[T any](column ent.ColumnOf[entity.Tenant, T], values T) *TenantUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *TenantUpdate) Clear[T any](column ent.ColumnOf[entity.Tenant, T]) *TenantUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *TenantUpdate) RemoveIDs[N, K any](edge ent.Relation[entity.Tenant, N, K], ids ...K) *TenantUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *TenantUpdate) ClearEdge[N, K any](edge ent.RelationOf[entity.Tenant, N, K]) *TenantUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// Mutation returns the TenantMutation object of the builder.
-func (_u *TenantUpdate) Mutation() *TenantMutation {
-	return _u.mutation
+func (b *TenantUpdate) Where(predicates ...ent.Predicate[entity.Tenant]) *TenantUpdate {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Save executes the query and returns the number of nodes affected by the update operation.
-func (_u *TenantUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
+func (b *TenantUpdate) Save(ctx context.Context) (int, error) {
+	if b.err != nil {
+		return 0, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return 0, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_u *TenantUpdate) SaveX(ctx context.Context) int {
-	affected, err := _u.Save(ctx)
+func (b *TenantUpdate) SaveX(ctx context.Context) int {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return affected
+	return result
 }
 
-// Exec executes the query.
-func (_u *TenantUpdate) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *TenantUpdate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *TenantUpdate) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *TenantUpdate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
+func (b *TenantUpdate) Returning(ctx context.Context) ([]*Tenant, error) {
+	nodes := make([]*Tenant, 0)
+	b.returning = &sqlgraph.Returning{Columns: tenant.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Tenant{config: b.config}
+		values, err := _node.scanValues(tenant.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(tenant.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Save(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
+}
+
+func (b *TenantUpdate) defaults() error {
+
+	return nil
+}
+
+func (b *TenantUpdate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.Name.IsNull() {
+		return &ValidationError{Name: "name", err: errors.New(`ent: field "Tenant.name" is not nullable`)}
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *TenantUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *TenantUpdate {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *TenantUpdate) sqlSave(ctx context.Context) (_node int, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(tenant.Table, tenant.Columns, sqlgraph.NewFieldSpec(tenant.FieldID, field.TypeInt))
 	if ps := _u.mutation.Predicates(); len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -82,9 +208,15 @@ func (_u *TenantUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.Name(); ok {
+	if value, ok := _u.mutation.patch.Name.Get(); ok {
 		_spec.SetField(tenant.FieldName, field.TypeString, value)
 	}
+	_spec.Returning = _u.returning
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{tenant.Label}
@@ -93,78 +225,195 @@ func (_u *TenantUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		return 0, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }
 
-// TenantUpdateOne is the builder for updating a single Tenant entity.
 type TenantUpdateOne struct {
 	config
-	fields   []string
-	hooks    []Hook
 	mutation *TenantMutation
+	err      error
+
+	fields []string
+	old    *Tenant
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// SetName sets the "name" field.
-func (_u *TenantUpdateOne) SetName(v string) *TenantUpdateOne {
-	_u.mutation.SetName(v)
-	return _u
-}
-
-// SetNillableName sets the "name" field if the given value is not nil.
-func (_u *TenantUpdateOne) SetNillableName(v *string) *TenantUpdateOne {
-	if v != nil {
-		_u.SetName(*v)
+func (b *TenantUpdateOne) Set[T any](column ent.ColumnOf[entity.Tenant, T], value T) *TenantUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
+
+	return b
+}
+func (b *TenantUpdateOne) SetOptional[T any](column ent.ColumnOf[entity.Tenant, T], value ent.Option[T]) *TenantUpdateOne {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *TenantUpdateOne) SetExpr[T any](column ent.ColumnOf[entity.Tenant, T], value ent.Expr[T]) *TenantUpdateOne {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case tenant.FieldName:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Tenant is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *TenantUpdateOne) SetEdge[N, K any](edge ent.UniqueRelation[entity.Tenant, N, K], id K) *TenantUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *TenantUpdateOne) AddIDs[N, K any](edge ent.Relation[entity.Tenant, N, K], ids ...K) *TenantUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *TenantUpdateOne) Mutation() *TenantMutation { return b.mutation }
+
+func (b *TenantUpdateOne) Patch() *TenantPatch                  { return b.mutation.patch }
+func (b *TenantUpdateOne) Apply(p TenantPatch) *TenantUpdateOne { b.mutation.patch.apply(p); return b }
+func (b *TenantUpdateOne) Add[T ent.Number](column ent.ColumnOf[entity.Tenant, T], delta T) *TenantUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *TenantUpdateOne) Append[T any](column ent.ColumnOf[entity.Tenant, T], values T) *TenantUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *TenantUpdateOne) Clear[T any](column ent.ColumnOf[entity.Tenant, T]) *TenantUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *TenantUpdateOne) RemoveIDs[N, K any](edge ent.Relation[entity.Tenant, N, K], ids ...K) *TenantUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *TenantUpdateOne) ClearEdge[N, K any](edge ent.RelationOf[entity.Tenant, N, K]) *TenantUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// Mutation returns the TenantMutation object of the builder.
-func (_u *TenantUpdateOne) Mutation() *TenantMutation {
-	return _u.mutation
+func (b *TenantUpdateOne) Where(predicates ...ent.Predicate[entity.Tenant]) *TenantUpdateOne {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Where appends a list predicates to the TenantUpdate builder.
-func (_u *TenantUpdateOne) Where(ps ...predicate.Tenant) *TenantUpdateOne {
-	_u.mutation.Where(ps...)
-	return _u
+func (b *TenantUpdateOne) Save(ctx context.Context) (*Tenant, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Select allows selecting one or more fields (columns) of the returned entity.
-// The default is selecting all fields defined in the entity schema.
-func (_u *TenantUpdateOne) Select(field string, fields ...string) *TenantUpdateOne {
-	_u.fields = append([]string{field}, fields...)
-	return _u
-}
-
-// Save executes the query and returns the updated Tenant entity.
-func (_u *TenantUpdateOne) Save(ctx context.Context) (*Tenant, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *TenantUpdateOne) SaveX(ctx context.Context) *Tenant {
-	node, err := _u.Save(ctx)
+func (b *TenantUpdateOne) SaveX(ctx context.Context) *Tenant {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return node
+	return result
 }
 
-// Exec executes the query on the entity.
-func (_u *TenantUpdateOne) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *TenantUpdateOne) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *TenantUpdateOne) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *TenantUpdateOne) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
+func (b *TenantUpdateOne) Select(columns ...ent.EntityColumn[entity.Tenant]) *TenantUpdateOne {
+	if len(columns) == 0 {
+		panic("ent: Select requires at least one column")
+	}
+	b.fields = make([]string, len(columns))
+	for index, column := range columns {
+		b.fields[index] = column.Ref().Name
+	}
+	return b
+}
+
+func (b *TenantUpdateOne) SaveOld(ctx context.Context) (old *Tenant, updated *Tenant, err error) {
+	if !b.driver.Capabilities().ReturningOld {
+		return nil, nil, &dialect.UnsupportedError{Feature: "RETURNING OLD", Dialect: dialect.Dialect(b.driver.Dialect())}
+	}
+	b.old = &Tenant{config: b.config}
+	defer func() { b.old = nil }()
+	updated, err = b.Save(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return b.old, updated, nil
+}
+
+func (b *TenantUpdateOne) defaults() error {
+
+	return nil
+}
+
+func (b *TenantUpdateOne) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.Name.IsNull() {
+		return &ValidationError{Name: "name", err: errors.New(`ent: field "Tenant.name" is not nullable`)}
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *TenantUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *TenantUpdateOne {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *TenantUpdateOne) sqlSave(ctx context.Context) (_node *Tenant, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(tenant.Table, tenant.Columns, sqlgraph.NewFieldSpec(tenant.FieldID, field.TypeInt))
 	id, ok := _u.mutation.ID()
 	if !ok {
@@ -190,12 +439,21 @@ func (_u *TenantUpdateOne) sqlSave(ctx context.Context) (_node *Tenant, err erro
 			}
 		}
 	}
-	if value, ok := _u.mutation.Name(); ok {
+	if value, ok := _u.mutation.patch.Name.Get(); ok {
 		_spec.SetField(tenant.FieldName, field.TypeString, value)
 	}
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	_node = &Tenant{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
+	if _u.old != nil {
+		_spec.OldScanValues = _u.old.scanValues
+		_spec.OldAssign = _u.old.assignValues
+	}
 	if err = sqlgraph.UpdateNode(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{tenant.Label}
@@ -204,6 +462,5 @@ func (_u *TenantUpdateOne) sqlSave(ctx context.Context) (_node *Tenant, err erro
 		}
 		return nil, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }

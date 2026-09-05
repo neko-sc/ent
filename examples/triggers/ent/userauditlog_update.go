@@ -7,127 +7,212 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
-	"github.com/neko-sc/ent/examples/triggers/ent/predicate"
+	"github.com/neko-sc/ent/examples/triggers/ent/entity"
 	"github.com/neko-sc/ent/examples/triggers/ent/userauditlog"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// UserAuditLogUpdate is the builder for updating UserAuditLog entities.
 type UserAuditLogUpdate struct {
 	config
-	hooks    []Hook
-	mutation *UserAuditLogMutation
+	mutation  *UserAuditLogMutation
+	err       error
+	returning *sqlgraph.Returning
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// Where appends a list predicates to the UserAuditLogUpdate builder.
-func (_u *UserAuditLogUpdate) Where(ps ...predicate.UserAuditLog) *UserAuditLogUpdate {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// SetOperationType sets the "operation_type" field.
-func (_u *UserAuditLogUpdate) SetOperationType(v string) *UserAuditLogUpdate {
-	_u.mutation.SetOperationType(v)
-	return _u
-}
-
-// SetNillableOperationType sets the "operation_type" field if the given value is not nil.
-func (_u *UserAuditLogUpdate) SetNillableOperationType(v *string) *UserAuditLogUpdate {
-	if v != nil {
-		_u.SetOperationType(*v)
+func (b *UserAuditLogUpdate) Set[T any](column ent.ColumnOf[entity.UserAuditLog, T], value T) *UserAuditLogUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// SetOperationTime sets the "operation_time" field.
-func (_u *UserAuditLogUpdate) SetOperationTime(v string) *UserAuditLogUpdate {
-	_u.mutation.SetOperationTime(v)
-	return _u
+	return b
 }
-
-// SetNillableOperationTime sets the "operation_time" field if the given value is not nil.
-func (_u *UserAuditLogUpdate) SetNillableOperationTime(v *string) *UserAuditLogUpdate {
-	if v != nil {
-		_u.SetOperationTime(*v)
+func (b *UserAuditLogUpdate) SetOptional[T any](column ent.ColumnOf[entity.UserAuditLog, T], value ent.Option[T]) *UserAuditLogUpdate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u
-}
-
-// SetOldValue sets the "old_value" field.
-func (_u *UserAuditLogUpdate) SetOldValue(v string) *UserAuditLogUpdate {
-	_u.mutation.SetOldValue(v)
-	return _u
-}
-
-// SetNillableOldValue sets the "old_value" field if the given value is not nil.
-func (_u *UserAuditLogUpdate) SetNillableOldValue(v *string) *UserAuditLogUpdate {
-	if v != nil {
-		_u.SetOldValue(*v)
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
 	}
-	return _u
+	return b
 }
-
-// ClearOldValue clears the value of the "old_value" field.
-func (_u *UserAuditLogUpdate) ClearOldValue() *UserAuditLogUpdate {
-	_u.mutation.ClearOldValue()
-	return _u
-}
-
-// SetNewValue sets the "new_value" field.
-func (_u *UserAuditLogUpdate) SetNewValue(v string) *UserAuditLogUpdate {
-	_u.mutation.SetNewValue(v)
-	return _u
-}
-
-// SetNillableNewValue sets the "new_value" field if the given value is not nil.
-func (_u *UserAuditLogUpdate) SetNillableNewValue(v *string) *UserAuditLogUpdate {
-	if v != nil {
-		_u.SetNewValue(*v)
+func (b *UserAuditLogUpdate) SetExpr[T any](column ent.ColumnOf[entity.UserAuditLog, T], value ent.Expr[T]) *UserAuditLogUpdate {
+	if b.err != nil {
+		return b
 	}
-	return _u
+	switch column.Ref().Name {
+
+	case userauditlog.FieldOperationType:
+
+	case userauditlog.FieldOperationTime:
+
+	case userauditlog.FieldOldValue:
+
+	case userauditlog.FieldNewValue:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of UserAuditLog is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *UserAuditLogUpdate) SetEdge[N, K any](edge ent.UniqueRelation[entity.UserAuditLog, N, K], id K) *UserAuditLogUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *UserAuditLogUpdate) AddIDs[N, K any](edge ent.Relation[entity.UserAuditLog, N, K], ids ...K) *UserAuditLogUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *UserAuditLogUpdate) Mutation() *UserAuditLogMutation { return b.mutation }
+
+func (b *UserAuditLogUpdate) Patch() *UserAuditLogPatch { return b.mutation.patch }
+func (b *UserAuditLogUpdate) Apply(p UserAuditLogPatch) *UserAuditLogUpdate {
+	b.mutation.patch.apply(p)
+	return b
+}
+func (b *UserAuditLogUpdate) Add[T ent.Number](column ent.ColumnOf[entity.UserAuditLog, T], delta T) *UserAuditLogUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *UserAuditLogUpdate) Append[T any](column ent.ColumnOf[entity.UserAuditLog, T], values T) *UserAuditLogUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *UserAuditLogUpdate) Clear[T any](column ent.ColumnOf[entity.UserAuditLog, T]) *UserAuditLogUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *UserAuditLogUpdate) RemoveIDs[N, K any](edge ent.Relation[entity.UserAuditLog, N, K], ids ...K) *UserAuditLogUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *UserAuditLogUpdate) ClearEdge[N, K any](edge ent.RelationOf[entity.UserAuditLog, N, K]) *UserAuditLogUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// ClearNewValue clears the value of the "new_value" field.
-func (_u *UserAuditLogUpdate) ClearNewValue() *UserAuditLogUpdate {
-	_u.mutation.ClearNewValue()
-	return _u
+func (b *UserAuditLogUpdate) Where(predicates ...ent.Predicate[entity.UserAuditLog]) *UserAuditLogUpdate {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Mutation returns the UserAuditLogMutation object of the builder.
-func (_u *UserAuditLogUpdate) Mutation() *UserAuditLogMutation {
-	return _u.mutation
+func (b *UserAuditLogUpdate) Save(ctx context.Context) (int, error) {
+	if b.err != nil {
+		return 0, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return 0, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Save executes the query and returns the number of nodes affected by the update operation.
-func (_u *UserAuditLogUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *UserAuditLogUpdate) SaveX(ctx context.Context) int {
-	affected, err := _u.Save(ctx)
+func (b *UserAuditLogUpdate) SaveX(ctx context.Context) int {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return affected
+	return result
 }
 
-// Exec executes the query.
-func (_u *UserAuditLogUpdate) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *UserAuditLogUpdate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *UserAuditLogUpdate) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *UserAuditLogUpdate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
+func (b *UserAuditLogUpdate) Returning(ctx context.Context) ([]*UserAuditLog, error) {
+	nodes := make([]*UserAuditLog, 0)
+	b.returning = &sqlgraph.Returning{Columns: userauditlog.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &UserAuditLog{config: b.config}
+		values, err := _node.scanValues(userauditlog.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(userauditlog.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Save(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
+}
+
+func (b *UserAuditLogUpdate) defaults() error {
+
+	return nil
+}
+
+func (b *UserAuditLogUpdate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.OperationType.IsNull() {
+		return &ValidationError{Name: "operation_type", err: errors.New(`ent: field "UserAuditLog.operation_type" is not nullable`)}
+	}
+
+	if b.mutation.patch.OperationTime.IsNull() {
+		return &ValidationError{Name: "operation_time", err: errors.New(`ent: field "UserAuditLog.operation_time" is not nullable`)}
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *UserAuditLogUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *UserAuditLogUpdate {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *UserAuditLogUpdate) sqlSave(ctx context.Context) (_node int, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(userauditlog.Table, userauditlog.Columns, sqlgraph.NewFieldSpec(userauditlog.FieldID, field.TypeInt))
 	if ps := _u.mutation.Predicates(); len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -136,24 +221,30 @@ func (_u *UserAuditLogUpdate) sqlSave(ctx context.Context) (_node int, err error
 			}
 		}
 	}
-	if value, ok := _u.mutation.OperationType(); ok {
+	if value, ok := _u.mutation.patch.OperationType.Get(); ok {
 		_spec.SetField(userauditlog.FieldOperationType, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.OperationTime(); ok {
+	if value, ok := _u.mutation.patch.OperationTime.Get(); ok {
 		_spec.SetField(userauditlog.FieldOperationTime, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.OldValue(); ok {
+	if value, ok := _u.mutation.patch.OldValue.Get(); ok {
 		_spec.SetField(userauditlog.FieldOldValue, field.TypeString, value)
 	}
-	if _u.mutation.OldValueCleared() {
+	if _u.mutation.patch.OldValue.IsNull() {
 		_spec.ClearField(userauditlog.FieldOldValue, field.TypeString)
 	}
-	if value, ok := _u.mutation.NewValue(); ok {
+	if value, ok := _u.mutation.patch.NewValue.Get(); ok {
 		_spec.SetField(userauditlog.FieldNewValue, field.TypeString, value)
 	}
-	if _u.mutation.NewValueCleared() {
+	if _u.mutation.patch.NewValue.IsNull() {
 		_spec.ClearField(userauditlog.FieldNewValue, field.TypeString)
 	}
+	_spec.Returning = _u.returning
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{userauditlog.Label}
@@ -162,132 +253,208 @@ func (_u *UserAuditLogUpdate) sqlSave(ctx context.Context) (_node int, err error
 		}
 		return 0, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }
 
-// UserAuditLogUpdateOne is the builder for updating a single UserAuditLog entity.
 type UserAuditLogUpdateOne struct {
 	config
-	fields   []string
-	hooks    []Hook
 	mutation *UserAuditLogMutation
+	err      error
+
+	fields []string
+	old    *UserAuditLog
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// SetOperationType sets the "operation_type" field.
-func (_u *UserAuditLogUpdateOne) SetOperationType(v string) *UserAuditLogUpdateOne {
-	_u.mutation.SetOperationType(v)
-	return _u
-}
-
-// SetNillableOperationType sets the "operation_type" field if the given value is not nil.
-func (_u *UserAuditLogUpdateOne) SetNillableOperationType(v *string) *UserAuditLogUpdateOne {
-	if v != nil {
-		_u.SetOperationType(*v)
+func (b *UserAuditLogUpdateOne) Set[T any](column ent.ColumnOf[entity.UserAuditLog, T], value T) *UserAuditLogUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// SetOperationTime sets the "operation_time" field.
-func (_u *UserAuditLogUpdateOne) SetOperationTime(v string) *UserAuditLogUpdateOne {
-	_u.mutation.SetOperationTime(v)
-	return _u
+	return b
 }
-
-// SetNillableOperationTime sets the "operation_time" field if the given value is not nil.
-func (_u *UserAuditLogUpdateOne) SetNillableOperationTime(v *string) *UserAuditLogUpdateOne {
-	if v != nil {
-		_u.SetOperationTime(*v)
+func (b *UserAuditLogUpdateOne) SetOptional[T any](column ent.ColumnOf[entity.UserAuditLog, T], value ent.Option[T]) *UserAuditLogUpdateOne {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u
-}
-
-// SetOldValue sets the "old_value" field.
-func (_u *UserAuditLogUpdateOne) SetOldValue(v string) *UserAuditLogUpdateOne {
-	_u.mutation.SetOldValue(v)
-	return _u
-}
-
-// SetNillableOldValue sets the "old_value" field if the given value is not nil.
-func (_u *UserAuditLogUpdateOne) SetNillableOldValue(v *string) *UserAuditLogUpdateOne {
-	if v != nil {
-		_u.SetOldValue(*v)
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
 	}
-	return _u
+	return b
 }
-
-// ClearOldValue clears the value of the "old_value" field.
-func (_u *UserAuditLogUpdateOne) ClearOldValue() *UserAuditLogUpdateOne {
-	_u.mutation.ClearOldValue()
-	return _u
-}
-
-// SetNewValue sets the "new_value" field.
-func (_u *UserAuditLogUpdateOne) SetNewValue(v string) *UserAuditLogUpdateOne {
-	_u.mutation.SetNewValue(v)
-	return _u
-}
-
-// SetNillableNewValue sets the "new_value" field if the given value is not nil.
-func (_u *UserAuditLogUpdateOne) SetNillableNewValue(v *string) *UserAuditLogUpdateOne {
-	if v != nil {
-		_u.SetNewValue(*v)
+func (b *UserAuditLogUpdateOne) SetExpr[T any](column ent.ColumnOf[entity.UserAuditLog, T], value ent.Expr[T]) *UserAuditLogUpdateOne {
+	if b.err != nil {
+		return b
 	}
-	return _u
+	switch column.Ref().Name {
+
+	case userauditlog.FieldOperationType:
+
+	case userauditlog.FieldOperationTime:
+
+	case userauditlog.FieldOldValue:
+
+	case userauditlog.FieldNewValue:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of UserAuditLog is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *UserAuditLogUpdateOne) SetEdge[N, K any](edge ent.UniqueRelation[entity.UserAuditLog, N, K], id K) *UserAuditLogUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *UserAuditLogUpdateOne) AddIDs[N, K any](edge ent.Relation[entity.UserAuditLog, N, K], ids ...K) *UserAuditLogUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *UserAuditLogUpdateOne) Mutation() *UserAuditLogMutation { return b.mutation }
+
+func (b *UserAuditLogUpdateOne) Patch() *UserAuditLogPatch { return b.mutation.patch }
+func (b *UserAuditLogUpdateOne) Apply(p UserAuditLogPatch) *UserAuditLogUpdateOne {
+	b.mutation.patch.apply(p)
+	return b
+}
+func (b *UserAuditLogUpdateOne) Add[T ent.Number](column ent.ColumnOf[entity.UserAuditLog, T], delta T) *UserAuditLogUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *UserAuditLogUpdateOne) Append[T any](column ent.ColumnOf[entity.UserAuditLog, T], values T) *UserAuditLogUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *UserAuditLogUpdateOne) Clear[T any](column ent.ColumnOf[entity.UserAuditLog, T]) *UserAuditLogUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *UserAuditLogUpdateOne) RemoveIDs[N, K any](edge ent.Relation[entity.UserAuditLog, N, K], ids ...K) *UserAuditLogUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *UserAuditLogUpdateOne) ClearEdge[N, K any](edge ent.RelationOf[entity.UserAuditLog, N, K]) *UserAuditLogUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// ClearNewValue clears the value of the "new_value" field.
-func (_u *UserAuditLogUpdateOne) ClearNewValue() *UserAuditLogUpdateOne {
-	_u.mutation.ClearNewValue()
-	return _u
+func (b *UserAuditLogUpdateOne) Where(predicates ...ent.Predicate[entity.UserAuditLog]) *UserAuditLogUpdateOne {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Mutation returns the UserAuditLogMutation object of the builder.
-func (_u *UserAuditLogUpdateOne) Mutation() *UserAuditLogMutation {
-	return _u.mutation
+func (b *UserAuditLogUpdateOne) Save(ctx context.Context) (*UserAuditLog, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Where appends a list predicates to the UserAuditLogUpdate builder.
-func (_u *UserAuditLogUpdateOne) Where(ps ...predicate.UserAuditLog) *UserAuditLogUpdateOne {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// Select allows selecting one or more fields (columns) of the returned entity.
-// The default is selecting all fields defined in the entity schema.
-func (_u *UserAuditLogUpdateOne) Select(field string, fields ...string) *UserAuditLogUpdateOne {
-	_u.fields = append([]string{field}, fields...)
-	return _u
-}
-
-// Save executes the query and returns the updated UserAuditLog entity.
-func (_u *UserAuditLogUpdateOne) Save(ctx context.Context) (*UserAuditLog, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *UserAuditLogUpdateOne) SaveX(ctx context.Context) *UserAuditLog {
-	node, err := _u.Save(ctx)
+func (b *UserAuditLogUpdateOne) SaveX(ctx context.Context) *UserAuditLog {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return node
+	return result
 }
 
-// Exec executes the query on the entity.
-func (_u *UserAuditLogUpdateOne) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *UserAuditLogUpdateOne) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *UserAuditLogUpdateOne) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *UserAuditLogUpdateOne) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
+func (b *UserAuditLogUpdateOne) Select(columns ...ent.EntityColumn[entity.UserAuditLog]) *UserAuditLogUpdateOne {
+	if len(columns) == 0 {
+		panic("ent: Select requires at least one column")
+	}
+	b.fields = make([]string, len(columns))
+	for index, column := range columns {
+		b.fields[index] = column.Ref().Name
+	}
+	return b
+}
+
+func (b *UserAuditLogUpdateOne) SaveOld(ctx context.Context) (old *UserAuditLog, updated *UserAuditLog, err error) {
+	if !b.driver.Capabilities().ReturningOld {
+		return nil, nil, &dialect.UnsupportedError{Feature: "RETURNING OLD", Dialect: dialect.Dialect(b.driver.Dialect())}
+	}
+	b.old = &UserAuditLog{config: b.config}
+	defer func() { b.old = nil }()
+	updated, err = b.Save(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return b.old, updated, nil
+}
+
+func (b *UserAuditLogUpdateOne) defaults() error {
+
+	return nil
+}
+
+func (b *UserAuditLogUpdateOne) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.OperationType.IsNull() {
+		return &ValidationError{Name: "operation_type", err: errors.New(`ent: field "UserAuditLog.operation_type" is not nullable`)}
+	}
+
+	if b.mutation.patch.OperationTime.IsNull() {
+		return &ValidationError{Name: "operation_time", err: errors.New(`ent: field "UserAuditLog.operation_time" is not nullable`)}
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *UserAuditLogUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *UserAuditLogUpdateOne {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *UserAuditLogUpdateOne) sqlSave(ctx context.Context) (_node *UserAuditLog, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(userauditlog.Table, userauditlog.Columns, sqlgraph.NewFieldSpec(userauditlog.FieldID, field.TypeInt))
 	id, ok := _u.mutation.ID()
 	if !ok {
@@ -313,27 +480,36 @@ func (_u *UserAuditLogUpdateOne) sqlSave(ctx context.Context) (_node *UserAuditL
 			}
 		}
 	}
-	if value, ok := _u.mutation.OperationType(); ok {
+	if value, ok := _u.mutation.patch.OperationType.Get(); ok {
 		_spec.SetField(userauditlog.FieldOperationType, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.OperationTime(); ok {
+	if value, ok := _u.mutation.patch.OperationTime.Get(); ok {
 		_spec.SetField(userauditlog.FieldOperationTime, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.OldValue(); ok {
+	if value, ok := _u.mutation.patch.OldValue.Get(); ok {
 		_spec.SetField(userauditlog.FieldOldValue, field.TypeString, value)
 	}
-	if _u.mutation.OldValueCleared() {
+	if _u.mutation.patch.OldValue.IsNull() {
 		_spec.ClearField(userauditlog.FieldOldValue, field.TypeString)
 	}
-	if value, ok := _u.mutation.NewValue(); ok {
+	if value, ok := _u.mutation.patch.NewValue.Get(); ok {
 		_spec.SetField(userauditlog.FieldNewValue, field.TypeString, value)
 	}
-	if _u.mutation.NewValueCleared() {
+	if _u.mutation.patch.NewValue.IsNull() {
 		_spec.ClearField(userauditlog.FieldNewValue, field.TypeString)
 	}
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	_node = &UserAuditLog{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
+	if _u.old != nil {
+		_spec.OldScanValues = _u.old.scanValues
+		_spec.OldAssign = _u.old.assignValues
+	}
 	if err = sqlgraph.UpdateNode(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{userauditlog.Label}
@@ -342,6 +518,5 @@ func (_u *UserAuditLogUpdateOne) sqlSave(ctx context.Context) (_node *UserAuditL
 		}
 		return nil, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }

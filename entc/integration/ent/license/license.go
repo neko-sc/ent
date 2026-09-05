@@ -6,9 +6,10 @@
 package license
 
 import (
-	"time"
+	time2 "time"
 
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/entc/integration/ent/entity"
 )
 
 const (
@@ -23,6 +24,45 @@ const (
 	// Table holds the table name of the license in the database.
 	Table = "licenses"
 )
+
+var (
+	ID         = ent.OrderedColumn[entity.License, int]{Table: Table, Name: FieldID}
+	CreateTime = ent.OrderedColumn[entity.License, time2.Time]{Table: Table, Name: FieldCreateTime}
+	UpdateTime = ent.OrderedColumn[entity.License, time2.Time]{Table: Table, Name: FieldUpdateTime}
+)
+
+// Alias returns the columns of the licenses table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.License, int]{Table: name, Name: FieldID},
+		CreateTime: ent.OrderedColumn[entity.License, time2.Time]{Table: name, Name: FieldCreateTime},
+		UpdateTime: ent.OrderedColumn[entity.License, time2.Time]{Table: name, Name: FieldUpdateTime},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.License, int]
+	CreateTime ent.OrderedColumn[entity.License, time2.Time]
+	UpdateTime ent.OrderedColumn[entity.License, time2.Time]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.License]) ent.Predicate[entity.License] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.License]) ent.Predicate[entity.License] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.License]) ent.Predicate[entity.License] {
+	return ent.Not(predicate)
+}
 
 // Columns holds all SQL columns for license fields.
 var Columns = []string{
@@ -43,29 +83,11 @@ func ValidColumn(column string) bool {
 
 var (
 	// DefaultCreateTime holds the default value on creation for the "create_time" field.
-	DefaultCreateTime func() time.Time
+	DefaultCreateTime func() time2.Time
 	// DefaultUpdateTime holds the default value on creation for the "update_time" field.
-	DefaultUpdateTime func() time.Time
+	DefaultUpdateTime func() time2.Time
 	// UpdateDefaultUpdateTime holds the default value on update for the "update_time" field.
-	UpdateDefaultUpdateTime func() time.Time
+	UpdateDefaultUpdateTime func() time2.Time
 )
-
-// OrderOption defines the ordering options for the License queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByCreateTime orders the results by the create_time field.
-func ByCreateTime(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldCreateTime, opts...).ToFunc()
-}
-
-// ByUpdateTime orders the results by the update_time field.
-func ByUpdateTime(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldUpdateTime, opts...).ToFunc()
-}
 
 // comment from another template.

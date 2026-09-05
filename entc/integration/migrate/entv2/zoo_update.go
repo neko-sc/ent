@@ -10,59 +10,189 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
-	"github.com/neko-sc/ent/entc/integration/migrate/entv2/predicate"
+	"github.com/neko-sc/ent/entc/integration/migrate/entv2/entity"
 	"github.com/neko-sc/ent/entc/integration/migrate/entv2/zoo"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// ZooUpdate is the builder for updating Zoo entities.
 type ZooUpdate struct {
 	config
-	hooks    []Hook
-	mutation *ZooMutation
+	mutation  *ZooMutation
+	err       error
+	returning *sqlgraph.Returning
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// Where appends a list predicates to the ZooUpdate builder.
-func (_u *ZooUpdate) Where(ps ...predicate.Zoo) *ZooUpdate {
-	_u.mutation.Where(ps...)
-	return _u
+func (b *ZooUpdate) Set[T any](column ent.ColumnOf[entity.Zoo, T], value T) *ZooUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
+	}
+
+	return b
+}
+func (b *ZooUpdate) SetOptional[T any](column ent.ColumnOf[entity.Zoo, T], value ent.Option[T]) *ZooUpdate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *ZooUpdate) SetExpr[T any](column ent.ColumnOf[entity.Zoo, T], value ent.Expr[T]) *ZooUpdate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Zoo is not settable", column.Ref().Name)}
+		return b
+	}
+
+}
+func (b *ZooUpdate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Zoo, N, K], id K) *ZooUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *ZooUpdate) AddIDs[N, K any](edge ent.Relation[entity.Zoo, N, K], ids ...K) *ZooUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *ZooUpdate) Mutation() *ZooMutation { return b.mutation }
+
+func (b *ZooUpdate) Patch() *ZooPatch            { return b.mutation.patch }
+func (b *ZooUpdate) Apply(p ZooPatch) *ZooUpdate { b.mutation.patch.apply(p); return b }
+func (b *ZooUpdate) Add[T ent.Number](column ent.ColumnOf[entity.Zoo, T], delta T) *ZooUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *ZooUpdate) Append[T any](column ent.ColumnOf[entity.Zoo, T], values T) *ZooUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *ZooUpdate) Clear[T any](column ent.ColumnOf[entity.Zoo, T]) *ZooUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *ZooUpdate) RemoveIDs[N, K any](edge ent.Relation[entity.Zoo, N, K], ids ...K) *ZooUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *ZooUpdate) ClearEdge[N, K any](edge ent.RelationOf[entity.Zoo, N, K]) *ZooUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// Mutation returns the ZooMutation object of the builder.
-func (_u *ZooUpdate) Mutation() *ZooMutation {
-	return _u.mutation
+func (b *ZooUpdate) Where(predicates ...ent.Predicate[entity.Zoo]) *ZooUpdate {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Save executes the query and returns the number of nodes affected by the update operation.
-func (_u *ZooUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
+func (b *ZooUpdate) Save(ctx context.Context) (int, error) {
+	if b.err != nil {
+		return 0, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return 0, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_u *ZooUpdate) SaveX(ctx context.Context) int {
-	affected, err := _u.Save(ctx)
+func (b *ZooUpdate) SaveX(ctx context.Context) int {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return affected
+	return result
 }
 
-// Exec executes the query.
-func (_u *ZooUpdate) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *ZooUpdate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *ZooUpdate) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *ZooUpdate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
+func (b *ZooUpdate) Returning(ctx context.Context) ([]*Zoo, error) {
+	nodes := make([]*Zoo, 0)
+	b.returning = &sqlgraph.Returning{Columns: zoo.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Zoo{config: b.config}
+		values, err := _node.scanValues(zoo.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(zoo.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Save(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
+}
+
+func (b *ZooUpdate) defaults() error {
+
+	return nil
+}
+
+func (b *ZooUpdate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *ZooUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *ZooUpdate {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *ZooUpdate) sqlSave(ctx context.Context) (_node int, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(zoo.Table, zoo.Columns, sqlgraph.NewFieldSpec(zoo.FieldID, field.TypeInt))
 	if ps := _u.mutation.Predicates(); len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -71,6 +201,12 @@ func (_u *ZooUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			}
 		}
 	}
+	_spec.Returning = _u.returning
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{zoo.Label}
@@ -79,64 +215,185 @@ func (_u *ZooUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		return 0, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }
 
-// ZooUpdateOne is the builder for updating a single Zoo entity.
 type ZooUpdateOne struct {
 	config
-	fields   []string
-	hooks    []Hook
 	mutation *ZooMutation
+	err      error
+
+	fields []string
+	old    *Zoo
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// Mutation returns the ZooMutation object of the builder.
-func (_u *ZooUpdateOne) Mutation() *ZooMutation {
-	return _u.mutation
+func (b *ZooUpdateOne) Set[T any](column ent.ColumnOf[entity.Zoo, T], value T) *ZooUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
+	}
+
+	return b
+}
+func (b *ZooUpdateOne) SetOptional[T any](column ent.ColumnOf[entity.Zoo, T], value ent.Option[T]) *ZooUpdateOne {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *ZooUpdateOne) SetExpr[T any](column ent.ColumnOf[entity.Zoo, T], value ent.Expr[T]) *ZooUpdateOne {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Zoo is not settable", column.Ref().Name)}
+		return b
+	}
+
+}
+func (b *ZooUpdateOne) SetEdge[N, K any](edge ent.UniqueRelation[entity.Zoo, N, K], id K) *ZooUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *ZooUpdateOne) AddIDs[N, K any](edge ent.Relation[entity.Zoo, N, K], ids ...K) *ZooUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *ZooUpdateOne) Mutation() *ZooMutation { return b.mutation }
+
+func (b *ZooUpdateOne) Patch() *ZooPatch               { return b.mutation.patch }
+func (b *ZooUpdateOne) Apply(p ZooPatch) *ZooUpdateOne { b.mutation.patch.apply(p); return b }
+func (b *ZooUpdateOne) Add[T ent.Number](column ent.ColumnOf[entity.Zoo, T], delta T) *ZooUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *ZooUpdateOne) Append[T any](column ent.ColumnOf[entity.Zoo, T], values T) *ZooUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *ZooUpdateOne) Clear[T any](column ent.ColumnOf[entity.Zoo, T]) *ZooUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *ZooUpdateOne) RemoveIDs[N, K any](edge ent.Relation[entity.Zoo, N, K], ids ...K) *ZooUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *ZooUpdateOne) ClearEdge[N, K any](edge ent.RelationOf[entity.Zoo, N, K]) *ZooUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// Where appends a list predicates to the ZooUpdate builder.
-func (_u *ZooUpdateOne) Where(ps ...predicate.Zoo) *ZooUpdateOne {
-	_u.mutation.Where(ps...)
-	return _u
+func (b *ZooUpdateOne) Where(predicates ...ent.Predicate[entity.Zoo]) *ZooUpdateOne {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Select allows selecting one or more fields (columns) of the returned entity.
-// The default is selecting all fields defined in the entity schema.
-func (_u *ZooUpdateOne) Select(field string, fields ...string) *ZooUpdateOne {
-	_u.fields = append([]string{field}, fields...)
-	return _u
+func (b *ZooUpdateOne) Save(ctx context.Context) (*Zoo, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Save executes the query and returns the updated Zoo entity.
-func (_u *ZooUpdateOne) Save(ctx context.Context) (*Zoo, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *ZooUpdateOne) SaveX(ctx context.Context) *Zoo {
-	node, err := _u.Save(ctx)
+func (b *ZooUpdateOne) SaveX(ctx context.Context) *Zoo {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return node
+	return result
 }
 
-// Exec executes the query on the entity.
-func (_u *ZooUpdateOne) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *ZooUpdateOne) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *ZooUpdateOne) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *ZooUpdateOne) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
+func (b *ZooUpdateOne) Select(columns ...ent.EntityColumn[entity.Zoo]) *ZooUpdateOne {
+	if len(columns) == 0 {
+		panic("ent: Select requires at least one column")
+	}
+	b.fields = make([]string, len(columns))
+	for index, column := range columns {
+		b.fields[index] = column.Ref().Name
+	}
+	return b
+}
+
+func (b *ZooUpdateOne) SaveOld(ctx context.Context) (old *Zoo, updated *Zoo, err error) {
+	if !b.driver.Capabilities().ReturningOld {
+		return nil, nil, &dialect.UnsupportedError{Feature: "RETURNING OLD", Dialect: dialect.Dialect(b.driver.Dialect())}
+	}
+	b.old = &Zoo{config: b.config}
+	defer func() { b.old = nil }()
+	updated, err = b.Save(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return b.old, updated, nil
+}
+
+func (b *ZooUpdateOne) defaults() error {
+
+	return nil
+}
+
+func (b *ZooUpdateOne) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *ZooUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *ZooUpdateOne {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *ZooUpdateOne) sqlSave(ctx context.Context) (_node *Zoo, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(zoo.Table, zoo.Columns, sqlgraph.NewFieldSpec(zoo.FieldID, field.TypeInt))
 	id, ok := _u.mutation.ID()
 	if !ok {
@@ -162,9 +419,18 @@ func (_u *ZooUpdateOne) sqlSave(ctx context.Context) (_node *Zoo, err error) {
 			}
 		}
 	}
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	_node = &Zoo{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
+	if _u.old != nil {
+		_spec.OldScanValues = _u.old.scanValues
+		_spec.OldAssign = _u.old.assignValues
+	}
 	if err = sqlgraph.UpdateNode(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{zoo.Label}
@@ -173,6 +439,5 @@ func (_u *ZooUpdateOne) sqlSave(ctx context.Context) (_node *Zoo, err error) {
 		}
 		return nil, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }

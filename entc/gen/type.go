@@ -17,7 +17,6 @@ import (
 	"unicode"
 
 	"github.com/neko-sc/atlas/sql/postgres"
-	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/entsql"
 	"github.com/neko-sc/ent/dialect/sql/schema"
@@ -54,8 +53,8 @@ type (
 		foreignKeys map[string]struct{}
 		// Annotations that were defined for the field in the schema.
 		// The mapping is from the Annotation.Name() to a JSON decoded object.
-		Annotations     Annotations
-		semanticImports []Import
+		Annotations      Annotations
+		semanticRenderer *TypeRenderer
 		// EdgeSchema indicates that this type (schema) is being used as an "edge schema".
 		// The To and From fields holds references to the edges that go "through" this type.
 		EdgeSchema struct {
@@ -327,6 +326,8 @@ func fieldLogicalType(typ field.Type) load.LogicalType {
 		return load.LogicalTypeBool
 	case field.TypeTime:
 		return load.LogicalTypeTime
+	case field.TypeArray:
+		return load.LogicalTypeArray
 	case field.TypeJSON:
 		return load.LogicalTypeJSON
 	case field.TypeUUID:
@@ -537,41 +538,6 @@ func (t Type) HasUpdateDefault() bool {
 	return false
 }
 
-// HasOptional reports if this type has an optional field.
-func (t Type) HasOptional() bool {
-	for _, f := range t.Fields {
-		if f.Optional {
-			return true
-		}
-	}
-	return false
-}
-
-// HasNumeric reports if this type has a numeric field.
-func (t Type) HasNumeric() bool {
-	for _, f := range t.Fields {
-		if f.Type.Numeric() {
-			return true
-		}
-	}
-	return false
-}
-
-// HasUpdateCheckers reports if this type has any checkers to run on update(one).
-func (t Type) HasUpdateCheckers() bool {
-	for _, f := range t.Fields {
-		if (f.Validators > 0 || f.IsEnum() || f.TypeValidator()) && !f.Immutable {
-			return true
-		}
-	}
-	for _, e := range t.Edges {
-		if e.Unique && !e.Optional {
-			return true
-		}
-	}
-	return false
-}
-
 // FKEdges returns all edges that reside on the type table as foreign-keys.
 func (t Type) FKEdges() (edges []*Edge) {
 	for _, e := range t.Edges {
@@ -594,9 +560,9 @@ func (t Type) EdgesWithID() (edges []*Edge) {
 }
 
 // RuntimeMixin returns schema mixin that needs to be loaded at
-// runtime. For example, for default values, validators or hooks.
+// runtime. For example, for default values or validators.
 func (t Type) RuntimeMixin() bool {
-	return len(t.MixedInFields()) > 0 || len(t.MixedInHooks()) > 0 || len(t.MixedInPolicies()) > 0 || len(t.MixedInInterceptors()) > 0
+	return len(t.MixedInFields()) > 0
 }
 
 // MixedInFields returns the indices of mixin holds runtime code.
@@ -612,75 +578,6 @@ func (t Type) MixedInFields() []int {
 		}
 	}
 	return sortedKeys(idx)
-}
-
-// MixedInHooks returns the indices of mixin with hooks.
-func (t Type) MixedInHooks() []int {
-	if t.schema == nil {
-		return nil
-	}
-	idx := make(map[int]struct{})
-	for _, h := range t.schema.Hooks {
-		if h.MixedIn {
-			idx[h.MixinIndex] = struct{}{}
-		}
-	}
-	return sortedKeys(idx)
-}
-
-// MixedInInterceptors returns the indices of mixin with interceptors.
-func (t Type) MixedInInterceptors() []int {
-	if t.schema == nil {
-		return nil
-	}
-	idx := make(map[int]struct{})
-	for _, h := range t.schema.Interceptors {
-		if h.MixedIn {
-			idx[h.MixinIndex] = struct{}{}
-		}
-	}
-	return sortedKeys(idx)
-}
-
-// MixedInPolicies returns the indices of mixin with policies.
-func (t Type) MixedInPolicies() []int {
-	if t.schema == nil {
-		return nil
-	}
-	idx := make(map[int]struct{})
-	for _, h := range t.schema.Policy {
-		if h.MixedIn {
-			idx[h.MixinIndex] = struct{}{}
-		}
-	}
-	return sortedKeys(idx)
-}
-
-// NumMixin returns the type's mixin count.
-func (t Type) NumMixin() int {
-	m := make(map[int]struct{})
-	for _, f := range t.Fields {
-		if p := f.Position; p != nil && p.MixedIn {
-			m[p.MixinIndex] = struct{}{}
-		}
-	}
-	return len(m)
-}
-
-// NumConstraint returns the type's constraint count. Used for slice allocation.
-func (t Type) NumConstraint() int {
-	var n int
-	for _, f := range t.Fields {
-		if f.Unique {
-			n++
-		}
-	}
-	for _, e := range t.Edges {
-		if e.HasConstraint() {
-			n++
-		}
-	}
-	return n
 }
 
 // MutableFields returns all type fields that are mutable (on update).
@@ -709,6 +606,39 @@ func (t Type) ImmutableFields() []*Field {
 	return fields
 }
 
+// InsertFields returns the writable fields on a creation representation.
+func (t Type) InsertFields() []*Field {
+	fields := append([]*Field(nil), t.Fields...)
+	if t.HasOneFieldID() && t.ID.UserDefined {
+		fields = append([]*Field{t.ID}, fields...)
+	}
+	return fields
+}
+
+// InsertOptional reports whether an insert slot carries presence information.
+func (f Field) InsertOptional() bool {
+	return f.Optional || f.Default || f.Name == "id"
+}
+
+// InsertSlot returns the exported relation slot in an insert.
+func (e Edge) InsertSlot() string {
+	if e.Unique {
+		if e.Field() != nil {
+			return e.Field().StructField()
+		}
+		return e.StructField() + "ID"
+	}
+	return pascal(rules.Singularize(e.Name)) + "IDs"
+}
+
+// PatchSlot returns the exported relation slot in a patch.
+func (e Edge) PatchSlot() string {
+	if e.Unique {
+		return e.InsertSlot()
+	}
+	return e.StructField()
+}
+
 // MutationFields returns all the fields that are available on the typed-mutation.
 func (t Type) MutationFields() []*Field {
 	fields := make([]*Field, 0, len(t.Fields))
@@ -729,19 +659,6 @@ func (t Type) EnumFields() []*Field {
 		}
 	}
 	return fields
-}
-
-// FieldBy returns the first field that the given function returns true on it.
-func (t Type) FieldBy(fn func(*Field) bool) (*Field, bool) {
-	if fn(t.ID) {
-		return t.ID, true
-	}
-	for _, f := range t.Fields {
-		if fn(f) {
-			return f, true
-		}
-	}
-	return nil, false
 }
 
 // NumM2M returns the type's many-to-many edge count
@@ -969,11 +886,6 @@ func (t Type) QueryReceiver() string {
 	return "_q"
 }
 
-// FilterName returns the struct name denoting the filter-builder for this type.
-func (t Type) FilterName() string {
-	return pascal(t.Name) + "Filter"
-}
-
 // CreateName returns the struct name denoting the create-builder for this type.
 func (t Type) CreateName() string {
 	return pascal(t.Name) + "Create"
@@ -1054,14 +966,6 @@ func (t Type) TypeName() string {
 	return "Type" + pascal(t.Name)
 }
 
-// ValueName returns the name of the value method for this type.
-func (t Type) ValueName() string {
-	if t.fields["Value"] == nil && t.fields["value"] == nil {
-		return "Value"
-	}
-	return "GetValue"
-}
-
 // SiblingImports returns all sibling packages that are needed for the different builders.
 func (t Type) SiblingImports() []struct{ Alias, Path string } {
 	var (
@@ -1076,54 +980,6 @@ func (t Type) SiblingImports() []struct{ Alias, Path string } {
 		}
 	}
 	return imports
-}
-
-// NumHooks returns the number of hooks declared in the type schema.
-func (t Type) NumHooks() int {
-	if t.schema != nil {
-		return len(t.schema.Hooks)
-	}
-	return 0
-}
-
-// HookPositions returns the position information of hooks declared in the type schema.
-func (t Type) HookPositions() []*load.Position {
-	if t.schema != nil {
-		return t.schema.Hooks
-	}
-	return nil
-}
-
-// NumInterceptors returns the number of interceptors declared in the type schema.
-func (t Type) NumInterceptors() int {
-	if t.schema != nil {
-		return len(t.schema.Interceptors)
-	}
-	return 0
-}
-
-// InterceptorPositions returns the position information of interceptors declared in the type schema.
-func (t Type) InterceptorPositions() []*load.Position {
-	if t.schema != nil {
-		return t.schema.Interceptors
-	}
-	return nil
-}
-
-// NumPolicy returns the number of privacy-policy declared in the type schema.
-func (t Type) NumPolicy() int {
-	if t.schema != nil {
-		return len(t.schema.Policy)
-	}
-	return 0
-}
-
-// PolicyPositions returns the position information of privacy policy declared in the type schema.
-func (t Type) PolicyPositions() []*load.Position {
-	if t.schema != nil {
-		return t.schema.Policy
-	}
-	return nil
 }
 
 // RelatedTypes returns all the types (nodes) that
@@ -1143,6 +999,9 @@ func (t Type) RelatedTypes() []*Type {
 // ValidSchemaName will determine if a name is going to conflict with any
 // pre-defined names
 func ValidSchemaName(name string) error {
+	if strings.EqualFold(name, "entity") {
+		return fmt.Errorf("schema name %q conflicts with the generated entity marker package", name)
+	}
 	// Schema package is lower-cased (see Type.Package).
 	pkg := strings.ToLower(name)
 	if token.Lookup(pkg).IsKeyword() {
@@ -1197,39 +1056,41 @@ func (t Type) UnexportedForeignKeys() []*ForeignKey {
 	return fks
 }
 
-// aliases adds package aliases (local names) for all type-packages that
-// their import identifier conflicts with user-defined packages (i.e. GoType).
+// aliases allocates one semantic import namespace shared by models, builders,
+// metadata packages and runtime stitching, reserving generated package names.
 func aliases(g *Graph) {
+	generatedNames := []string{path.Base(g.Package), "runtime"}
 	for _, node := range g.Nodes {
-		if err := node.renderSemanticTypes(); err != nil {
-			panic(graphError{fmt.Sprintf("render semantic types for %q: %s", node.Name, err)})
+		if pkg := node.PackageDir(); importPkg[pkg] != "" {
+			node.alias = path.Base(g.Package) + pkg
+		}
+		generatedNames = append(generatedNames, node.PackageDir(), node.Package())
+	}
+	renderer := NewTypeRenderer(load.Package{Path: g.Package, Name: path.Base(g.Package)}, generatedNames...)
+	for _, node := range g.Nodes {
+		for _, field := range node.semanticFields() {
+			if err := renderer.Add(field.Semantic.Representation, field.Semantic.Base); err != nil {
+				panic(graphError{fmt.Sprintf("render semantic types for %q field %q: %s", node.Name, field.Name, err)})
+			}
 		}
 	}
-	mayAlias := make(map[string]*Type)
-	for _, n := range g.Nodes {
-		if pkg := n.PackageDir(); importPkg[pkg] != "" {
-			// By default, a package named "pet" will be named as "entpet".
-			n.alias = path.Base(g.Package) + pkg
-		} else {
-			mayAlias[n.PackageDir()] = n
+	for _, node := range g.Nodes {
+		node.semanticRenderer = renderer
+		if err := node.renderSemanticTypes(); err != nil {
+			panic(graphError{fmt.Sprintf("render semantic types for %q: %s", node.Name, err)})
 		}
 	}
 }
 
 func (t *Type) renderSemanticTypes() error {
-	current := load.Package{Path: path.Join(t.Config.Package, t.PackageDir()), Name: t.PackageDir()}
-	renderer, err := t.semanticRenderer(current)
-	if err != nil {
-		return err
-	}
-	t.semanticImports = renderer.Imports()
+	var err error
 	for _, field := range t.semanticFields() {
 		if field.DefinesEnumType() {
-			field.semanticType = t.PackageDir() + "." + field.StructField()
-		} else if field.semanticType, err = renderer.Render(field.Semantic.Representation); err != nil {
+			field.semanticType = t.Package() + "." + field.StructField() + "Value"
+		} else if field.semanticType, err = t.semanticRenderer.Render(field.Semantic.Representation); err != nil {
 			return fmt.Errorf("field %q representation: %w", field.Name, err)
 		}
-		if field.baseType, err = renderer.Render(field.Semantic.Base); err != nil {
+		if field.baseType, err = t.semanticRenderer.Render(field.Semantic.Base); err != nil {
 			return fmt.Errorf("field %q logical base: %w", field.Name, err)
 		}
 	}
@@ -1247,26 +1108,17 @@ func (t Type) semanticFields() []*Field {
 	return fields
 }
 
-func (t Type) semanticRenderer(current load.Package) (*TypeRenderer, error) {
-	renderer := NewTypeRenderer(current, current.Name)
-	for _, field := range t.semanticFields() {
-		if err := renderer.Add(field.Semantic.Representation, field.Semantic.Base); err != nil {
-			return nil, fmt.Errorf("field %q: %w", field.Name, err)
-		}
+// EdgeKeyType renders a neighbor key in this entity package's import namespace.
+func (t Type) EdgeKeyType(edge *Edge) (string, error) {
+	if !edge.Type.HasOneFieldID() {
+		return "any", nil
 	}
-	if current.Path == path.Join(t.Config.Package, t.PackageDir()) {
-		for _, edge := range t.EdgesWithID() {
-			if err := renderer.Add(edge.Type.ID.Semantic.Representation); err != nil {
-				return nil, fmt.Errorf("edge %q id: %w", edge.Name, err)
-			}
-		}
-	}
-	return renderer, nil
+	return t.semanticRenderer.Render(edge.Type.ID.Semantic.Representation)
 }
 
 // SemanticImports returns deterministic semantic imports for this type package.
 func (t Type) SemanticImports() []Import {
-	return t.semanticImports
+	return t.semanticRenderer.Imports()
 }
 
 // ClientDependencies holds jointly rendered dependency types and imports for
@@ -1307,23 +1159,11 @@ func (g Graph) ClientDependencies() (*ClientDependencies, error) {
 }
 
 // RuntimeSemanticImports returns deterministic semantic imports for runtime stitching.
-func (g Graph) RuntimeSemanticImports(currentPackage string) []Import {
-	generatedPackages := make([]string, 0, len(g.Nodes)+1)
-	generatedPackages = append(generatedPackages, currentPackage)
-	for _, node := range g.Nodes {
-		generatedPackages = append(generatedPackages, node.PackageDir())
+func (g Graph) RuntimeSemanticImports() []Import {
+	if len(g.Nodes) == 0 {
+		return nil
 	}
-	renderer := NewTypeRenderer(load.Package{Path: path.Join(g.Package, currentPackage), Name: currentPackage}, generatedPackages...)
-	for _, node := range g.Nodes {
-		for _, field := range node.semanticFields() {
-			if field.Default || field.UpdateDefault || field.Validators > 0 || field.HasValueScanner() {
-				if err := renderer.Add(field.Semantic.Representation, field.Semantic.Base); err != nil {
-					panic(err)
-				}
-			}
-		}
-	}
-	return renderer.Imports()
+	return g.Nodes[0].SemanticImports()
 }
 
 // sqlComment returns the SQL database comment for the node (table), if defined and enabled.
@@ -1365,17 +1205,6 @@ func (f Field) TypeConst() string { return f.Type.ConstName() }
 // TypeNillable reports whether the representation itself accepts nil.
 func (f Field) TypeNillable() bool { return f.Semantic.Capabilities.Nillable }
 
-// TypeNumeric reports whether the logical field family is numeric.
-func (f Field) TypeNumeric() bool { return f.Type.Numeric() }
-
-// TypeComparable reports whether representation values are comparable in Go.
-func (f Field) TypeComparable() bool { return f.Semantic.Capabilities.Comparable }
-
-// StorageComparable reports whether the logical storage family supports SQL equality predicates.
-func (f Field) StorageComparable() bool {
-	return !f.IsJSON()
-}
-
 // StorageOrderable reports whether the logical storage family supports SQL ordering.
 func (f Field) StorageOrderable() bool {
 	switch f.Type {
@@ -1384,6 +1213,33 @@ func (f Field) StorageOrderable() bool {
 	default:
 		return f.Type.Numeric()
 	}
+}
+
+// ColumnKind returns the runtime descriptor for the field's logical storage family.
+func (f Field) ColumnKind() string {
+	switch {
+	case f.IsArray():
+		return "ArrayColumn"
+	case f.IsJSON():
+		return "JSONColumn"
+	case f.Type == field.TypeBool:
+		return "Column"
+	case f.IsEnum() || f.IsString():
+		return "StringColumn"
+	case f.StorageOrderable() || f.Type == field.TypeBytes || f.Semantic.Capabilities.Comparable:
+		return "OrderedColumn"
+	default:
+		return "Column"
+	}
+}
+
+// ColumnFields returns the fields with public column descriptors, including the ID.
+func (t Type) ColumnFields() []*Field {
+	var fields []*Field
+	if t.HasOneFieldID() {
+		fields = append(fields, t.ID)
+	}
+	return append(fields, t.Fields...)
 }
 
 // TypeValuer reports whether the representation implements driver.Valuer.
@@ -1402,9 +1258,6 @@ func (f Field) TypeNullableScanner() bool {
 
 // TypeValidator reports whether the representation has Validate() error.
 func (f Field) TypeValidator() bool { return f.Semantic.Capabilities.Validator }
-
-// TypeStringer reports whether the representation implements fmt.Stringer.
-func (f Field) TypeStringer() bool { return f.Semantic.Capabilities.Stringer }
 
 // HasLogicalValidators reports whether logical family validators were attached.
 func (f Field) HasLogicalValidators() bool {
@@ -1429,22 +1282,6 @@ func (f Field) DefaultValue() any { return f.def.DefaultValue }
 // DefaultFunc returns a bool stating if the default value is a func. Invoked by the template.
 func (f Field) DefaultFunc() bool { return f.def.DefaultKind == reflect.Func }
 
-// OrderName returns the function/option name for ordering by this field.
-func (f Field) OrderName() string {
-	name := "By" + pascal(f.Name)
-	// Some users store associations count as a separate field.
-	// In this case, we suffix the order name with "Field".
-	if f.typ == nil || !strings.HasSuffix(name, "Count") {
-		return name
-	}
-	for _, e := range f.typ.Edges {
-		if nameE, err := e.OrderCountName(); err == nil && nameE == name {
-			return name + "Field"
-		}
-	}
-	return name
-}
-
 // BuilderField returns the struct member of the field in the builder.
 func (f Field) BuilderField() string {
 	if f.IsEdgeField() {
@@ -1460,15 +1297,6 @@ func (f Field) BuilderField() string {
 // StructField returns the struct member of the field in the model.
 func (f Field) StructField() string {
 	return pascal(f.Name)
-}
-
-// EnumNames returns the enum values of a field.
-func (f Field) EnumNames() []string {
-	names := make([]string, 0, len(f.Enums))
-	for _, e := range f.Enums {
-		names = append(names, e.Name)
-	}
-	return names
 }
 
 // EnumValues returns the values of the enum field.
@@ -1507,110 +1335,6 @@ func (f Field) EntSQL() *entsql.Annotation {
 	return sqlAnnotate(f.Annotations)
 }
 
-// mutMethods returns the method names of mutation interface.
-var mutMethods = func() map[string]bool {
-	names := map[string]bool{"Client": true, "Tx": true, "Where": true, "SetOp": true}
-	for method := range reflect.TypeFor[ent.Mutation]().Methods() {
-		names[method.Name] = true
-	}
-	return names
-}()
-
-// MutationGet returns the method name for getting the field value.
-// The default name is just a pascal format. If the method conflicts
-// with the mutation methods, prefix the method with "Get".
-func (f Field) MutationGet() string {
-	name := pascal(f.Name)
-	if mutMethods[name] || (name == "SetID" && f.typ.ID.UserDefined) {
-		name = "Get" + name
-	}
-	return name
-}
-
-// MutationGetOld returns the method name for getting the old value of a field.
-func (f Field) MutationGetOld() string {
-	name := "Old" + pascal(f.Name)
-	if mutMethods[name] {
-		name = "Get" + name
-	}
-	return name
-}
-
-// MutationReset returns the method name for resetting the field value.
-// The default name is "Reset<FieldName>". If the method conflicts
-// with the mutation methods, suffix the method with "Field".
-func (f Field) MutationReset() string {
-	name := "Reset" + pascal(f.Name)
-	if mutMethods[name] {
-		name += "Field"
-	}
-	return name
-}
-
-// MutationSet returns the method name for setting the field value.
-// The default name is "Set<FieldName>". If the method conflicts
-// with the mutation methods, suffix the method with "Field".
-func (f Field) MutationSet() string {
-	name := "Set" + f.StructField()
-	if mutMethods[name] {
-		name += "Field"
-	}
-	return name
-}
-
-// MutationClear returns the method name for clearing the field value.
-func (f Field) MutationClear() string {
-	return "Clear" + f.StructField()
-}
-
-// MutationCleared returns the method name for indicating if the field
-// was cleared in the mutation.
-func (f Field) MutationCleared() string {
-	return f.StructField() + "Cleared"
-}
-
-// MutationAdd returns the method name for adding a value to the field.
-// The default name is "Add<FieldName>". If the method conflicts with
-// the mutation methods, suffix the method with "Field".
-func (f Field) MutationAdd() string {
-	name := "Add" + f.StructField()
-	if mutMethods[name] {
-		name += "Field"
-	}
-	return name
-}
-
-// MutationAdded returns the method name for getting the field value
-// that was added to the field.
-func (f Field) MutationAdded() string {
-	name := "Added" + f.StructField()
-	if mutMethods[name] {
-		name += "Field"
-	}
-	return name
-}
-
-// MutationAppend returns the method name for appending a list of values to the field.
-// The default name is "Append<FieldName>". If the method conflicts with the mutation methods,
-// suffix the method with "Field".
-func (f Field) MutationAppend() string {
-	name := "Append" + f.StructField()
-	if mutMethods[name] {
-		name += "Field"
-	}
-	return name
-}
-
-// MutationAppended returns the method name for getting the field value
-// that was added to the field.
-func (f Field) MutationAppended() string {
-	name := "Appended" + f.StructField()
-	if mutMethods[name] {
-		name += "Field"
-	}
-	return name
-}
-
 // RequiredFor returns a list of dialects that this field is required for.
 // A field can be required in one database, but optional in the other. e.g.,
 // in case a SchemaType was defined as "serial" for PostgreSQL, but "int" for SQLite.
@@ -1640,9 +1364,6 @@ func (f Field) RequiredFor() (dialects []string) {
 	return dialects
 }
 
-// IsBool returns true if the field is a bool field.
-func (f Field) IsBool() bool { return f.Type == field.TypeBool }
-
 // IsBytes returns true if the field is a bytes field.
 func (f Field) IsBytes() bool { return f.Type == field.TypeBytes }
 
@@ -1652,20 +1373,14 @@ func (f Field) IsTime() bool { return f.Type == field.TypeTime }
 // IsJSON returns true if the field is a JSON field.
 func (f Field) IsJSON() bool { return f.Type == field.TypeJSON }
 
+// IsArray reports whether the field stores a native array.
+func (f Field) IsArray() bool { return f.Type == field.TypeArray }
+
 // IsOther returns true if the field is an Other field.
 func (f Field) IsOther() bool { return f.Type == field.TypeOther }
 
 // IsString returns true if the field is a string field.
 func (f Field) IsString() bool { return f.Type == field.TypeString }
-
-// IsUUID returns true if the field is a UUID field.
-func (f Field) IsUUID() bool { return f.Type == field.TypeUUID }
-
-// IsInt returns true if the field is an int field.
-func (f Field) IsInt() bool { return f.Type == field.TypeInt }
-
-// IsInt64 returns true if the field is an int64 field.
-func (f Field) IsInt64() bool { return f.Type == field.TypeInt64 }
 
 // IsEnum returns true if the field is an enum field.
 func (f Field) IsEnum() bool { return f.Type == field.TypeEnum }
@@ -1710,7 +1425,7 @@ func (f Field) Comment() string {
 // NillableValue reports if the field holds a Go value (not a pointer), but the field is nillable.
 // It's used by the templates to prefix values with pointer operators (e.g. &intValue or *intValue).
 func (f Field) NillableValue() bool {
-	return f.Nillable && !f.TypeNillable()
+	return f.Nillable && (f.IsArray() || !f.TypeNillable())
 }
 
 // ScanType returns the Go type used by rows.Scan.
@@ -1895,6 +1610,25 @@ func (f Field) Column() *schema.Column {
 	if f.def != nil {
 		c.SchemaType = f.def.SchemaType
 	}
+	if f.IsArray() {
+		c.SchemaType = map[string]string{
+			"sqlite3": "json",
+			"postgres": map[load.LogicalType]string{
+				load.LogicalTypeString: "text[]",
+				load.LogicalTypeInt:    "bigint[]",
+				load.LogicalTypeUUID:   "uuid[]",
+				load.LogicalTypeTime:   "timestamptz[]",
+				load.LogicalTypeFloat:  "double precision[]",
+				load.LogicalTypeBool:   "boolean[]",
+				load.LogicalTypeJSON:   "jsonb[]",
+			}[f.Semantic.Base.Element.Logical],
+		}
+		if f.def != nil {
+			for name, value := range f.def.SchemaType {
+				c.SchemaType[name] = value
+			}
+		}
+	}
 	return c
 }
 
@@ -2011,11 +1745,6 @@ func (f Field) ConvertedToBasic() bool {
 	return f.Semantic.Capabilities.AssignableToLogical || f.Semantic.Capabilities.ConvertibleToLogical
 }
 
-// LogicalValueSupported reports whether representation values can be encoded for logical storage predicates.
-func (f Field) LogicalValueSupported() bool {
-	return f.ConvertedToBasic() || f.Semantic.Capabilities.LogicalProjection != "" || f.TypeValuer() || f.HasValueScanner()
-}
-
 // MutationAddType returns the operand type for numeric mutation additions.
 // Represented numeric fields preserve their Go type. Unsigned fields use the
 // corresponding signed logical base so subtraction remains expressible.
@@ -2046,21 +1775,6 @@ func (f Field) SupportsMutationAdd() bool {
 		return false
 	}
 	return f.ConvertedToBasic() || f.implementsAdder()
-}
-
-// MutationAddAssignExpr returns the expression for summing to identifiers and assigning to the mutation field.
-//
-//	MutationAddAssignExpr(a, b) => *m.a += b		// Basic Go type.
-//	MutationAddAssignExpr(a, b) => *m.a = m.Add(b)	// Custom Go types that implement the (Add(T) T) interface.
-func (f Field) MutationAddAssignExpr(ident1, ident2 string) (string, error) {
-	if !f.SupportsMutationAdd() {
-		return "", fmt.Errorf("field %q does not support the add operation (a + b)", f.Name)
-	}
-	expr := "*%s += %s"
-	if f.implementsAdder() {
-		expr = "*%[1]s = %[1]s.Add(%[2]s)"
-	}
-	return fmt.Sprintf(expr, ident1, ident2), nil
 }
 
 func (f Field) implementsAdder() bool { return f.Semantic.Capabilities.Adder }
@@ -2125,15 +1839,6 @@ func (f Field) enums(lf *load.Field) ([]Enum, error) {
 	return enums, nil
 }
 
-// Ops returns all predicate operations of the field.
-func (f *Field) Ops() []Op {
-	ops := fieldOps(f)
-	if f.cfg != nil && f.cfg.Storage.Ops != nil {
-		ops = append(ops, f.cfg.Storage.Ops(f)...)
-	}
-	return ops
-}
-
 // Label returns the label name of the edge.
 func (e Edge) Label() string {
 	if e.IsInverse() {
@@ -2162,18 +1867,6 @@ func (e Edge) O2O() bool { return e.Rel.Type == O2O }
 // IsInverse returns if this edge is an inverse edge.
 func (e Edge) IsInverse() bool { return e.Inverse != "" }
 
-// LabelConstant returns the constant name of the edge label.
-func (e Edge) LabelConstant() string {
-	name := e.Name
-	if e.IsInverse() {
-		name = e.Inverse
-	}
-	return pascal(name) + "Label"
-}
-
-// InverseLabelConstant returns the inverse constant name of the edge.
-func (e Edge) InverseLabelConstant() string { return pascal(e.Name) + "InverseLabel" }
-
 // TableConstant returns the constant name of the relation table.
 // The value id Edge.Rel.Table, which is table that holds the relation/edge.
 func (e Edge) TableConstant() string { return pascal(e.Name) + "Table" }
@@ -2186,12 +1879,6 @@ func (e Edge) ColumnConstant() string { return pascal(e.Name) + "Column" }
 
 // PKConstant returns the constant name of the primary key. Used for M2M edges.
 func (e Edge) PKConstant() string { return pascal(e.Name) + "PrimaryKey" }
-
-// HasConstraint indicates if this edge has a unique constraint check.
-// We check uniqueness when both-directions are unique or one of them.
-func (e Edge) HasConstraint() bool {
-	return e.Rel.Type == O2O || e.Rel.Type == O2M
-}
 
 // BuilderField returns the struct member of the edge in the builder.
 func (e Edge) BuilderField() string {
@@ -2258,92 +1945,6 @@ func (e Edge) Comment() string {
 		return e.def.Comment
 	}
 	return ""
-}
-
-// HasFieldSetter reports if this edge already has a field-edge setters for its mutation API.
-// It's used by the codegen templates to avoid generating duplicate setters for id APIs (e.g. SetOwnerID).
-func (e Edge) HasFieldSetter() bool {
-	if !e.OwnFK() {
-		return false
-	}
-	fk, err := e.ForeignKey()
-	if err != nil {
-		return false
-	}
-	return fk.UserDefined && fk.Field.MutationSet() == e.MutationSet()
-}
-
-// MutationSet returns the method name for setting the edge id.
-func (e Edge) MutationSet() string {
-	return "Set" + pascal(e.Name) + "ID"
-}
-
-// MutationAdd returns the method name for adding edge ids.
-func (e Edge) MutationAdd() string {
-	return "Add" + pascal(rules.Singularize(e.Name)) + "IDs"
-}
-
-// MutationReset returns the method name for resetting the edge value.
-// The default name is "Reset<EdgeName>". If the method conflicts
-// with the mutation methods, suffix the method with "Edge".
-func (e Edge) MutationReset() string {
-	name := "Reset" + pascal(e.Name)
-	if _, ok := mutMethods[name]; ok {
-		name += "Edge"
-	}
-	return name
-}
-
-// MutationClear returns the method name for clearing the edge value.
-// The default name is "Clear<EdgeName>". If the method conflicts
-// with the mutation methods, suffix the method with "Edge".
-func (e Edge) MutationClear() string {
-	name := "Clear" + pascal(e.Name)
-	if _, ok := mutMethods[name]; ok {
-		name += "Edge"
-	}
-	return name
-}
-
-// MutationRemove returns the method name for removing edge ids.
-func (e Edge) MutationRemove() string {
-	return "Remove" + pascal(rules.Singularize(e.Name)) + "IDs"
-}
-
-// MutationCleared returns the method name for indicating if the edge
-// was cleared in the mutation. The default name is "<EdgeName>Cleared".
-// If the method conflicts with the mutation methods, add "Edge" the
-// after the edge name.
-func (e Edge) MutationCleared() string {
-	name := pascal(e.Name) + "Cleared"
-	if _, ok := mutMethods[name]; ok {
-		return pascal(e.Name) + "EdgeCleared"
-	}
-	return name
-}
-
-// OrderCountName returns the function/option name for ordering by the edge count.
-func (e Edge) OrderCountName() (string, error) {
-	if e.Unique {
-		return "", fmt.Errorf("edge %q is unique", e.Name)
-	}
-	return fmt.Sprintf("By%sCount", pascal(e.Name)), nil
-}
-
-// OrderTermsName returns the function/option name for ordering by any term.
-func (e Edge) OrderTermsName() (string, error) {
-	if e.Unique {
-		return "", fmt.Errorf("edge %q is unique", e.Name)
-	}
-	return fmt.Sprintf("By%s", pascal(e.Name)), nil
-}
-
-// OrderFieldName returns the function/option name for ordering by edge field.
-func (e Edge) OrderFieldName() (string, error) {
-	if !e.Unique {
-		return "", fmt.Errorf("edge %q is not-unique", e.Name)
-	}
-	return fmt.Sprintf("By%sField", pascal(e.Name)), nil
 }
 
 // setStorageKey sets the storage-key option in the schema or fail.
@@ -2515,40 +2116,34 @@ func sqlIndexAnnotate(annotation map[string]any) *entsql.IndexAnnotation {
 var (
 	// global identifiers used by the generated package.
 	globalIdent = names(
-		"AggregateFunc",
-		"As",
-		"Asc",
+		"Row",
+		"Get",
+		"GetNullable",
+		"Values",
+		"ValuesNullable",
+		"CountColumn",
+		"ExprSelection",
 		"Client",
 		"config",
 		"Count",
 		"Debug",
-		"Desc",
 		"Driver",
-		"Hook",
-		"Interceptor",
 		"Log",
-		"MutateFunc",
 		"Mutation",
-		"Mutator",
 		"Op",
 		"Option",
-		"OrderFunc",
 		"Max",
-		"Mean",
+		"Avg",
 		"Min",
 		"Schema",
 		"Sum",
-		"Policy",
 		"Query",
-		"Value",
 	)
 	// private fields used by the different builders.
 	privateField = names(
 		"config",
 		"ctx",
 		"done",
-		"hooks",
-		"inters",
 		"limit",
 		"mutation",
 		"offset",

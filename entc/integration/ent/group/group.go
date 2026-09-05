@@ -6,8 +6,11 @@
 package group
 
 import (
-	"github.com/neko-sc/ent/dialect/sql"
+	time2 "time"
+
+	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/ent/entity"
 )
 
 const (
@@ -63,6 +66,58 @@ const (
 	InfoColumn = "group_info"
 )
 
+var (
+	ID       = ent.OrderedColumn[entity.Group, int]{Table: Table, Name: FieldID}
+	Active   = ent.Column[entity.Group, bool]{Table: Table, Name: FieldActive}
+	Expire   = ent.OrderedColumn[entity.Group, time2.Time]{Table: Table, Name: FieldExpire}
+	Type     = ent.StringColumn[entity.Group, string]{Table: Table, Name: FieldType}
+	MaxUsers = ent.OrderedColumn[entity.Group, int]{Table: Table, Name: FieldMaxUsers}
+	Name     = ent.StringColumn[entity.Group, string]{Table: Table, Name: FieldName}
+	Files    = ent.NewRelation[entity.Group, entity.File, int](EdgeFiles, newFilesStep)
+	Blocked  = ent.NewRelation[entity.Group, entity.User, int](EdgeBlocked, newBlockedStep)
+	Users    = ent.NewRelation[entity.Group, entity.User, int](EdgeUsers, newUsersStep)
+	Info     = ent.NewUniqueRelation[entity.Group, entity.GroupInfo, int](EdgeInfo, newInfoStep)
+)
+
+// Alias returns the columns of the groups table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.Group, int]{Table: name, Name: FieldID},
+		Active:     ent.Column[entity.Group, bool]{Table: name, Name: FieldActive},
+		Expire:     ent.OrderedColumn[entity.Group, time2.Time]{Table: name, Name: FieldExpire},
+		Type:       ent.StringColumn[entity.Group, string]{Table: name, Name: FieldType},
+		MaxUsers:   ent.OrderedColumn[entity.Group, int]{Table: name, Name: FieldMaxUsers},
+		Name:       ent.StringColumn[entity.Group, string]{Table: name, Name: FieldName},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.Group, int]
+	Active     ent.Column[entity.Group, bool]
+	Expire     ent.OrderedColumn[entity.Group, time2.Time]
+	Type       ent.StringColumn[entity.Group, string]
+	MaxUsers   ent.OrderedColumn[entity.Group, int]
+	Name       ent.StringColumn[entity.Group, string]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.Group]) ent.Predicate[entity.Group] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.Group]) ent.Predicate[entity.Group] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.Group]) ent.Predicate[entity.Group] {
+	return ent.Not(predicate)
+}
+
 // Columns holds all SQL columns for group fields.
 var Columns = []string{
 	FieldID,
@@ -113,87 +168,6 @@ var (
 	NameValidator func(string) error
 )
 
-// OrderOption defines the ordering options for the Group queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByActive orders the results by the active field.
-func ByActive(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldActive, opts...).ToFunc()
-}
-
-// ByExpire orders the results by the expire field.
-func ByExpire(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldExpire, opts...).ToFunc()
-}
-
-// ByType orders the results by the type field.
-func ByType(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldType, opts...).ToFunc()
-}
-
-// ByMaxUsers orders the results by the max_users field.
-func ByMaxUsers(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldMaxUsers, opts...).ToFunc()
-}
-
-// ByName orders the results by the name field.
-func ByName(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldName, opts...).ToFunc()
-}
-
-// ByFilesCount orders the results by files count.
-func ByFilesCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newFilesStep(), opts...)
-	}
-}
-
-// ByFiles orders the results by files terms.
-func ByFiles(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newFilesStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
-// ByBlockedCount orders the results by blocked count.
-func ByBlockedCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newBlockedStep(), opts...)
-	}
-}
-
-// ByBlocked orders the results by blocked terms.
-func ByBlocked(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newBlockedStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
-// ByUsersCount orders the results by users count.
-func ByUsersCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newUsersStep(), opts...)
-	}
-}
-
-// ByUsers orders the results by users terms.
-func ByUsers(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newUsersStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
-// ByInfoField orders the results by info field.
-func ByInfoField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newInfoStep(), sql.OrderByField(field, opts...))
-	}
-}
 func newFilesStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),

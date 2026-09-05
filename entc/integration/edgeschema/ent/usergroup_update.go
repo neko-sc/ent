@@ -9,135 +9,219 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/group"
-	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/predicate"
 	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/user"
 	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/usergroup"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// UserGroupUpdate is the builder for updating UserGroup entities.
 type UserGroupUpdate struct {
 	config
-	hooks    []Hook
-	mutation *UserGroupMutation
+	mutation  *UserGroupMutation
+	err       error
+	returning *sqlgraph.Returning
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// Where appends a list predicates to the UserGroupUpdate builder.
-func (_u *UserGroupUpdate) Where(ps ...predicate.UserGroup) *UserGroupUpdate {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// SetJoinedAt sets the "joined_at" field.
-func (_u *UserGroupUpdate) SetJoinedAt(v time.Time) *UserGroupUpdate {
-	_u.mutation.SetJoinedAt(v)
-	return _u
-}
-
-// SetNillableJoinedAt sets the "joined_at" field if the given value is not nil.
-func (_u *UserGroupUpdate) SetNillableJoinedAt(v *time.Time) *UserGroupUpdate {
-	if v != nil {
-		_u.SetJoinedAt(*v)
+func (b *UserGroupUpdate) Set[T any](column ent.ColumnOf[entity.UserGroup, T], value T) *UserGroupUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// SetUserID sets the "user_id" field.
-func (_u *UserGroupUpdate) SetUserID(v int) *UserGroupUpdate {
-	_u.mutation.SetUserID(v)
-	return _u
+	return b
 }
-
-// SetNillableUserID sets the "user_id" field if the given value is not nil.
-func (_u *UserGroupUpdate) SetNillableUserID(v *int) *UserGroupUpdate {
-	if v != nil {
-		_u.SetUserID(*v)
+func (b *UserGroupUpdate) SetOptional[T any](column ent.ColumnOf[entity.UserGroup, T], value ent.Option[T]) *UserGroupUpdate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u
-}
-
-// SetGroupID sets the "group_id" field.
-func (_u *UserGroupUpdate) SetGroupID(v int) *UserGroupUpdate {
-	_u.mutation.SetGroupID(v)
-	return _u
-}
-
-// SetNillableGroupID sets the "group_id" field if the given value is not nil.
-func (_u *UserGroupUpdate) SetNillableGroupID(v *int) *UserGroupUpdate {
-	if v != nil {
-		_u.SetGroupID(*v)
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
 	}
-	return _u
+	return b
+}
+func (b *UserGroupUpdate) SetExpr[T any](column ent.ColumnOf[entity.UserGroup, T], value ent.Expr[T]) *UserGroupUpdate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case usergroup.FieldJoinedAt:
+
+	case usergroup.FieldUserID:
+
+	case usergroup.FieldGroupID:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of UserGroup is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *UserGroupUpdate) SetEdge[N, K any](edge ent.UniqueRelation[entity.UserGroup, N, K], id K) *UserGroupUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *UserGroupUpdate) AddIDs[N, K any](edge ent.Relation[entity.UserGroup, N, K], ids ...K) *UserGroupUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *UserGroupUpdate) Mutation() *UserGroupMutation { return b.mutation }
+
+func (b *UserGroupUpdate) Patch() *UserGroupPatch { return b.mutation.patch }
+func (b *UserGroupUpdate) Apply(p UserGroupPatch) *UserGroupUpdate {
+	b.mutation.patch.apply(p)
+	return b
+}
+func (b *UserGroupUpdate) Add[T ent.Number](column ent.ColumnOf[entity.UserGroup, T], delta T) *UserGroupUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *UserGroupUpdate) Append[T any](column ent.ColumnOf[entity.UserGroup, T], values T) *UserGroupUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *UserGroupUpdate) Clear[T any](column ent.ColumnOf[entity.UserGroup, T]) *UserGroupUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *UserGroupUpdate) RemoveIDs[N, K any](edge ent.Relation[entity.UserGroup, N, K], ids ...K) *UserGroupUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *UserGroupUpdate) ClearEdge[N, K any](edge ent.RelationOf[entity.UserGroup, N, K]) *UserGroupUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// SetUser sets the "user" edge to the User entity.
-func (_u *UserGroupUpdate) SetUser(v *User) *UserGroupUpdate {
-	return _u.SetUserID(v.ID)
+func (b *UserGroupUpdate) Where(predicates ...ent.Predicate[entity.UserGroup]) *UserGroupUpdate {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// SetGroup sets the "group" edge to the Group entity.
-func (_u *UserGroupUpdate) SetGroup(v *Group) *UserGroupUpdate {
-	return _u.SetGroupID(v.ID)
+func (b *UserGroupUpdate) Save(ctx context.Context) (int, error) {
+	if b.err != nil {
+		return 0, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return 0, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Mutation returns the UserGroupMutation object of the builder.
-func (_u *UserGroupUpdate) Mutation() *UserGroupMutation {
-	return _u.mutation
-}
-
-// ClearUser clears the "user" edge to the User entity.
-func (_u *UserGroupUpdate) ClearUser() *UserGroupUpdate {
-	_u.mutation.ClearUser()
-	return _u
-}
-
-// ClearGroup clears the "group" edge to the Group entity.
-func (_u *UserGroupUpdate) ClearGroup() *UserGroupUpdate {
-	_u.mutation.ClearGroup()
-	return _u
-}
-
-// Save executes the query and returns the number of nodes affected by the update operation.
-func (_u *UserGroupUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *UserGroupUpdate) SaveX(ctx context.Context) int {
-	affected, err := _u.Save(ctx)
+func (b *UserGroupUpdate) SaveX(ctx context.Context) int {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return affected
+	return result
 }
 
-// Exec executes the query.
-func (_u *UserGroupUpdate) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *UserGroupUpdate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *UserGroupUpdate) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *UserGroupUpdate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_u *UserGroupUpdate) check() error {
-	if _u.mutation.UserCleared() && len(_u.mutation.UserIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "UserGroup.user"`)
+func (b *UserGroupUpdate) Returning(ctx context.Context) ([]*UserGroup, error) {
+	nodes := make([]*UserGroup, 0)
+	b.returning = &sqlgraph.Returning{Columns: usergroup.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &UserGroup{config: b.config}
+		values, err := _node.scanValues(usergroup.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(usergroup.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Save(ctx); err != nil {
+		return nil, err
 	}
-	if _u.mutation.GroupCleared() && len(_u.mutation.GroupIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "UserGroup.group"`)
-	}
+	return nodes, nil
+}
+
+func (b *UserGroupUpdate) defaults() error {
+
 	return nil
+}
+
+func (b *UserGroupUpdate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.JoinedAt.IsNull() {
+		return &ValidationError{Name: "joined_at", err: errors.New(`ent: field "UserGroup.joined_at" is not nullable`)}
+	}
+
+	if b.mutation.patch.UserID.IsNull() {
+		return &ValidationError{Name: "user_id", err: errors.New(`ent: field "UserGroup.user_id" is not nullable`)}
+	}
+
+	if b.mutation.patch.GroupID.IsNull() {
+		return &ValidationError{Name: "group_id", err: errors.New(`ent: field "UserGroup.group_id" is not nullable`)}
+	}
+
+	if b.mutation.patch.UserID.IsNull() {
+		return &ValidationError{Name: "user", err: errors.New(`ent: clearing required edge "UserGroup.user"`)}
+	}
+
+	if b.mutation.patch.GroupID.IsNull() {
+		return &ValidationError{Name: "group", err: errors.New(`ent: clearing required edge "UserGroup.group"`)}
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *UserGroupUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *UserGroupUpdate {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
 }
 
 func (_u *UserGroupUpdate) sqlSave(ctx context.Context) (_node int, err error) {
@@ -152,10 +236,10 @@ func (_u *UserGroupUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.JoinedAt(); ok {
+	if value, ok := _u.mutation.patch.JoinedAt.Get(); ok {
 		_spec.SetField(usergroup.FieldJoinedAt, field.TypeTime, value)
 	}
-	if _u.mutation.UserCleared() {
+	if _u.mutation.patch.UserID.IsNull() || _u.mutation.patch.clearedEdges[usergroup.EdgeUser] {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
@@ -168,7 +252,7 @@ func (_u *UserGroupUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.UserIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.userIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
@@ -179,12 +263,17 @@ func (_u *UserGroupUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
-	if _u.mutation.GroupCleared() {
+	if _u.mutation.patch.GroupID.IsNull() || _u.mutation.patch.clearedEdges[usergroup.EdgeGroup] {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
@@ -197,7 +286,7 @@ func (_u *UserGroupUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.GroupIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.groupIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
@@ -208,11 +297,22 @@ func (_u *UserGroupUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(group.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	_spec.Returning = _u.returning
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{usergroup.Label}
@@ -221,136 +321,212 @@ func (_u *UserGroupUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		return 0, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }
 
-// UserGroupUpdateOne is the builder for updating a single UserGroup entity.
 type UserGroupUpdateOne struct {
 	config
-	fields   []string
-	hooks    []Hook
 	mutation *UserGroupMutation
+	err      error
+
+	fields []string
+	old    *UserGroup
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// SetJoinedAt sets the "joined_at" field.
-func (_u *UserGroupUpdateOne) SetJoinedAt(v time.Time) *UserGroupUpdateOne {
-	_u.mutation.SetJoinedAt(v)
-	return _u
-}
-
-// SetNillableJoinedAt sets the "joined_at" field if the given value is not nil.
-func (_u *UserGroupUpdateOne) SetNillableJoinedAt(v *time.Time) *UserGroupUpdateOne {
-	if v != nil {
-		_u.SetJoinedAt(*v)
+func (b *UserGroupUpdateOne) Set[T any](column ent.ColumnOf[entity.UserGroup, T], value T) *UserGroupUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// SetUserID sets the "user_id" field.
-func (_u *UserGroupUpdateOne) SetUserID(v int) *UserGroupUpdateOne {
-	_u.mutation.SetUserID(v)
-	return _u
+	return b
 }
-
-// SetNillableUserID sets the "user_id" field if the given value is not nil.
-func (_u *UserGroupUpdateOne) SetNillableUserID(v *int) *UserGroupUpdateOne {
-	if v != nil {
-		_u.SetUserID(*v)
+func (b *UserGroupUpdateOne) SetOptional[T any](column ent.ColumnOf[entity.UserGroup, T], value ent.Option[T]) *UserGroupUpdateOne {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u
-}
-
-// SetGroupID sets the "group_id" field.
-func (_u *UserGroupUpdateOne) SetGroupID(v int) *UserGroupUpdateOne {
-	_u.mutation.SetGroupID(v)
-	return _u
-}
-
-// SetNillableGroupID sets the "group_id" field if the given value is not nil.
-func (_u *UserGroupUpdateOne) SetNillableGroupID(v *int) *UserGroupUpdateOne {
-	if v != nil {
-		_u.SetGroupID(*v)
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
 	}
-	return _u
+	return b
+}
+func (b *UserGroupUpdateOne) SetExpr[T any](column ent.ColumnOf[entity.UserGroup, T], value ent.Expr[T]) *UserGroupUpdateOne {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case usergroup.FieldJoinedAt:
+
+	case usergroup.FieldUserID:
+
+	case usergroup.FieldGroupID:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of UserGroup is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *UserGroupUpdateOne) SetEdge[N, K any](edge ent.UniqueRelation[entity.UserGroup, N, K], id K) *UserGroupUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *UserGroupUpdateOne) AddIDs[N, K any](edge ent.Relation[entity.UserGroup, N, K], ids ...K) *UserGroupUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *UserGroupUpdateOne) Mutation() *UserGroupMutation { return b.mutation }
+
+func (b *UserGroupUpdateOne) Patch() *UserGroupPatch { return b.mutation.patch }
+func (b *UserGroupUpdateOne) Apply(p UserGroupPatch) *UserGroupUpdateOne {
+	b.mutation.patch.apply(p)
+	return b
+}
+func (b *UserGroupUpdateOne) Add[T ent.Number](column ent.ColumnOf[entity.UserGroup, T], delta T) *UserGroupUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *UserGroupUpdateOne) Append[T any](column ent.ColumnOf[entity.UserGroup, T], values T) *UserGroupUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *UserGroupUpdateOne) Clear[T any](column ent.ColumnOf[entity.UserGroup, T]) *UserGroupUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *UserGroupUpdateOne) RemoveIDs[N, K any](edge ent.Relation[entity.UserGroup, N, K], ids ...K) *UserGroupUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *UserGroupUpdateOne) ClearEdge[N, K any](edge ent.RelationOf[entity.UserGroup, N, K]) *UserGroupUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// SetUser sets the "user" edge to the User entity.
-func (_u *UserGroupUpdateOne) SetUser(v *User) *UserGroupUpdateOne {
-	return _u.SetUserID(v.ID)
+func (b *UserGroupUpdateOne) Where(predicates ...ent.Predicate[entity.UserGroup]) *UserGroupUpdateOne {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// SetGroup sets the "group" edge to the Group entity.
-func (_u *UserGroupUpdateOne) SetGroup(v *Group) *UserGroupUpdateOne {
-	return _u.SetGroupID(v.ID)
+func (b *UserGroupUpdateOne) Save(ctx context.Context) (*UserGroup, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Mutation returns the UserGroupMutation object of the builder.
-func (_u *UserGroupUpdateOne) Mutation() *UserGroupMutation {
-	return _u.mutation
-}
-
-// ClearUser clears the "user" edge to the User entity.
-func (_u *UserGroupUpdateOne) ClearUser() *UserGroupUpdateOne {
-	_u.mutation.ClearUser()
-	return _u
-}
-
-// ClearGroup clears the "group" edge to the Group entity.
-func (_u *UserGroupUpdateOne) ClearGroup() *UserGroupUpdateOne {
-	_u.mutation.ClearGroup()
-	return _u
-}
-
-// Where appends a list predicates to the UserGroupUpdate builder.
-func (_u *UserGroupUpdateOne) Where(ps ...predicate.UserGroup) *UserGroupUpdateOne {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// Select allows selecting one or more fields (columns) of the returned entity.
-// The default is selecting all fields defined in the entity schema.
-func (_u *UserGroupUpdateOne) Select(field string, fields ...string) *UserGroupUpdateOne {
-	_u.fields = append([]string{field}, fields...)
-	return _u
-}
-
-// Save executes the query and returns the updated UserGroup entity.
-func (_u *UserGroupUpdateOne) Save(ctx context.Context) (*UserGroup, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *UserGroupUpdateOne) SaveX(ctx context.Context) *UserGroup {
-	node, err := _u.Save(ctx)
+func (b *UserGroupUpdateOne) SaveX(ctx context.Context) *UserGroup {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return node
+	return result
 }
 
-// Exec executes the query on the entity.
-func (_u *UserGroupUpdateOne) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *UserGroupUpdateOne) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *UserGroupUpdateOne) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *UserGroupUpdateOne) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_u *UserGroupUpdateOne) check() error {
-	if _u.mutation.UserCleared() && len(_u.mutation.UserIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "UserGroup.user"`)
+func (b *UserGroupUpdateOne) Select(columns ...ent.EntityColumn[entity.UserGroup]) *UserGroupUpdateOne {
+	if len(columns) == 0 {
+		panic("ent: Select requires at least one column")
 	}
-	if _u.mutation.GroupCleared() && len(_u.mutation.GroupIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "UserGroup.group"`)
+	b.fields = make([]string, len(columns))
+	for index, column := range columns {
+		b.fields[index] = column.Ref().Name
 	}
+	return b
+}
+
+func (b *UserGroupUpdateOne) SaveOld(ctx context.Context) (old *UserGroup, updated *UserGroup, err error) {
+	if !b.driver.Capabilities().ReturningOld {
+		return nil, nil, &dialect.UnsupportedError{Feature: "RETURNING OLD", Dialect: dialect.Dialect(b.driver.Dialect())}
+	}
+	b.old = &UserGroup{config: b.config}
+	defer func() { b.old = nil }()
+	updated, err = b.Save(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return b.old, updated, nil
+}
+
+func (b *UserGroupUpdateOne) defaults() error {
+
 	return nil
+}
+
+func (b *UserGroupUpdateOne) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.JoinedAt.IsNull() {
+		return &ValidationError{Name: "joined_at", err: errors.New(`ent: field "UserGroup.joined_at" is not nullable`)}
+	}
+
+	if b.mutation.patch.UserID.IsNull() {
+		return &ValidationError{Name: "user_id", err: errors.New(`ent: field "UserGroup.user_id" is not nullable`)}
+	}
+
+	if b.mutation.patch.GroupID.IsNull() {
+		return &ValidationError{Name: "group_id", err: errors.New(`ent: field "UserGroup.group_id" is not nullable`)}
+	}
+
+	if b.mutation.patch.UserID.IsNull() {
+		return &ValidationError{Name: "user", err: errors.New(`ent: clearing required edge "UserGroup.user"`)}
+	}
+
+	if b.mutation.patch.GroupID.IsNull() {
+		return &ValidationError{Name: "group", err: errors.New(`ent: clearing required edge "UserGroup.group"`)}
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *UserGroupUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *UserGroupUpdateOne {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
 }
 
 func (_u *UserGroupUpdateOne) sqlSave(ctx context.Context) (_node *UserGroup, err error) {
@@ -382,10 +558,10 @@ func (_u *UserGroupUpdateOne) sqlSave(ctx context.Context) (_node *UserGroup, er
 			}
 		}
 	}
-	if value, ok := _u.mutation.JoinedAt(); ok {
+	if value, ok := _u.mutation.patch.JoinedAt.Get(); ok {
 		_spec.SetField(usergroup.FieldJoinedAt, field.TypeTime, value)
 	}
-	if _u.mutation.UserCleared() {
+	if _u.mutation.patch.UserID.IsNull() || _u.mutation.patch.clearedEdges[usergroup.EdgeUser] {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
@@ -398,7 +574,7 @@ func (_u *UserGroupUpdateOne) sqlSave(ctx context.Context) (_node *UserGroup, er
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.UserIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.userIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
@@ -409,12 +585,17 @@ func (_u *UserGroupUpdateOne) sqlSave(ctx context.Context) (_node *UserGroup, er
 				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
-	if _u.mutation.GroupCleared() {
+	if _u.mutation.patch.GroupID.IsNull() || _u.mutation.patch.clearedEdges[usergroup.EdgeGroup] {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
@@ -427,7 +608,7 @@ func (_u *UserGroupUpdateOne) sqlSave(ctx context.Context) (_node *UserGroup, er
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.GroupIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.groupIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
@@ -438,14 +619,28 @@ func (_u *UserGroupUpdateOne) sqlSave(ctx context.Context) (_node *UserGroup, er
 				IDSpec: sqlgraph.NewFieldSpec(group.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	_node = &UserGroup{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
+	if _u.old != nil {
+		_spec.OldScanValues = _u.old.scanValues
+		_spec.OldAssign = _u.old.assignValues
+	}
 	if err = sqlgraph.UpdateNode(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{usergroup.Label}
@@ -454,6 +649,5 @@ func (_u *UserGroupUpdateOne) sqlSave(ctx context.Context) (_node *UserGroup, er
 		}
 		return nil, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }

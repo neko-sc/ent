@@ -8,29 +8,56 @@ package entv2
 import (
 	"context"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/migrate/entv2/entity"
 	"github.com/neko-sc/ent/entc/integration/migrate/entv2/media"
-	"github.com/neko-sc/ent/entc/integration/migrate/entv2/predicate"
 	"github.com/neko-sc/ent/schema/field"
 )
 
 // MediaDelete is the builder for deleting a Media entity.
 type MediaDelete struct {
 	config
-	hooks    []Hook
-	mutation *MediaMutation
+
+	mutation  *MediaMutation
+	returning *sqlgraph.Returning
 }
 
 // Where appends a list predicates to the MediaDelete builder.
-func (_d *MediaDelete) Where(ps ...predicate.Media) *MediaDelete {
-	_d.mutation.Where(ps...)
+func (_d *MediaDelete) Where(predicates ...ent.Predicate[entity.Media]) *MediaDelete {
+	_d.mutation.Where(predicates...)
 	return _d
 }
 
 // Exec executes the deletion query and returns how many vertices were deleted.
 func (_d *MediaDelete) Exec(ctx context.Context) (int, error) {
-	return withHooks(ctx, _d.sqlExec, _d.mutation, _d.hooks)
+	return _d.sqlExec(ctx)
+}
+
+func (b *MediaDelete) Returning(ctx context.Context) ([]*Media, error) {
+	nodes := make([]*Media, 0)
+	b.returning = &sqlgraph.Returning{Columns: media.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Media{config: b.config}
+		values, err := _node.scanValues(media.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(media.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Exec(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
 }
 
 // ExecX is like Exec, but panics if an error occurs.
@@ -51,11 +78,11 @@ func (_d *MediaDelete) sqlExec(ctx context.Context) (int, error) {
 			}
 		}
 	}
+	_spec.Returning = _d.returning
 	affected, err := sqlgraph.DeleteNodes(ctx, _d.driver, _spec)
 	if err != nil && sqlgraph.IsConstraintError(err) {
 		err = &ConstraintError{msg: err.Error(), wrap: err}
 	}
-	_d.mutation.done = true
 	return affected, err
 }
 
@@ -65,8 +92,8 @@ type MediaDeleteOne struct {
 }
 
 // Where appends a list predicates to the MediaDelete builder.
-func (_d *MediaDeleteOne) Where(ps ...predicate.Media) *MediaDeleteOne {
-	_d._d.mutation.Where(ps...)
+func (_d *MediaDeleteOne) Where(predicates ...ent.Predicate[entity.Media]) *MediaDeleteOne {
+	_d._d.mutation.Where(predicates...)
 	return _d
 }
 

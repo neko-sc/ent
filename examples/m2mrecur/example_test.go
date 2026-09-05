@@ -42,14 +42,14 @@ func Do(ctx context.Context, client *ent.Client) error {
 	// Unlike `Save`, `SaveX` panics if an error occurs.
 	a8m := client.User.
 		Create().
-		SetAge(30).
-		SetName("a8m").
+		Set(user.Age, 30).
+		Set(user.Name, "a8m").
 		SaveX(ctx)
 	nati := client.User.
 		Create().
-		SetAge(28).
-		SetName("nati").
-		AddFollowers(a8m).
+		Set(user.Age, 28).
+		Set(user.Name, "nati").
+		AddIDs(user.Followers, a8m.ID).
 		SaveX(ctx)
 
 	// Query following/followers:
@@ -72,19 +72,23 @@ func Do(ctx context.Context, client *ent.Client) error {
 
 	// Traverse the graph:
 
-	ages := nati.
-		QueryFollowers().       // [a8m]
-		QueryFollowing().       // [nati]
-		GroupBy(user.FieldAge). // [28]
-		IntsX(ctx)
+	ages, projectionError := ent.Values(ctx, nati.
+		QueryFollowers(). // [a8m]
+		QueryFollowing(). // [nati]
+		GroupBy(user.Age), user.Age)
+	if projectionError != nil {
+		return projectionError
+	}
 	fmt.Println(ages)
 	// Output: [28]
 
-	names := client.User.
+	names, projectionError := ent.Values(ctx, client.User.
 		Query().
-		Where(user.Not(user.HasFollowers())).
-		GroupBy(user.FieldName).
-		StringsX(ctx)
+		Where(user.Not(user.Followers.Has())).
+		GroupBy(user.Name), user.Name)
+	if projectionError != nil {
+		return projectionError
+	}
 	fmt.Println(names)
 	// Output: [a8m]
 	return nil

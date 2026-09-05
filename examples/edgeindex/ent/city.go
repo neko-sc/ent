@@ -12,6 +12,7 @@ import (
 	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/examples/edgeindex/ent/city"
+	"github.com/neko-sc/ent/examples/edgeindex/ent/entity"
 )
 
 // City is the model entity for the City schema.
@@ -23,8 +24,7 @@ type City struct {
 	Name string `json:"name,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the CityQuery when eager-loading is set.
-	Edges        CityEdges `json:"edges"`
-	selectValues sql.SelectValues
+	Edges CityEdges `json:"edges"`
 }
 
 // CityEdges holds the relations/edges for other nodes in the graph.
@@ -34,6 +34,30 @@ type CityEdges struct {
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes [1]bool
+	counts      map[string]int
+}
+
+func (e CityEdges) Loaded[N, K any](edge ent.RelationOf[entity.City, N, K]) bool {
+	switch edge.Ref().Name {
+	case "streets":
+		return e.loadedTypes[0]
+
+	default:
+		return false
+	}
+}
+
+func (e *CityEdges) SetLoaded[N, K any](edge ent.RelationOf[entity.City, N, K], loaded bool) {
+	switch edge.Ref().Name {
+	case "streets":
+		e.loadedTypes[0] = loaded
+
+	}
+}
+
+func (e CityEdges) Count[N, K any](edge ent.Relation[entity.City, N, K]) (int, bool) {
+	count, loaded := e.counts[edge.Ref().Name]
+	return count, loaded
 }
 
 // StreetsOrErr returns the Streets value or an error if the edge
@@ -51,9 +75,9 @@ func (*City) scanValues(columns []string) ([]any, error) {
 	for i := range columns {
 		switch columns[i] {
 		case city.FieldID:
-			values[i] = new(sql.NullInt64)
+			values[i] = new(*int)
 		case city.FieldName:
-			values[i] = new(sql.NullString)
+			values[i] = new(*string)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -70,28 +94,22 @@ func (_m *City) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case city.FieldID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field id", values[i])
-			} else if value.Valid {
-				_m.ID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.ID = **value
 			}
 		case city.FieldName:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field name", values[i])
-			} else if value.Valid {
-				_m.Name = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.Name = **value
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the City.
-// This includes values selected through modifiers, order, etc.
-func (_m *City) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // QueryStreets queries the "streets" edge of the City entity.

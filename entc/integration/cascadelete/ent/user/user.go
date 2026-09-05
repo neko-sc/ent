@@ -6,8 +6,9 @@
 package user
 
 import (
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/cascadelete/ent/entity"
 )
 
 const (
@@ -30,6 +31,41 @@ const (
 	PostsColumn = "author_id"
 )
 
+var (
+	ID    = ent.OrderedColumn[entity.User, int]{Table: Table, Name: FieldID}
+	Name  = ent.StringColumn[entity.User, string]{Table: Table, Name: FieldName}
+	Posts = ent.NewRelation[entity.User, entity.Post, int](EdgePosts, newPostsStep)
+)
+
+// Alias returns the columns of the users table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.User, int]{Table: name, Name: FieldID},
+		Name:       ent.StringColumn[entity.User, string]{Table: name, Name: FieldName},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.User, int]
+	Name       ent.StringColumn[entity.User, string]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.User]) ent.Predicate[entity.User] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.User]) ent.Predicate[entity.User] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.User]) ent.Predicate[entity.User] { return ent.Not(predicate) }
+
 // Columns holds all SQL columns for user fields.
 var Columns = []string{
 	FieldID,
@@ -51,32 +87,6 @@ var (
 	DefaultName string
 )
 
-// OrderOption defines the ordering options for the User queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByName orders the results by the name field.
-func ByName(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldName, opts...).ToFunc()
-}
-
-// ByPostsCount orders the results by posts count.
-func ByPostsCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newPostsStep(), opts...)
-	}
-}
-
-// ByPosts orders the results by posts terms.
-func ByPosts(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newPostsStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
 func newPostsStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),

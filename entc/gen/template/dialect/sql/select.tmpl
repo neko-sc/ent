@@ -1,41 +1,63 @@
-{{/*
-Copyright 2019-2026 Facebook Inc.
-SPDX-License-Identifier: Apache-2.0
-*/}}
-
-{{/* gotype: github.com/neko-sc/ent/entc/gen.typeScope */}}
-
 {{ define "dialect/sql/select" }}
 {{ $builder := pascal $.Scope.Builder }}
 {{ $receiver := $.Scope.Receiver }}
 
-func ({{ $receiver }} *{{ $builder }}) sqlScan(ctx context.Context, root *{{ $.QueryName }}, v any) error {
+func ({{ $receiver }} *{{ $builder }}) sqlQuery(ctx context.Context) (*sql.Selector, error) {
+	root := {{ $receiver }}.query.Clone()
+	root.ctx.Fields = nil
+	for _, selection := range {{ $receiver }}.selections {
+		if column := selection.Ref(); column.Name != "" && (column.Table == "" || column.Table == {{ $.Package }}.Table) {
+			root.ctx.AppendFieldOnce(column.Name)
+		}
+	}
+	if err := root.prepareQuery(ctx); err != nil { return nil, err }
+	root.modifiers = nil
 	selector := root.sqlQuery(ctx)
-	aggregation := make([]string, 0, len({{ $receiver}}.fns))
-	for _, fn := range {{ $receiver }}.fns {
-		aggregation = append(aggregation, fn(selector))
+	if len({{ $receiver }}.selections) > 0 { ent.SelectColumns(selector, {{ $receiver }}.selections...) }
+	for _, column := range {{ $receiver }}.groups {
+		reference := column.Ref()
+		if reference.Table == "" || reference.Table == selector.TableName() { selector.GroupBy(selector.C(reference.Name)) } else {
+			selector.GroupBy(sql.Dialect(selector.Dialect()).Table(reference.Table).C(reference.Name))
+		}
 	}
-	switch n := len(*{{ $receiver }}.selector.flds); {
-	{{- /* If no columns were selected, the default selection is the aggregation.*/}}
-	case n == 0 && len(aggregation) > 0:
-		selector.Select(aggregation...)
-	case n != 0 && len(aggregation) > 0:
-		selector.AppendSelect(aggregation...)
-	}
-	rows := &sql.Rows{}
-	query, args := selector.Query()
-	if err := {{ $receiver }}.driver.Query(ctx, query, args, rows); err != nil {
-		return err
-	}
-	defer rows.Close()
-	return sql.ScanSlice(rows, v)
+	for _, modifier := range {{ $receiver }}.query.modifiers { modifier(selector) }
+	return selector, selector.Err()
 }
 
-{{/* Allow adding methods to the select-builder by ent extensions or user templates.*/}}
-{{ with $tmpls := matchTemplate "dialect/sql/select/additional/*" }}
-	{{- range $tmpl := $tmpls }}
-		{{- xtemplate $tmpl $ }}
-	{{- end }}
-{{ end }}
+func ({{ $receiver }} *{{ $builder }}) Scan(ctx context.Context, value any) error {
+	selector, err := {{ $receiver }}.sqlQuery(ctx)
+	if err != nil { return err }
+	query, arguments := selector.Query()
+	if err := selector.Err(); err != nil { return err }
+	rows, err := {{ $receiver }}.query.driver.Query(ctx, query, arguments)
+	if err != nil { return err }
+	defer rows.Close()
+	return sql.ScanSlice(rows, value)
+}
 
+func ({{ $receiver }} *{{ $builder }}) Rows(ctx context.Context) ([]*ent.Row, error) {
+	if len({{ $receiver }}.selections) == 0 { return nil, errors.New("ent: Rows requires explicit selections") }
+	selector, err := {{ $receiver }}.sqlQuery(ctx)
+	if err != nil { return nil, err }
+	query, arguments := selector.Query()
+	if err := selector.Err(); err != nil { return nil, err }
+	rows, err := {{ $receiver }}.query.driver.Query(ctx, query, arguments)
+	if err != nil { return nil, err }
+	defer rows.Close()
+	columns, err := rows.Columns()
+	if err != nil { return nil, err }
+	if len(columns) != len({{ $receiver }}.selections) {
+		return nil, fmt.Errorf("ent: projection column count %d differs from selection count %d", len(columns), len({{ $receiver }}.selections))
+	}
+	result := make([]*ent.Row, 0)
+	for rows.Next() {
+		row, destinations := ent.NewRow({{ $receiver }}.selections)
+		if err := rows.Scan(destinations...); err != nil { return nil, err }
+		result = append(result, row)
+	}
+	if err := rows.Err(); err != nil { return nil, err }
+	return result, nil
+}
+
+{{ range $tmpl := matchTemplate "dialect/sql/select/additional/*" }}{{ xtemplate $tmpl $ }}{{ end }}
 {{ end }}

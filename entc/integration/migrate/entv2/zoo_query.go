@@ -7,13 +7,15 @@ package entv2
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 
 	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
-	"github.com/neko-sc/ent/entc/integration/migrate/entv2/predicate"
+	"github.com/neko-sc/ent/entc/integration/migrate/entv2/entity"
 	"github.com/neko-sc/ent/entc/integration/migrate/entv2/zoo"
 	"github.com/neko-sc/ent/schema/field"
 )
@@ -22,17 +24,88 @@ import (
 type ZooQuery struct {
 	config
 	ctx        *QueryContext
-	order      []zoo.OrderOption
-	inters     []Interceptor
-	predicates []predicate.Zoo
+	order      []ent.OrderOption[entity.Zoo]
+	joins      []func(*sql.Selector)
+	withCounts []ent.RelationRef
+
+	predicates []ent.Predicate[entity.Zoo]
+	modifiers  []func(*sql.Selector)
+
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
 }
 
 // Where adds a new predicate for the ZooQuery builder.
-func (_q *ZooQuery) Where(ps ...predicate.Zoo) *ZooQuery {
-	_q.predicates = append(_q.predicates, ps...)
+func (_q *ZooQuery) Where(predicates ...ent.Predicate[entity.Zoo]) *ZooQuery {
+	_q.predicates = append(_q.predicates, predicates...)
+	return _q
+}
+
+func (_q *ZooQuery) WhereP(predicates ...func(*sql.Selector)) *ZooQuery {
+	for _, predicate := range predicates {
+		_q.predicates = append(_q.predicates, predicate)
+	}
+	return _q
+}
+
+func (_q *ZooQuery) Join(table string, on ...func(*sql.Selector)) *ZooQuery {
+	return _q.JoinAs(table, "", on...)
+}
+
+func (_q *ZooQuery) JoinAs(table, alias string, on ...func(*sql.Selector)) *ZooQuery {
+	on = append([]func(*sql.Selector){}, on...)
+	_q.joins = append(_q.joins, func(selector *sql.Selector) {
+		joined := sql.Dialect(selector.Dialect()).Table(table)
+		if alias != "" {
+			joined.As(alias)
+		} else {
+			joined.As(table)
+		}
+		condition := sql.Dialect(selector.Dialect()).Select().From(selector.Table())
+		for _, predicate := range on {
+			predicate(condition)
+		}
+		if err := condition.Err(); err != nil {
+			selector.AddError(err)
+		}
+		selector.Join(joined).OnP(condition.P())
+	})
+	return _q
+}
+
+func (_q *ZooQuery) LeftJoin(table string, on ...func(*sql.Selector)) *ZooQuery {
+	return _q.LeftJoinAs(table, "", on...)
+}
+
+func (_q *ZooQuery) LeftJoinAs(table, alias string, on ...func(*sql.Selector)) *ZooQuery {
+	on = append([]func(*sql.Selector){}, on...)
+	_q.joins = append(_q.joins, func(selector *sql.Selector) {
+		joined := sql.Dialect(selector.Dialect()).Table(table)
+		if alias != "" {
+			joined.As(alias)
+		} else {
+			joined.As(table)
+		}
+		condition := sql.Dialect(selector.Dialect()).Select().From(selector.Table())
+		for _, predicate := range on {
+			predicate(condition)
+		}
+		if err := condition.Err(); err != nil {
+			selector.AddError(err)
+		}
+		selector.LeftJoin(joined).OnP(condition.P())
+	})
+	return _q
+}
+
+func (_q *ZooQuery) WithCount[N, K any](edge ent.Relation[entity.Zoo, N, K]) *ZooQuery {
+	for _, requested := range _q.withCounts {
+		if requested.Name == edge.Ref().Name {
+			return _q
+		}
+	}
+	_q.withCounts = append(_q.withCounts, edge.Ref())
 	return _q
 }
 
@@ -56,7 +129,7 @@ func (_q *ZooQuery) Unique(unique bool) *ZooQuery {
 }
 
 // Order specifies how the records should be ordered.
-func (_q *ZooQuery) Order(o ...zoo.OrderOption) *ZooQuery {
+func (_q *ZooQuery) Order(o ...ent.OrderOption[entity.Zoo]) *ZooQuery {
 	_q.order = append(_q.order, o...)
 	return _q
 }
@@ -64,7 +137,7 @@ func (_q *ZooQuery) Order(o ...zoo.OrderOption) *ZooQuery {
 // First returns the first Zoo entity from the query.
 // Returns a *NotFoundError when no Zoo was found.
 func (_q *ZooQuery) First(ctx context.Context) (*Zoo, error) {
-	nodes, err := _q.Limit(1).All(setContextOp(ctx, _q.ctx, ent.OpQueryFirst))
+	nodes, err := _q.Limit(1).All(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +160,7 @@ func (_q *ZooQuery) FirstX(ctx context.Context) *Zoo {
 // Returns a *NotFoundError when no Zoo ID was found.
 func (_q *ZooQuery) FirstID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = _q.Limit(1).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryFirstID)); err != nil {
+	if ids, err = _q.Limit(1).IDs(ctx); err != nil {
 		return
 	}
 	if len(ids) == 0 {
@@ -110,7 +183,7 @@ func (_q *ZooQuery) FirstIDX(ctx context.Context) int {
 // Returns a *NotSingularError when more than one Zoo entity is found.
 // Returns a *NotFoundError when no Zoo entities are found.
 func (_q *ZooQuery) Only(ctx context.Context) (*Zoo, error) {
-	nodes, err := _q.Limit(2).All(setContextOp(ctx, _q.ctx, ent.OpQueryOnly))
+	nodes, err := _q.Limit(2).All(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -138,7 +211,7 @@ func (_q *ZooQuery) OnlyX(ctx context.Context) *Zoo {
 // Returns a *NotFoundError when no entities are found.
 func (_q *ZooQuery) OnlyID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = _q.Limit(2).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryOnlyID)); err != nil {
+	if ids, err = _q.Limit(2).IDs(ctx); err != nil {
 		return
 	}
 	switch len(ids) {
@@ -163,12 +236,10 @@ func (_q *ZooQuery) OnlyIDX(ctx context.Context) int {
 
 // All executes the query and returns a list of Zoos.
 func (_q *ZooQuery) All(ctx context.Context) ([]*Zoo, error) {
-	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryAll)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
-	qr := querierAll[[]*Zoo, *ZooQuery]()
-	return withInterceptors[[]*Zoo](ctx, _q, qr, _q.inters)
+	return _q.sqlAll(ctx)
 }
 
 // AllX is like All, but panics if an error occurs.
@@ -185,8 +256,7 @@ func (_q *ZooQuery) IDs(ctx context.Context) (ids []int, err error) {
 	if _q.ctx.Unique == nil && _q.path != nil {
 		_q.Unique(true)
 	}
-	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryIDs)
-	if err = _q.Select(zoo.FieldID).Scan(ctx, &ids); err != nil {
+	if ids, err = ent.Values(ctx, _q.Select(zoo.ID), zoo.ID); err != nil {
 		return nil, err
 	}
 	return ids, nil
@@ -203,11 +273,10 @@ func (_q *ZooQuery) IDsX(ctx context.Context) []int {
 
 // Count returns the count of the given query.
 func (_q *ZooQuery) Count(ctx context.Context) (int, error) {
-	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryCount)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
-	return withInterceptors[int](ctx, _q, querierCount[*ZooQuery](), _q.inters)
+	return _q.sqlCount(ctx)
 }
 
 // CountX is like Count, but panics if an error occurs.
@@ -221,7 +290,6 @@ func (_q *ZooQuery) CountX(ctx context.Context) int {
 
 // Exist returns true if the query has elements in the graph.
 func (_q *ZooQuery) Exist(ctx context.Context) (bool, error) {
-	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryExist)
 	switch _, err := _q.FirstID(ctx); {
 	case IsNotFound(err):
 		return false, nil
@@ -247,55 +315,44 @@ func (_q *ZooQuery) Clone() *ZooQuery {
 	if _q == nil {
 		return nil
 	}
-	return &ZooQuery{
+	cloned := &ZooQuery{
 		config:     _q.config,
 		ctx:        _q.ctx.Clone(),
-		order:      append([]zoo.OrderOption{}, _q.order...),
-		inters:     append([]Interceptor{}, _q.inters...),
-		predicates: append([]predicate.Zoo{}, _q.predicates...),
+		order:      append([]ent.OrderOption[entity.Zoo]{}, _q.order...),
+		predicates: append([]ent.Predicate[entity.Zoo]{}, _q.predicates...),
+		joins:      append([]func(*sql.Selector){}, _q.joins...),
+		withCounts: append([]ent.RelationRef{}, _q.withCounts...),
+
 		// clone intermediate query.
-		sql:  _q.sql.Clone(),
-		path: _q.path,
+		sql:       _q.sql.Clone(),
+		path:      _q.path,
+		modifiers: append([]func(*sql.Selector){}, _q.modifiers...),
 	}
+
+	return cloned
 }
 
 // GroupBy is used to group vertices by one or more fields/columns.
-// It is often used with aggregate functions, like: count, max, mean, min, sum.
-func (_q *ZooQuery) GroupBy(field string, fields ...string) *ZooGroupBy {
-	_q.ctx.Fields = append([]string{field}, fields...)
-	grbuild := &ZooGroupBy{build: _q}
-	grbuild.flds = &_q.ctx.Fields
-	grbuild.label = zoo.Label
-	grbuild.scan = grbuild.Scan
-	return grbuild
+// It can be combined with typed aggregate selections.
+func (_q *ZooQuery) GroupBy(columns ...ent.EntityColumn[entity.Zoo]) *ZooGroupBy {
+	if len(columns) == 0 {
+		panic("ent: GroupBy requires at least one column")
+	}
+	return &ZooGroupBy{query: _q, columns: append([]ent.EntityColumn[entity.Zoo](nil), columns...)}
 }
 
 // Select allows the selection one or more fields/columns for the given query,
 // instead of selecting all fields in the entity.
-func (_q *ZooQuery) Select(fields ...string) *ZooSelect {
-	_q.ctx.Fields = append(_q.ctx.Fields, fields...)
-	sbuild := &ZooSelect{ZooQuery: _q}
-	sbuild.label = zoo.Label
-	sbuild.flds, sbuild.scan = &_q.ctx.Fields, sbuild.Scan
-	return sbuild
+func (_q *ZooQuery) Select(selections ...ent.Selection) *ZooSelect {
+	return &ZooSelect{query: _q, selections: append([]ent.Selection(nil), selections...)}
 }
 
 // Aggregate returns a ZooSelect configured with the given aggregations.
-func (_q *ZooQuery) Aggregate(fns ...AggregateFunc) *ZooSelect {
-	return _q.Select().Aggregate(fns...)
+func (_q *ZooQuery) Aggregate(selections ...ent.Selection) *ZooSelect {
+	return _q.Select(selections...)
 }
 
 func (_q *ZooQuery) prepareQuery(ctx context.Context) error {
-	for _, inter := range _q.inters {
-		if inter == nil {
-			return fmt.Errorf("entv2: uninitialized interceptor (forgotten import entv2/runtime?)")
-		}
-		if trv, ok := inter.(Traverser); ok {
-			if err := trv.Traverse(ctx, _q); err != nil {
-				return err
-			}
-		}
-	}
 	for _, f := range _q.ctx.Fields {
 		if !zoo.ValidColumn(f) {
 			return &ValidationError{Name: f, err: fmt.Errorf("entv2: invalid field %q for query", f)}
@@ -324,6 +381,10 @@ func (_q *ZooQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Zoo, err
 		nodes = append(nodes, node)
 		return node.assignValues(columns, values)
 	}
+	if len(_q.modifiers) > 0 {
+		_spec.Modifiers = _q.modifiers
+	}
+
 	for i := range hooks {
 		hooks[i](ctx, _spec)
 	}
@@ -333,11 +394,16 @@ func (_q *ZooQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Zoo, err
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
+
 	return nodes, nil
 }
 
 func (_q *ZooQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := _q.querySpec()
+	if len(_q.modifiers) > 0 {
+		_spec.Modifiers = _q.modifiers
+	}
+
 	_spec.Node.Columns = _q.ctx.Fields
 	if len(_q.ctx.Fields) > 0 {
 		_spec.Unique = _q.ctx.Unique != nil && *_q.ctx.Unique
@@ -362,10 +428,13 @@ func (_q *ZooQuery) querySpec() *sqlgraph.QuerySpec {
 			}
 		}
 	}
-	if ps := _q.predicates; len(ps) > 0 {
+	if predicates := _q.predicates; len(predicates) > 0 || len(_q.joins) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
-			for i := range ps {
-				ps[i](selector)
+			for _, join := range _q.joins {
+				join(selector)
+			}
+			for i := range predicates {
+				predicates[i](selector)
 			}
 		}
 	}
@@ -400,6 +469,9 @@ func (_q *ZooQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	if _q.ctx.Unique != nil && *_q.ctx.Unique {
 		selector.Distinct()
 	}
+	for _, join := range _q.joins {
+		join(selector)
+	}
 	for _, p := range _q.predicates {
 		p(selector)
 	}
@@ -414,95 +486,188 @@ func (_q *ZooQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	if limit := _q.ctx.Limit; limit != nil {
 		selector.Limit(*limit)
 	}
+	for _, modifier := range _q.modifiers {
+		modifier(selector)
+	}
 	return selector
+}
+
+// ForUpdate locks the selected rows against concurrent updates, and prevent them from being
+// updated, deleted or "selected ... for update" by other sessions, until the transaction is
+// either committed or rolled-back.
+func (_q *ZooQuery) ForUpdate(opts ...sql.LockOption) *ZooQuery {
+	if _q.driver.Dialect() == dialect.Postgres {
+		_q.Unique(false)
+	}
+	_q.modifiers = append(_q.modifiers, func(s *sql.Selector) {
+		s.ForUpdate(opts...)
+	})
+	return _q
+}
+
+// ForShare behaves similarly to ForUpdate, except that it acquires a shared mode lock
+// on any rows that are read. Other sessions can read the rows, but cannot modify them
+// until your transaction commits.
+func (_q *ZooQuery) ForShare(opts ...sql.LockOption) *ZooQuery {
+	if _q.driver.Dialect() == dialect.Postgres {
+		_q.Unique(false)
+	}
+	_q.modifiers = append(_q.modifiers, func(s *sql.Selector) {
+		s.ForShare(opts...)
+	})
+	return _q
+}
+
+// Modify adds a query modifier for attaching custom logic to queries.
+func (_q *ZooQuery) Modify(modifiers ...func(s *sql.Selector)) *ZooSelect {
+	_q.modifiers = append(_q.modifiers, modifiers...)
+	return _q.Select()
 }
 
 // ZooGroupBy is the group-by builder for Zoo entities.
 type ZooGroupBy struct {
-	selector
-	build *ZooQuery
+	query      *ZooQuery
+	columns    []ent.EntityColumn[entity.Zoo]
+	aggregates []ent.Selection
 }
 
-// Aggregate adds the given aggregation functions to the group-by query.
-func (_g *ZooGroupBy) Aggregate(fns ...AggregateFunc) *ZooGroupBy {
-	_g.fns = append(_g.fns, fns...)
+func (_g *ZooGroupBy) Aggregate(selections ...ent.Selection) *ZooGroupBy {
+	_g.aggregates = append(_g.aggregates, selections...)
 	return _g
 }
 
-// Scan applies the selector query and scans the result into the given value.
 func (_g *ZooGroupBy) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, _g.build.ctx, ent.OpQueryGroupBy)
-	if err := _g.build.prepareQuery(ctx); err != nil {
-		return err
-	}
-	return scanWithInterceptors[*ZooQuery, *ZooGroupBy](ctx, _g.build, _g, _g.build.inters, v)
+	return _g.selectQuery().Scan(ctx, v)
 }
 
-func (_g *ZooGroupBy) sqlScan(ctx context.Context, root *ZooQuery, v any) error {
-	selector := root.sqlQuery(ctx).Select()
-	aggregation := make([]string, 0, len(_g.fns))
-	for _, fn := range _g.fns {
-		aggregation = append(aggregation, fn(selector))
+func (_g *ZooGroupBy) Rows(ctx context.Context) ([]*ent.Row, error) {
+	return _g.selectQuery().Rows(ctx)
+}
+
+func (_g *ZooGroupBy) selectQuery() *ZooSelect {
+	selections := make([]ent.Selection, 0, len(_g.columns)+len(_g.aggregates))
+	for _, column := range _g.columns {
+		selections = append(selections, column)
 	}
-	if len(selector.SelectedColumns()) == 0 {
-		columns := make([]string, 0, len(*_g.flds)+len(_g.fns))
-		for _, f := range *_g.flds {
-			columns = append(columns, selector.C(f))
-		}
-		columns = append(columns, aggregation...)
-		selector.Select(columns...)
-	}
-	selector.GroupBy(selector.Columns(*_g.flds...)...)
-	if err := selector.Err(); err != nil {
-		return err
-	}
-	rows := &sql.Rows{}
-	query, args := selector.Query()
-	if err := _g.build.driver.Query(ctx, query, args, rows); err != nil {
-		return err
-	}
-	defer rows.Close()
-	return sql.ScanSlice(rows, v)
+	selected := _g.query.Select(append(selections, _g.aggregates...)...)
+	selected.groups = _g.columns
+	return selected
 }
 
 // ZooSelect is the builder for selecting fields of Zoo entities.
 type ZooSelect struct {
-	*ZooQuery
-	selector
+	query      *ZooQuery
+	selections []ent.Selection
+	groups     []ent.EntityColumn[entity.Zoo]
 }
 
-// Aggregate adds the given aggregation functions to the selector query.
-func (_s *ZooSelect) Aggregate(fns ...AggregateFunc) *ZooSelect {
-	_s.fns = append(_s.fns, fns...)
+func (_s *ZooSelect) Aggregate(selections ...ent.Selection) *ZooSelect {
+	_s.selections = append(_s.selections, selections...)
 	return _s
 }
 
-// Scan applies the selector query and scans the result into the given value.
-func (_s *ZooSelect) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, _s.ctx, ent.OpQuerySelect)
-	if err := _s.prepareQuery(ctx); err != nil {
-		return err
+func (_s *ZooSelect) Row(ctx context.Context) (*ent.Row, error) {
+	rows, err := _s.Rows(ctx)
+	if err != nil {
+		return nil, err
 	}
-	return scanWithInterceptors[*ZooQuery, *ZooSelect](ctx, _s.ZooQuery, _s, _s.inters, v)
+	switch len(rows) {
+	case 0:
+		return nil, &NotFoundError{zoo.Label}
+	case 1:
+		return rows[0], nil
+	default:
+		return nil, &NotSingularError{zoo.Label}
+	}
 }
 
-func (_s *ZooSelect) sqlScan(ctx context.Context, root *ZooQuery, v any) error {
+func (_s *ZooSelect) sqlQuery(ctx context.Context) (*sql.Selector, error) {
+	root := _s.query.Clone()
+	root.ctx.Fields = nil
+	for _, selection := range _s.selections {
+		if column := selection.Ref(); column.Name != "" && (column.Table == "" || column.Table == zoo.Table) {
+			root.ctx.AppendFieldOnce(column.Name)
+		}
+	}
+	if err := root.prepareQuery(ctx); err != nil {
+		return nil, err
+	}
+	root.modifiers = nil
 	selector := root.sqlQuery(ctx)
-	aggregation := make([]string, 0, len(_s.fns))
-	for _, fn := range _s.fns {
-		aggregation = append(aggregation, fn(selector))
+	if len(_s.selections) > 0 {
+		ent.SelectColumns(selector, _s.selections...)
 	}
-	switch n := len(*_s.selector.flds); {
-	case n == 0 && len(aggregation) > 0:
-		selector.Select(aggregation...)
-	case n != 0 && len(aggregation) > 0:
-		selector.AppendSelect(aggregation...)
+	for _, column := range _s.groups {
+		reference := column.Ref()
+		if reference.Table == "" || reference.Table == selector.TableName() {
+			selector.GroupBy(selector.C(reference.Name))
+		} else {
+			selector.GroupBy(sql.Dialect(selector.Dialect()).Table(reference.Table).C(reference.Name))
+		}
 	}
-	rows := &sql.Rows{}
-	query, args := selector.Query()
-	if err := _s.driver.Query(ctx, query, args, rows); err != nil {
+	for _, modifier := range _s.query.modifiers {
+		modifier(selector)
+	}
+	return selector, selector.Err()
+}
+
+func (_s *ZooSelect) Scan(ctx context.Context, value any) error {
+	selector, err := _s.sqlQuery(ctx)
+	if err != nil {
+		return err
+	}
+	query, arguments := selector.Query()
+	if err := selector.Err(); err != nil {
+		return err
+	}
+	rows, err := _s.query.driver.Query(ctx, query, arguments)
+	if err != nil {
 		return err
 	}
 	defer rows.Close()
-	return sql.ScanSlice(rows, v)
+	return sql.ScanSlice(rows, value)
+}
+
+func (_s *ZooSelect) Rows(ctx context.Context) ([]*ent.Row, error) {
+	if len(_s.selections) == 0 {
+		return nil, errors.New("ent: Rows requires explicit selections")
+	}
+	selector, err := _s.sqlQuery(ctx)
+	if err != nil {
+		return nil, err
+	}
+	query, arguments := selector.Query()
+	if err := selector.Err(); err != nil {
+		return nil, err
+	}
+	rows, err := _s.query.driver.Query(ctx, query, arguments)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	columns, err := rows.Columns()
+	if err != nil {
+		return nil, err
+	}
+	if len(columns) != len(_s.selections) {
+		return nil, fmt.Errorf("ent: projection column count %d differs from selection count %d", len(columns), len(_s.selections))
+	}
+	result := make([]*ent.Row, 0)
+	for rows.Next() {
+		row, destinations := ent.NewRow(_s.selections)
+		if err := rows.Scan(destinations...); err != nil {
+			return nil, err
+		}
+		result = append(result, row)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+// Modify adds a query modifier for attaching custom logic to queries.
+func (_s *ZooSelect) Modify(modifiers ...func(s *sql.Selector)) *ZooSelect {
+	_s.query.modifiers = append(_s.query.modifiers, modifiers...)
+	return _s
 }

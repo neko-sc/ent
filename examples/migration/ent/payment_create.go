@@ -9,132 +9,219 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
+	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/examples/migration/ent/card"
+	"github.com/neko-sc/ent/examples/migration/ent/entity"
 	"github.com/neko-sc/ent/examples/migration/ent/payment"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// PaymentCreate is the builder for creating a Payment entity.
 type PaymentCreate struct {
 	config
-	mutation *PaymentMutation
-	hooks    []Hook
+	mutation    *PaymentMutation
+	err         error
+	fromBuilder bool
+	present     map[string]struct{}
+
+	conflict []sql.ConflictOption
 }
 
-// SetCardID sets the "card_id" field.
-func (_c *PaymentCreate) SetCardID(v int) *PaymentCreate {
-	_c.mutation.SetCardID(v)
-	return _c
+func (b *PaymentCreate) Set[T any](column ent.ColumnOf[entity.Payment, T], value T) *PaymentCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.set(column.Ref().Name, value)
+	}
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+}
+func (b *PaymentCreate) SetOptional[T any](column ent.ColumnOf[entity.Payment, T], value ent.Option[T]) *PaymentCreate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.insert.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *PaymentCreate) SetExpr[T any](column ent.ColumnOf[entity.Payment, T], value ent.Expr[T]) *PaymentCreate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case payment.FieldCardID:
+
+	case payment.FieldAmount:
+
+	case payment.FieldCurrency:
+
+	case payment.FieldTime:
+
+	case payment.FieldDescription:
+
+	case payment.FieldStatus:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Payment is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.insert.setExpr(column.Ref().Name, value.Render)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+
+}
+func (b *PaymentCreate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Payment, N, K], id K) *PaymentCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.setEdge(edge.Ref().Name, id)
+	}
+
+	switch edge.Ref().Name {
+	case payment.EdgeCard:
+		if b.present == nil {
+			b.present = make(map[string]struct{})
+		}
+		b.present[payment.FieldCardID] = struct{}{}
+
+	}
+
+	return b
+}
+func (b *PaymentCreate) AddIDs[N, K any](edge ent.Relation[entity.Payment, N, K], ids ...K) *PaymentCreate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.insert.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *PaymentCreate) Mutation() *PaymentMutation { return b.mutation }
+
+func (b *PaymentCreate) Insert() *PaymentInsert { return b.mutation.insert }
+
+func (b *PaymentCreate) Save(ctx context.Context) (*Payment, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// SetAmount sets the "amount" field.
-func (_c *PaymentCreate) SetAmount(v float64) *PaymentCreate {
-	_c.mutation.SetAmount(v)
-	return _c
-}
-
-// SetCurrency sets the "currency" field.
-func (_c *PaymentCreate) SetCurrency(v payment.Currency) *PaymentCreate {
-	_c.mutation.SetCurrency(v)
-	return _c
-}
-
-// SetTime sets the "time" field.
-func (_c *PaymentCreate) SetTime(v time.Time) *PaymentCreate {
-	_c.mutation.SetTime(v)
-	return _c
-}
-
-// SetDescription sets the "description" field.
-func (_c *PaymentCreate) SetDescription(v string) *PaymentCreate {
-	_c.mutation.SetDescription(v)
-	return _c
-}
-
-// SetStatus sets the "status" field.
-func (_c *PaymentCreate) SetStatus(v payment.Status) *PaymentCreate {
-	_c.mutation.SetStatus(v)
-	return _c
-}
-
-// SetCard sets the "card" edge to the Card entity.
-func (_c *PaymentCreate) SetCard(v *Card) *PaymentCreate {
-	return _c.SetCardID(v.ID)
-}
-
-// Mutation returns the PaymentMutation object of the builder.
-func (_c *PaymentCreate) Mutation() *PaymentMutation {
-	return _c.mutation
-}
-
-// Save creates the Payment in the database.
-func (_c *PaymentCreate) Save(ctx context.Context) (*Payment, error) {
-	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
-}
-
-// SaveX calls Save and panics if Save returns an error.
-func (_c *PaymentCreate) SaveX(ctx context.Context) *Payment {
-	v, err := _c.Save(ctx)
+func (b *PaymentCreate) SaveX(ctx context.Context) *Payment {
+	node, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return node
 }
 
-// Exec executes the query.
-func (_c *PaymentCreate) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *PaymentCreate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *PaymentCreate) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *PaymentCreate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_c *PaymentCreate) check() error {
-	if _, ok := _c.mutation.CardID(); !ok {
-		return &ValidationError{Name: "card_id", err: errors.New(`ent: missing required field "Payment.card_id"`)}
+func (b *PaymentCreate) defaults() error {
+
+	return nil
+}
+
+func (b *PaymentCreate) check() error {
+	if b.err != nil {
+		return b.err
 	}
-	if _, ok := _c.mutation.Amount(); !ok {
-		return &ValidationError{Name: "amount", err: errors.New(`ent: missing required field "Payment.amount"`)}
+
+	switch b.driver.Dialect() {
+	case dialect.Postgres, dialect.SQLite:
+		if _, present := b.present[payment.FieldCardID]; b.fromBuilder && !present {
+			return &ValidationError{Name: "card_id", err: errors.New(`ent: missing required field "Payment.card_id"`)}
+		}
 	}
-	if v, ok := _c.mutation.Amount(); ok {
+
+	switch b.driver.Dialect() {
+	case dialect.Postgres, dialect.SQLite:
+		if _, present := b.present[payment.FieldAmount]; b.fromBuilder && !present {
+			return &ValidationError{Name: "amount", err: errors.New(`ent: missing required field "Payment.amount"`)}
+		}
+	}
+
+	if b.mutation.insert.expressions[payment.FieldAmount] == nil {
+		v := b.mutation.insert.Amount
+
 		if err := payment.AmountValidator(v); err != nil {
 			return &ValidationError{Name: "amount", err: fmt.Errorf(`ent: validator failed for field "Payment.amount": %w`, err)}
 		}
+
 	}
-	if _, ok := _c.mutation.Currency(); !ok {
-		return &ValidationError{Name: "currency", err: errors.New(`ent: missing required field "Payment.currency"`)}
+
+	switch b.driver.Dialect() {
+	case dialect.Postgres, dialect.SQLite:
+		if _, present := b.present[payment.FieldCurrency]; b.fromBuilder && !present {
+			return &ValidationError{Name: "currency", err: errors.New(`ent: missing required field "Payment.currency"`)}
+		}
 	}
-	if v, ok := _c.mutation.Currency(); ok {
+
+	if b.mutation.insert.expressions[payment.FieldCurrency] == nil {
+		v := b.mutation.insert.Currency
+
 		if err := payment.CurrencyValidator(v); err != nil {
 			return &ValidationError{Name: "currency", err: fmt.Errorf(`ent: validator failed for field "Payment.currency": %w`, err)}
 		}
+
 	}
-	if _, ok := _c.mutation.Time(); !ok {
-		return &ValidationError{Name: "time", err: errors.New(`ent: missing required field "Payment.time"`)}
+
+	switch b.driver.Dialect() {
+	case dialect.Postgres, dialect.SQLite:
+		if _, present := b.present[payment.FieldTime]; b.fromBuilder && !present {
+			return &ValidationError{Name: "time", err: errors.New(`ent: missing required field "Payment.time"`)}
+		}
 	}
-	if _, ok := _c.mutation.Description(); !ok {
-		return &ValidationError{Name: "description", err: errors.New(`ent: missing required field "Payment.description"`)}
+
+	switch b.driver.Dialect() {
+	case dialect.Postgres, dialect.SQLite:
+		if _, present := b.present[payment.FieldDescription]; b.fromBuilder && !present {
+			return &ValidationError{Name: "description", err: errors.New(`ent: missing required field "Payment.description"`)}
+		}
 	}
-	if _, ok := _c.mutation.Status(); !ok {
-		return &ValidationError{Name: "status", err: errors.New(`ent: missing required field "Payment.status"`)}
+
+	switch b.driver.Dialect() {
+	case dialect.Postgres, dialect.SQLite:
+		if _, present := b.present[payment.FieldStatus]; b.fromBuilder && !present {
+			return &ValidationError{Name: "status", err: errors.New(`ent: missing required field "Payment.status"`)}
+		}
 	}
-	if v, ok := _c.mutation.Status(); ok {
+
+	if b.mutation.insert.expressions[payment.FieldStatus] == nil {
+		v := b.mutation.insert.Status
+
 		if err := payment.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "Payment.status": %w`, err)}
 		}
+
 	}
-	if len(_c.mutation.CardIDs()) == 0 {
+
+	if len(b.mutation.insert.cardIDs()) == 0 {
 		return &ValidationError{Name: "card", err: errors.New(`ent: missing required edge "Payment.card"`)}
 	}
+
 	return nil
 }
 
@@ -142,46 +229,57 @@ func (_c *PaymentCreate) sqlSave(ctx context.Context) (*Payment, error) {
 	if err := _c.check(); err != nil {
 		return nil, err
 	}
-	_node, _spec := _c.createSpec()
-	if err := sqlgraph.CreateNode(ctx, _c.driver, _spec); err != nil {
+	node, spec, err := _c.createSpec()
+	if err != nil {
+		return nil, err
+	}
+	if err := sqlgraph.CreateNode(ctx, _c.driver, spec); err != nil {
 		if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
 		return nil, err
 	}
-	id := _spec.ID.Value.(int64)
-	_node.ID = int(id)
-	_c.mutation.id = &_node.ID
-	_c.mutation.done = true
-	return _node, nil
+	_c.mutation.id = &node.ID
+	return node, nil
 }
 
-func (_c *PaymentCreate) createSpec() (*Payment, *sqlgraph.CreateSpec) {
-	var (
-		_node = &Payment{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(payment.Table, sqlgraph.NewFieldSpec(payment.FieldID, field.TypeInt))
-	)
-	if value, ok := _c.mutation.Amount(); ok {
+func (_c *PaymentCreate) createSpec() (*Payment, *sqlgraph.CreateSpec, error) {
+	_node := &Payment{config: _c.config}
+	_spec := sqlgraph.NewCreateSpec(payment.Table, sqlgraph.NewFieldSpec(payment.FieldID, field.TypeInt))
+
+	_spec.OnConflict = _c.conflict
+
+	if _, present := _c.present[payment.FieldAmount]; !_c.fromBuilder || present {
+		value := _c.mutation.insert.Amount
 		_spec.SetField(payment.FieldAmount, field.TypeFloat64, value)
-		_node.Amount = value
 	}
-	if value, ok := _c.mutation.Currency(); ok {
+
+	if _, present := _c.present[payment.FieldCurrency]; !_c.fromBuilder || present {
+		value := _c.mutation.insert.Currency
 		_spec.SetField(payment.FieldCurrency, field.TypeEnum, value)
-		_node.Currency = value
 	}
-	if value, ok := _c.mutation.Time(); ok {
+
+	if _, present := _c.present[payment.FieldTime]; !_c.fromBuilder || present {
+		value := _c.mutation.insert.Time
 		_spec.SetField(payment.FieldTime, field.TypeTime, value)
-		_node.Time = value
 	}
-	if value, ok := _c.mutation.Description(); ok {
+
+	if _, present := _c.present[payment.FieldDescription]; !_c.fromBuilder || present {
+		value := _c.mutation.insert.Description
 		_spec.SetField(payment.FieldDescription, field.TypeString, value)
-		_node.Description = value
 	}
-	if value, ok := _c.mutation.Status(); ok {
+
+	if _, present := _c.present[payment.FieldStatus]; !_c.fromBuilder || present {
+		value := _c.mutation.insert.Status
 		_spec.SetField(payment.FieldStatus, field.TypeEnum, value)
-		_node.Status = value
 	}
-	if nodes := _c.mutation.CardIDs(); len(nodes) > 0 {
+
+	_spec.Expressions = _c.mutation.insert.expressions
+
+	if nodes := _c.mutation.insert.cardIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -192,98 +290,421 @@ func (_c *PaymentCreate) createSpec() (*Payment, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(card.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
-		_node.CardID = nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	return _node, _spec
+
+	_spec.Returning = &sqlgraph.Returning{Columns: payment.Columns, Scan: func(rows dialect.Rows) error {
+		values, err := _node.scanValues(payment.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(payment.Columns, values); err != nil {
+			return err
+		}
+
+		_spec.ID.Value = _node.ID
+
+		return nil
+	}}
+	return _node, _spec, nil
 }
 
-// PaymentCreateBulk is the builder for creating many Payment entities in bulk.
+type PaymentUpsertOne struct{ create *PaymentCreate }
+
+func (b *PaymentCreate) OnConflict(columns ...ent.EntityColumn[entity.Payment]) *PaymentUpsertOne {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
+	}
+	if len(names) == 0 {
+		return b.OnConflictOptions()
+	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
+}
+
+func (b *PaymentCreate) OnConflictConstraint(name string) *PaymentUpsertOne {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
+}
+
+func (b *PaymentCreate) OnConflictOptions(options ...sql.ConflictOption) *PaymentUpsertOne {
+	b.conflict = options
+	return &PaymentUpsertOne{create: b}
+}
+
+func (u *PaymentUpsertOne) DoNothing() *PaymentUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+func (u *PaymentUpsertOne) DoSelect() *PaymentUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *PaymentUpsertOne) Ignore() *PaymentUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *PaymentUpsertOne) DoUpdate(set func(*PaymentUpsert)) *PaymentUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&PaymentUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *PaymentUpsertOne) UpdateNewValues() *PaymentUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case payment.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
+	}))
+	return u
+}
+
+func (u *PaymentUpsertOne) Where(predicates ...ent.Predicate[entity.Payment]) *PaymentUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(payment.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *PaymentUpsertOne) UpdateWhere(predicates ...ent.Predicate[entity.Payment]) *PaymentUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(payment.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *PaymentUpsertOne) Save(ctx context.Context) (*Payment, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for PaymentCreate.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *PaymentUpsertOne) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
+func (u *PaymentUpsertOne) ExecX(ctx context.Context) {
+	if err := u.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+func (u *PaymentUpsertOne) ID(ctx context.Context) (id int, err error) {
+	node, err := u.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+func (u *PaymentUpsertOne) IDX(ctx context.Context) int {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
+type PaymentUpsert struct{ *sql.UpdateSet }
+
+func (u *PaymentUpsert) Set[T any](column ent.ColumnOf[entity.Payment, T], value T) *PaymentUpsert {
+	switch column.Ref().Name {
+
+	case payment.FieldCardID:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case payment.FieldAmount:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case payment.FieldCurrency:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case payment.FieldTime:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case payment.FieldDescription:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case payment.FieldStatus:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Payment is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *PaymentUpsert) SetExpr[T any](column ent.ColumnOf[entity.Payment, T], value ent.Expr[T]) *PaymentUpsert {
+	switch column.Ref().Name {
+
+	case payment.FieldCardID:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case payment.FieldAmount:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case payment.FieldCurrency:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case payment.FieldTime:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case payment.FieldDescription:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case payment.FieldStatus:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Payment is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *PaymentUpsert) UpdateNewValue[T any](column ent.ColumnOf[entity.Payment, T]) *PaymentUpsert {
+	switch column.Ref().Name {
+
+	case payment.FieldCardID:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case payment.FieldAmount:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case payment.FieldCurrency:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case payment.FieldTime:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case payment.FieldDescription:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case payment.FieldStatus:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Payment is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *PaymentUpsert) Add[T ent.Number](column ent.ColumnOf[entity.Payment, T], delta T) *PaymentUpsert {
+	switch column.Ref().Name {
+
+	case payment.FieldAmount:
+		u.UpdateSet.Add(column.Ref().Name, delta)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Payment does not support addition", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *PaymentUpsert) Clear[T any](column ent.ColumnOf[entity.Payment, T]) *PaymentUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Payment is not nullable", column.Ref().Name)})
+	}
+	return u
+}
+
 type PaymentCreateBulk struct {
 	config
 	err      error
 	builders []*PaymentCreate
+
+	conflict []sql.ConflictOption
 }
 
-// Save creates the Payment entities in the database.
 func (_c *PaymentCreateBulk) Save(ctx context.Context) ([]*Payment, error) {
 	if _c.err != nil {
 		return nil, _c.err
 	}
-	specs := make([]*sqlgraph.CreateSpec, len(_c.builders))
 	nodes := make([]*Payment, len(_c.builders))
-	mutators := make([]Mutator, len(_c.builders))
-	for i := range _c.builders {
-		func(i int, root context.Context) {
-			builder := _c.builders[i]
-			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*PaymentMutation)
-				if !ok {
-					return nil, fmt.Errorf("unexpected mutation type %T", m)
-				}
-				if err := builder.check(); err != nil {
-					return nil, err
-				}
-				builder.mutation = mutation
-				var err error
-				nodes[i], specs[i] = builder.createSpec()
-				if i < len(mutators)-1 {
-					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
-				} else {
-					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
-					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
-						if sqlgraph.IsConstraintError(err) {
-							err = &ConstraintError{msg: err.Error(), wrap: err}
-						}
-					}
-				}
-				if err != nil {
-					return nil, err
-				}
-				mutation.id = &nodes[i].ID
-				if specs[i].ID.Value != nil {
-					id := specs[i].ID.Value.(int64)
-					nodes[i].ID = int(id)
-				}
-				mutation.done = true
-				return nodes[i], nil
-			})
-			for i := len(builder.hooks) - 1; i >= 0; i-- {
-				mut = builder.hooks[i](mut)
-			}
-			mutators[i] = mut
-		}(i, ctx)
-	}
-	if len(mutators) > 0 {
-		if _, err := mutators[0].Mutate(ctx, _c.builders[0].mutation); err != nil {
+	specs := make([]*sqlgraph.CreateSpec, len(nodes))
+	for index, builder := range _c.builders {
+		if builder.err != nil {
+			return nil, builder.err
+		}
+		if err := builder.defaults(); err != nil {
+			return nil, err
+		}
+		if err := builder.check(); err != nil {
+			return nil, err
+		}
+		var err error
+		nodes[index], specs[index], err = builder.createSpec()
+		if err != nil {
 			return nil, err
 		}
 	}
-	return nodes, nil
+	if len(specs) == 0 {
+		return nodes, nil
+	}
+	spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+
+	spec.OnConflict = _c.conflict
+
+	if err := sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
+		if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{msg: err.Error(), wrap: err}
+		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
+		return nil, err
+	}
+	result := nodes[:0]
+	for index, builder := range _c.builders {
+		if specs[index].Skipped {
+			continue
+		}
+		builder.mutation.id = &nodes[index].ID
+		result = append(result, nodes[index])
+	}
+	return result, nil
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_c *PaymentCreateBulk) SaveX(ctx context.Context) []*Payment {
-	v, err := _c.Save(ctx)
+func (b *PaymentCreateBulk) SaveX(ctx context.Context) []*Payment {
+	nodes, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return nodes
 }
 
-// Exec executes the query.
-func (_c *PaymentCreateBulk) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
+func (b *PaymentCreateBulk) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
+
+func (b *PaymentCreateBulk) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+type PaymentUpsertBulk struct{ create *PaymentCreateBulk }
+
+func (b *PaymentCreateBulk) OnConflict(columns ...ent.EntityColumn[entity.Payment]) *PaymentUpsertBulk {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
+	}
+	if len(names) == 0 {
+		return b.OnConflictOptions()
+	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
+}
+
+func (b *PaymentCreateBulk) OnConflictConstraint(name string) *PaymentUpsertBulk {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
+}
+
+func (b *PaymentCreateBulk) OnConflictOptions(options ...sql.ConflictOption) *PaymentUpsertBulk {
+	b.conflict = options
+	return &PaymentUpsertBulk{create: b}
+}
+
+func (u *PaymentUpsertBulk) DoNothing() *PaymentUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+func (u *PaymentUpsertBulk) DoSelect() *PaymentUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *PaymentUpsertBulk) Ignore() *PaymentUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *PaymentUpsertBulk) DoUpdate(set func(*PaymentUpsert)) *PaymentUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&PaymentUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *PaymentUpsertBulk) UpdateNewValues() *PaymentUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case payment.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
+	}))
+	return u
+}
+
+func (u *PaymentUpsertBulk) Where(predicates ...ent.Predicate[entity.Payment]) *PaymentUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(payment.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *PaymentUpsertBulk) UpdateWhere(predicates ...ent.Predicate[entity.Payment]) *PaymentUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(payment.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *PaymentUpsertBulk) Save(ctx context.Context) ([]*Payment, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for PaymentCreateBulk.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *PaymentUpsertBulk) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
 	return err
 }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *PaymentCreateBulk) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (u *PaymentUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

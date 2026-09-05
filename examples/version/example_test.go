@@ -28,22 +28,22 @@ func Example_optimisticLock() {
 		log.Fatalf("failed creating schema resources: %v", err)
 	}
 
-	usr := client.User.Create().SetStatus(user.StatusOnline).SaveX(ctx)
+	usr := client.User.Create().Set(user.Status, user.StatusOnline).SaveX(ctx)
 	fmt.Println(usr.ID, usr.Status)
 
 	usrCopy := client.User.Query().OnlyX(ctx)
 	affected := client.User.Update().
-		Where(user.ID(usrCopy.ID), user.Version(usrCopy.Version)).
-		SetStatus(user.StatusOffline).
-		SetVersion(time.Now().UnixNano()).
+		Where(user.ID.EQ(usrCopy.ID), user.Version.EQ(usrCopy.Version)).
+		Set(user.Status, user.StatusOffline).
+		Set(user.Version, time.Now().UnixNano()).
 		SaveX(ctx)
 	fmt.Println(affected)
 
 	// The operation won't updated the database because the user was updated by another process (usrCopy).
 	affected = client.User.Update().
-		Where(user.ID(usr.ID), user.Version(usr.Version)).
-		SetStatus(user.StatusOffline).
-		SetVersion(time.Now().UnixNano()).
+		Where(user.ID.EQ(usr.ID), user.Version.EQ(usr.Version)).
+		Set(user.Status, user.StatusOffline).
+		Set(user.Version, time.Now().UnixNano()).
 		SaveX(ctx)
 	fmt.Println(affected)
 

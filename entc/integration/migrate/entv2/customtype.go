@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	time2 "time"
 
-	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/entc/integration/migrate/entv2/customtype"
 )
@@ -23,10 +23,9 @@ type CustomType struct {
 	// Custom holds the value of the "custom" field.
 	Custom string `json:"custom,omitempty"`
 	// Tz0 holds the value of the "tz0" field.
-	Tz0 time.Time `json:"tz0,omitempty"`
+	Tz0 time2.Time `json:"tz0,omitempty"`
 	// Tz3 holds the value of the "tz3" field.
-	Tz3          time.Time `json:"tz3,omitempty"`
-	selectValues sql.SelectValues
+	Tz3 time2.Time `json:"tz3,omitempty"`
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -35,11 +34,11 @@ func (*CustomType) scanValues(columns []string) ([]any, error) {
 	for i := range columns {
 		switch columns[i] {
 		case customtype.FieldID:
-			values[i] = new(sql.NullInt64)
+			values[i] = new(*int)
 		case customtype.FieldCustom:
-			values[i] = new(sql.NullString)
+			values[i] = new(*string)
 		case customtype.FieldTz0, customtype.FieldTz3:
-			values[i] = new(sql.NullTime)
+			values[i] = new(*time2.Time)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -56,40 +55,36 @@ func (_m *CustomType) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case customtype.FieldID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field id", values[i])
-			} else if value.Valid {
-				_m.ID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.ID = **value
 			}
 		case customtype.FieldCustom:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field custom", values[i])
-			} else if value.Valid {
-				_m.Custom = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.Custom = **value
 			}
 		case customtype.FieldTz0:
-			if value, ok := values[i].(*sql.NullTime); !ok {
+
+			if value, ok := values[i].(**time2.Time); !ok {
 				return fmt.Errorf("unexpected type %T for field tz0", values[i])
-			} else if value.Valid {
-				_m.Tz0 = time.Time(value.Time)
+			} else if value != nil && *value != nil {
+				_m.Tz0 = **value
 			}
 		case customtype.FieldTz3:
-			if value, ok := values[i].(*sql.NullTime); !ok {
+
+			if value, ok := values[i].(**time2.Time); !ok {
 				return fmt.Errorf("unexpected type %T for field tz3", values[i])
-			} else if value.Valid {
-				_m.Tz3 = time.Time(value.Time)
+			} else if value != nil && *value != nil {
+				_m.Tz3 = **value
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the CustomType.
-// This includes values selected through modifiers, order, etc.
-func (_m *CustomType) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // Update returns a builder for updating this CustomType.

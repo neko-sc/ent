@@ -11,22 +11,22 @@ import (
 
 	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/note"
-	"github.com/neko-sc/ent/entc/integration/customid/ent/schema"
+	schema2 "github.com/neko-sc/ent/entc/integration/customid/ent/schema"
 )
 
 // Note is the model entity for the Note schema.
 type Note struct {
 	config `json:"-"`
 	// ID of the ent.
-	ID schema.NoteID `json:"id,omitempty"`
+	ID schema2.NoteID `json:"id,omitempty"`
 	// Text holds the value of the "text" field.
 	Text string `json:"text,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the NoteQuery when eager-loading is set.
 	Edges         NoteEdges `json:"edges"`
-	note_children *schema.NoteID
-	selectValues  sql.SelectValues
+	note_children *schema2.NoteID
 }
 
 // NoteEdges holds the relations/edges for other nodes in the graph.
@@ -38,6 +38,34 @@ type NoteEdges struct {
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes [2]bool
+	counts      map[string]int
+}
+
+func (e NoteEdges) Loaded[N, K any](edge ent.RelationOf[entity.Note, N, K]) bool {
+	switch edge.Ref().Name {
+	case "parent":
+		return e.loadedTypes[0]
+	case "children":
+		return e.loadedTypes[1]
+
+	default:
+		return false
+	}
+}
+
+func (e *NoteEdges) SetLoaded[N, K any](edge ent.RelationOf[entity.Note, N, K], loaded bool) {
+	switch edge.Ref().Name {
+	case "parent":
+		e.loadedTypes[0] = loaded
+	case "children":
+		e.loadedTypes[1] = loaded
+
+	}
+}
+
+func (e NoteEdges) Count[N, K any](edge ent.Relation[entity.Note, N, K]) (int, bool) {
+	count, loaded := e.counts[edge.Ref().Name]
+	return count, loaded
 }
 
 // ParentOrErr returns the Parent value or an error if the edge
@@ -65,10 +93,12 @@ func (*Note) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case note.FieldID, note.FieldText:
-			values[i] = new(sql.NullString)
+		case note.FieldID:
+			values[i] = new(*schema2.NoteID)
+		case note.FieldText:
+			values[i] = new(*string)
 		case note.ForeignKeys[0]: // note_children
-			values[i] = new(sql.NullString)
+			values[i] = new(*schema2.NoteID)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -85,35 +115,29 @@ func (_m *Note) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case note.FieldID:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**schema2.NoteID); !ok {
 				return fmt.Errorf("unexpected type %T for field id", values[i])
-			} else if value.Valid {
-				_m.ID = schema.NoteID(value.String)
+			} else if value != nil && *value != nil {
+				_m.ID = **value
 			}
 		case note.FieldText:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field text", values[i])
-			} else if value.Valid {
-				_m.Text = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.Text = **value
 			}
 		case note.ForeignKeys[0]:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**schema2.NoteID); !ok {
 				return fmt.Errorf("unexpected type %T for field note_children", values[i])
-			} else if value.Valid {
-				_m.note_children = new(schema.NoteID)
-				*_m.note_children = schema.NoteID(value.String)
+			} else if value != nil && *value != nil {
+				_m.note_children = *value
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the Note.
-// This includes values selected through modifiers, order, etc.
-func (_m *Note) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // QueryParent queries the "parent" edge of the Note entity.

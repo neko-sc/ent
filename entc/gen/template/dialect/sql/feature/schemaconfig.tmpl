@@ -64,7 +64,7 @@ func NewSchemaConfigContext(parent context.Context, config SchemaConfig) context
 
 		// AlternateSchemas allows alternate schema names to be
 		// passed into ent operations.
-		func AlternateSchema(schemaConfig SchemaConfig) Option {
+		func AlternateSchema(schemaConfig SchemaConfig) ClientOption {
 			return func(c *config) {
 				c.schemaConfig = schemaConfig
 			}
@@ -155,21 +155,6 @@ func NewSchemaConfigContext(parent context.Context, config SchemaConfig) context
 {{- define "dialect/sql/query/from/ctxschemaconfig" }}
 	{{- if $.FeatureEnabled "sql/schemaconfig" }}
 		schemaConfig := {{ $.Scope.Receiver }}.schemaConfig
-		{{- template "dialect/sql/query/step/ctxschemaconfig" . }}
-	{{- end -}}
-{{- end -}}
-
-{{- define "dialect/sql/predicate/edge/has/ctxschemaconfig" -}}
-	{{- template "dialect/sql/predicate/edge/ctxschemaconfig" . }}
-{{- end -}}
-
-{{- define "dialect/sql/predicate/edge/haswith/ctxschemaconfig" -}}
-	{{- template "dialect/sql/predicate/edge/ctxschemaconfig" . }}
-{{- end -}}
-
-{{- define "dialect/sql/predicate/edge/ctxschemaconfig" -}}
-	{{- if $.FeatureEnabled "sql/schemaconfig" }}
-		schemaConfig := internal.SchemaConfigFromContext(s.Context())
 		{{- template "dialect/sql/query/step/ctxschemaconfig" . }}
 	{{- end -}}
 {{- end -}}

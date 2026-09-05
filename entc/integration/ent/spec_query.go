@@ -8,6 +8,7 @@ package ent
 import (
 	"context"
 	"database/sql/driver"
+	"errors"
 	"fmt"
 	"math"
 
@@ -16,7 +17,7 @@ import (
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/entc/integration/ent/card"
-	"github.com/neko-sc/ent/entc/integration/ent/predicate"
+	"github.com/neko-sc/ent/entc/integration/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/ent/spec"
 	"github.com/neko-sc/ent/schema/field"
 )
@@ -24,12 +25,15 @@ import (
 // SpecQuery is the builder for querying Spec entities.
 type SpecQuery struct {
 	config
-	ctx           *QueryContext
-	order         []spec.OrderOption
-	inters        []Interceptor
-	predicates    []predicate.Spec
-	withCard      *CardQuery
-	modifiers     []func(*sql.Selector)
+	ctx        *QueryContext
+	order      []ent.OrderOption[entity.Spec]
+	joins      []func(*sql.Selector)
+	withCounts []ent.RelationRef
+
+	predicates []ent.Predicate[entity.Spec]
+	withCard   *CardQuery
+	modifiers  []func(*sql.Selector)
+
 	withNamedCard map[string]*CardQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
@@ -37,8 +41,75 @@ type SpecQuery struct {
 }
 
 // Where adds a new predicate for the SpecQuery builder.
-func (_q *SpecQuery) Where(ps ...predicate.Spec) *SpecQuery {
-	_q.predicates = append(_q.predicates, ps...)
+func (_q *SpecQuery) Where(predicates ...ent.Predicate[entity.Spec]) *SpecQuery {
+	_q.predicates = append(_q.predicates, predicates...)
+	return _q
+}
+
+func (_q *SpecQuery) WhereP(predicates ...func(*sql.Selector)) *SpecQuery {
+	for _, predicate := range predicates {
+		_q.predicates = append(_q.predicates, predicate)
+	}
+	return _q
+}
+
+func (_q *SpecQuery) Join(table string, on ...func(*sql.Selector)) *SpecQuery {
+	return _q.JoinAs(table, "", on...)
+}
+
+func (_q *SpecQuery) JoinAs(table, alias string, on ...func(*sql.Selector)) *SpecQuery {
+	on = append([]func(*sql.Selector){}, on...)
+	_q.joins = append(_q.joins, func(selector *sql.Selector) {
+		joined := sql.Dialect(selector.Dialect()).Table(table)
+		if alias != "" {
+			joined.As(alias)
+		} else {
+			joined.As(table)
+		}
+		condition := sql.Dialect(selector.Dialect()).Select().From(selector.Table())
+		for _, predicate := range on {
+			predicate(condition)
+		}
+		if err := condition.Err(); err != nil {
+			selector.AddError(err)
+		}
+		selector.Join(joined).OnP(condition.P())
+	})
+	return _q
+}
+
+func (_q *SpecQuery) LeftJoin(table string, on ...func(*sql.Selector)) *SpecQuery {
+	return _q.LeftJoinAs(table, "", on...)
+}
+
+func (_q *SpecQuery) LeftJoinAs(table, alias string, on ...func(*sql.Selector)) *SpecQuery {
+	on = append([]func(*sql.Selector){}, on...)
+	_q.joins = append(_q.joins, func(selector *sql.Selector) {
+		joined := sql.Dialect(selector.Dialect()).Table(table)
+		if alias != "" {
+			joined.As(alias)
+		} else {
+			joined.As(table)
+		}
+		condition := sql.Dialect(selector.Dialect()).Select().From(selector.Table())
+		for _, predicate := range on {
+			predicate(condition)
+		}
+		if err := condition.Err(); err != nil {
+			selector.AddError(err)
+		}
+		selector.LeftJoin(joined).OnP(condition.P())
+	})
+	return _q
+}
+
+func (_q *SpecQuery) WithCount[N, K any](edge ent.Relation[entity.Spec, N, K]) *SpecQuery {
+	for _, requested := range _q.withCounts {
+		if requested.Name == edge.Ref().Name {
+			return _q
+		}
+	}
+	_q.withCounts = append(_q.withCounts, edge.Ref())
 	return _q
 }
 
@@ -62,7 +133,7 @@ func (_q *SpecQuery) Unique(unique bool) *SpecQuery {
 }
 
 // Order specifies how the records should be ordered.
-func (_q *SpecQuery) Order(o ...spec.OrderOption) *SpecQuery {
+func (_q *SpecQuery) Order(o ...ent.OrderOption[entity.Spec]) *SpecQuery {
 	_q.order = append(_q.order, o...)
 	return _q
 }
@@ -92,7 +163,7 @@ func (_q *SpecQuery) QueryCard() *CardQuery {
 // First returns the first Spec entity from the query.
 // Returns a *NotFoundError when no Spec was found.
 func (_q *SpecQuery) First(ctx context.Context) (*Spec, error) {
-	nodes, err := _q.Limit(1).All(setContextOp(ctx, _q.ctx, ent.OpQueryFirst))
+	nodes, err := _q.Limit(1).All(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +186,7 @@ func (_q *SpecQuery) FirstX(ctx context.Context) *Spec {
 // Returns a *NotFoundError when no Spec ID was found.
 func (_q *SpecQuery) FirstID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = _q.Limit(1).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryFirstID)); err != nil {
+	if ids, err = _q.Limit(1).IDs(ctx); err != nil {
 		return
 	}
 	if len(ids) == 0 {
@@ -138,7 +209,7 @@ func (_q *SpecQuery) FirstIDX(ctx context.Context) int {
 // Returns a *NotSingularError when more than one Spec entity is found.
 // Returns a *NotFoundError when no Spec entities are found.
 func (_q *SpecQuery) Only(ctx context.Context) (*Spec, error) {
-	nodes, err := _q.Limit(2).All(setContextOp(ctx, _q.ctx, ent.OpQueryOnly))
+	nodes, err := _q.Limit(2).All(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -166,7 +237,7 @@ func (_q *SpecQuery) OnlyX(ctx context.Context) *Spec {
 // Returns a *NotFoundError when no entities are found.
 func (_q *SpecQuery) OnlyID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = _q.Limit(2).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryOnlyID)); err != nil {
+	if ids, err = _q.Limit(2).IDs(ctx); err != nil {
 		return
 	}
 	switch len(ids) {
@@ -191,12 +262,10 @@ func (_q *SpecQuery) OnlyIDX(ctx context.Context) int {
 
 // All executes the query and returns a list of Specs.
 func (_q *SpecQuery) All(ctx context.Context) ([]*Spec, error) {
-	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryAll)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
-	qr := querierAll[[]*Spec, *SpecQuery]()
-	return withInterceptors[[]*Spec](ctx, _q, qr, _q.inters)
+	return _q.sqlAll(ctx)
 }
 
 // AllX is like All, but panics if an error occurs.
@@ -213,8 +282,7 @@ func (_q *SpecQuery) IDs(ctx context.Context) (ids []int, err error) {
 	if _q.ctx.Unique == nil && _q.path != nil {
 		_q.Unique(true)
 	}
-	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryIDs)
-	if err = _q.Select(spec.FieldID).Scan(ctx, &ids); err != nil {
+	if ids, err = ent.Values(ctx, _q.Select(spec.ID), spec.ID); err != nil {
 		return nil, err
 	}
 	return ids, nil
@@ -231,11 +299,10 @@ func (_q *SpecQuery) IDsX(ctx context.Context) []int {
 
 // Count returns the count of the given query.
 func (_q *SpecQuery) Count(ctx context.Context) (int, error) {
-	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryCount)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
-	return withInterceptors[int](ctx, _q, querierCount[*SpecQuery](), _q.inters)
+	return _q.sqlCount(ctx)
 }
 
 // CountX is like Count, but panics if an error occurs.
@@ -249,7 +316,6 @@ func (_q *SpecQuery) CountX(ctx context.Context) int {
 
 // Exist returns true if the query has elements in the graph.
 func (_q *SpecQuery) Exist(ctx context.Context) (bool, error) {
-	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryExist)
 	switch _, err := _q.FirstID(ctx); {
 	case IsNotFound(err):
 		return false, nil
@@ -275,18 +341,29 @@ func (_q *SpecQuery) Clone() *SpecQuery {
 	if _q == nil {
 		return nil
 	}
-	return &SpecQuery{
+	cloned := &SpecQuery{
 		config:     _q.config,
 		ctx:        _q.ctx.Clone(),
-		order:      append([]spec.OrderOption{}, _q.order...),
-		inters:     append([]Interceptor{}, _q.inters...),
-		predicates: append([]predicate.Spec{}, _q.predicates...),
-		withCard:   _q.withCard.Clone(),
+		order:      append([]ent.OrderOption[entity.Spec]{}, _q.order...),
+		predicates: append([]ent.Predicate[entity.Spec]{}, _q.predicates...),
+		joins:      append([]func(*sql.Selector){}, _q.joins...),
+		withCounts: append([]ent.RelationRef{}, _q.withCounts...),
+
+		withCard: _q.withCard.Clone(),
 		// clone intermediate query.
 		sql:       _q.sql.Clone(),
 		path:      _q.path,
 		modifiers: append([]func(*sql.Selector){}, _q.modifiers...),
 	}
+
+	if _q.withNamedCard != nil {
+		cloned.withNamedCard = make(map[string]*CardQuery, len(_q.withNamedCard))
+		for name, query := range _q.withNamedCard {
+			cloned.withNamedCard[name] = query.Clone()
+		}
+	}
+
+	return cloned
 }
 
 // WithCard tells the query-builder to eager-load the nodes that are connected to
@@ -301,42 +378,26 @@ func (_q *SpecQuery) WithCard(opts ...func(*CardQuery)) *SpecQuery {
 }
 
 // GroupBy is used to group vertices by one or more fields/columns.
-// It is often used with aggregate functions, like: count, max, mean, min, sum.
-func (_q *SpecQuery) GroupBy(field string, fields ...string) *SpecGroupBy {
-	_q.ctx.Fields = append([]string{field}, fields...)
-	grbuild := &SpecGroupBy{build: _q}
-	grbuild.flds = &_q.ctx.Fields
-	grbuild.label = spec.Label
-	grbuild.scan = grbuild.Scan
-	return grbuild
+// It can be combined with typed aggregate selections.
+func (_q *SpecQuery) GroupBy(columns ...ent.EntityColumn[entity.Spec]) *SpecGroupBy {
+	if len(columns) == 0 {
+		panic("ent: GroupBy requires at least one column")
+	}
+	return &SpecGroupBy{query: _q, columns: append([]ent.EntityColumn[entity.Spec](nil), columns...)}
 }
 
 // Select allows the selection one or more fields/columns for the given query,
 // instead of selecting all fields in the entity.
-func (_q *SpecQuery) Select(fields ...string) *SpecSelect {
-	_q.ctx.Fields = append(_q.ctx.Fields, fields...)
-	sbuild := &SpecSelect{SpecQuery: _q}
-	sbuild.label = spec.Label
-	sbuild.flds, sbuild.scan = &_q.ctx.Fields, sbuild.Scan
-	return sbuild
+func (_q *SpecQuery) Select(selections ...ent.Selection) *SpecSelect {
+	return &SpecSelect{query: _q, selections: append([]ent.Selection(nil), selections...)}
 }
 
 // Aggregate returns a SpecSelect configured with the given aggregations.
-func (_q *SpecQuery) Aggregate(fns ...AggregateFunc) *SpecSelect {
-	return _q.Select().Aggregate(fns...)
+func (_q *SpecQuery) Aggregate(selections ...ent.Selection) *SpecSelect {
+	return _q.Select(selections...)
 }
 
 func (_q *SpecQuery) prepareQuery(ctx context.Context) error {
-	for _, inter := range _q.inters {
-		if inter == nil {
-			return fmt.Errorf("ent: uninitialized interceptor (forgotten import ent/runtime?)")
-		}
-		if trv, ok := inter.(Traverser); ok {
-			if err := trv.Traverse(ctx, _q); err != nil {
-				return err
-			}
-		}
-	}
 	for _, f := range _q.ctx.Fields {
 		if !spec.ValidColumn(f) {
 			return &ValidationError{Name: f, err: fmt.Errorf("ent: invalid field %q for query", f)}
@@ -372,6 +433,7 @@ func (_q *SpecQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Spec, e
 	if len(_q.modifiers) > 0 {
 		_spec.Modifiers = _q.modifiers
 	}
+
 	for i := range hooks {
 		hooks[i](ctx, _spec)
 	}
@@ -388,6 +450,58 @@ func (_q *SpecQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Spec, e
 			return nil, err
 		}
 	}
+
+	if len(_q.withCounts) > 0 {
+		ids := make([]any, len(nodes))
+		parents := make(map[int][]*Spec, len(nodes))
+		for index, node := range nodes {
+			ids[index] = node.ID
+			parents[node.ID] = append(parents[node.ID], node)
+			if node.Edges.counts == nil {
+				node.Edges.counts = make(map[string]int)
+			}
+			for _, edge := range _q.withCounts {
+				node.Edges.counts[edge.Name] = 0
+			}
+		}
+		selector := sql.Dialect(_q.driver.Dialect()).Select()
+
+		for _, edge := range _q.withCounts {
+			statement, arguments := edge.CountQuery(selector, ids...).Query()
+			rows, err := _q.driver.Query(ctx, statement, arguments)
+			if err != nil {
+				return nil, err
+			}
+			for rows.Next() {
+				values, err := (*Spec)(nil).scanValues([]string{spec.FieldID})
+				if err != nil {
+					rows.Close()
+					return nil, err
+				}
+				var count int
+				if err := rows.Scan(values[0], &count); err != nil {
+					rows.Close()
+					return nil, err
+				}
+				decoded := &Spec{}
+				if err := decoded.assignValues([]string{spec.FieldID}, values); err != nil {
+					rows.Close()
+					return nil, err
+				}
+				for _, parent := range parents[decoded.ID] {
+					parent.Edges.counts[edge.Name] = count
+				}
+			}
+			if err := rows.Err(); err != nil {
+				rows.Close()
+				return nil, err
+			}
+			if err := rows.Close(); err != nil {
+				return nil, err
+			}
+		}
+	}
+
 	for name, query := range _q.withNamedCard {
 		if err := _q.loadCard(ctx, query, nodes,
 			func(n *Spec) { n.appendNamedCard(name) },
@@ -399,9 +513,30 @@ func (_q *SpecQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Spec, e
 }
 
 func (_q *SpecQuery) loadCard(ctx context.Context, query *CardQuery, nodes []*Spec, init func(*Spec), assign func(*Spec, *Card)) error {
+	query = query.Clone()
+
+	if query.ctx.Limit != nil || query.ctx.Offset != nil {
+		limit, offset := -1, 0
+		if query.ctx.Limit != nil {
+			limit = *query.ctx.Limit
+		}
+		if query.ctx.Offset != nil {
+			offset = *query.ctx.Offset
+		}
+		query.ctx.Limit, query.ctx.Offset = nil, nil
+		query.modifiers = append(query.modifiers, func(selector *sql.Selector) {
+
+			joined, _ := selector.JoinedTable(spec.CardTable)
+			partition := joined.C(spec.CardPrimaryKey[0])
+
+			(&sqlgraph.NeighborsLimit{RowNumber: "ent_row_number", DefaultOrderField: card.FieldID, Offset: offset}).Modifier(partition, limit)(selector)
+		})
+	}
+
 	edgeIDs := make([]driver.Value, len(nodes))
 	byID := make(map[int]*Spec)
-	nids := make(map[int]map[*Spec]struct{})
+	nids := make(map[int]bool)
+	orderedIDs := make(map[int][]int)
 	for i, node := range nodes {
 		edgeIDs[i] = node.ID
 		byID[node.ID] = node
@@ -421,40 +556,49 @@ func (_q *SpecQuery) loadCard(ctx context.Context, query *CardQuery, nodes []*Sp
 	if err := query.prepareQuery(ctx); err != nil {
 		return err
 	}
-	qr := QuerierFunc(func(ctx context.Context, q Query) (Value, error) {
-		return query.sqlAll(ctx, func(_ context.Context, spec *sqlgraph.QuerySpec) {
-			assign := spec.Assign
-			values := spec.ScanValues
-			spec.ScanValues = func(columns []string) ([]any, error) {
-				values, err := values(columns[1:])
-				if err != nil {
-					return nil, err
-				}
-				return append([]any{new(sql.NullInt64)}, values...), nil
+	neighbors, err := query.sqlAll(ctx, func(_ context.Context, spec *sqlgraph.QuerySpec) {
+		assign := spec.Assign
+		values := spec.ScanValues
+		spec.ScanValues = func(columns []string) ([]any, error) {
+			values, err := values(columns[1:])
+			if err != nil {
+				return nil, err
 			}
-			spec.Assign = func(columns []string, values []any) error {
-				outValue := int(values[0].(*sql.NullInt64).Int64)
-				inValue := int(values[1].(*sql.NullInt64).Int64)
-				if nids[inValue] == nil {
-					nids[inValue] = map[*Spec]struct{}{byID[outValue]: {}}
-					return assign(columns[1:], values[1:])
-				}
-				nids[inValue][byID[outValue]] = struct{}{}
-				return nil
+			return append([]any{new(*int)}, values...), nil
+		}
+		spec.Assign = func(columns []string, values []any) error {
+			var outValue int
+
+			if value, ok := values[0].(**int); !ok {
+				return fmt.Errorf("unexpected type %T for edge id", values[0])
+			} else if value != nil && *value != nil {
+				outValue = **value
 			}
-		})
+			var inValue int
+
+			if value, ok := values[1].(**int); !ok {
+				return fmt.Errorf("unexpected type %T for edge id", values[1])
+			} else if value != nil && *value != nil {
+				inValue = **value
+			}
+			orderedIDs[outValue] = append(orderedIDs[outValue], inValue)
+			if !nids[inValue] {
+				nids[inValue] = true
+				return assign(columns[1:], values[1:])
+			}
+			return nil
+		}
 	})
-	neighbors, err := withInterceptors[[]*Card](ctx, query, qr, query.inters)
 	if err != nil {
 		return err
 	}
-	for _, n := range neighbors {
-		nodes, ok := nids[n.ID]
-		if !ok {
-			return fmt.Errorf(`unexpected "card" node returned %v`, n.ID)
-		}
-		for kn := range nodes {
-			assign(kn, n)
+	byNeighborID := make(map[int]*Card, len(neighbors))
+	for _, neighbor := range neighbors {
+		byNeighborID[neighbor.ID] = neighbor
+	}
+	for parentID, ids := range orderedIDs {
+		for _, id := range ids {
+			assign(byID[parentID], byNeighborID[id])
 		}
 	}
 	return nil
@@ -465,6 +609,7 @@ func (_q *SpecQuery) sqlCount(ctx context.Context) (int, error) {
 	if len(_q.modifiers) > 0 {
 		_spec.Modifiers = _q.modifiers
 	}
+
 	_spec.Node.Columns = _q.ctx.Fields
 	if len(_q.ctx.Fields) > 0 {
 		_spec.Unique = _q.ctx.Unique != nil && *_q.ctx.Unique
@@ -489,10 +634,13 @@ func (_q *SpecQuery) querySpec() *sqlgraph.QuerySpec {
 			}
 		}
 	}
-	if ps := _q.predicates; len(ps) > 0 {
+	if predicates := _q.predicates; len(predicates) > 0 || len(_q.joins) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
-			for i := range ps {
-				ps[i](selector)
+			for _, join := range _q.joins {
+				join(selector)
+			}
+			for i := range predicates {
+				predicates[i](selector)
 			}
 		}
 	}
@@ -527,8 +675,8 @@ func (_q *SpecQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	if _q.ctx.Unique != nil && *_q.ctx.Unique {
 		selector.Distinct()
 	}
-	for _, m := range _q.modifiers {
-		m(selector)
+	for _, join := range _q.joins {
+		join(selector)
 	}
 	for _, p := range _q.predicates {
 		p(selector)
@@ -543,6 +691,9 @@ func (_q *SpecQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	}
 	if limit := _q.ctx.Limit; limit != nil {
 		selector.Limit(*limit)
+	}
+	for _, modifier := range _q.modifiers {
+		modifier(selector)
 	}
 	return selector
 }
@@ -595,96 +746,148 @@ func (_q *SpecQuery) WithNamedCard(name string, opts ...func(*CardQuery)) *SpecQ
 
 // SpecGroupBy is the group-by builder for Spec entities.
 type SpecGroupBy struct {
-	selector
-	build *SpecQuery
+	query      *SpecQuery
+	columns    []ent.EntityColumn[entity.Spec]
+	aggregates []ent.Selection
 }
 
-// Aggregate adds the given aggregation functions to the group-by query.
-func (_g *SpecGroupBy) Aggregate(fns ...AggregateFunc) *SpecGroupBy {
-	_g.fns = append(_g.fns, fns...)
+func (_g *SpecGroupBy) Aggregate(selections ...ent.Selection) *SpecGroupBy {
+	_g.aggregates = append(_g.aggregates, selections...)
 	return _g
 }
 
-// Scan applies the selector query and scans the result into the given value.
 func (_g *SpecGroupBy) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, _g.build.ctx, ent.OpQueryGroupBy)
-	if err := _g.build.prepareQuery(ctx); err != nil {
-		return err
-	}
-	return scanWithInterceptors[*SpecQuery, *SpecGroupBy](ctx, _g.build, _g, _g.build.inters, v)
+	return _g.selectQuery().Scan(ctx, v)
 }
 
-func (_g *SpecGroupBy) sqlScan(ctx context.Context, root *SpecQuery, v any) error {
-	selector := root.sqlQuery(ctx).Select()
-	aggregation := make([]string, 0, len(_g.fns))
-	for _, fn := range _g.fns {
-		aggregation = append(aggregation, fn(selector))
+func (_g *SpecGroupBy) Rows(ctx context.Context) ([]*ent.Row, error) {
+	return _g.selectQuery().Rows(ctx)
+}
+
+func (_g *SpecGroupBy) selectQuery() *SpecSelect {
+	selections := make([]ent.Selection, 0, len(_g.columns)+len(_g.aggregates))
+	for _, column := range _g.columns {
+		selections = append(selections, column)
 	}
-	if len(selector.SelectedColumns()) == 0 {
-		columns := make([]string, 0, len(*_g.flds)+len(_g.fns))
-		for _, f := range *_g.flds {
-			columns = append(columns, selector.C(f))
-		}
-		columns = append(columns, aggregation...)
-		selector.Select(columns...)
-	}
-	selector.GroupBy(selector.Columns(*_g.flds...)...)
-	if err := selector.Err(); err != nil {
-		return err
-	}
-	rows := &sql.Rows{}
-	query, args := selector.Query()
-	if err := _g.build.driver.Query(ctx, query, args, rows); err != nil {
-		return err
-	}
-	defer rows.Close()
-	return sql.ScanSlice(rows, v)
+	selected := _g.query.Select(append(selections, _g.aggregates...)...)
+	selected.groups = _g.columns
+	return selected
 }
 
 // SpecSelect is the builder for selecting fields of Spec entities.
 type SpecSelect struct {
-	*SpecQuery
-	selector
+	query      *SpecQuery
+	selections []ent.Selection
+	groups     []ent.EntityColumn[entity.Spec]
 }
 
-// Aggregate adds the given aggregation functions to the selector query.
-func (_s *SpecSelect) Aggregate(fns ...AggregateFunc) *SpecSelect {
-	_s.fns = append(_s.fns, fns...)
+func (_s *SpecSelect) Aggregate(selections ...ent.Selection) *SpecSelect {
+	_s.selections = append(_s.selections, selections...)
 	return _s
 }
 
-// Scan applies the selector query and scans the result into the given value.
-func (_s *SpecSelect) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, _s.ctx, ent.OpQuerySelect)
-	if err := _s.prepareQuery(ctx); err != nil {
-		return err
+func (_s *SpecSelect) Row(ctx context.Context) (*ent.Row, error) {
+	rows, err := _s.Rows(ctx)
+	if err != nil {
+		return nil, err
 	}
-	return scanWithInterceptors[*SpecQuery, *SpecSelect](ctx, _s.SpecQuery, _s, _s.inters, v)
+	switch len(rows) {
+	case 0:
+		return nil, &NotFoundError{spec.Label}
+	case 1:
+		return rows[0], nil
+	default:
+		return nil, &NotSingularError{spec.Label}
+	}
 }
 
-func (_s *SpecSelect) sqlScan(ctx context.Context, root *SpecQuery, v any) error {
+func (_s *SpecSelect) sqlQuery(ctx context.Context) (*sql.Selector, error) {
+	root := _s.query.Clone()
+	root.ctx.Fields = nil
+	for _, selection := range _s.selections {
+		if column := selection.Ref(); column.Name != "" && (column.Table == "" || column.Table == spec.Table) {
+			root.ctx.AppendFieldOnce(column.Name)
+		}
+	}
+	if err := root.prepareQuery(ctx); err != nil {
+		return nil, err
+	}
+	root.modifiers = nil
 	selector := root.sqlQuery(ctx)
-	aggregation := make([]string, 0, len(_s.fns))
-	for _, fn := range _s.fns {
-		aggregation = append(aggregation, fn(selector))
+	if len(_s.selections) > 0 {
+		ent.SelectColumns(selector, _s.selections...)
 	}
-	switch n := len(*_s.selector.flds); {
-	case n == 0 && len(aggregation) > 0:
-		selector.Select(aggregation...)
-	case n != 0 && len(aggregation) > 0:
-		selector.AppendSelect(aggregation...)
+	for _, column := range _s.groups {
+		reference := column.Ref()
+		if reference.Table == "" || reference.Table == selector.TableName() {
+			selector.GroupBy(selector.C(reference.Name))
+		} else {
+			selector.GroupBy(sql.Dialect(selector.Dialect()).Table(reference.Table).C(reference.Name))
+		}
 	}
-	rows := &sql.Rows{}
-	query, args := selector.Query()
-	if err := _s.driver.Query(ctx, query, args, rows); err != nil {
+	for _, modifier := range _s.query.modifiers {
+		modifier(selector)
+	}
+	return selector, selector.Err()
+}
+
+func (_s *SpecSelect) Scan(ctx context.Context, value any) error {
+	selector, err := _s.sqlQuery(ctx)
+	if err != nil {
+		return err
+	}
+	query, arguments := selector.Query()
+	if err := selector.Err(); err != nil {
+		return err
+	}
+	rows, err := _s.query.driver.Query(ctx, query, arguments)
+	if err != nil {
 		return err
 	}
 	defer rows.Close()
-	return sql.ScanSlice(rows, v)
+	return sql.ScanSlice(rows, value)
+}
+
+func (_s *SpecSelect) Rows(ctx context.Context) ([]*ent.Row, error) {
+	if len(_s.selections) == 0 {
+		return nil, errors.New("ent: Rows requires explicit selections")
+	}
+	selector, err := _s.sqlQuery(ctx)
+	if err != nil {
+		return nil, err
+	}
+	query, arguments := selector.Query()
+	if err := selector.Err(); err != nil {
+		return nil, err
+	}
+	rows, err := _s.query.driver.Query(ctx, query, arguments)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	columns, err := rows.Columns()
+	if err != nil {
+		return nil, err
+	}
+	if len(columns) != len(_s.selections) {
+		return nil, fmt.Errorf("ent: projection column count %d differs from selection count %d", len(columns), len(_s.selections))
+	}
+	result := make([]*ent.Row, 0)
+	for rows.Next() {
+		row, destinations := ent.NewRow(_s.selections)
+		if err := rows.Scan(destinations...); err != nil {
+			return nil, err
+		}
+		result = append(result, row)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 // Modify adds a query modifier for attaching custom logic to queries.
 func (_s *SpecSelect) Modify(modifiers ...func(s *sql.Selector)) *SpecSelect {
-	_s.modifiers = append(_s.modifiers, modifiers...)
+	_s.query.modifiers = append(_s.query.modifiers, modifiers...)
 	return _s
 }

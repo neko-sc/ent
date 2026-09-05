@@ -9,1446 +9,448 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net"
-	"net/http"
-	"time"
 
-	"github.com/google/uuid"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/dialect/sql/sqljson"
+	"github.com/neko-sc/ent/entc/integration/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/ent/fieldtype"
-	"github.com/neko-sc/ent/entc/integration/ent/predicate"
-	"github.com/neko-sc/ent/entc/integration/ent/role"
-	"github.com/neko-sc/ent/entc/integration/ent/schema"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// FieldTypeUpdate is the builder for updating FieldType entities.
 type FieldTypeUpdate struct {
 	config
-	hooks     []Hook
 	mutation  *FieldTypeMutation
+	err       error
+	returning *sqlgraph.Returning
+
 	modifiers []func(*sql.UpdateBuilder)
 }
 
-// Where appends a list predicates to the FieldTypeUpdate builder.
-func (_u *FieldTypeUpdate) Where(ps ...predicate.FieldType) *FieldTypeUpdate {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// SetInt sets the "int" field.
-func (_u *FieldTypeUpdate) SetInt(v int) *FieldTypeUpdate {
-	_u.mutation.ResetInt()
-	_u.mutation.SetInt(v)
-	return _u
-}
-
-// AddInt adds value to the "int" field.
-func (_u *FieldTypeUpdate) AddInt(v int) *FieldTypeUpdate {
-	_u.mutation.AddInt(v)
-	return _u
-}
-
-// SetInt8 sets the "int8" field.
-func (_u *FieldTypeUpdate) SetInt8(v int8) *FieldTypeUpdate {
-	_u.mutation.ResetInt8()
-	_u.mutation.SetInt8(v)
-	return _u
-}
-
-// AddInt8 adds value to the "int8" field.
-func (_u *FieldTypeUpdate) AddInt8(v int8) *FieldTypeUpdate {
-	_u.mutation.AddInt8(v)
-	return _u
-}
-
-// SetInt16 sets the "int16" field.
-func (_u *FieldTypeUpdate) SetInt16(v int16) *FieldTypeUpdate {
-	_u.mutation.ResetInt16()
-	_u.mutation.SetInt16(v)
-	return _u
-}
-
-// AddInt16 adds value to the "int16" field.
-func (_u *FieldTypeUpdate) AddInt16(v int16) *FieldTypeUpdate {
-	_u.mutation.AddInt16(v)
-	return _u
-}
-
-// SetInt32 sets the "int32" field.
-func (_u *FieldTypeUpdate) SetInt32(v int32) *FieldTypeUpdate {
-	_u.mutation.ResetInt32()
-	_u.mutation.SetInt32(v)
-	return _u
-}
-
-// AddInt32 adds value to the "int32" field.
-func (_u *FieldTypeUpdate) AddInt32(v int32) *FieldTypeUpdate {
-	_u.mutation.AddInt32(v)
-	return _u
-}
-
-// SetInt64 sets the "int64" field.
-func (_u *FieldTypeUpdate) SetInt64(v int64) *FieldTypeUpdate {
-	_u.mutation.ResetInt64()
-	_u.mutation.SetInt64(v)
-	return _u
-}
-
-// AddInt64 adds value to the "int64" field.
-func (_u *FieldTypeUpdate) AddInt64(v int64) *FieldTypeUpdate {
-	_u.mutation.AddInt64(v)
-	return _u
-}
-
-// SetOptionalInt sets the "optional_int" field.
-func (_u *FieldTypeUpdate) SetOptionalInt(v int) *FieldTypeUpdate {
-	_u.mutation.ResetOptionalInt()
-	_u.mutation.SetOptionalInt(v)
-	return _u
-}
-
-// SetNillableOptionalInt sets the "optional_int" field if the given value is not nil.
-func (_u *FieldTypeUpdate) SetNillableOptionalInt(v *int) *FieldTypeUpdate {
-	if v != nil {
-		_u.SetOptionalInt(*v)
+func (b *FieldTypeUpdate) Set[T any](column ent.ColumnOf[entity.FieldType, T], value T) *FieldTypeUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// AddOptionalInt adds value to the "optional_int" field.
-func (_u *FieldTypeUpdate) AddOptionalInt(v int) *FieldTypeUpdate {
-	_u.mutation.AddOptionalInt(v)
-	return _u
+	return b
 }
-
-// ClearOptionalInt clears the value of the "optional_int" field.
-func (_u *FieldTypeUpdate) ClearOptionalInt() *FieldTypeUpdate {
-	_u.mutation.ClearOptionalInt()
-	return _u
-}
-
-// SetOptionalInt8 sets the "optional_int8" field.
-func (_u *FieldTypeUpdate) SetOptionalInt8(v int8) *FieldTypeUpdate {
-	_u.mutation.ResetOptionalInt8()
-	_u.mutation.SetOptionalInt8(v)
-	return _u
-}
-
-// SetNillableOptionalInt8 sets the "optional_int8" field if the given value is not nil.
-func (_u *FieldTypeUpdate) SetNillableOptionalInt8(v *int8) *FieldTypeUpdate {
-	if v != nil {
-		_u.SetOptionalInt8(*v)
+func (b *FieldTypeUpdate) SetOptional[T any](column ent.ColumnOf[entity.FieldType, T], value ent.Option[T]) *FieldTypeUpdate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u
-}
-
-// AddOptionalInt8 adds value to the "optional_int8" field.
-func (_u *FieldTypeUpdate) AddOptionalInt8(v int8) *FieldTypeUpdate {
-	_u.mutation.AddOptionalInt8(v)
-	return _u
-}
-
-// ClearOptionalInt8 clears the value of the "optional_int8" field.
-func (_u *FieldTypeUpdate) ClearOptionalInt8() *FieldTypeUpdate {
-	_u.mutation.ClearOptionalInt8()
-	return _u
-}
-
-// SetOptionalInt16 sets the "optional_int16" field.
-func (_u *FieldTypeUpdate) SetOptionalInt16(v int16) *FieldTypeUpdate {
-	_u.mutation.ResetOptionalInt16()
-	_u.mutation.SetOptionalInt16(v)
-	return _u
-}
-
-// SetNillableOptionalInt16 sets the "optional_int16" field if the given value is not nil.
-func (_u *FieldTypeUpdate) SetNillableOptionalInt16(v *int16) *FieldTypeUpdate {
-	if v != nil {
-		_u.SetOptionalInt16(*v)
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
 	}
-	return _u
+	return b
 }
-
-// AddOptionalInt16 adds value to the "optional_int16" field.
-func (_u *FieldTypeUpdate) AddOptionalInt16(v int16) *FieldTypeUpdate {
-	_u.mutation.AddOptionalInt16(v)
-	return _u
-}
-
-// ClearOptionalInt16 clears the value of the "optional_int16" field.
-func (_u *FieldTypeUpdate) ClearOptionalInt16() *FieldTypeUpdate {
-	_u.mutation.ClearOptionalInt16()
-	return _u
-}
-
-// SetOptionalInt32 sets the "optional_int32" field.
-func (_u *FieldTypeUpdate) SetOptionalInt32(v int32) *FieldTypeUpdate {
-	_u.mutation.ResetOptionalInt32()
-	_u.mutation.SetOptionalInt32(v)
-	return _u
-}
-
-// SetNillableOptionalInt32 sets the "optional_int32" field if the given value is not nil.
-func (_u *FieldTypeUpdate) SetNillableOptionalInt32(v *int32) *FieldTypeUpdate {
-	if v != nil {
-		_u.SetOptionalInt32(*v)
+func (b *FieldTypeUpdate) SetExpr[T any](column ent.ColumnOf[entity.FieldType, T], value ent.Expr[T]) *FieldTypeUpdate {
+	if b.err != nil {
+		return b
 	}
-	return _u
-}
+	switch column.Ref().Name {
 
-// AddOptionalInt32 adds value to the "optional_int32" field.
-func (_u *FieldTypeUpdate) AddOptionalInt32(v int32) *FieldTypeUpdate {
-	_u.mutation.AddOptionalInt32(v)
-	return _u
-}
+	case fieldtype.FieldInt:
 
-// ClearOptionalInt32 clears the value of the "optional_int32" field.
-func (_u *FieldTypeUpdate) ClearOptionalInt32() *FieldTypeUpdate {
-	_u.mutation.ClearOptionalInt32()
-	return _u
-}
+	case fieldtype.FieldInt8:
 
-// SetOptionalInt64 sets the "optional_int64" field.
-func (_u *FieldTypeUpdate) SetOptionalInt64(v int64) *FieldTypeUpdate {
-	_u.mutation.ResetOptionalInt64()
-	_u.mutation.SetOptionalInt64(v)
-	return _u
-}
+	case fieldtype.FieldInt16:
 
-// SetNillableOptionalInt64 sets the "optional_int64" field if the given value is not nil.
-func (_u *FieldTypeUpdate) SetNillableOptionalInt64(v *int64) *FieldTypeUpdate {
-	if v != nil {
-		_u.SetOptionalInt64(*v)
+	case fieldtype.FieldInt32:
+
+	case fieldtype.FieldInt64:
+
+	case fieldtype.FieldOptionalInt:
+
+	case fieldtype.FieldOptionalInt8:
+
+	case fieldtype.FieldOptionalInt16:
+
+	case fieldtype.FieldOptionalInt32:
+
+	case fieldtype.FieldOptionalInt64:
+
+	case fieldtype.FieldNillableInt:
+
+	case fieldtype.FieldNillableInt8:
+
+	case fieldtype.FieldNillableInt16:
+
+	case fieldtype.FieldNillableInt32:
+
+	case fieldtype.FieldNillableInt64:
+
+	case fieldtype.FieldValidateOptionalInt32:
+
+	case fieldtype.FieldOptionalUint:
+
+	case fieldtype.FieldOptionalUint8:
+
+	case fieldtype.FieldOptionalUint16:
+
+	case fieldtype.FieldOptionalUint32:
+
+	case fieldtype.FieldOptionalUint64:
+
+	case fieldtype.FieldState:
+
+	case fieldtype.FieldOptionalFloat:
+
+	case fieldtype.FieldOptionalFloat32:
+
+	case fieldtype.FieldText:
+
+	case fieldtype.FieldDatetime:
+
+	case fieldtype.FieldDecimal:
+
+	case fieldtype.FieldLinkOther:
+
+	case fieldtype.FieldLinkOtherFunc:
+
+	case fieldtype.FieldMAC:
+
+	case fieldtype.FieldStringArray:
+
+	case fieldtype.FieldPassword:
+
+	case fieldtype.FieldStringScanner:
+
+	case fieldtype.FieldDuration:
+
+	case fieldtype.FieldDir:
+
+	case fieldtype.FieldNdir:
+
+	case fieldtype.FieldStr:
+
+	case fieldtype.FieldNullStr:
+
+	case fieldtype.FieldLink:
+
+	case fieldtype.FieldNullLink:
+
+	case fieldtype.FieldActive:
+
+	case fieldtype.FieldNullActive:
+
+	case fieldtype.FieldDeleted:
+
+	case fieldtype.FieldDeletedAt:
+
+	case fieldtype.FieldRawData:
+
+	case fieldtype.FieldSensitive:
+
+	case fieldtype.FieldIP:
+
+	case fieldtype.FieldNullInt64:
+
+	case fieldtype.FieldSchemaInt:
+
+	case fieldtype.FieldSchemaInt8:
+
+	case fieldtype.FieldSchemaInt64:
+
+	case fieldtype.FieldSchemaFloat:
+
+	case fieldtype.FieldSchemaFloat32:
+
+	case fieldtype.FieldNullFloat:
+
+	case fieldtype.FieldRole:
+
+	case fieldtype.FieldPriority:
+
+	case fieldtype.FieldOptionalUUID:
+
+	case fieldtype.FieldNillableUUID:
+
+	case fieldtype.FieldStrings:
+
+	case fieldtype.FieldPair:
+
+	case fieldtype.FieldNilPair:
+
+	case fieldtype.FieldVstring:
+
+	case fieldtype.FieldTriple:
+
+	case fieldtype.FieldBigInt:
+
+	case fieldtype.FieldPasswordOther:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of FieldType is not settable", column.Ref().Name)}
+		return b
 	}
-	return _u
-}
 
-// AddOptionalInt64 adds value to the "optional_int64" field.
-func (_u *FieldTypeUpdate) AddOptionalInt64(v int64) *FieldTypeUpdate {
-	_u.mutation.AddOptionalInt64(v)
-	return _u
-}
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
 
-// ClearOptionalInt64 clears the value of the "optional_int64" field.
-func (_u *FieldTypeUpdate) ClearOptionalInt64() *FieldTypeUpdate {
-	_u.mutation.ClearOptionalInt64()
-	return _u
-}
+	return b
 
-// SetNillableInt sets the "nillable_int" field.
-func (_u *FieldTypeUpdate) SetNillableInt(v int) *FieldTypeUpdate {
-	_u.mutation.ResetNillableInt()
-	_u.mutation.SetNillableInt(v)
-	return _u
 }
-
-// SetNillableNillableInt sets the "nillable_int" field if the given value is not nil.
-func (_u *FieldTypeUpdate) SetNillableNillableInt(v *int) *FieldTypeUpdate {
-	if v != nil {
-		_u.SetNillableInt(*v)
+func (b *FieldTypeUpdate) SetEdge[N, K any](edge ent.UniqueRelation[entity.FieldType, N, K], id K) *FieldTypeUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
 	}
-	return _u
-}
 
-// AddNillableInt adds value to the "nillable_int" field.
-func (_u *FieldTypeUpdate) AddNillableInt(v int) *FieldTypeUpdate {
-	_u.mutation.AddNillableInt(v)
-	return _u
+	return b
 }
-
-// ClearNillableInt clears the value of the "nillable_int" field.
-func (_u *FieldTypeUpdate) ClearNillableInt() *FieldTypeUpdate {
-	_u.mutation.ClearNillableInt()
-	return _u
-}
-
-// SetNillableInt8 sets the "nillable_int8" field.
-func (_u *FieldTypeUpdate) SetNillableInt8(v int8) *FieldTypeUpdate {
-	_u.mutation.ResetNillableInt8()
-	_u.mutation.SetNillableInt8(v)
-	return _u
-}
-
-// SetNillableNillableInt8 sets the "nillable_int8" field if the given value is not nil.
-func (_u *FieldTypeUpdate) SetNillableNillableInt8(v *int8) *FieldTypeUpdate {
-	if v != nil {
-		_u.SetNillableInt8(*v)
+func (b *FieldTypeUpdate) AddIDs[N, K any](edge ent.Relation[entity.FieldType, N, K], ids ...K) *FieldTypeUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
 	}
-	return _u
-}
-
-// AddNillableInt8 adds value to the "nillable_int8" field.
-func (_u *FieldTypeUpdate) AddNillableInt8(v int8) *FieldTypeUpdate {
-	_u.mutation.AddNillableInt8(v)
-	return _u
-}
-
-// ClearNillableInt8 clears the value of the "nillable_int8" field.
-func (_u *FieldTypeUpdate) ClearNillableInt8() *FieldTypeUpdate {
-	_u.mutation.ClearNillableInt8()
-	return _u
-}
-
-// SetNillableInt16 sets the "nillable_int16" field.
-func (_u *FieldTypeUpdate) SetNillableInt16(v int16) *FieldTypeUpdate {
-	_u.mutation.ResetNillableInt16()
-	_u.mutation.SetNillableInt16(v)
-	return _u
-}
-
-// SetNillableNillableInt16 sets the "nillable_int16" field if the given value is not nil.
-func (_u *FieldTypeUpdate) SetNillableNillableInt16(v *int16) *FieldTypeUpdate {
-	if v != nil {
-		_u.SetNillableInt16(*v)
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
 	}
-	return _u
+	return b
 }
+func (b *FieldTypeUpdate) Mutation() *FieldTypeMutation { return b.mutation }
 
-// AddNillableInt16 adds value to the "nillable_int16" field.
-func (_u *FieldTypeUpdate) AddNillableInt16(v int16) *FieldTypeUpdate {
-	_u.mutation.AddNillableInt16(v)
-	return _u
+func (b *FieldTypeUpdate) Patch() *FieldTypePatch { return b.mutation.patch }
+func (b *FieldTypeUpdate) Apply(p FieldTypePatch) *FieldTypeUpdate {
+	b.mutation.patch.apply(p)
+	return b
 }
-
-// ClearNillableInt16 clears the value of the "nillable_int16" field.
-func (_u *FieldTypeUpdate) ClearNillableInt16() *FieldTypeUpdate {
-	_u.mutation.ClearNillableInt16()
-	return _u
-}
-
-// SetNillableInt32 sets the "nillable_int32" field.
-func (_u *FieldTypeUpdate) SetNillableInt32(v int32) *FieldTypeUpdate {
-	_u.mutation.ResetNillableInt32()
-	_u.mutation.SetNillableInt32(v)
-	return _u
-}
-
-// SetNillableNillableInt32 sets the "nillable_int32" field if the given value is not nil.
-func (_u *FieldTypeUpdate) SetNillableNillableInt32(v *int32) *FieldTypeUpdate {
-	if v != nil {
-		_u.SetNillableInt32(*v)
+func (b *FieldTypeUpdate) Add[T ent.Number](column ent.ColumnOf[entity.FieldType, T], delta T) *FieldTypeUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
 	}
-	return _u
+	return b
 }
-
-// AddNillableInt32 adds value to the "nillable_int32" field.
-func (_u *FieldTypeUpdate) AddNillableInt32(v int32) *FieldTypeUpdate {
-	_u.mutation.AddNillableInt32(v)
-	return _u
-}
-
-// ClearNillableInt32 clears the value of the "nillable_int32" field.
-func (_u *FieldTypeUpdate) ClearNillableInt32() *FieldTypeUpdate {
-	_u.mutation.ClearNillableInt32()
-	return _u
-}
-
-// SetNillableInt64 sets the "nillable_int64" field.
-func (_u *FieldTypeUpdate) SetNillableInt64(v int64) *FieldTypeUpdate {
-	_u.mutation.ResetNillableInt64()
-	_u.mutation.SetNillableInt64(v)
-	return _u
-}
-
-// SetNillableNillableInt64 sets the "nillable_int64" field if the given value is not nil.
-func (_u *FieldTypeUpdate) SetNillableNillableInt64(v *int64) *FieldTypeUpdate {
-	if v != nil {
-		_u.SetNillableInt64(*v)
+func (b *FieldTypeUpdate) Append[T any](column ent.ColumnOf[entity.FieldType, T], values T) *FieldTypeUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
 	}
-	return _u
+	return b
 }
-
-// AddNillableInt64 adds value to the "nillable_int64" field.
-func (_u *FieldTypeUpdate) AddNillableInt64(v int64) *FieldTypeUpdate {
-	_u.mutation.AddNillableInt64(v)
-	return _u
-}
-
-// ClearNillableInt64 clears the value of the "nillable_int64" field.
-func (_u *FieldTypeUpdate) ClearNillableInt64() *FieldTypeUpdate {
-	_u.mutation.ClearNillableInt64()
-	return _u
-}
-
-// SetValidateOptionalInt32 sets the "validate_optional_int32" field.
-func (_u *FieldTypeUpdate) SetValidateOptionalInt32(v int32) *FieldTypeUpdate {
-	_u.mutation.ResetValidateOptionalInt32()
-	_u.mutation.SetValidateOptionalInt32(v)
-	return _u
-}
-
-// SetNillableValidateOptionalInt32 sets the "validate_optional_int32" field if the given value is not nil.
-func (_u *FieldTypeUpdate) SetNillableValidateOptionalInt32(v *int32) *FieldTypeUpdate {
-	if v != nil {
-		_u.SetValidateOptionalInt32(*v)
+func (b *FieldTypeUpdate) Clear[T any](column ent.ColumnOf[entity.FieldType, T]) *FieldTypeUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
 	}
-	return _u
+	return b
 }
-
-// AddValidateOptionalInt32 adds value to the "validate_optional_int32" field.
-func (_u *FieldTypeUpdate) AddValidateOptionalInt32(v int32) *FieldTypeUpdate {
-	_u.mutation.AddValidateOptionalInt32(v)
-	return _u
-}
-
-// ClearValidateOptionalInt32 clears the value of the "validate_optional_int32" field.
-func (_u *FieldTypeUpdate) ClearValidateOptionalInt32() *FieldTypeUpdate {
-	_u.mutation.ClearValidateOptionalInt32()
-	return _u
-}
-
-// SetOptionalUint sets the "optional_uint" field.
-func (_u *FieldTypeUpdate) SetOptionalUint(v uint) *FieldTypeUpdate {
-	_u.mutation.ResetOptionalUint()
-	_u.mutation.SetOptionalUint(v)
-	return _u
-}
-
-// SetNillableOptionalUint sets the "optional_uint" field if the given value is not nil.
-func (_u *FieldTypeUpdate) SetNillableOptionalUint(v *uint) *FieldTypeUpdate {
-	if v != nil {
-		_u.SetOptionalUint(*v)
+func (b *FieldTypeUpdate) RemoveIDs[N, K any](edge ent.Relation[entity.FieldType, N, K], ids ...K) *FieldTypeUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
 	}
-	return _u
-}
-
-// AddOptionalUint adds value to the "optional_uint" field.
-func (_u *FieldTypeUpdate) AddOptionalUint(v int) *FieldTypeUpdate {
-	_u.mutation.AddOptionalUint(v)
-	return _u
-}
-
-// ClearOptionalUint clears the value of the "optional_uint" field.
-func (_u *FieldTypeUpdate) ClearOptionalUint() *FieldTypeUpdate {
-	_u.mutation.ClearOptionalUint()
-	return _u
-}
-
-// SetOptionalUint8 sets the "optional_uint8" field.
-func (_u *FieldTypeUpdate) SetOptionalUint8(v uint8) *FieldTypeUpdate {
-	_u.mutation.ResetOptionalUint8()
-	_u.mutation.SetOptionalUint8(v)
-	return _u
-}
-
-// SetNillableOptionalUint8 sets the "optional_uint8" field if the given value is not nil.
-func (_u *FieldTypeUpdate) SetNillableOptionalUint8(v *uint8) *FieldTypeUpdate {
-	if v != nil {
-		_u.SetOptionalUint8(*v)
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
 	}
-	return _u
+	return b
 }
-
-// AddOptionalUint8 adds value to the "optional_uint8" field.
-func (_u *FieldTypeUpdate) AddOptionalUint8(v int8) *FieldTypeUpdate {
-	_u.mutation.AddOptionalUint8(v)
-	return _u
-}
-
-// ClearOptionalUint8 clears the value of the "optional_uint8" field.
-func (_u *FieldTypeUpdate) ClearOptionalUint8() *FieldTypeUpdate {
-	_u.mutation.ClearOptionalUint8()
-	return _u
-}
-
-// SetOptionalUint16 sets the "optional_uint16" field.
-func (_u *FieldTypeUpdate) SetOptionalUint16(v uint16) *FieldTypeUpdate {
-	_u.mutation.ResetOptionalUint16()
-	_u.mutation.SetOptionalUint16(v)
-	return _u
-}
-
-// SetNillableOptionalUint16 sets the "optional_uint16" field if the given value is not nil.
-func (_u *FieldTypeUpdate) SetNillableOptionalUint16(v *uint16) *FieldTypeUpdate {
-	if v != nil {
-		_u.SetOptionalUint16(*v)
+func (b *FieldTypeUpdate) ClearEdge[N, K any](edge ent.RelationOf[entity.FieldType, N, K]) *FieldTypeUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
 	}
-	return _u
+	return b
 }
 
-// AddOptionalUint16 adds value to the "optional_uint16" field.
-func (_u *FieldTypeUpdate) AddOptionalUint16(v int16) *FieldTypeUpdate {
-	_u.mutation.AddOptionalUint16(v)
-	return _u
+func (b *FieldTypeUpdate) Where(predicates ...ent.Predicate[entity.FieldType]) *FieldTypeUpdate {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// ClearOptionalUint16 clears the value of the "optional_uint16" field.
-func (_u *FieldTypeUpdate) ClearOptionalUint16() *FieldTypeUpdate {
-	_u.mutation.ClearOptionalUint16()
-	return _u
-}
-
-// SetOptionalUint32 sets the "optional_uint32" field.
-func (_u *FieldTypeUpdate) SetOptionalUint32(v uint32) *FieldTypeUpdate {
-	_u.mutation.ResetOptionalUint32()
-	_u.mutation.SetOptionalUint32(v)
-	return _u
-}
-
-// SetNillableOptionalUint32 sets the "optional_uint32" field if the given value is not nil.
-func (_u *FieldTypeUpdate) SetNillableOptionalUint32(v *uint32) *FieldTypeUpdate {
-	if v != nil {
-		_u.SetOptionalUint32(*v)
+func (b *FieldTypeUpdate) Save(ctx context.Context) (int, error) {
+	if b.err != nil {
+		return 0, b.err
 	}
-	return _u
-}
-
-// AddOptionalUint32 adds value to the "optional_uint32" field.
-func (_u *FieldTypeUpdate) AddOptionalUint32(v int32) *FieldTypeUpdate {
-	_u.mutation.AddOptionalUint32(v)
-	return _u
-}
-
-// ClearOptionalUint32 clears the value of the "optional_uint32" field.
-func (_u *FieldTypeUpdate) ClearOptionalUint32() *FieldTypeUpdate {
-	_u.mutation.ClearOptionalUint32()
-	return _u
-}
-
-// SetOptionalUint64 sets the "optional_uint64" field.
-func (_u *FieldTypeUpdate) SetOptionalUint64(v uint64) *FieldTypeUpdate {
-	_u.mutation.ResetOptionalUint64()
-	_u.mutation.SetOptionalUint64(v)
-	return _u
-}
-
-// SetNillableOptionalUint64 sets the "optional_uint64" field if the given value is not nil.
-func (_u *FieldTypeUpdate) SetNillableOptionalUint64(v *uint64) *FieldTypeUpdate {
-	if v != nil {
-		_u.SetOptionalUint64(*v)
-	}
-	return _u
-}
-
-// AddOptionalUint64 adds value to the "optional_uint64" field.
-func (_u *FieldTypeUpdate) AddOptionalUint64(v int64) *FieldTypeUpdate {
-	_u.mutation.AddOptionalUint64(v)
-	return _u
-}
-
-// ClearOptionalUint64 clears the value of the "optional_uint64" field.
-func (_u *FieldTypeUpdate) ClearOptionalUint64() *FieldTypeUpdate {
-	_u.mutation.ClearOptionalUint64()
-	return _u
-}
-
-// SetState sets the "state" field.
-func (_u *FieldTypeUpdate) SetState(v fieldtype.State) *FieldTypeUpdate {
-	_u.mutation.SetState(v)
-	return _u
-}
-
-// SetNillableState sets the "state" field if the given value is not nil.
-func (_u *FieldTypeUpdate) SetNillableState(v *fieldtype.State) *FieldTypeUpdate {
-	if v != nil {
-		_u.SetState(*v)
-	}
-	return _u
-}
-
-// ClearState clears the value of the "state" field.
-func (_u *FieldTypeUpdate) ClearState() *FieldTypeUpdate {
-	_u.mutation.ClearState()
-	return _u
-}
-
-// SetOptionalFloat sets the "optional_float" field.
-func (_u *FieldTypeUpdate) SetOptionalFloat(v float64) *FieldTypeUpdate {
-	_u.mutation.ResetOptionalFloat()
-	_u.mutation.SetOptionalFloat(v)
-	return _u
-}
-
-// SetNillableOptionalFloat sets the "optional_float" field if the given value is not nil.
-func (_u *FieldTypeUpdate) SetNillableOptionalFloat(v *float64) *FieldTypeUpdate {
-	if v != nil {
-		_u.SetOptionalFloat(*v)
-	}
-	return _u
-}
-
-// AddOptionalFloat adds value to the "optional_float" field.
-func (_u *FieldTypeUpdate) AddOptionalFloat(v float64) *FieldTypeUpdate {
-	_u.mutation.AddOptionalFloat(v)
-	return _u
-}
-
-// ClearOptionalFloat clears the value of the "optional_float" field.
-func (_u *FieldTypeUpdate) ClearOptionalFloat() *FieldTypeUpdate {
-	_u.mutation.ClearOptionalFloat()
-	return _u
-}
-
-// SetOptionalFloat32 sets the "optional_float32" field.
-func (_u *FieldTypeUpdate) SetOptionalFloat32(v float32) *FieldTypeUpdate {
-	_u.mutation.ResetOptionalFloat32()
-	_u.mutation.SetOptionalFloat32(v)
-	return _u
-}
-
-// SetNillableOptionalFloat32 sets the "optional_float32" field if the given value is not nil.
-func (_u *FieldTypeUpdate) SetNillableOptionalFloat32(v *float32) *FieldTypeUpdate {
-	if v != nil {
-		_u.SetOptionalFloat32(*v)
-	}
-	return _u
-}
-
-// AddOptionalFloat32 adds value to the "optional_float32" field.
-func (_u *FieldTypeUpdate) AddOptionalFloat32(v float32) *FieldTypeUpdate {
-	_u.mutation.AddOptionalFloat32(v)
-	return _u
-}
-
-// ClearOptionalFloat32 clears the value of the "optional_float32" field.
-func (_u *FieldTypeUpdate) ClearOptionalFloat32() *FieldTypeUpdate {
-	_u.mutation.ClearOptionalFloat32()
-	return _u
-}
-
-// SetText sets the "text" field.
-func (_u *FieldTypeUpdate) SetText(v string) *FieldTypeUpdate {
-	_u.mutation.SetText(v)
-	return _u
-}
-
-// SetNillableText sets the "text" field if the given value is not nil.
-func (_u *FieldTypeUpdate) SetNillableText(v *string) *FieldTypeUpdate {
-	if v != nil {
-		_u.SetText(*v)
-	}
-	return _u
-}
-
-// ClearText clears the value of the "text" field.
-func (_u *FieldTypeUpdate) ClearText() *FieldTypeUpdate {
-	_u.mutation.ClearText()
-	return _u
-}
-
-// SetDatetime sets the "datetime" field.
-func (_u *FieldTypeUpdate) SetDatetime(v time.Time) *FieldTypeUpdate {
-	_u.mutation.SetDatetime(v)
-	return _u
-}
-
-// SetNillableDatetime sets the "datetime" field if the given value is not nil.
-func (_u *FieldTypeUpdate) SetNillableDatetime(v *time.Time) *FieldTypeUpdate {
-	if v != nil {
-		_u.SetDatetime(*v)
-	}
-	return _u
-}
-
-// ClearDatetime clears the value of the "datetime" field.
-func (_u *FieldTypeUpdate) ClearDatetime() *FieldTypeUpdate {
-	_u.mutation.ClearDatetime()
-	return _u
-}
-
-// SetDecimal sets the "decimal" field.
-func (_u *FieldTypeUpdate) SetDecimal(v float64) *FieldTypeUpdate {
-	_u.mutation.ResetDecimal()
-	_u.mutation.SetDecimal(v)
-	return _u
-}
-
-// SetNillableDecimal sets the "decimal" field if the given value is not nil.
-func (_u *FieldTypeUpdate) SetNillableDecimal(v *float64) *FieldTypeUpdate {
-	if v != nil {
-		_u.SetDecimal(*v)
-	}
-	return _u
-}
-
-// AddDecimal adds value to the "decimal" field.
-func (_u *FieldTypeUpdate) AddDecimal(v float64) *FieldTypeUpdate {
-	_u.mutation.AddDecimal(v)
-	return _u
-}
-
-// ClearDecimal clears the value of the "decimal" field.
-func (_u *FieldTypeUpdate) ClearDecimal() *FieldTypeUpdate {
-	_u.mutation.ClearDecimal()
-	return _u
-}
-
-// SetLinkOther sets the "link_other" field.
-func (_u *FieldTypeUpdate) SetLinkOther(v *schema.Link) *FieldTypeUpdate {
-	_u.mutation.SetLinkOther(v)
-	return _u
-}
-
-// ClearLinkOther clears the value of the "link_other" field.
-func (_u *FieldTypeUpdate) ClearLinkOther() *FieldTypeUpdate {
-	_u.mutation.ClearLinkOther()
-	return _u
-}
-
-// SetLinkOtherFunc sets the "link_other_func" field.
-func (_u *FieldTypeUpdate) SetLinkOtherFunc(v *schema.Link) *FieldTypeUpdate {
-	_u.mutation.SetLinkOtherFunc(v)
-	return _u
-}
-
-// ClearLinkOtherFunc clears the value of the "link_other_func" field.
-func (_u *FieldTypeUpdate) ClearLinkOtherFunc() *FieldTypeUpdate {
-	_u.mutation.ClearLinkOtherFunc()
-	return _u
-}
-
-// SetMAC sets the "mac" field.
-func (_u *FieldTypeUpdate) SetMAC(v schema.MAC) *FieldTypeUpdate {
-	_u.mutation.SetMAC(v)
-	return _u
-}
-
-// SetNillableMAC sets the "mac" field if the given value is not nil.
-func (_u *FieldTypeUpdate) SetNillableMAC(v *schema.MAC) *FieldTypeUpdate {
-	if v != nil {
-		_u.SetMAC(*v)
-	}
-	return _u
-}
-
-// ClearMAC clears the value of the "mac" field.
-func (_u *FieldTypeUpdate) ClearMAC() *FieldTypeUpdate {
-	_u.mutation.ClearMAC()
-	return _u
-}
-
-// SetStringArray sets the "string_array" field.
-func (_u *FieldTypeUpdate) SetStringArray(v schema.Strings) *FieldTypeUpdate {
-	_u.mutation.SetStringArray(v)
-	return _u
-}
-
-// ClearStringArray clears the value of the "string_array" field.
-func (_u *FieldTypeUpdate) ClearStringArray() *FieldTypeUpdate {
-	_u.mutation.ClearStringArray()
-	return _u
-}
-
-// SetPassword sets the "password" field.
-func (_u *FieldTypeUpdate) SetPassword(v string) *FieldTypeUpdate {
-	_u.mutation.SetPassword(v)
-	return _u
-}
-
-// SetNillablePassword sets the "password" field if the given value is not nil.
-func (_u *FieldTypeUpdate) SetNillablePassword(v *string) *FieldTypeUpdate {
-	if v != nil {
-		_u.SetPassword(*v)
-	}
-	return _u
-}
-
-// ClearPassword clears the value of the "password" field.
-func (_u *FieldTypeUpdate) ClearPassword() *FieldTypeUpdate {
-	_u.mutation.ClearPassword()
-	return _u
-}
-
-// SetStringScanner sets the "string_scanner" field.
-func (_u *FieldTypeUpdate) SetStringScanner(v schema.StringScanner) *FieldTypeUpdate {
-	_u.mutation.SetStringScanner(v)
-	return _u
-}
-
-// SetNillableStringScanner sets the "string_scanner" field if the given value is not nil.
-func (_u *FieldTypeUpdate) SetNillableStringScanner(v *schema.StringScanner) *FieldTypeUpdate {
-	if v != nil {
-		_u.SetStringScanner(*v)
-	}
-	return _u
-}
-
-// ClearStringScanner clears the value of the "string_scanner" field.
-func (_u *FieldTypeUpdate) ClearStringScanner() *FieldTypeUpdate {
-	_u.mutation.ClearStringScanner()
-	return _u
-}
-
-// SetDuration sets the "duration" field.
-func (_u *FieldTypeUpdate) SetDuration(v time.Duration) *FieldTypeUpdate {
-	_u.mutation.ResetDuration()
-	_u.mutation.SetDuration(v)
-	return _u
-}
-
-// AddDuration adds value to the "duration" field.
-func (_u *FieldTypeUpdate) AddDuration(v time.Duration) *FieldTypeUpdate {
-	_u.mutation.AddDuration(v)
-	return _u
-}
-
-// ClearDuration clears the value of the "duration" field.
-func (_u *FieldTypeUpdate) ClearDuration() *FieldTypeUpdate {
-	_u.mutation.ClearDuration()
-	return _u
-}
-
-// SetDir sets the "dir" field.
-func (_u *FieldTypeUpdate) SetDir(v http.Dir) *FieldTypeUpdate {
-	_u.mutation.SetDir(v)
-	return _u
-}
-
-// SetNillableDir sets the "dir" field if the given value is not nil.
-func (_u *FieldTypeUpdate) SetNillableDir(v *http.Dir) *FieldTypeUpdate {
-	if v != nil {
-		_u.SetDir(*v)
-	}
-	return _u
-}
-
-// SetNdir sets the "ndir" field.
-func (_u *FieldTypeUpdate) SetNdir(v http.Dir) *FieldTypeUpdate {
-	_u.mutation.SetNdir(v)
-	return _u
-}
-
-// SetNillableNdir sets the "ndir" field if the given value is not nil.
-func (_u *FieldTypeUpdate) SetNillableNdir(v *http.Dir) *FieldTypeUpdate {
-	if v != nil {
-		_u.SetNdir(*v)
-	}
-	return _u
-}
-
-// ClearNdir clears the value of the "ndir" field.
-func (_u *FieldTypeUpdate) ClearNdir() *FieldTypeUpdate {
-	_u.mutation.ClearNdir()
-	return _u
-}
-
-// SetStr sets the "str" field.
-func (_u *FieldTypeUpdate) SetStr(v sql.NullString) *FieldTypeUpdate {
-	_u.mutation.SetStr(v)
-	return _u
-}
-
-// SetNillableStr sets the "str" field if the given value is not nil.
-func (_u *FieldTypeUpdate) SetNillableStr(v *sql.NullString) *FieldTypeUpdate {
-	if v != nil {
-		_u.SetStr(*v)
-	}
-	return _u
-}
-
-// ClearStr clears the value of the "str" field.
-func (_u *FieldTypeUpdate) ClearStr() *FieldTypeUpdate {
-	_u.mutation.ClearStr()
-	return _u
-}
-
-// SetNullStr sets the "null_str" field.
-func (_u *FieldTypeUpdate) SetNullStr(v *sql.NullString) *FieldTypeUpdate {
-	_u.mutation.SetNullStr(v)
-	return _u
-}
-
-// ClearNullStr clears the value of the "null_str" field.
-func (_u *FieldTypeUpdate) ClearNullStr() *FieldTypeUpdate {
-	_u.mutation.ClearNullStr()
-	return _u
-}
-
-// SetLink sets the "link" field.
-func (_u *FieldTypeUpdate) SetLink(v schema.Link) *FieldTypeUpdate {
-	_u.mutation.SetLink(v)
-	return _u
-}
-
-// SetNillableLink sets the "link" field if the given value is not nil.
-func (_u *FieldTypeUpdate) SetNillableLink(v *schema.Link) *FieldTypeUpdate {
-	if v != nil {
-		_u.SetLink(*v)
-	}
-	return _u
-}
-
-// ClearLink clears the value of the "link" field.
-func (_u *FieldTypeUpdate) ClearLink() *FieldTypeUpdate {
-	_u.mutation.ClearLink()
-	return _u
-}
-
-// SetNullLink sets the "null_link" field.
-func (_u *FieldTypeUpdate) SetNullLink(v *schema.Link) *FieldTypeUpdate {
-	_u.mutation.SetNullLink(v)
-	return _u
-}
-
-// ClearNullLink clears the value of the "null_link" field.
-func (_u *FieldTypeUpdate) ClearNullLink() *FieldTypeUpdate {
-	_u.mutation.ClearNullLink()
-	return _u
-}
-
-// SetActive sets the "active" field.
-func (_u *FieldTypeUpdate) SetActive(v schema.Status) *FieldTypeUpdate {
-	_u.mutation.SetActive(v)
-	return _u
-}
-
-// SetNillableActive sets the "active" field if the given value is not nil.
-func (_u *FieldTypeUpdate) SetNillableActive(v *schema.Status) *FieldTypeUpdate {
-	if v != nil {
-		_u.SetActive(*v)
-	}
-	return _u
-}
-
-// ClearActive clears the value of the "active" field.
-func (_u *FieldTypeUpdate) ClearActive() *FieldTypeUpdate {
-	_u.mutation.ClearActive()
-	return _u
-}
-
-// SetNullActive sets the "null_active" field.
-func (_u *FieldTypeUpdate) SetNullActive(v schema.Status) *FieldTypeUpdate {
-	_u.mutation.SetNullActive(v)
-	return _u
-}
-
-// SetNillableNullActive sets the "null_active" field if the given value is not nil.
-func (_u *FieldTypeUpdate) SetNillableNullActive(v *schema.Status) *FieldTypeUpdate {
-	if v != nil {
-		_u.SetNullActive(*v)
-	}
-	return _u
-}
-
-// ClearNullActive clears the value of the "null_active" field.
-func (_u *FieldTypeUpdate) ClearNullActive() *FieldTypeUpdate {
-	_u.mutation.ClearNullActive()
-	return _u
-}
-
-// SetDeleted sets the "deleted" field.
-func (_u *FieldTypeUpdate) SetDeleted(v *sql.NullBool) *FieldTypeUpdate {
-	_u.mutation.SetDeleted(v)
-	return _u
-}
-
-// ClearDeleted clears the value of the "deleted" field.
-func (_u *FieldTypeUpdate) ClearDeleted() *FieldTypeUpdate {
-	_u.mutation.ClearDeleted()
-	return _u
-}
-
-// SetDeletedAt sets the "deleted_at" field.
-func (_u *FieldTypeUpdate) SetDeletedAt(v *sql.NullTime) *FieldTypeUpdate {
-	_u.mutation.SetDeletedAt(v)
-	return _u
-}
-
-// ClearDeletedAt clears the value of the "deleted_at" field.
-func (_u *FieldTypeUpdate) ClearDeletedAt() *FieldTypeUpdate {
-	_u.mutation.ClearDeletedAt()
-	return _u
-}
-
-// SetRawData sets the "raw_data" field.
-func (_u *FieldTypeUpdate) SetRawData(v []byte) *FieldTypeUpdate {
-	_u.mutation.SetRawData(v)
-	return _u
-}
-
-// ClearRawData clears the value of the "raw_data" field.
-func (_u *FieldTypeUpdate) ClearRawData() *FieldTypeUpdate {
-	_u.mutation.ClearRawData()
-	return _u
-}
-
-// SetSensitive sets the "sensitive" field.
-func (_u *FieldTypeUpdate) SetSensitive(v []byte) *FieldTypeUpdate {
-	_u.mutation.SetSensitive(v)
-	return _u
-}
-
-// ClearSensitive clears the value of the "sensitive" field.
-func (_u *FieldTypeUpdate) ClearSensitive() *FieldTypeUpdate {
-	_u.mutation.ClearSensitive()
-	return _u
-}
-
-// SetIP sets the "ip" field.
-func (_u *FieldTypeUpdate) SetIP(v net.IP) *FieldTypeUpdate {
-	_u.mutation.SetIP(v)
-	return _u
-}
-
-// ClearIP clears the value of the "ip" field.
-func (_u *FieldTypeUpdate) ClearIP() *FieldTypeUpdate {
-	_u.mutation.ClearIP()
-	return _u
-}
-
-// SetNullInt64 sets the "null_int64" field.
-func (_u *FieldTypeUpdate) SetNullInt64(v *sql.NullInt64) *FieldTypeUpdate {
-	_u.mutation.SetNullInt64(v)
-	return _u
-}
-
-// ClearNullInt64 clears the value of the "null_int64" field.
-func (_u *FieldTypeUpdate) ClearNullInt64() *FieldTypeUpdate {
-	_u.mutation.ClearNullInt64()
-	return _u
-}
-
-// SetSchemaInt sets the "schema_int" field.
-func (_u *FieldTypeUpdate) SetSchemaInt(v schema.Int) *FieldTypeUpdate {
-	_u.mutation.ResetSchemaInt()
-	_u.mutation.SetSchemaInt(v)
-	return _u
-}
-
-// SetNillableSchemaInt sets the "schema_int" field if the given value is not nil.
-func (_u *FieldTypeUpdate) SetNillableSchemaInt(v *schema.Int) *FieldTypeUpdate {
-	if v != nil {
-		_u.SetSchemaInt(*v)
-	}
-	return _u
-}
-
-// AddSchemaInt adds value to the "schema_int" field.
-func (_u *FieldTypeUpdate) AddSchemaInt(v schema.Int) *FieldTypeUpdate {
-	_u.mutation.AddSchemaInt(v)
-	return _u
-}
-
-// ClearSchemaInt clears the value of the "schema_int" field.
-func (_u *FieldTypeUpdate) ClearSchemaInt() *FieldTypeUpdate {
-	_u.mutation.ClearSchemaInt()
-	return _u
-}
-
-// SetSchemaInt8 sets the "schema_int8" field.
-func (_u *FieldTypeUpdate) SetSchemaInt8(v schema.Int8) *FieldTypeUpdate {
-	_u.mutation.ResetSchemaInt8()
-	_u.mutation.SetSchemaInt8(v)
-	return _u
-}
-
-// SetNillableSchemaInt8 sets the "schema_int8" field if the given value is not nil.
-func (_u *FieldTypeUpdate) SetNillableSchemaInt8(v *schema.Int8) *FieldTypeUpdate {
-	if v != nil {
-		_u.SetSchemaInt8(*v)
-	}
-	return _u
-}
-
-// AddSchemaInt8 adds value to the "schema_int8" field.
-func (_u *FieldTypeUpdate) AddSchemaInt8(v schema.Int8) *FieldTypeUpdate {
-	_u.mutation.AddSchemaInt8(v)
-	return _u
-}
-
-// ClearSchemaInt8 clears the value of the "schema_int8" field.
-func (_u *FieldTypeUpdate) ClearSchemaInt8() *FieldTypeUpdate {
-	_u.mutation.ClearSchemaInt8()
-	return _u
-}
-
-// SetSchemaInt64 sets the "schema_int64" field.
-func (_u *FieldTypeUpdate) SetSchemaInt64(v schema.Int64) *FieldTypeUpdate {
-	_u.mutation.ResetSchemaInt64()
-	_u.mutation.SetSchemaInt64(v)
-	return _u
-}
-
-// SetNillableSchemaInt64 sets the "schema_int64" field if the given value is not nil.
-func (_u *FieldTypeUpdate) SetNillableSchemaInt64(v *schema.Int64) *FieldTypeUpdate {
-	if v != nil {
-		_u.SetSchemaInt64(*v)
-	}
-	return _u
-}
-
-// AddSchemaInt64 adds value to the "schema_int64" field.
-func (_u *FieldTypeUpdate) AddSchemaInt64(v schema.Int64) *FieldTypeUpdate {
-	_u.mutation.AddSchemaInt64(v)
-	return _u
-}
-
-// ClearSchemaInt64 clears the value of the "schema_int64" field.
-func (_u *FieldTypeUpdate) ClearSchemaInt64() *FieldTypeUpdate {
-	_u.mutation.ClearSchemaInt64()
-	return _u
-}
-
-// SetSchemaFloat sets the "schema_float" field.
-func (_u *FieldTypeUpdate) SetSchemaFloat(v schema.Float64) *FieldTypeUpdate {
-	_u.mutation.ResetSchemaFloat()
-	_u.mutation.SetSchemaFloat(v)
-	return _u
-}
-
-// SetNillableSchemaFloat sets the "schema_float" field if the given value is not nil.
-func (_u *FieldTypeUpdate) SetNillableSchemaFloat(v *schema.Float64) *FieldTypeUpdate {
-	if v != nil {
-		_u.SetSchemaFloat(*v)
-	}
-	return _u
-}
-
-// AddSchemaFloat adds value to the "schema_float" field.
-func (_u *FieldTypeUpdate) AddSchemaFloat(v schema.Float64) *FieldTypeUpdate {
-	_u.mutation.AddSchemaFloat(v)
-	return _u
-}
-
-// ClearSchemaFloat clears the value of the "schema_float" field.
-func (_u *FieldTypeUpdate) ClearSchemaFloat() *FieldTypeUpdate {
-	_u.mutation.ClearSchemaFloat()
-	return _u
-}
-
-// SetSchemaFloat32 sets the "schema_float32" field.
-func (_u *FieldTypeUpdate) SetSchemaFloat32(v schema.Float32) *FieldTypeUpdate {
-	_u.mutation.ResetSchemaFloat32()
-	_u.mutation.SetSchemaFloat32(v)
-	return _u
-}
-
-// SetNillableSchemaFloat32 sets the "schema_float32" field if the given value is not nil.
-func (_u *FieldTypeUpdate) SetNillableSchemaFloat32(v *schema.Float32) *FieldTypeUpdate {
-	if v != nil {
-		_u.SetSchemaFloat32(*v)
-	}
-	return _u
-}
-
-// AddSchemaFloat32 adds value to the "schema_float32" field.
-func (_u *FieldTypeUpdate) AddSchemaFloat32(v schema.Float32) *FieldTypeUpdate {
-	_u.mutation.AddSchemaFloat32(v)
-	return _u
-}
-
-// ClearSchemaFloat32 clears the value of the "schema_float32" field.
-func (_u *FieldTypeUpdate) ClearSchemaFloat32() *FieldTypeUpdate {
-	_u.mutation.ClearSchemaFloat32()
-	return _u
-}
-
-// SetNullFloat sets the "null_float" field.
-func (_u *FieldTypeUpdate) SetNullFloat(v *sql.NullFloat64) *FieldTypeUpdate {
-	_u.mutation.SetNullFloat(v)
-	return _u
-}
-
-// ClearNullFloat clears the value of the "null_float" field.
-func (_u *FieldTypeUpdate) ClearNullFloat() *FieldTypeUpdate {
-	_u.mutation.ClearNullFloat()
-	return _u
-}
-
-// SetRole sets the "role" field.
-func (_u *FieldTypeUpdate) SetRole(v role.Role) *FieldTypeUpdate {
-	_u.mutation.SetRole(v)
-	return _u
-}
-
-// SetNillableRole sets the "role" field if the given value is not nil.
-func (_u *FieldTypeUpdate) SetNillableRole(v *role.Role) *FieldTypeUpdate {
-	if v != nil {
-		_u.SetRole(*v)
-	}
-	return _u
-}
-
-// SetPriority sets the "priority" field.
-func (_u *FieldTypeUpdate) SetPriority(v role.Priority) *FieldTypeUpdate {
-	_u.mutation.SetPriority(v)
-	return _u
-}
-
-// SetNillablePriority sets the "priority" field if the given value is not nil.
-func (_u *FieldTypeUpdate) SetNillablePriority(v *role.Priority) *FieldTypeUpdate {
-	if v != nil {
-		_u.SetPriority(*v)
-	}
-	return _u
-}
-
-// ClearPriority clears the value of the "priority" field.
-func (_u *FieldTypeUpdate) ClearPriority() *FieldTypeUpdate {
-	_u.mutation.ClearPriority()
-	return _u
-}
-
-// SetOptionalUUID sets the "optional_uuid" field.
-func (_u *FieldTypeUpdate) SetOptionalUUID(v uuid.UUID) *FieldTypeUpdate {
-	_u.mutation.SetOptionalUUID(v)
-	return _u
-}
-
-// SetNillableOptionalUUID sets the "optional_uuid" field if the given value is not nil.
-func (_u *FieldTypeUpdate) SetNillableOptionalUUID(v *uuid.UUID) *FieldTypeUpdate {
-	if v != nil {
-		_u.SetOptionalUUID(*v)
-	}
-	return _u
-}
-
-// ClearOptionalUUID clears the value of the "optional_uuid" field.
-func (_u *FieldTypeUpdate) ClearOptionalUUID() *FieldTypeUpdate {
-	_u.mutation.ClearOptionalUUID()
-	return _u
-}
-
-// SetNillableUUID sets the "nillable_uuid" field.
-func (_u *FieldTypeUpdate) SetNillableUUID(v uuid.UUID) *FieldTypeUpdate {
-	_u.mutation.SetNillableUUID(v)
-	return _u
-}
-
-// SetNillableNillableUUID sets the "nillable_uuid" field if the given value is not nil.
-func (_u *FieldTypeUpdate) SetNillableNillableUUID(v *uuid.UUID) *FieldTypeUpdate {
-	if v != nil {
-		_u.SetNillableUUID(*v)
-	}
-	return _u
-}
-
-// ClearNillableUUID clears the value of the "nillable_uuid" field.
-func (_u *FieldTypeUpdate) ClearNillableUUID() *FieldTypeUpdate {
-	_u.mutation.ClearNillableUUID()
-	return _u
-}
-
-// SetStrings sets the "strings" field.
-func (_u *FieldTypeUpdate) SetStrings(v []string) *FieldTypeUpdate {
-	_u.mutation.SetStrings(v)
-	return _u
-}
-
-// AppendStrings appends value to the "strings" field.
-func (_u *FieldTypeUpdate) AppendStrings(v []string) *FieldTypeUpdate {
-	_u.mutation.AppendStrings(v)
-	return _u
-}
-
-// ClearStrings clears the value of the "strings" field.
-func (_u *FieldTypeUpdate) ClearStrings() *FieldTypeUpdate {
-	_u.mutation.ClearStrings()
-	return _u
-}
-
-// SetPair sets the "pair" field.
-func (_u *FieldTypeUpdate) SetPair(v schema.Pair) *FieldTypeUpdate {
-	_u.mutation.SetPair(v)
-	return _u
-}
-
-// SetNillablePair sets the "pair" field if the given value is not nil.
-func (_u *FieldTypeUpdate) SetNillablePair(v *schema.Pair) *FieldTypeUpdate {
-	if v != nil {
-		_u.SetPair(*v)
-	}
-	return _u
-}
-
-// SetNilPair sets the "nil_pair" field.
-func (_u *FieldTypeUpdate) SetNilPair(v *schema.Pair) *FieldTypeUpdate {
-	_u.mutation.SetNilPair(v)
-	return _u
-}
-
-// ClearNilPair clears the value of the "nil_pair" field.
-func (_u *FieldTypeUpdate) ClearNilPair() *FieldTypeUpdate {
-	_u.mutation.ClearNilPair()
-	return _u
-}
-
-// SetVstring sets the "vstring" field.
-func (_u *FieldTypeUpdate) SetVstring(v schema.VString) *FieldTypeUpdate {
-	_u.mutation.SetVstring(v)
-	return _u
-}
-
-// SetNillableVstring sets the "vstring" field if the given value is not nil.
-func (_u *FieldTypeUpdate) SetNillableVstring(v *schema.VString) *FieldTypeUpdate {
-	if v != nil {
-		_u.SetVstring(*v)
-	}
-	return _u
-}
-
-// SetTriple sets the "triple" field.
-func (_u *FieldTypeUpdate) SetTriple(v schema.Triple) *FieldTypeUpdate {
-	_u.mutation.SetTriple(v)
-	return _u
-}
-
-// SetNillableTriple sets the "triple" field if the given value is not nil.
-func (_u *FieldTypeUpdate) SetNillableTriple(v *schema.Triple) *FieldTypeUpdate {
-	if v != nil {
-		_u.SetTriple(*v)
-	}
-	return _u
-}
-
-// SetBigInt sets the "big_int" field.
-func (_u *FieldTypeUpdate) SetBigInt(v schema.BigInt) *FieldTypeUpdate {
-	_u.mutation.ResetBigInt()
-	_u.mutation.SetBigInt(v)
-	return _u
-}
-
-// SetNillableBigInt sets the "big_int" field if the given value is not nil.
-func (_u *FieldTypeUpdate) SetNillableBigInt(v *schema.BigInt) *FieldTypeUpdate {
-	if v != nil {
-		_u.SetBigInt(*v)
-	}
-	return _u
-}
-
-// AddBigInt adds value to the "big_int" field.
-func (_u *FieldTypeUpdate) AddBigInt(v schema.BigInt) *FieldTypeUpdate {
-	_u.mutation.AddBigInt(v)
-	return _u
-}
-
-// ClearBigInt clears the value of the "big_int" field.
-func (_u *FieldTypeUpdate) ClearBigInt() *FieldTypeUpdate {
-	_u.mutation.ClearBigInt()
-	return _u
-}
-
-// SetPasswordOther sets the "password_other" field.
-func (_u *FieldTypeUpdate) SetPasswordOther(v schema.Password) *FieldTypeUpdate {
-	_u.mutation.SetPasswordOther(v)
-	return _u
-}
-
-// SetNillablePasswordOther sets the "password_other" field if the given value is not nil.
-func (_u *FieldTypeUpdate) SetNillablePasswordOther(v *schema.Password) *FieldTypeUpdate {
-	if v != nil {
-		_u.SetPasswordOther(*v)
-	}
-	return _u
-}
-
-// ClearPasswordOther clears the value of the "password_other" field.
-func (_u *FieldTypeUpdate) ClearPasswordOther() *FieldTypeUpdate {
-	_u.mutation.ClearPasswordOther()
-	return _u
-}
-
-// Mutation returns the FieldTypeMutation object of the builder.
-func (_u *FieldTypeUpdate) Mutation() *FieldTypeMutation {
-	return _u.mutation
-}
-
-// Save executes the query and returns the number of nodes affected by the update operation.
-func (_u *FieldTypeUpdate) Save(ctx context.Context) (int, error) {
-	if err := _u.defaults(); err != nil {
+	if err := b.defaults(); err != nil {
 		return 0, err
 	}
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
+	return b.sqlSave(ctx)
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_u *FieldTypeUpdate) SaveX(ctx context.Context) int {
-	affected, err := _u.Save(ctx)
+func (b *FieldTypeUpdate) SaveX(ctx context.Context) int {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return affected
+	return result
 }
 
-// Exec executes the query.
-func (_u *FieldTypeUpdate) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *FieldTypeUpdate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *FieldTypeUpdate) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *FieldTypeUpdate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// defaults sets the default values of the builder before save.
-func (_u *FieldTypeUpdate) defaults() error {
-	if _, ok := _u.mutation.Int64(); !ok {
+func (b *FieldTypeUpdate) Returning(ctx context.Context) ([]*FieldType, error) {
+	nodes := make([]*FieldType, 0)
+	b.returning = &sqlgraph.Returning{Columns: fieldtype.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &FieldType{config: b.config}
+		values, err := _node.scanValues(fieldtype.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(fieldtype.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Save(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
+}
+
+func (b *FieldTypeUpdate) defaults() error {
+
+	if b.mutation.patch.Int64.IsUnset() && b.mutation.patch.expressions[fieldtype.FieldInt64] == nil {
 		if fieldtype.UpdateDefaultInt64 == nil {
-			return fmt.Errorf("ent: uninitialized fieldtype.UpdateDefaultInt64 (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized fieldtype.UpdateDefaultInt64")
 		}
-		v := fieldtype.UpdateDefaultInt64()
-		_u.mutation.SetInt64(v)
+		b.mutation.patch.Int64 = ent.Some(fieldtype.UpdateDefaultInt64())
 	}
-	if _, ok := _u.mutation.Duration(); !ok && !_u.mutation.DurationCleared() {
+
+	if b.mutation.patch.Duration.IsUnset() && b.mutation.patch.expressions[fieldtype.FieldDuration] == nil {
 		if fieldtype.UpdateDefaultDuration == nil {
-			return fmt.Errorf("ent: uninitialized fieldtype.UpdateDefaultDuration (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized fieldtype.UpdateDefaultDuration")
 		}
-		v := fieldtype.UpdateDefaultDuration()
-		_u.mutation.SetDuration(v)
+		b.mutation.patch.Duration = ent.Some(fieldtype.UpdateDefaultDuration())
 	}
-	if _, ok := _u.mutation.DeletedAt(); !ok && !_u.mutation.DeletedAtCleared() {
+
+	if b.mutation.patch.DeletedAt.IsUnset() && b.mutation.patch.expressions[fieldtype.FieldDeletedAt] == nil {
 		if fieldtype.UpdateDefaultDeletedAt == nil {
-			return fmt.Errorf("ent: uninitialized fieldtype.UpdateDefaultDeletedAt (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized fieldtype.UpdateDefaultDeletedAt")
 		}
-		v := fieldtype.UpdateDefaultDeletedAt()
-		_u.mutation.SetDeletedAt(v)
+		b.mutation.patch.DeletedAt = ent.Some(fieldtype.UpdateDefaultDeletedAt())
 	}
+
 	return nil
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_u *FieldTypeUpdate) check() error {
-	if v, ok := _u.mutation.ValidateOptionalInt32(); ok {
+func (b *FieldTypeUpdate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.Int.IsNull() {
+		return &ValidationError{Name: "int", err: errors.New(`ent: field "FieldType.int" is not nullable`)}
+	}
+
+	if b.mutation.patch.Int8.IsNull() {
+		return &ValidationError{Name: "int8", err: errors.New(`ent: field "FieldType.int8" is not nullable`)}
+	}
+
+	if b.mutation.patch.Int16.IsNull() {
+		return &ValidationError{Name: "int16", err: errors.New(`ent: field "FieldType.int16" is not nullable`)}
+	}
+
+	if b.mutation.patch.Int32.IsNull() {
+		return &ValidationError{Name: "int32", err: errors.New(`ent: field "FieldType.int32" is not nullable`)}
+	}
+
+	if b.mutation.patch.Int64.IsNull() {
+		return &ValidationError{Name: "int64", err: errors.New(`ent: field "FieldType.int64" is not nullable`)}
+	}
+
+	if v, ok := b.mutation.patch.ValidateOptionalInt32.Get(); ok && b.mutation.patch.expressions[fieldtype.FieldValidateOptionalInt32] == nil {
+
 		if err := fieldtype.ValidateOptionalInt32Validator(v); err != nil {
 			return &ValidationError{Name: "validate_optional_int32", err: fmt.Errorf(`ent: validator failed for field "FieldType.validate_optional_int32": %w`, err)}
 		}
+
 	}
-	if v, ok := _u.mutation.State(); ok {
+
+	if v, ok := b.mutation.patch.State.Get(); ok && b.mutation.patch.expressions[fieldtype.FieldState] == nil {
+
 		if err := fieldtype.StateValidator(v); err != nil {
 			return &ValidationError{Name: "state", err: fmt.Errorf(`ent: validator failed for field "FieldType.state": %w`, err)}
 		}
+
 	}
-	if v, ok := _u.mutation.MAC(); ok {
+
+	if v, ok := b.mutation.patch.MAC.Get(); ok && b.mutation.patch.expressions[fieldtype.FieldMAC] == nil {
+
 		if err := fieldtype.MACValidator(v); err != nil {
 			return &ValidationError{Name: "mac", err: fmt.Errorf(`ent: validator failed for field "FieldType.mac": %w`, err)}
 		}
+
 	}
-	if v, ok := _u.mutation.Ndir(); ok {
+
+	if b.mutation.patch.Dir.IsNull() {
+		return &ValidationError{Name: "dir", err: errors.New(`ent: field "FieldType.dir" is not nullable`)}
+	}
+
+	if v, ok := b.mutation.patch.Ndir.Get(); ok && b.mutation.patch.expressions[fieldtype.FieldNdir] == nil {
+
 		if err := fieldtype.NdirValidator(v); err != nil {
 			return &ValidationError{Name: "ndir", err: fmt.Errorf(`ent: validator failed for field "FieldType.ndir": %w`, err)}
 		}
+
 	}
-	if v, ok := _u.mutation.Link(); ok {
+
+	if v, ok := b.mutation.patch.Link.Get(); ok && b.mutation.patch.expressions[fieldtype.FieldLink] == nil {
+
 		if err := fieldtype.LinkValidator(v); err != nil {
 			return &ValidationError{Name: "link", err: fmt.Errorf(`ent: validator failed for field "FieldType.link": %w`, err)}
 		}
+
 	}
-	if v, ok := _u.mutation.RawData(); ok {
+
+	if v, ok := b.mutation.patch.RawData.Get(); ok && b.mutation.patch.expressions[fieldtype.FieldRawData] == nil {
+
 		if err := fieldtype.RawDataValidator(v); err != nil {
 			return &ValidationError{Name: "raw_data", err: fmt.Errorf(`ent: validator failed for field "FieldType.raw_data": %w`, err)}
 		}
+
 	}
-	if v, ok := _u.mutation.IP(); ok {
+
+	if v, ok := b.mutation.patch.IP.Get(); ok && b.mutation.patch.expressions[fieldtype.FieldIP] == nil {
+
 		if err := fieldtype.IPValidator(v); err != nil {
 			return &ValidationError{Name: "ip", err: fmt.Errorf(`ent: validator failed for field "FieldType.ip": %w`, err)}
 		}
+
 	}
-	if v, ok := _u.mutation.Role(); ok {
+
+	if b.mutation.patch.Role.IsNull() {
+		return &ValidationError{Name: "role", err: errors.New(`ent: field "FieldType.role" is not nullable`)}
+	}
+
+	if v, ok := b.mutation.patch.Role.Get(); ok && b.mutation.patch.expressions[fieldtype.FieldRole] == nil {
+
 		if err := fieldtype.RoleValidator(v); err != nil {
 			return &ValidationError{Name: "role", err: fmt.Errorf(`ent: validator failed for field "FieldType.role": %w`, err)}
 		}
+
 	}
-	if v, ok := _u.mutation.Priority(); ok {
+
+	if v, ok := b.mutation.patch.Priority.Get(); ok && b.mutation.patch.expressions[fieldtype.FieldPriority] == nil {
+
 		if err := fieldtype.PriorityValidator(v); err != nil {
 			return &ValidationError{Name: "priority", err: fmt.Errorf(`ent: validator failed for field "FieldType.priority": %w`, err)}
 		}
+
 	}
+
+	if b.mutation.patch.Pair.IsNull() {
+		return &ValidationError{Name: "pair", err: errors.New(`ent: field "FieldType.pair" is not nullable`)}
+	}
+
+	if b.mutation.patch.Vstring.IsNull() {
+		return &ValidationError{Name: "vstring", err: errors.New(`ent: field "FieldType.vstring" is not nullable`)}
+	}
+
+	if b.mutation.patch.Triple.IsNull() {
+		return &ValidationError{Name: "triple", err: errors.New(`ent: field "FieldType.triple" is not nullable`)}
+	}
+
 	return nil
 }
 
@@ -1470,465 +472,470 @@ func (_u *FieldTypeUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.Int(); ok {
+	if value, ok := _u.mutation.patch.Int.Get(); ok {
 		_spec.SetField(fieldtype.FieldInt, field.TypeInt, value)
 	}
-	if value, ok := _u.mutation.AddedInt(); ok {
+	if value, ok := _u.mutation.patch.IntAdd.Get(); ok {
 		_spec.AddField(fieldtype.FieldInt, field.TypeInt, value)
 	}
-	if value, ok := _u.mutation.Int8(); ok {
+	if value, ok := _u.mutation.patch.Int8.Get(); ok {
 		_spec.SetField(fieldtype.FieldInt8, field.TypeInt8, value)
 	}
-	if value, ok := _u.mutation.AddedInt8(); ok {
+	if value, ok := _u.mutation.patch.Int8Add.Get(); ok {
 		_spec.AddField(fieldtype.FieldInt8, field.TypeInt8, value)
 	}
-	if value, ok := _u.mutation.Int16(); ok {
+	if value, ok := _u.mutation.patch.Int16.Get(); ok {
 		_spec.SetField(fieldtype.FieldInt16, field.TypeInt16, value)
 	}
-	if value, ok := _u.mutation.AddedInt16(); ok {
+	if value, ok := _u.mutation.patch.Int16Add.Get(); ok {
 		_spec.AddField(fieldtype.FieldInt16, field.TypeInt16, value)
 	}
-	if value, ok := _u.mutation.Int32(); ok {
+	if value, ok := _u.mutation.patch.Int32.Get(); ok {
 		_spec.SetField(fieldtype.FieldInt32, field.TypeInt32, value)
 	}
-	if value, ok := _u.mutation.AddedInt32(); ok {
+	if value, ok := _u.mutation.patch.Int32Add.Get(); ok {
 		_spec.AddField(fieldtype.FieldInt32, field.TypeInt32, value)
 	}
-	if value, ok := _u.mutation.Int64(); ok {
+	if value, ok := _u.mutation.patch.Int64.Get(); ok {
 		_spec.SetField(fieldtype.FieldInt64, field.TypeInt64, value)
 	}
-	if value, ok := _u.mutation.AddedInt64(); ok {
+	if value, ok := _u.mutation.patch.Int64Add.Get(); ok {
 		_spec.AddField(fieldtype.FieldInt64, field.TypeInt64, value)
 	}
-	if value, ok := _u.mutation.OptionalInt(); ok {
+	if value, ok := _u.mutation.patch.OptionalInt.Get(); ok {
 		_spec.SetField(fieldtype.FieldOptionalInt, field.TypeInt, value)
 	}
-	if value, ok := _u.mutation.AddedOptionalInt(); ok {
+	if value, ok := _u.mutation.patch.OptionalIntAdd.Get(); ok {
 		_spec.AddField(fieldtype.FieldOptionalInt, field.TypeInt, value)
 	}
-	if _u.mutation.OptionalIntCleared() {
+	if _u.mutation.patch.OptionalInt.IsNull() {
 		_spec.ClearField(fieldtype.FieldOptionalInt, field.TypeInt)
 	}
-	if value, ok := _u.mutation.OptionalInt8(); ok {
+	if value, ok := _u.mutation.patch.OptionalInt8.Get(); ok {
 		_spec.SetField(fieldtype.FieldOptionalInt8, field.TypeInt8, value)
 	}
-	if value, ok := _u.mutation.AddedOptionalInt8(); ok {
+	if value, ok := _u.mutation.patch.OptionalInt8Add.Get(); ok {
 		_spec.AddField(fieldtype.FieldOptionalInt8, field.TypeInt8, value)
 	}
-	if _u.mutation.OptionalInt8Cleared() {
+	if _u.mutation.patch.OptionalInt8.IsNull() {
 		_spec.ClearField(fieldtype.FieldOptionalInt8, field.TypeInt8)
 	}
-	if value, ok := _u.mutation.OptionalInt16(); ok {
+	if value, ok := _u.mutation.patch.OptionalInt16.Get(); ok {
 		_spec.SetField(fieldtype.FieldOptionalInt16, field.TypeInt16, value)
 	}
-	if value, ok := _u.mutation.AddedOptionalInt16(); ok {
+	if value, ok := _u.mutation.patch.OptionalInt16Add.Get(); ok {
 		_spec.AddField(fieldtype.FieldOptionalInt16, field.TypeInt16, value)
 	}
-	if _u.mutation.OptionalInt16Cleared() {
+	if _u.mutation.patch.OptionalInt16.IsNull() {
 		_spec.ClearField(fieldtype.FieldOptionalInt16, field.TypeInt16)
 	}
-	if value, ok := _u.mutation.OptionalInt32(); ok {
+	if value, ok := _u.mutation.patch.OptionalInt32.Get(); ok {
 		_spec.SetField(fieldtype.FieldOptionalInt32, field.TypeInt32, value)
 	}
-	if value, ok := _u.mutation.AddedOptionalInt32(); ok {
+	if value, ok := _u.mutation.patch.OptionalInt32Add.Get(); ok {
 		_spec.AddField(fieldtype.FieldOptionalInt32, field.TypeInt32, value)
 	}
-	if _u.mutation.OptionalInt32Cleared() {
+	if _u.mutation.patch.OptionalInt32.IsNull() {
 		_spec.ClearField(fieldtype.FieldOptionalInt32, field.TypeInt32)
 	}
-	if value, ok := _u.mutation.OptionalInt64(); ok {
+	if value, ok := _u.mutation.patch.OptionalInt64.Get(); ok {
 		_spec.SetField(fieldtype.FieldOptionalInt64, field.TypeInt64, value)
 	}
-	if value, ok := _u.mutation.AddedOptionalInt64(); ok {
+	if value, ok := _u.mutation.patch.OptionalInt64Add.Get(); ok {
 		_spec.AddField(fieldtype.FieldOptionalInt64, field.TypeInt64, value)
 	}
-	if _u.mutation.OptionalInt64Cleared() {
+	if _u.mutation.patch.OptionalInt64.IsNull() {
 		_spec.ClearField(fieldtype.FieldOptionalInt64, field.TypeInt64)
 	}
-	if value, ok := _u.mutation.NillableInt(); ok {
+	if value, ok := _u.mutation.patch.NillableInt.Get(); ok {
 		_spec.SetField(fieldtype.FieldNillableInt, field.TypeInt, value)
 	}
-	if value, ok := _u.mutation.AddedNillableInt(); ok {
+	if value, ok := _u.mutation.patch.NillableIntAdd.Get(); ok {
 		_spec.AddField(fieldtype.FieldNillableInt, field.TypeInt, value)
 	}
-	if _u.mutation.NillableIntCleared() {
+	if _u.mutation.patch.NillableInt.IsNull() {
 		_spec.ClearField(fieldtype.FieldNillableInt, field.TypeInt)
 	}
-	if value, ok := _u.mutation.NillableInt8(); ok {
+	if value, ok := _u.mutation.patch.NillableInt8.Get(); ok {
 		_spec.SetField(fieldtype.FieldNillableInt8, field.TypeInt8, value)
 	}
-	if value, ok := _u.mutation.AddedNillableInt8(); ok {
+	if value, ok := _u.mutation.patch.NillableInt8Add.Get(); ok {
 		_spec.AddField(fieldtype.FieldNillableInt8, field.TypeInt8, value)
 	}
-	if _u.mutation.NillableInt8Cleared() {
+	if _u.mutation.patch.NillableInt8.IsNull() {
 		_spec.ClearField(fieldtype.FieldNillableInt8, field.TypeInt8)
 	}
-	if value, ok := _u.mutation.NillableInt16(); ok {
+	if value, ok := _u.mutation.patch.NillableInt16.Get(); ok {
 		_spec.SetField(fieldtype.FieldNillableInt16, field.TypeInt16, value)
 	}
-	if value, ok := _u.mutation.AddedNillableInt16(); ok {
+	if value, ok := _u.mutation.patch.NillableInt16Add.Get(); ok {
 		_spec.AddField(fieldtype.FieldNillableInt16, field.TypeInt16, value)
 	}
-	if _u.mutation.NillableInt16Cleared() {
+	if _u.mutation.patch.NillableInt16.IsNull() {
 		_spec.ClearField(fieldtype.FieldNillableInt16, field.TypeInt16)
 	}
-	if value, ok := _u.mutation.NillableInt32(); ok {
+	if value, ok := _u.mutation.patch.NillableInt32.Get(); ok {
 		_spec.SetField(fieldtype.FieldNillableInt32, field.TypeInt32, value)
 	}
-	if value, ok := _u.mutation.AddedNillableInt32(); ok {
+	if value, ok := _u.mutation.patch.NillableInt32Add.Get(); ok {
 		_spec.AddField(fieldtype.FieldNillableInt32, field.TypeInt32, value)
 	}
-	if _u.mutation.NillableInt32Cleared() {
+	if _u.mutation.patch.NillableInt32.IsNull() {
 		_spec.ClearField(fieldtype.FieldNillableInt32, field.TypeInt32)
 	}
-	if value, ok := _u.mutation.NillableInt64(); ok {
+	if value, ok := _u.mutation.patch.NillableInt64.Get(); ok {
 		_spec.SetField(fieldtype.FieldNillableInt64, field.TypeInt64, value)
 	}
-	if value, ok := _u.mutation.AddedNillableInt64(); ok {
+	if value, ok := _u.mutation.patch.NillableInt64Add.Get(); ok {
 		_spec.AddField(fieldtype.FieldNillableInt64, field.TypeInt64, value)
 	}
-	if _u.mutation.NillableInt64Cleared() {
+	if _u.mutation.patch.NillableInt64.IsNull() {
 		_spec.ClearField(fieldtype.FieldNillableInt64, field.TypeInt64)
 	}
-	if value, ok := _u.mutation.ValidateOptionalInt32(); ok {
+	if value, ok := _u.mutation.patch.ValidateOptionalInt32.Get(); ok {
 		_spec.SetField(fieldtype.FieldValidateOptionalInt32, field.TypeInt32, value)
 	}
-	if value, ok := _u.mutation.AddedValidateOptionalInt32(); ok {
+	if value, ok := _u.mutation.patch.ValidateOptionalInt32Add.Get(); ok {
 		_spec.AddField(fieldtype.FieldValidateOptionalInt32, field.TypeInt32, value)
 	}
-	if _u.mutation.ValidateOptionalInt32Cleared() {
+	if _u.mutation.patch.ValidateOptionalInt32.IsNull() {
 		_spec.ClearField(fieldtype.FieldValidateOptionalInt32, field.TypeInt32)
 	}
-	if value, ok := _u.mutation.OptionalUint(); ok {
+	if value, ok := _u.mutation.patch.OptionalUint.Get(); ok {
 		_spec.SetField(fieldtype.FieldOptionalUint, field.TypeUint, value)
 	}
-	if value, ok := _u.mutation.AddedOptionalUint(); ok {
+	if value, ok := _u.mutation.patch.OptionalUintAdd.Get(); ok {
 		_spec.AddField(fieldtype.FieldOptionalUint, field.TypeUint, value)
 	}
-	if _u.mutation.OptionalUintCleared() {
+	if _u.mutation.patch.OptionalUint.IsNull() {
 		_spec.ClearField(fieldtype.FieldOptionalUint, field.TypeUint)
 	}
-	if value, ok := _u.mutation.OptionalUint8(); ok {
+	if value, ok := _u.mutation.patch.OptionalUint8.Get(); ok {
 		_spec.SetField(fieldtype.FieldOptionalUint8, field.TypeUint8, value)
 	}
-	if value, ok := _u.mutation.AddedOptionalUint8(); ok {
+	if value, ok := _u.mutation.patch.OptionalUint8Add.Get(); ok {
 		_spec.AddField(fieldtype.FieldOptionalUint8, field.TypeUint8, value)
 	}
-	if _u.mutation.OptionalUint8Cleared() {
+	if _u.mutation.patch.OptionalUint8.IsNull() {
 		_spec.ClearField(fieldtype.FieldOptionalUint8, field.TypeUint8)
 	}
-	if value, ok := _u.mutation.OptionalUint16(); ok {
+	if value, ok := _u.mutation.patch.OptionalUint16.Get(); ok {
 		_spec.SetField(fieldtype.FieldOptionalUint16, field.TypeUint16, value)
 	}
-	if value, ok := _u.mutation.AddedOptionalUint16(); ok {
+	if value, ok := _u.mutation.patch.OptionalUint16Add.Get(); ok {
 		_spec.AddField(fieldtype.FieldOptionalUint16, field.TypeUint16, value)
 	}
-	if _u.mutation.OptionalUint16Cleared() {
+	if _u.mutation.patch.OptionalUint16.IsNull() {
 		_spec.ClearField(fieldtype.FieldOptionalUint16, field.TypeUint16)
 	}
-	if value, ok := _u.mutation.OptionalUint32(); ok {
+	if value, ok := _u.mutation.patch.OptionalUint32.Get(); ok {
 		_spec.SetField(fieldtype.FieldOptionalUint32, field.TypeUint32, value)
 	}
-	if value, ok := _u.mutation.AddedOptionalUint32(); ok {
+	if value, ok := _u.mutation.patch.OptionalUint32Add.Get(); ok {
 		_spec.AddField(fieldtype.FieldOptionalUint32, field.TypeUint32, value)
 	}
-	if _u.mutation.OptionalUint32Cleared() {
+	if _u.mutation.patch.OptionalUint32.IsNull() {
 		_spec.ClearField(fieldtype.FieldOptionalUint32, field.TypeUint32)
 	}
-	if value, ok := _u.mutation.OptionalUint64(); ok {
+	if value, ok := _u.mutation.patch.OptionalUint64.Get(); ok {
 		_spec.SetField(fieldtype.FieldOptionalUint64, field.TypeUint64, value)
 	}
-	if value, ok := _u.mutation.AddedOptionalUint64(); ok {
+	if value, ok := _u.mutation.patch.OptionalUint64Add.Get(); ok {
 		_spec.AddField(fieldtype.FieldOptionalUint64, field.TypeUint64, value)
 	}
-	if _u.mutation.OptionalUint64Cleared() {
+	if _u.mutation.patch.OptionalUint64.IsNull() {
 		_spec.ClearField(fieldtype.FieldOptionalUint64, field.TypeUint64)
 	}
-	if value, ok := _u.mutation.State(); ok {
+	if value, ok := _u.mutation.patch.State.Get(); ok {
 		_spec.SetField(fieldtype.FieldState, field.TypeEnum, value)
 	}
-	if _u.mutation.StateCleared() {
+	if _u.mutation.patch.State.IsNull() {
 		_spec.ClearField(fieldtype.FieldState, field.TypeEnum)
 	}
-	if value, ok := _u.mutation.OptionalFloat(); ok {
+	if value, ok := _u.mutation.patch.OptionalFloat.Get(); ok {
 		_spec.SetField(fieldtype.FieldOptionalFloat, field.TypeFloat64, value)
 	}
-	if value, ok := _u.mutation.AddedOptionalFloat(); ok {
+	if value, ok := _u.mutation.patch.OptionalFloatAdd.Get(); ok {
 		_spec.AddField(fieldtype.FieldOptionalFloat, field.TypeFloat64, value)
 	}
-	if _u.mutation.OptionalFloatCleared() {
+	if _u.mutation.patch.OptionalFloat.IsNull() {
 		_spec.ClearField(fieldtype.FieldOptionalFloat, field.TypeFloat64)
 	}
-	if value, ok := _u.mutation.OptionalFloat32(); ok {
+	if value, ok := _u.mutation.patch.OptionalFloat32.Get(); ok {
 		_spec.SetField(fieldtype.FieldOptionalFloat32, field.TypeFloat32, value)
 	}
-	if value, ok := _u.mutation.AddedOptionalFloat32(); ok {
+	if value, ok := _u.mutation.patch.OptionalFloat32Add.Get(); ok {
 		_spec.AddField(fieldtype.FieldOptionalFloat32, field.TypeFloat32, value)
 	}
-	if _u.mutation.OptionalFloat32Cleared() {
+	if _u.mutation.patch.OptionalFloat32.IsNull() {
 		_spec.ClearField(fieldtype.FieldOptionalFloat32, field.TypeFloat32)
 	}
-	if value, ok := _u.mutation.Text(); ok {
+	if value, ok := _u.mutation.patch.Text.Get(); ok {
 		_spec.SetField(fieldtype.FieldText, field.TypeString, value)
 	}
-	if _u.mutation.TextCleared() {
+	if _u.mutation.patch.Text.IsNull() {
 		_spec.ClearField(fieldtype.FieldText, field.TypeString)
 	}
-	if value, ok := _u.mutation.Datetime(); ok {
+	if value, ok := _u.mutation.patch.Datetime.Get(); ok {
 		_spec.SetField(fieldtype.FieldDatetime, field.TypeTime, value)
 	}
-	if _u.mutation.DatetimeCleared() {
+	if _u.mutation.patch.Datetime.IsNull() {
 		_spec.ClearField(fieldtype.FieldDatetime, field.TypeTime)
 	}
-	if value, ok := _u.mutation.Decimal(); ok {
+	if value, ok := _u.mutation.patch.Decimal.Get(); ok {
 		_spec.SetField(fieldtype.FieldDecimal, field.TypeFloat64, value)
 	}
-	if value, ok := _u.mutation.AddedDecimal(); ok {
+	if value, ok := _u.mutation.patch.DecimalAdd.Get(); ok {
 		_spec.AddField(fieldtype.FieldDecimal, field.TypeFloat64, value)
 	}
-	if _u.mutation.DecimalCleared() {
+	if _u.mutation.patch.Decimal.IsNull() {
 		_spec.ClearField(fieldtype.FieldDecimal, field.TypeFloat64)
 	}
-	if value, ok := _u.mutation.LinkOther(); ok {
+	if value, ok := _u.mutation.patch.LinkOther.Get(); ok {
 		_spec.SetField(fieldtype.FieldLinkOther, field.TypeOther, value)
 	}
-	if _u.mutation.LinkOtherCleared() {
+	if _u.mutation.patch.LinkOther.IsNull() {
 		_spec.ClearField(fieldtype.FieldLinkOther, field.TypeOther)
 	}
-	if value, ok := _u.mutation.LinkOtherFunc(); ok {
+	if value, ok := _u.mutation.patch.LinkOtherFunc.Get(); ok {
 		_spec.SetField(fieldtype.FieldLinkOtherFunc, field.TypeOther, value)
 	}
-	if _u.mutation.LinkOtherFuncCleared() {
+	if _u.mutation.patch.LinkOtherFunc.IsNull() {
 		_spec.ClearField(fieldtype.FieldLinkOtherFunc, field.TypeOther)
 	}
-	if value, ok := _u.mutation.MAC(); ok {
+	if value, ok := _u.mutation.patch.MAC.Get(); ok {
 		_spec.SetField(fieldtype.FieldMAC, field.TypeString, value)
 	}
-	if _u.mutation.MACCleared() {
+	if _u.mutation.patch.MAC.IsNull() {
 		_spec.ClearField(fieldtype.FieldMAC, field.TypeString)
 	}
-	if value, ok := _u.mutation.StringArray(); ok {
+	if value, ok := _u.mutation.patch.StringArray.Get(); ok {
 		_spec.SetField(fieldtype.FieldStringArray, field.TypeOther, value)
 	}
-	if _u.mutation.StringArrayCleared() {
+	if _u.mutation.patch.StringArray.IsNull() {
 		_spec.ClearField(fieldtype.FieldStringArray, field.TypeOther)
 	}
-	if value, ok := _u.mutation.Password(); ok {
+	if value, ok := _u.mutation.patch.Password.Get(); ok {
 		_spec.SetField(fieldtype.FieldPassword, field.TypeString, value)
 	}
-	if _u.mutation.PasswordCleared() {
+	if _u.mutation.patch.Password.IsNull() {
 		_spec.ClearField(fieldtype.FieldPassword, field.TypeString)
 	}
-	if value, ok := _u.mutation.StringScanner(); ok {
+	if value, ok := _u.mutation.patch.StringScanner.Get(); ok {
 		_spec.SetField(fieldtype.FieldStringScanner, field.TypeString, value)
 	}
-	if _u.mutation.StringScannerCleared() {
+	if _u.mutation.patch.StringScanner.IsNull() {
 		_spec.ClearField(fieldtype.FieldStringScanner, field.TypeString)
 	}
-	if value, ok := _u.mutation.Duration(); ok {
+	if value, ok := _u.mutation.patch.Duration.Get(); ok {
 		_spec.SetField(fieldtype.FieldDuration, field.TypeInt64, value)
 	}
-	if value, ok := _u.mutation.AddedDuration(); ok {
+	if value, ok := _u.mutation.patch.DurationAdd.Get(); ok {
 		_spec.AddField(fieldtype.FieldDuration, field.TypeInt64, value)
 	}
-	if _u.mutation.DurationCleared() {
+	if _u.mutation.patch.Duration.IsNull() {
 		_spec.ClearField(fieldtype.FieldDuration, field.TypeInt64)
 	}
-	if value, ok := _u.mutation.Dir(); ok {
+	if value, ok := _u.mutation.patch.Dir.Get(); ok {
 		_spec.SetField(fieldtype.FieldDir, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.Ndir(); ok {
+	if value, ok := _u.mutation.patch.Ndir.Get(); ok {
 		_spec.SetField(fieldtype.FieldNdir, field.TypeString, value)
 	}
-	if _u.mutation.NdirCleared() {
+	if _u.mutation.patch.Ndir.IsNull() {
 		_spec.ClearField(fieldtype.FieldNdir, field.TypeString)
 	}
-	if value, ok := _u.mutation.Str(); ok {
+	if value, ok := _u.mutation.patch.Str.Get(); ok {
 		_spec.SetField(fieldtype.FieldStr, field.TypeString, value)
 	}
-	if _u.mutation.StrCleared() {
+	if _u.mutation.patch.Str.IsNull() {
 		_spec.ClearField(fieldtype.FieldStr, field.TypeString)
 	}
-	if value, ok := _u.mutation.NullStr(); ok {
+	if value, ok := _u.mutation.patch.NullStr.Get(); ok {
 		_spec.SetField(fieldtype.FieldNullStr, field.TypeString, value)
 	}
-	if _u.mutation.NullStrCleared() {
+	if _u.mutation.patch.NullStr.IsNull() {
 		_spec.ClearField(fieldtype.FieldNullStr, field.TypeString)
 	}
-	if value, ok := _u.mutation.Link(); ok {
+	if value, ok := _u.mutation.patch.Link.Get(); ok {
 		_spec.SetField(fieldtype.FieldLink, field.TypeString, value)
 	}
-	if _u.mutation.LinkCleared() {
+	if _u.mutation.patch.Link.IsNull() {
 		_spec.ClearField(fieldtype.FieldLink, field.TypeString)
 	}
-	if value, ok := _u.mutation.NullLink(); ok {
+	if value, ok := _u.mutation.patch.NullLink.Get(); ok {
 		_spec.SetField(fieldtype.FieldNullLink, field.TypeString, value)
 	}
-	if _u.mutation.NullLinkCleared() {
+	if _u.mutation.patch.NullLink.IsNull() {
 		_spec.ClearField(fieldtype.FieldNullLink, field.TypeString)
 	}
-	if value, ok := _u.mutation.Active(); ok {
+	if value, ok := _u.mutation.patch.Active.Get(); ok {
 		_spec.SetField(fieldtype.FieldActive, field.TypeBool, value)
 	}
-	if _u.mutation.ActiveCleared() {
+	if _u.mutation.patch.Active.IsNull() {
 		_spec.ClearField(fieldtype.FieldActive, field.TypeBool)
 	}
-	if value, ok := _u.mutation.NullActive(); ok {
+	if value, ok := _u.mutation.patch.NullActive.Get(); ok {
 		_spec.SetField(fieldtype.FieldNullActive, field.TypeBool, value)
 	}
-	if _u.mutation.NullActiveCleared() {
+	if _u.mutation.patch.NullActive.IsNull() {
 		_spec.ClearField(fieldtype.FieldNullActive, field.TypeBool)
 	}
-	if value, ok := _u.mutation.Deleted(); ok {
+	if value, ok := _u.mutation.patch.Deleted.Get(); ok {
 		_spec.SetField(fieldtype.FieldDeleted, field.TypeBool, value)
 	}
-	if _u.mutation.DeletedCleared() {
+	if _u.mutation.patch.Deleted.IsNull() {
 		_spec.ClearField(fieldtype.FieldDeleted, field.TypeBool)
 	}
-	if value, ok := _u.mutation.DeletedAt(); ok {
+	if value, ok := _u.mutation.patch.DeletedAt.Get(); ok {
 		_spec.SetField(fieldtype.FieldDeletedAt, field.TypeTime, value)
 	}
-	if _u.mutation.DeletedAtCleared() {
+	if _u.mutation.patch.DeletedAt.IsNull() {
 		_spec.ClearField(fieldtype.FieldDeletedAt, field.TypeTime)
 	}
-	if value, ok := _u.mutation.RawData(); ok {
+	if value, ok := _u.mutation.patch.RawData.Get(); ok {
 		_spec.SetField(fieldtype.FieldRawData, field.TypeBytes, value)
 	}
-	if _u.mutation.RawDataCleared() {
+	if _u.mutation.patch.RawData.IsNull() {
 		_spec.ClearField(fieldtype.FieldRawData, field.TypeBytes)
 	}
-	if value, ok := _u.mutation.Sensitive(); ok {
+	if value, ok := _u.mutation.patch.Sensitive.Get(); ok {
 		_spec.SetField(fieldtype.FieldSensitive, field.TypeBytes, value)
 	}
-	if _u.mutation.SensitiveCleared() {
+	if _u.mutation.patch.Sensitive.IsNull() {
 		_spec.ClearField(fieldtype.FieldSensitive, field.TypeBytes)
 	}
-	if value, ok := _u.mutation.IP(); ok {
+	if value, ok := _u.mutation.patch.IP.Get(); ok {
 		_spec.SetField(fieldtype.FieldIP, field.TypeBytes, value)
 	}
-	if _u.mutation.IPCleared() {
+	if _u.mutation.patch.IP.IsNull() {
 		_spec.ClearField(fieldtype.FieldIP, field.TypeBytes)
 	}
-	if value, ok := _u.mutation.NullInt64(); ok {
+	if value, ok := _u.mutation.patch.NullInt64.Get(); ok {
 		_spec.SetField(fieldtype.FieldNullInt64, field.TypeInt, value)
 	}
-	if _u.mutation.NullInt64Cleared() {
+	if _u.mutation.patch.NullInt64.IsNull() {
 		_spec.ClearField(fieldtype.FieldNullInt64, field.TypeInt)
 	}
-	if value, ok := _u.mutation.SchemaInt(); ok {
+	if value, ok := _u.mutation.patch.SchemaInt.Get(); ok {
 		_spec.SetField(fieldtype.FieldSchemaInt, field.TypeInt, value)
 	}
-	if value, ok := _u.mutation.AddedSchemaInt(); ok {
+	if value, ok := _u.mutation.patch.SchemaIntAdd.Get(); ok {
 		_spec.AddField(fieldtype.FieldSchemaInt, field.TypeInt, value)
 	}
-	if _u.mutation.SchemaIntCleared() {
+	if _u.mutation.patch.SchemaInt.IsNull() {
 		_spec.ClearField(fieldtype.FieldSchemaInt, field.TypeInt)
 	}
-	if value, ok := _u.mutation.SchemaInt8(); ok {
+	if value, ok := _u.mutation.patch.SchemaInt8.Get(); ok {
 		_spec.SetField(fieldtype.FieldSchemaInt8, field.TypeInt8, value)
 	}
-	if value, ok := _u.mutation.AddedSchemaInt8(); ok {
+	if value, ok := _u.mutation.patch.SchemaInt8Add.Get(); ok {
 		_spec.AddField(fieldtype.FieldSchemaInt8, field.TypeInt8, value)
 	}
-	if _u.mutation.SchemaInt8Cleared() {
+	if _u.mutation.patch.SchemaInt8.IsNull() {
 		_spec.ClearField(fieldtype.FieldSchemaInt8, field.TypeInt8)
 	}
-	if value, ok := _u.mutation.SchemaInt64(); ok {
+	if value, ok := _u.mutation.patch.SchemaInt64.Get(); ok {
 		_spec.SetField(fieldtype.FieldSchemaInt64, field.TypeInt64, value)
 	}
-	if value, ok := _u.mutation.AddedSchemaInt64(); ok {
+	if value, ok := _u.mutation.patch.SchemaInt64Add.Get(); ok {
 		_spec.AddField(fieldtype.FieldSchemaInt64, field.TypeInt64, value)
 	}
-	if _u.mutation.SchemaInt64Cleared() {
+	if _u.mutation.patch.SchemaInt64.IsNull() {
 		_spec.ClearField(fieldtype.FieldSchemaInt64, field.TypeInt64)
 	}
-	if value, ok := _u.mutation.SchemaFloat(); ok {
+	if value, ok := _u.mutation.patch.SchemaFloat.Get(); ok {
 		_spec.SetField(fieldtype.FieldSchemaFloat, field.TypeFloat64, value)
 	}
-	if value, ok := _u.mutation.AddedSchemaFloat(); ok {
+	if value, ok := _u.mutation.patch.SchemaFloatAdd.Get(); ok {
 		_spec.AddField(fieldtype.FieldSchemaFloat, field.TypeFloat64, value)
 	}
-	if _u.mutation.SchemaFloatCleared() {
+	if _u.mutation.patch.SchemaFloat.IsNull() {
 		_spec.ClearField(fieldtype.FieldSchemaFloat, field.TypeFloat64)
 	}
-	if value, ok := _u.mutation.SchemaFloat32(); ok {
+	if value, ok := _u.mutation.patch.SchemaFloat32.Get(); ok {
 		_spec.SetField(fieldtype.FieldSchemaFloat32, field.TypeFloat32, value)
 	}
-	if value, ok := _u.mutation.AddedSchemaFloat32(); ok {
+	if value, ok := _u.mutation.patch.SchemaFloat32Add.Get(); ok {
 		_spec.AddField(fieldtype.FieldSchemaFloat32, field.TypeFloat32, value)
 	}
-	if _u.mutation.SchemaFloat32Cleared() {
+	if _u.mutation.patch.SchemaFloat32.IsNull() {
 		_spec.ClearField(fieldtype.FieldSchemaFloat32, field.TypeFloat32)
 	}
-	if value, ok := _u.mutation.NullFloat(); ok {
+	if value, ok := _u.mutation.patch.NullFloat.Get(); ok {
 		_spec.SetField(fieldtype.FieldNullFloat, field.TypeFloat64, value)
 	}
-	if _u.mutation.NullFloatCleared() {
+	if _u.mutation.patch.NullFloat.IsNull() {
 		_spec.ClearField(fieldtype.FieldNullFloat, field.TypeFloat64)
 	}
-	if value, ok := _u.mutation.Role(); ok {
+	if value, ok := _u.mutation.patch.Role.Get(); ok {
 		_spec.SetField(fieldtype.FieldRole, field.TypeEnum, value)
 	}
-	if value, ok := _u.mutation.Priority(); ok {
+	if value, ok := _u.mutation.patch.Priority.Get(); ok {
 		_spec.SetField(fieldtype.FieldPriority, field.TypeEnum, value)
 	}
-	if _u.mutation.PriorityCleared() {
+	if _u.mutation.patch.Priority.IsNull() {
 		_spec.ClearField(fieldtype.FieldPriority, field.TypeEnum)
 	}
-	if value, ok := _u.mutation.OptionalUUID(); ok {
+	if value, ok := _u.mutation.patch.OptionalUUID.Get(); ok {
 		_spec.SetField(fieldtype.FieldOptionalUUID, field.TypeUUID, value)
 	}
-	if _u.mutation.OptionalUUIDCleared() {
+	if _u.mutation.patch.OptionalUUID.IsNull() {
 		_spec.ClearField(fieldtype.FieldOptionalUUID, field.TypeUUID)
 	}
-	if value, ok := _u.mutation.NillableUUID(); ok {
+	if value, ok := _u.mutation.patch.NillableUUID.Get(); ok {
 		_spec.SetField(fieldtype.FieldNillableUUID, field.TypeUUID, value)
 	}
-	if _u.mutation.NillableUUIDCleared() {
+	if _u.mutation.patch.NillableUUID.IsNull() {
 		_spec.ClearField(fieldtype.FieldNillableUUID, field.TypeUUID)
 	}
-	if value, ok := _u.mutation.Strings(); ok {
+	if value, ok := _u.mutation.patch.Strings.Get(); ok {
 		_spec.SetField(fieldtype.FieldStrings, field.TypeJSON, value)
 	}
-	if value, ok := _u.mutation.AppendedStrings(); ok {
+	if value := _u.mutation.patch.StringsAppend; len(value) > 0 {
 		_spec.AddModifier(func(u *sql.UpdateBuilder) {
 			sqljson.Append(u, fieldtype.FieldStrings, value)
 		})
 	}
-	if _u.mutation.StringsCleared() {
+	if _u.mutation.patch.Strings.IsNull() {
 		_spec.ClearField(fieldtype.FieldStrings, field.TypeJSON)
 	}
-	if value, ok := _u.mutation.Pair(); ok {
+	if value, ok := _u.mutation.patch.Pair.Get(); ok {
 		_spec.SetField(fieldtype.FieldPair, field.TypeBytes, value)
 	}
-	if value, ok := _u.mutation.NilPair(); ok {
+	if value, ok := _u.mutation.patch.NilPair.Get(); ok {
 		_spec.SetField(fieldtype.FieldNilPair, field.TypeBytes, value)
 	}
-	if _u.mutation.NilPairCleared() {
+	if _u.mutation.patch.NilPair.IsNull() {
 		_spec.ClearField(fieldtype.FieldNilPair, field.TypeBytes)
 	}
-	if value, ok := _u.mutation.Vstring(); ok {
+	if value, ok := _u.mutation.patch.Vstring.Get(); ok {
 		_spec.SetField(fieldtype.FieldVstring, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.Triple(); ok {
+	if value, ok := _u.mutation.patch.Triple.Get(); ok {
 		_spec.SetField(fieldtype.FieldTriple, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.BigInt(); ok {
+	if value, ok := _u.mutation.patch.BigInt.Get(); ok {
 		_spec.SetField(fieldtype.FieldBigInt, field.TypeInt, value)
 	}
-	if value, ok := _u.mutation.AddedBigInt(); ok {
+	if value, ok := _u.mutation.patch.BigIntAdd.Get(); ok {
 		_spec.AddField(fieldtype.FieldBigInt, field.TypeInt, value)
 	}
-	if _u.mutation.BigIntCleared() {
+	if _u.mutation.patch.BigInt.IsNull() {
 		_spec.ClearField(fieldtype.FieldBigInt, field.TypeInt)
 	}
-	if value, ok := _u.mutation.PasswordOther(); ok {
+	if value, ok := _u.mutation.patch.PasswordOther.Get(); ok {
 		_spec.SetField(fieldtype.FieldPasswordOther, field.TypeOther, value)
 	}
-	if _u.mutation.PasswordOtherCleared() {
+	if _u.mutation.patch.PasswordOther.IsNull() {
 		_spec.ClearField(fieldtype.FieldPasswordOther, field.TypeOther)
 	}
+	_spec.Returning = _u.returning
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
 	_spec.AddModifiers(_u.modifiers...)
+
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{fieldtype.Label}
@@ -1937,1443 +944,442 @@ func (_u *FieldTypeUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		return 0, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }
 
-// FieldTypeUpdateOne is the builder for updating a single FieldType entity.
 type FieldTypeUpdateOne struct {
 	config
-	fields    []string
-	hooks     []Hook
-	mutation  *FieldTypeMutation
+	mutation *FieldTypeMutation
+	err      error
+
+	fields []string
+	old    *FieldType
+
 	modifiers []func(*sql.UpdateBuilder)
 }
 
-// SetInt sets the "int" field.
-func (_u *FieldTypeUpdateOne) SetInt(v int) *FieldTypeUpdateOne {
-	_u.mutation.ResetInt()
-	_u.mutation.SetInt(v)
-	return _u
-}
-
-// AddInt adds value to the "int" field.
-func (_u *FieldTypeUpdateOne) AddInt(v int) *FieldTypeUpdateOne {
-	_u.mutation.AddInt(v)
-	return _u
-}
-
-// SetInt8 sets the "int8" field.
-func (_u *FieldTypeUpdateOne) SetInt8(v int8) *FieldTypeUpdateOne {
-	_u.mutation.ResetInt8()
-	_u.mutation.SetInt8(v)
-	return _u
-}
-
-// AddInt8 adds value to the "int8" field.
-func (_u *FieldTypeUpdateOne) AddInt8(v int8) *FieldTypeUpdateOne {
-	_u.mutation.AddInt8(v)
-	return _u
-}
-
-// SetInt16 sets the "int16" field.
-func (_u *FieldTypeUpdateOne) SetInt16(v int16) *FieldTypeUpdateOne {
-	_u.mutation.ResetInt16()
-	_u.mutation.SetInt16(v)
-	return _u
-}
-
-// AddInt16 adds value to the "int16" field.
-func (_u *FieldTypeUpdateOne) AddInt16(v int16) *FieldTypeUpdateOne {
-	_u.mutation.AddInt16(v)
-	return _u
-}
-
-// SetInt32 sets the "int32" field.
-func (_u *FieldTypeUpdateOne) SetInt32(v int32) *FieldTypeUpdateOne {
-	_u.mutation.ResetInt32()
-	_u.mutation.SetInt32(v)
-	return _u
-}
-
-// AddInt32 adds value to the "int32" field.
-func (_u *FieldTypeUpdateOne) AddInt32(v int32) *FieldTypeUpdateOne {
-	_u.mutation.AddInt32(v)
-	return _u
-}
-
-// SetInt64 sets the "int64" field.
-func (_u *FieldTypeUpdateOne) SetInt64(v int64) *FieldTypeUpdateOne {
-	_u.mutation.ResetInt64()
-	_u.mutation.SetInt64(v)
-	return _u
-}
-
-// AddInt64 adds value to the "int64" field.
-func (_u *FieldTypeUpdateOne) AddInt64(v int64) *FieldTypeUpdateOne {
-	_u.mutation.AddInt64(v)
-	return _u
-}
-
-// SetOptionalInt sets the "optional_int" field.
-func (_u *FieldTypeUpdateOne) SetOptionalInt(v int) *FieldTypeUpdateOne {
-	_u.mutation.ResetOptionalInt()
-	_u.mutation.SetOptionalInt(v)
-	return _u
-}
-
-// SetNillableOptionalInt sets the "optional_int" field if the given value is not nil.
-func (_u *FieldTypeUpdateOne) SetNillableOptionalInt(v *int) *FieldTypeUpdateOne {
-	if v != nil {
-		_u.SetOptionalInt(*v)
+func (b *FieldTypeUpdateOne) Set[T any](column ent.ColumnOf[entity.FieldType, T], value T) *FieldTypeUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// AddOptionalInt adds value to the "optional_int" field.
-func (_u *FieldTypeUpdateOne) AddOptionalInt(v int) *FieldTypeUpdateOne {
-	_u.mutation.AddOptionalInt(v)
-	return _u
+	return b
 }
-
-// ClearOptionalInt clears the value of the "optional_int" field.
-func (_u *FieldTypeUpdateOne) ClearOptionalInt() *FieldTypeUpdateOne {
-	_u.mutation.ClearOptionalInt()
-	return _u
-}
-
-// SetOptionalInt8 sets the "optional_int8" field.
-func (_u *FieldTypeUpdateOne) SetOptionalInt8(v int8) *FieldTypeUpdateOne {
-	_u.mutation.ResetOptionalInt8()
-	_u.mutation.SetOptionalInt8(v)
-	return _u
-}
-
-// SetNillableOptionalInt8 sets the "optional_int8" field if the given value is not nil.
-func (_u *FieldTypeUpdateOne) SetNillableOptionalInt8(v *int8) *FieldTypeUpdateOne {
-	if v != nil {
-		_u.SetOptionalInt8(*v)
+func (b *FieldTypeUpdateOne) SetOptional[T any](column ent.ColumnOf[entity.FieldType, T], value ent.Option[T]) *FieldTypeUpdateOne {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u
-}
-
-// AddOptionalInt8 adds value to the "optional_int8" field.
-func (_u *FieldTypeUpdateOne) AddOptionalInt8(v int8) *FieldTypeUpdateOne {
-	_u.mutation.AddOptionalInt8(v)
-	return _u
-}
-
-// ClearOptionalInt8 clears the value of the "optional_int8" field.
-func (_u *FieldTypeUpdateOne) ClearOptionalInt8() *FieldTypeUpdateOne {
-	_u.mutation.ClearOptionalInt8()
-	return _u
-}
-
-// SetOptionalInt16 sets the "optional_int16" field.
-func (_u *FieldTypeUpdateOne) SetOptionalInt16(v int16) *FieldTypeUpdateOne {
-	_u.mutation.ResetOptionalInt16()
-	_u.mutation.SetOptionalInt16(v)
-	return _u
-}
-
-// SetNillableOptionalInt16 sets the "optional_int16" field if the given value is not nil.
-func (_u *FieldTypeUpdateOne) SetNillableOptionalInt16(v *int16) *FieldTypeUpdateOne {
-	if v != nil {
-		_u.SetOptionalInt16(*v)
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
 	}
-	return _u
+	return b
 }
-
-// AddOptionalInt16 adds value to the "optional_int16" field.
-func (_u *FieldTypeUpdateOne) AddOptionalInt16(v int16) *FieldTypeUpdateOne {
-	_u.mutation.AddOptionalInt16(v)
-	return _u
-}
-
-// ClearOptionalInt16 clears the value of the "optional_int16" field.
-func (_u *FieldTypeUpdateOne) ClearOptionalInt16() *FieldTypeUpdateOne {
-	_u.mutation.ClearOptionalInt16()
-	return _u
-}
-
-// SetOptionalInt32 sets the "optional_int32" field.
-func (_u *FieldTypeUpdateOne) SetOptionalInt32(v int32) *FieldTypeUpdateOne {
-	_u.mutation.ResetOptionalInt32()
-	_u.mutation.SetOptionalInt32(v)
-	return _u
-}
-
-// SetNillableOptionalInt32 sets the "optional_int32" field if the given value is not nil.
-func (_u *FieldTypeUpdateOne) SetNillableOptionalInt32(v *int32) *FieldTypeUpdateOne {
-	if v != nil {
-		_u.SetOptionalInt32(*v)
+func (b *FieldTypeUpdateOne) SetExpr[T any](column ent.ColumnOf[entity.FieldType, T], value ent.Expr[T]) *FieldTypeUpdateOne {
+	if b.err != nil {
+		return b
 	}
-	return _u
-}
+	switch column.Ref().Name {
 
-// AddOptionalInt32 adds value to the "optional_int32" field.
-func (_u *FieldTypeUpdateOne) AddOptionalInt32(v int32) *FieldTypeUpdateOne {
-	_u.mutation.AddOptionalInt32(v)
-	return _u
-}
+	case fieldtype.FieldInt:
 
-// ClearOptionalInt32 clears the value of the "optional_int32" field.
-func (_u *FieldTypeUpdateOne) ClearOptionalInt32() *FieldTypeUpdateOne {
-	_u.mutation.ClearOptionalInt32()
-	return _u
-}
+	case fieldtype.FieldInt8:
 
-// SetOptionalInt64 sets the "optional_int64" field.
-func (_u *FieldTypeUpdateOne) SetOptionalInt64(v int64) *FieldTypeUpdateOne {
-	_u.mutation.ResetOptionalInt64()
-	_u.mutation.SetOptionalInt64(v)
-	return _u
-}
+	case fieldtype.FieldInt16:
 
-// SetNillableOptionalInt64 sets the "optional_int64" field if the given value is not nil.
-func (_u *FieldTypeUpdateOne) SetNillableOptionalInt64(v *int64) *FieldTypeUpdateOne {
-	if v != nil {
-		_u.SetOptionalInt64(*v)
+	case fieldtype.FieldInt32:
+
+	case fieldtype.FieldInt64:
+
+	case fieldtype.FieldOptionalInt:
+
+	case fieldtype.FieldOptionalInt8:
+
+	case fieldtype.FieldOptionalInt16:
+
+	case fieldtype.FieldOptionalInt32:
+
+	case fieldtype.FieldOptionalInt64:
+
+	case fieldtype.FieldNillableInt:
+
+	case fieldtype.FieldNillableInt8:
+
+	case fieldtype.FieldNillableInt16:
+
+	case fieldtype.FieldNillableInt32:
+
+	case fieldtype.FieldNillableInt64:
+
+	case fieldtype.FieldValidateOptionalInt32:
+
+	case fieldtype.FieldOptionalUint:
+
+	case fieldtype.FieldOptionalUint8:
+
+	case fieldtype.FieldOptionalUint16:
+
+	case fieldtype.FieldOptionalUint32:
+
+	case fieldtype.FieldOptionalUint64:
+
+	case fieldtype.FieldState:
+
+	case fieldtype.FieldOptionalFloat:
+
+	case fieldtype.FieldOptionalFloat32:
+
+	case fieldtype.FieldText:
+
+	case fieldtype.FieldDatetime:
+
+	case fieldtype.FieldDecimal:
+
+	case fieldtype.FieldLinkOther:
+
+	case fieldtype.FieldLinkOtherFunc:
+
+	case fieldtype.FieldMAC:
+
+	case fieldtype.FieldStringArray:
+
+	case fieldtype.FieldPassword:
+
+	case fieldtype.FieldStringScanner:
+
+	case fieldtype.FieldDuration:
+
+	case fieldtype.FieldDir:
+
+	case fieldtype.FieldNdir:
+
+	case fieldtype.FieldStr:
+
+	case fieldtype.FieldNullStr:
+
+	case fieldtype.FieldLink:
+
+	case fieldtype.FieldNullLink:
+
+	case fieldtype.FieldActive:
+
+	case fieldtype.FieldNullActive:
+
+	case fieldtype.FieldDeleted:
+
+	case fieldtype.FieldDeletedAt:
+
+	case fieldtype.FieldRawData:
+
+	case fieldtype.FieldSensitive:
+
+	case fieldtype.FieldIP:
+
+	case fieldtype.FieldNullInt64:
+
+	case fieldtype.FieldSchemaInt:
+
+	case fieldtype.FieldSchemaInt8:
+
+	case fieldtype.FieldSchemaInt64:
+
+	case fieldtype.FieldSchemaFloat:
+
+	case fieldtype.FieldSchemaFloat32:
+
+	case fieldtype.FieldNullFloat:
+
+	case fieldtype.FieldRole:
+
+	case fieldtype.FieldPriority:
+
+	case fieldtype.FieldOptionalUUID:
+
+	case fieldtype.FieldNillableUUID:
+
+	case fieldtype.FieldStrings:
+
+	case fieldtype.FieldPair:
+
+	case fieldtype.FieldNilPair:
+
+	case fieldtype.FieldVstring:
+
+	case fieldtype.FieldTriple:
+
+	case fieldtype.FieldBigInt:
+
+	case fieldtype.FieldPasswordOther:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of FieldType is not settable", column.Ref().Name)}
+		return b
 	}
-	return _u
-}
 
-// AddOptionalInt64 adds value to the "optional_int64" field.
-func (_u *FieldTypeUpdateOne) AddOptionalInt64(v int64) *FieldTypeUpdateOne {
-	_u.mutation.AddOptionalInt64(v)
-	return _u
-}
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
 
-// ClearOptionalInt64 clears the value of the "optional_int64" field.
-func (_u *FieldTypeUpdateOne) ClearOptionalInt64() *FieldTypeUpdateOne {
-	_u.mutation.ClearOptionalInt64()
-	return _u
-}
+	return b
 
-// SetNillableInt sets the "nillable_int" field.
-func (_u *FieldTypeUpdateOne) SetNillableInt(v int) *FieldTypeUpdateOne {
-	_u.mutation.ResetNillableInt()
-	_u.mutation.SetNillableInt(v)
-	return _u
 }
-
-// SetNillableNillableInt sets the "nillable_int" field if the given value is not nil.
-func (_u *FieldTypeUpdateOne) SetNillableNillableInt(v *int) *FieldTypeUpdateOne {
-	if v != nil {
-		_u.SetNillableInt(*v)
+func (b *FieldTypeUpdateOne) SetEdge[N, K any](edge ent.UniqueRelation[entity.FieldType, N, K], id K) *FieldTypeUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
 	}
-	return _u
-}
 
-// AddNillableInt adds value to the "nillable_int" field.
-func (_u *FieldTypeUpdateOne) AddNillableInt(v int) *FieldTypeUpdateOne {
-	_u.mutation.AddNillableInt(v)
-	return _u
+	return b
 }
-
-// ClearNillableInt clears the value of the "nillable_int" field.
-func (_u *FieldTypeUpdateOne) ClearNillableInt() *FieldTypeUpdateOne {
-	_u.mutation.ClearNillableInt()
-	return _u
-}
-
-// SetNillableInt8 sets the "nillable_int8" field.
-func (_u *FieldTypeUpdateOne) SetNillableInt8(v int8) *FieldTypeUpdateOne {
-	_u.mutation.ResetNillableInt8()
-	_u.mutation.SetNillableInt8(v)
-	return _u
-}
-
-// SetNillableNillableInt8 sets the "nillable_int8" field if the given value is not nil.
-func (_u *FieldTypeUpdateOne) SetNillableNillableInt8(v *int8) *FieldTypeUpdateOne {
-	if v != nil {
-		_u.SetNillableInt8(*v)
+func (b *FieldTypeUpdateOne) AddIDs[N, K any](edge ent.Relation[entity.FieldType, N, K], ids ...K) *FieldTypeUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
 	}
-	return _u
-}
-
-// AddNillableInt8 adds value to the "nillable_int8" field.
-func (_u *FieldTypeUpdateOne) AddNillableInt8(v int8) *FieldTypeUpdateOne {
-	_u.mutation.AddNillableInt8(v)
-	return _u
-}
-
-// ClearNillableInt8 clears the value of the "nillable_int8" field.
-func (_u *FieldTypeUpdateOne) ClearNillableInt8() *FieldTypeUpdateOne {
-	_u.mutation.ClearNillableInt8()
-	return _u
-}
-
-// SetNillableInt16 sets the "nillable_int16" field.
-func (_u *FieldTypeUpdateOne) SetNillableInt16(v int16) *FieldTypeUpdateOne {
-	_u.mutation.ResetNillableInt16()
-	_u.mutation.SetNillableInt16(v)
-	return _u
-}
-
-// SetNillableNillableInt16 sets the "nillable_int16" field if the given value is not nil.
-func (_u *FieldTypeUpdateOne) SetNillableNillableInt16(v *int16) *FieldTypeUpdateOne {
-	if v != nil {
-		_u.SetNillableInt16(*v)
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
 	}
-	return _u
+	return b
 }
+func (b *FieldTypeUpdateOne) Mutation() *FieldTypeMutation { return b.mutation }
 
-// AddNillableInt16 adds value to the "nillable_int16" field.
-func (_u *FieldTypeUpdateOne) AddNillableInt16(v int16) *FieldTypeUpdateOne {
-	_u.mutation.AddNillableInt16(v)
-	return _u
+func (b *FieldTypeUpdateOne) Patch() *FieldTypePatch { return b.mutation.patch }
+func (b *FieldTypeUpdateOne) Apply(p FieldTypePatch) *FieldTypeUpdateOne {
+	b.mutation.patch.apply(p)
+	return b
 }
-
-// ClearNillableInt16 clears the value of the "nillable_int16" field.
-func (_u *FieldTypeUpdateOne) ClearNillableInt16() *FieldTypeUpdateOne {
-	_u.mutation.ClearNillableInt16()
-	return _u
-}
-
-// SetNillableInt32 sets the "nillable_int32" field.
-func (_u *FieldTypeUpdateOne) SetNillableInt32(v int32) *FieldTypeUpdateOne {
-	_u.mutation.ResetNillableInt32()
-	_u.mutation.SetNillableInt32(v)
-	return _u
-}
-
-// SetNillableNillableInt32 sets the "nillable_int32" field if the given value is not nil.
-func (_u *FieldTypeUpdateOne) SetNillableNillableInt32(v *int32) *FieldTypeUpdateOne {
-	if v != nil {
-		_u.SetNillableInt32(*v)
+func (b *FieldTypeUpdateOne) Add[T ent.Number](column ent.ColumnOf[entity.FieldType, T], delta T) *FieldTypeUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
 	}
-	return _u
+	return b
 }
-
-// AddNillableInt32 adds value to the "nillable_int32" field.
-func (_u *FieldTypeUpdateOne) AddNillableInt32(v int32) *FieldTypeUpdateOne {
-	_u.mutation.AddNillableInt32(v)
-	return _u
-}
-
-// ClearNillableInt32 clears the value of the "nillable_int32" field.
-func (_u *FieldTypeUpdateOne) ClearNillableInt32() *FieldTypeUpdateOne {
-	_u.mutation.ClearNillableInt32()
-	return _u
-}
-
-// SetNillableInt64 sets the "nillable_int64" field.
-func (_u *FieldTypeUpdateOne) SetNillableInt64(v int64) *FieldTypeUpdateOne {
-	_u.mutation.ResetNillableInt64()
-	_u.mutation.SetNillableInt64(v)
-	return _u
-}
-
-// SetNillableNillableInt64 sets the "nillable_int64" field if the given value is not nil.
-func (_u *FieldTypeUpdateOne) SetNillableNillableInt64(v *int64) *FieldTypeUpdateOne {
-	if v != nil {
-		_u.SetNillableInt64(*v)
+func (b *FieldTypeUpdateOne) Append[T any](column ent.ColumnOf[entity.FieldType, T], values T) *FieldTypeUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
 	}
-	return _u
+	return b
 }
-
-// AddNillableInt64 adds value to the "nillable_int64" field.
-func (_u *FieldTypeUpdateOne) AddNillableInt64(v int64) *FieldTypeUpdateOne {
-	_u.mutation.AddNillableInt64(v)
-	return _u
-}
-
-// ClearNillableInt64 clears the value of the "nillable_int64" field.
-func (_u *FieldTypeUpdateOne) ClearNillableInt64() *FieldTypeUpdateOne {
-	_u.mutation.ClearNillableInt64()
-	return _u
-}
-
-// SetValidateOptionalInt32 sets the "validate_optional_int32" field.
-func (_u *FieldTypeUpdateOne) SetValidateOptionalInt32(v int32) *FieldTypeUpdateOne {
-	_u.mutation.ResetValidateOptionalInt32()
-	_u.mutation.SetValidateOptionalInt32(v)
-	return _u
-}
-
-// SetNillableValidateOptionalInt32 sets the "validate_optional_int32" field if the given value is not nil.
-func (_u *FieldTypeUpdateOne) SetNillableValidateOptionalInt32(v *int32) *FieldTypeUpdateOne {
-	if v != nil {
-		_u.SetValidateOptionalInt32(*v)
+func (b *FieldTypeUpdateOne) Clear[T any](column ent.ColumnOf[entity.FieldType, T]) *FieldTypeUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
 	}
-	return _u
+	return b
 }
-
-// AddValidateOptionalInt32 adds value to the "validate_optional_int32" field.
-func (_u *FieldTypeUpdateOne) AddValidateOptionalInt32(v int32) *FieldTypeUpdateOne {
-	_u.mutation.AddValidateOptionalInt32(v)
-	return _u
-}
-
-// ClearValidateOptionalInt32 clears the value of the "validate_optional_int32" field.
-func (_u *FieldTypeUpdateOne) ClearValidateOptionalInt32() *FieldTypeUpdateOne {
-	_u.mutation.ClearValidateOptionalInt32()
-	return _u
-}
-
-// SetOptionalUint sets the "optional_uint" field.
-func (_u *FieldTypeUpdateOne) SetOptionalUint(v uint) *FieldTypeUpdateOne {
-	_u.mutation.ResetOptionalUint()
-	_u.mutation.SetOptionalUint(v)
-	return _u
-}
-
-// SetNillableOptionalUint sets the "optional_uint" field if the given value is not nil.
-func (_u *FieldTypeUpdateOne) SetNillableOptionalUint(v *uint) *FieldTypeUpdateOne {
-	if v != nil {
-		_u.SetOptionalUint(*v)
+func (b *FieldTypeUpdateOne) RemoveIDs[N, K any](edge ent.Relation[entity.FieldType, N, K], ids ...K) *FieldTypeUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
 	}
-	return _u
-}
-
-// AddOptionalUint adds value to the "optional_uint" field.
-func (_u *FieldTypeUpdateOne) AddOptionalUint(v int) *FieldTypeUpdateOne {
-	_u.mutation.AddOptionalUint(v)
-	return _u
-}
-
-// ClearOptionalUint clears the value of the "optional_uint" field.
-func (_u *FieldTypeUpdateOne) ClearOptionalUint() *FieldTypeUpdateOne {
-	_u.mutation.ClearOptionalUint()
-	return _u
-}
-
-// SetOptionalUint8 sets the "optional_uint8" field.
-func (_u *FieldTypeUpdateOne) SetOptionalUint8(v uint8) *FieldTypeUpdateOne {
-	_u.mutation.ResetOptionalUint8()
-	_u.mutation.SetOptionalUint8(v)
-	return _u
-}
-
-// SetNillableOptionalUint8 sets the "optional_uint8" field if the given value is not nil.
-func (_u *FieldTypeUpdateOne) SetNillableOptionalUint8(v *uint8) *FieldTypeUpdateOne {
-	if v != nil {
-		_u.SetOptionalUint8(*v)
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
 	}
-	return _u
+	return b
 }
-
-// AddOptionalUint8 adds value to the "optional_uint8" field.
-func (_u *FieldTypeUpdateOne) AddOptionalUint8(v int8) *FieldTypeUpdateOne {
-	_u.mutation.AddOptionalUint8(v)
-	return _u
-}
-
-// ClearOptionalUint8 clears the value of the "optional_uint8" field.
-func (_u *FieldTypeUpdateOne) ClearOptionalUint8() *FieldTypeUpdateOne {
-	_u.mutation.ClearOptionalUint8()
-	return _u
-}
-
-// SetOptionalUint16 sets the "optional_uint16" field.
-func (_u *FieldTypeUpdateOne) SetOptionalUint16(v uint16) *FieldTypeUpdateOne {
-	_u.mutation.ResetOptionalUint16()
-	_u.mutation.SetOptionalUint16(v)
-	return _u
-}
-
-// SetNillableOptionalUint16 sets the "optional_uint16" field if the given value is not nil.
-func (_u *FieldTypeUpdateOne) SetNillableOptionalUint16(v *uint16) *FieldTypeUpdateOne {
-	if v != nil {
-		_u.SetOptionalUint16(*v)
+func (b *FieldTypeUpdateOne) ClearEdge[N, K any](edge ent.RelationOf[entity.FieldType, N, K]) *FieldTypeUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
 	}
-	return _u
+	return b
 }
 
-// AddOptionalUint16 adds value to the "optional_uint16" field.
-func (_u *FieldTypeUpdateOne) AddOptionalUint16(v int16) *FieldTypeUpdateOne {
-	_u.mutation.AddOptionalUint16(v)
-	return _u
+func (b *FieldTypeUpdateOne) Where(predicates ...ent.Predicate[entity.FieldType]) *FieldTypeUpdateOne {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// ClearOptionalUint16 clears the value of the "optional_uint16" field.
-func (_u *FieldTypeUpdateOne) ClearOptionalUint16() *FieldTypeUpdateOne {
-	_u.mutation.ClearOptionalUint16()
-	return _u
-}
-
-// SetOptionalUint32 sets the "optional_uint32" field.
-func (_u *FieldTypeUpdateOne) SetOptionalUint32(v uint32) *FieldTypeUpdateOne {
-	_u.mutation.ResetOptionalUint32()
-	_u.mutation.SetOptionalUint32(v)
-	return _u
-}
-
-// SetNillableOptionalUint32 sets the "optional_uint32" field if the given value is not nil.
-func (_u *FieldTypeUpdateOne) SetNillableOptionalUint32(v *uint32) *FieldTypeUpdateOne {
-	if v != nil {
-		_u.SetOptionalUint32(*v)
+func (b *FieldTypeUpdateOne) Save(ctx context.Context) (*FieldType, error) {
+	if b.err != nil {
+		return nil, b.err
 	}
-	return _u
-}
-
-// AddOptionalUint32 adds value to the "optional_uint32" field.
-func (_u *FieldTypeUpdateOne) AddOptionalUint32(v int32) *FieldTypeUpdateOne {
-	_u.mutation.AddOptionalUint32(v)
-	return _u
-}
-
-// ClearOptionalUint32 clears the value of the "optional_uint32" field.
-func (_u *FieldTypeUpdateOne) ClearOptionalUint32() *FieldTypeUpdateOne {
-	_u.mutation.ClearOptionalUint32()
-	return _u
-}
-
-// SetOptionalUint64 sets the "optional_uint64" field.
-func (_u *FieldTypeUpdateOne) SetOptionalUint64(v uint64) *FieldTypeUpdateOne {
-	_u.mutation.ResetOptionalUint64()
-	_u.mutation.SetOptionalUint64(v)
-	return _u
-}
-
-// SetNillableOptionalUint64 sets the "optional_uint64" field if the given value is not nil.
-func (_u *FieldTypeUpdateOne) SetNillableOptionalUint64(v *uint64) *FieldTypeUpdateOne {
-	if v != nil {
-		_u.SetOptionalUint64(*v)
-	}
-	return _u
-}
-
-// AddOptionalUint64 adds value to the "optional_uint64" field.
-func (_u *FieldTypeUpdateOne) AddOptionalUint64(v int64) *FieldTypeUpdateOne {
-	_u.mutation.AddOptionalUint64(v)
-	return _u
-}
-
-// ClearOptionalUint64 clears the value of the "optional_uint64" field.
-func (_u *FieldTypeUpdateOne) ClearOptionalUint64() *FieldTypeUpdateOne {
-	_u.mutation.ClearOptionalUint64()
-	return _u
-}
-
-// SetState sets the "state" field.
-func (_u *FieldTypeUpdateOne) SetState(v fieldtype.State) *FieldTypeUpdateOne {
-	_u.mutation.SetState(v)
-	return _u
-}
-
-// SetNillableState sets the "state" field if the given value is not nil.
-func (_u *FieldTypeUpdateOne) SetNillableState(v *fieldtype.State) *FieldTypeUpdateOne {
-	if v != nil {
-		_u.SetState(*v)
-	}
-	return _u
-}
-
-// ClearState clears the value of the "state" field.
-func (_u *FieldTypeUpdateOne) ClearState() *FieldTypeUpdateOne {
-	_u.mutation.ClearState()
-	return _u
-}
-
-// SetOptionalFloat sets the "optional_float" field.
-func (_u *FieldTypeUpdateOne) SetOptionalFloat(v float64) *FieldTypeUpdateOne {
-	_u.mutation.ResetOptionalFloat()
-	_u.mutation.SetOptionalFloat(v)
-	return _u
-}
-
-// SetNillableOptionalFloat sets the "optional_float" field if the given value is not nil.
-func (_u *FieldTypeUpdateOne) SetNillableOptionalFloat(v *float64) *FieldTypeUpdateOne {
-	if v != nil {
-		_u.SetOptionalFloat(*v)
-	}
-	return _u
-}
-
-// AddOptionalFloat adds value to the "optional_float" field.
-func (_u *FieldTypeUpdateOne) AddOptionalFloat(v float64) *FieldTypeUpdateOne {
-	_u.mutation.AddOptionalFloat(v)
-	return _u
-}
-
-// ClearOptionalFloat clears the value of the "optional_float" field.
-func (_u *FieldTypeUpdateOne) ClearOptionalFloat() *FieldTypeUpdateOne {
-	_u.mutation.ClearOptionalFloat()
-	return _u
-}
-
-// SetOptionalFloat32 sets the "optional_float32" field.
-func (_u *FieldTypeUpdateOne) SetOptionalFloat32(v float32) *FieldTypeUpdateOne {
-	_u.mutation.ResetOptionalFloat32()
-	_u.mutation.SetOptionalFloat32(v)
-	return _u
-}
-
-// SetNillableOptionalFloat32 sets the "optional_float32" field if the given value is not nil.
-func (_u *FieldTypeUpdateOne) SetNillableOptionalFloat32(v *float32) *FieldTypeUpdateOne {
-	if v != nil {
-		_u.SetOptionalFloat32(*v)
-	}
-	return _u
-}
-
-// AddOptionalFloat32 adds value to the "optional_float32" field.
-func (_u *FieldTypeUpdateOne) AddOptionalFloat32(v float32) *FieldTypeUpdateOne {
-	_u.mutation.AddOptionalFloat32(v)
-	return _u
-}
-
-// ClearOptionalFloat32 clears the value of the "optional_float32" field.
-func (_u *FieldTypeUpdateOne) ClearOptionalFloat32() *FieldTypeUpdateOne {
-	_u.mutation.ClearOptionalFloat32()
-	return _u
-}
-
-// SetText sets the "text" field.
-func (_u *FieldTypeUpdateOne) SetText(v string) *FieldTypeUpdateOne {
-	_u.mutation.SetText(v)
-	return _u
-}
-
-// SetNillableText sets the "text" field if the given value is not nil.
-func (_u *FieldTypeUpdateOne) SetNillableText(v *string) *FieldTypeUpdateOne {
-	if v != nil {
-		_u.SetText(*v)
-	}
-	return _u
-}
-
-// ClearText clears the value of the "text" field.
-func (_u *FieldTypeUpdateOne) ClearText() *FieldTypeUpdateOne {
-	_u.mutation.ClearText()
-	return _u
-}
-
-// SetDatetime sets the "datetime" field.
-func (_u *FieldTypeUpdateOne) SetDatetime(v time.Time) *FieldTypeUpdateOne {
-	_u.mutation.SetDatetime(v)
-	return _u
-}
-
-// SetNillableDatetime sets the "datetime" field if the given value is not nil.
-func (_u *FieldTypeUpdateOne) SetNillableDatetime(v *time.Time) *FieldTypeUpdateOne {
-	if v != nil {
-		_u.SetDatetime(*v)
-	}
-	return _u
-}
-
-// ClearDatetime clears the value of the "datetime" field.
-func (_u *FieldTypeUpdateOne) ClearDatetime() *FieldTypeUpdateOne {
-	_u.mutation.ClearDatetime()
-	return _u
-}
-
-// SetDecimal sets the "decimal" field.
-func (_u *FieldTypeUpdateOne) SetDecimal(v float64) *FieldTypeUpdateOne {
-	_u.mutation.ResetDecimal()
-	_u.mutation.SetDecimal(v)
-	return _u
-}
-
-// SetNillableDecimal sets the "decimal" field if the given value is not nil.
-func (_u *FieldTypeUpdateOne) SetNillableDecimal(v *float64) *FieldTypeUpdateOne {
-	if v != nil {
-		_u.SetDecimal(*v)
-	}
-	return _u
-}
-
-// AddDecimal adds value to the "decimal" field.
-func (_u *FieldTypeUpdateOne) AddDecimal(v float64) *FieldTypeUpdateOne {
-	_u.mutation.AddDecimal(v)
-	return _u
-}
-
-// ClearDecimal clears the value of the "decimal" field.
-func (_u *FieldTypeUpdateOne) ClearDecimal() *FieldTypeUpdateOne {
-	_u.mutation.ClearDecimal()
-	return _u
-}
-
-// SetLinkOther sets the "link_other" field.
-func (_u *FieldTypeUpdateOne) SetLinkOther(v *schema.Link) *FieldTypeUpdateOne {
-	_u.mutation.SetLinkOther(v)
-	return _u
-}
-
-// ClearLinkOther clears the value of the "link_other" field.
-func (_u *FieldTypeUpdateOne) ClearLinkOther() *FieldTypeUpdateOne {
-	_u.mutation.ClearLinkOther()
-	return _u
-}
-
-// SetLinkOtherFunc sets the "link_other_func" field.
-func (_u *FieldTypeUpdateOne) SetLinkOtherFunc(v *schema.Link) *FieldTypeUpdateOne {
-	_u.mutation.SetLinkOtherFunc(v)
-	return _u
-}
-
-// ClearLinkOtherFunc clears the value of the "link_other_func" field.
-func (_u *FieldTypeUpdateOne) ClearLinkOtherFunc() *FieldTypeUpdateOne {
-	_u.mutation.ClearLinkOtherFunc()
-	return _u
-}
-
-// SetMAC sets the "mac" field.
-func (_u *FieldTypeUpdateOne) SetMAC(v schema.MAC) *FieldTypeUpdateOne {
-	_u.mutation.SetMAC(v)
-	return _u
-}
-
-// SetNillableMAC sets the "mac" field if the given value is not nil.
-func (_u *FieldTypeUpdateOne) SetNillableMAC(v *schema.MAC) *FieldTypeUpdateOne {
-	if v != nil {
-		_u.SetMAC(*v)
-	}
-	return _u
-}
-
-// ClearMAC clears the value of the "mac" field.
-func (_u *FieldTypeUpdateOne) ClearMAC() *FieldTypeUpdateOne {
-	_u.mutation.ClearMAC()
-	return _u
-}
-
-// SetStringArray sets the "string_array" field.
-func (_u *FieldTypeUpdateOne) SetStringArray(v schema.Strings) *FieldTypeUpdateOne {
-	_u.mutation.SetStringArray(v)
-	return _u
-}
-
-// ClearStringArray clears the value of the "string_array" field.
-func (_u *FieldTypeUpdateOne) ClearStringArray() *FieldTypeUpdateOne {
-	_u.mutation.ClearStringArray()
-	return _u
-}
-
-// SetPassword sets the "password" field.
-func (_u *FieldTypeUpdateOne) SetPassword(v string) *FieldTypeUpdateOne {
-	_u.mutation.SetPassword(v)
-	return _u
-}
-
-// SetNillablePassword sets the "password" field if the given value is not nil.
-func (_u *FieldTypeUpdateOne) SetNillablePassword(v *string) *FieldTypeUpdateOne {
-	if v != nil {
-		_u.SetPassword(*v)
-	}
-	return _u
-}
-
-// ClearPassword clears the value of the "password" field.
-func (_u *FieldTypeUpdateOne) ClearPassword() *FieldTypeUpdateOne {
-	_u.mutation.ClearPassword()
-	return _u
-}
-
-// SetStringScanner sets the "string_scanner" field.
-func (_u *FieldTypeUpdateOne) SetStringScanner(v schema.StringScanner) *FieldTypeUpdateOne {
-	_u.mutation.SetStringScanner(v)
-	return _u
-}
-
-// SetNillableStringScanner sets the "string_scanner" field if the given value is not nil.
-func (_u *FieldTypeUpdateOne) SetNillableStringScanner(v *schema.StringScanner) *FieldTypeUpdateOne {
-	if v != nil {
-		_u.SetStringScanner(*v)
-	}
-	return _u
-}
-
-// ClearStringScanner clears the value of the "string_scanner" field.
-func (_u *FieldTypeUpdateOne) ClearStringScanner() *FieldTypeUpdateOne {
-	_u.mutation.ClearStringScanner()
-	return _u
-}
-
-// SetDuration sets the "duration" field.
-func (_u *FieldTypeUpdateOne) SetDuration(v time.Duration) *FieldTypeUpdateOne {
-	_u.mutation.ResetDuration()
-	_u.mutation.SetDuration(v)
-	return _u
-}
-
-// AddDuration adds value to the "duration" field.
-func (_u *FieldTypeUpdateOne) AddDuration(v time.Duration) *FieldTypeUpdateOne {
-	_u.mutation.AddDuration(v)
-	return _u
-}
-
-// ClearDuration clears the value of the "duration" field.
-func (_u *FieldTypeUpdateOne) ClearDuration() *FieldTypeUpdateOne {
-	_u.mutation.ClearDuration()
-	return _u
-}
-
-// SetDir sets the "dir" field.
-func (_u *FieldTypeUpdateOne) SetDir(v http.Dir) *FieldTypeUpdateOne {
-	_u.mutation.SetDir(v)
-	return _u
-}
-
-// SetNillableDir sets the "dir" field if the given value is not nil.
-func (_u *FieldTypeUpdateOne) SetNillableDir(v *http.Dir) *FieldTypeUpdateOne {
-	if v != nil {
-		_u.SetDir(*v)
-	}
-	return _u
-}
-
-// SetNdir sets the "ndir" field.
-func (_u *FieldTypeUpdateOne) SetNdir(v http.Dir) *FieldTypeUpdateOne {
-	_u.mutation.SetNdir(v)
-	return _u
-}
-
-// SetNillableNdir sets the "ndir" field if the given value is not nil.
-func (_u *FieldTypeUpdateOne) SetNillableNdir(v *http.Dir) *FieldTypeUpdateOne {
-	if v != nil {
-		_u.SetNdir(*v)
-	}
-	return _u
-}
-
-// ClearNdir clears the value of the "ndir" field.
-func (_u *FieldTypeUpdateOne) ClearNdir() *FieldTypeUpdateOne {
-	_u.mutation.ClearNdir()
-	return _u
-}
-
-// SetStr sets the "str" field.
-func (_u *FieldTypeUpdateOne) SetStr(v sql.NullString) *FieldTypeUpdateOne {
-	_u.mutation.SetStr(v)
-	return _u
-}
-
-// SetNillableStr sets the "str" field if the given value is not nil.
-func (_u *FieldTypeUpdateOne) SetNillableStr(v *sql.NullString) *FieldTypeUpdateOne {
-	if v != nil {
-		_u.SetStr(*v)
-	}
-	return _u
-}
-
-// ClearStr clears the value of the "str" field.
-func (_u *FieldTypeUpdateOne) ClearStr() *FieldTypeUpdateOne {
-	_u.mutation.ClearStr()
-	return _u
-}
-
-// SetNullStr sets the "null_str" field.
-func (_u *FieldTypeUpdateOne) SetNullStr(v *sql.NullString) *FieldTypeUpdateOne {
-	_u.mutation.SetNullStr(v)
-	return _u
-}
-
-// ClearNullStr clears the value of the "null_str" field.
-func (_u *FieldTypeUpdateOne) ClearNullStr() *FieldTypeUpdateOne {
-	_u.mutation.ClearNullStr()
-	return _u
-}
-
-// SetLink sets the "link" field.
-func (_u *FieldTypeUpdateOne) SetLink(v schema.Link) *FieldTypeUpdateOne {
-	_u.mutation.SetLink(v)
-	return _u
-}
-
-// SetNillableLink sets the "link" field if the given value is not nil.
-func (_u *FieldTypeUpdateOne) SetNillableLink(v *schema.Link) *FieldTypeUpdateOne {
-	if v != nil {
-		_u.SetLink(*v)
-	}
-	return _u
-}
-
-// ClearLink clears the value of the "link" field.
-func (_u *FieldTypeUpdateOne) ClearLink() *FieldTypeUpdateOne {
-	_u.mutation.ClearLink()
-	return _u
-}
-
-// SetNullLink sets the "null_link" field.
-func (_u *FieldTypeUpdateOne) SetNullLink(v *schema.Link) *FieldTypeUpdateOne {
-	_u.mutation.SetNullLink(v)
-	return _u
-}
-
-// ClearNullLink clears the value of the "null_link" field.
-func (_u *FieldTypeUpdateOne) ClearNullLink() *FieldTypeUpdateOne {
-	_u.mutation.ClearNullLink()
-	return _u
-}
-
-// SetActive sets the "active" field.
-func (_u *FieldTypeUpdateOne) SetActive(v schema.Status) *FieldTypeUpdateOne {
-	_u.mutation.SetActive(v)
-	return _u
-}
-
-// SetNillableActive sets the "active" field if the given value is not nil.
-func (_u *FieldTypeUpdateOne) SetNillableActive(v *schema.Status) *FieldTypeUpdateOne {
-	if v != nil {
-		_u.SetActive(*v)
-	}
-	return _u
-}
-
-// ClearActive clears the value of the "active" field.
-func (_u *FieldTypeUpdateOne) ClearActive() *FieldTypeUpdateOne {
-	_u.mutation.ClearActive()
-	return _u
-}
-
-// SetNullActive sets the "null_active" field.
-func (_u *FieldTypeUpdateOne) SetNullActive(v schema.Status) *FieldTypeUpdateOne {
-	_u.mutation.SetNullActive(v)
-	return _u
-}
-
-// SetNillableNullActive sets the "null_active" field if the given value is not nil.
-func (_u *FieldTypeUpdateOne) SetNillableNullActive(v *schema.Status) *FieldTypeUpdateOne {
-	if v != nil {
-		_u.SetNullActive(*v)
-	}
-	return _u
-}
-
-// ClearNullActive clears the value of the "null_active" field.
-func (_u *FieldTypeUpdateOne) ClearNullActive() *FieldTypeUpdateOne {
-	_u.mutation.ClearNullActive()
-	return _u
-}
-
-// SetDeleted sets the "deleted" field.
-func (_u *FieldTypeUpdateOne) SetDeleted(v *sql.NullBool) *FieldTypeUpdateOne {
-	_u.mutation.SetDeleted(v)
-	return _u
-}
-
-// ClearDeleted clears the value of the "deleted" field.
-func (_u *FieldTypeUpdateOne) ClearDeleted() *FieldTypeUpdateOne {
-	_u.mutation.ClearDeleted()
-	return _u
-}
-
-// SetDeletedAt sets the "deleted_at" field.
-func (_u *FieldTypeUpdateOne) SetDeletedAt(v *sql.NullTime) *FieldTypeUpdateOne {
-	_u.mutation.SetDeletedAt(v)
-	return _u
-}
-
-// ClearDeletedAt clears the value of the "deleted_at" field.
-func (_u *FieldTypeUpdateOne) ClearDeletedAt() *FieldTypeUpdateOne {
-	_u.mutation.ClearDeletedAt()
-	return _u
-}
-
-// SetRawData sets the "raw_data" field.
-func (_u *FieldTypeUpdateOne) SetRawData(v []byte) *FieldTypeUpdateOne {
-	_u.mutation.SetRawData(v)
-	return _u
-}
-
-// ClearRawData clears the value of the "raw_data" field.
-func (_u *FieldTypeUpdateOne) ClearRawData() *FieldTypeUpdateOne {
-	_u.mutation.ClearRawData()
-	return _u
-}
-
-// SetSensitive sets the "sensitive" field.
-func (_u *FieldTypeUpdateOne) SetSensitive(v []byte) *FieldTypeUpdateOne {
-	_u.mutation.SetSensitive(v)
-	return _u
-}
-
-// ClearSensitive clears the value of the "sensitive" field.
-func (_u *FieldTypeUpdateOne) ClearSensitive() *FieldTypeUpdateOne {
-	_u.mutation.ClearSensitive()
-	return _u
-}
-
-// SetIP sets the "ip" field.
-func (_u *FieldTypeUpdateOne) SetIP(v net.IP) *FieldTypeUpdateOne {
-	_u.mutation.SetIP(v)
-	return _u
-}
-
-// ClearIP clears the value of the "ip" field.
-func (_u *FieldTypeUpdateOne) ClearIP() *FieldTypeUpdateOne {
-	_u.mutation.ClearIP()
-	return _u
-}
-
-// SetNullInt64 sets the "null_int64" field.
-func (_u *FieldTypeUpdateOne) SetNullInt64(v *sql.NullInt64) *FieldTypeUpdateOne {
-	_u.mutation.SetNullInt64(v)
-	return _u
-}
-
-// ClearNullInt64 clears the value of the "null_int64" field.
-func (_u *FieldTypeUpdateOne) ClearNullInt64() *FieldTypeUpdateOne {
-	_u.mutation.ClearNullInt64()
-	return _u
-}
-
-// SetSchemaInt sets the "schema_int" field.
-func (_u *FieldTypeUpdateOne) SetSchemaInt(v schema.Int) *FieldTypeUpdateOne {
-	_u.mutation.ResetSchemaInt()
-	_u.mutation.SetSchemaInt(v)
-	return _u
-}
-
-// SetNillableSchemaInt sets the "schema_int" field if the given value is not nil.
-func (_u *FieldTypeUpdateOne) SetNillableSchemaInt(v *schema.Int) *FieldTypeUpdateOne {
-	if v != nil {
-		_u.SetSchemaInt(*v)
-	}
-	return _u
-}
-
-// AddSchemaInt adds value to the "schema_int" field.
-func (_u *FieldTypeUpdateOne) AddSchemaInt(v schema.Int) *FieldTypeUpdateOne {
-	_u.mutation.AddSchemaInt(v)
-	return _u
-}
-
-// ClearSchemaInt clears the value of the "schema_int" field.
-func (_u *FieldTypeUpdateOne) ClearSchemaInt() *FieldTypeUpdateOne {
-	_u.mutation.ClearSchemaInt()
-	return _u
-}
-
-// SetSchemaInt8 sets the "schema_int8" field.
-func (_u *FieldTypeUpdateOne) SetSchemaInt8(v schema.Int8) *FieldTypeUpdateOne {
-	_u.mutation.ResetSchemaInt8()
-	_u.mutation.SetSchemaInt8(v)
-	return _u
-}
-
-// SetNillableSchemaInt8 sets the "schema_int8" field if the given value is not nil.
-func (_u *FieldTypeUpdateOne) SetNillableSchemaInt8(v *schema.Int8) *FieldTypeUpdateOne {
-	if v != nil {
-		_u.SetSchemaInt8(*v)
-	}
-	return _u
-}
-
-// AddSchemaInt8 adds value to the "schema_int8" field.
-func (_u *FieldTypeUpdateOne) AddSchemaInt8(v schema.Int8) *FieldTypeUpdateOne {
-	_u.mutation.AddSchemaInt8(v)
-	return _u
-}
-
-// ClearSchemaInt8 clears the value of the "schema_int8" field.
-func (_u *FieldTypeUpdateOne) ClearSchemaInt8() *FieldTypeUpdateOne {
-	_u.mutation.ClearSchemaInt8()
-	return _u
-}
-
-// SetSchemaInt64 sets the "schema_int64" field.
-func (_u *FieldTypeUpdateOne) SetSchemaInt64(v schema.Int64) *FieldTypeUpdateOne {
-	_u.mutation.ResetSchemaInt64()
-	_u.mutation.SetSchemaInt64(v)
-	return _u
-}
-
-// SetNillableSchemaInt64 sets the "schema_int64" field if the given value is not nil.
-func (_u *FieldTypeUpdateOne) SetNillableSchemaInt64(v *schema.Int64) *FieldTypeUpdateOne {
-	if v != nil {
-		_u.SetSchemaInt64(*v)
-	}
-	return _u
-}
-
-// AddSchemaInt64 adds value to the "schema_int64" field.
-func (_u *FieldTypeUpdateOne) AddSchemaInt64(v schema.Int64) *FieldTypeUpdateOne {
-	_u.mutation.AddSchemaInt64(v)
-	return _u
-}
-
-// ClearSchemaInt64 clears the value of the "schema_int64" field.
-func (_u *FieldTypeUpdateOne) ClearSchemaInt64() *FieldTypeUpdateOne {
-	_u.mutation.ClearSchemaInt64()
-	return _u
-}
-
-// SetSchemaFloat sets the "schema_float" field.
-func (_u *FieldTypeUpdateOne) SetSchemaFloat(v schema.Float64) *FieldTypeUpdateOne {
-	_u.mutation.ResetSchemaFloat()
-	_u.mutation.SetSchemaFloat(v)
-	return _u
-}
-
-// SetNillableSchemaFloat sets the "schema_float" field if the given value is not nil.
-func (_u *FieldTypeUpdateOne) SetNillableSchemaFloat(v *schema.Float64) *FieldTypeUpdateOne {
-	if v != nil {
-		_u.SetSchemaFloat(*v)
-	}
-	return _u
-}
-
-// AddSchemaFloat adds value to the "schema_float" field.
-func (_u *FieldTypeUpdateOne) AddSchemaFloat(v schema.Float64) *FieldTypeUpdateOne {
-	_u.mutation.AddSchemaFloat(v)
-	return _u
-}
-
-// ClearSchemaFloat clears the value of the "schema_float" field.
-func (_u *FieldTypeUpdateOne) ClearSchemaFloat() *FieldTypeUpdateOne {
-	_u.mutation.ClearSchemaFloat()
-	return _u
-}
-
-// SetSchemaFloat32 sets the "schema_float32" field.
-func (_u *FieldTypeUpdateOne) SetSchemaFloat32(v schema.Float32) *FieldTypeUpdateOne {
-	_u.mutation.ResetSchemaFloat32()
-	_u.mutation.SetSchemaFloat32(v)
-	return _u
-}
-
-// SetNillableSchemaFloat32 sets the "schema_float32" field if the given value is not nil.
-func (_u *FieldTypeUpdateOne) SetNillableSchemaFloat32(v *schema.Float32) *FieldTypeUpdateOne {
-	if v != nil {
-		_u.SetSchemaFloat32(*v)
-	}
-	return _u
-}
-
-// AddSchemaFloat32 adds value to the "schema_float32" field.
-func (_u *FieldTypeUpdateOne) AddSchemaFloat32(v schema.Float32) *FieldTypeUpdateOne {
-	_u.mutation.AddSchemaFloat32(v)
-	return _u
-}
-
-// ClearSchemaFloat32 clears the value of the "schema_float32" field.
-func (_u *FieldTypeUpdateOne) ClearSchemaFloat32() *FieldTypeUpdateOne {
-	_u.mutation.ClearSchemaFloat32()
-	return _u
-}
-
-// SetNullFloat sets the "null_float" field.
-func (_u *FieldTypeUpdateOne) SetNullFloat(v *sql.NullFloat64) *FieldTypeUpdateOne {
-	_u.mutation.SetNullFloat(v)
-	return _u
-}
-
-// ClearNullFloat clears the value of the "null_float" field.
-func (_u *FieldTypeUpdateOne) ClearNullFloat() *FieldTypeUpdateOne {
-	_u.mutation.ClearNullFloat()
-	return _u
-}
-
-// SetRole sets the "role" field.
-func (_u *FieldTypeUpdateOne) SetRole(v role.Role) *FieldTypeUpdateOne {
-	_u.mutation.SetRole(v)
-	return _u
-}
-
-// SetNillableRole sets the "role" field if the given value is not nil.
-func (_u *FieldTypeUpdateOne) SetNillableRole(v *role.Role) *FieldTypeUpdateOne {
-	if v != nil {
-		_u.SetRole(*v)
-	}
-	return _u
-}
-
-// SetPriority sets the "priority" field.
-func (_u *FieldTypeUpdateOne) SetPriority(v role.Priority) *FieldTypeUpdateOne {
-	_u.mutation.SetPriority(v)
-	return _u
-}
-
-// SetNillablePriority sets the "priority" field if the given value is not nil.
-func (_u *FieldTypeUpdateOne) SetNillablePriority(v *role.Priority) *FieldTypeUpdateOne {
-	if v != nil {
-		_u.SetPriority(*v)
-	}
-	return _u
-}
-
-// ClearPriority clears the value of the "priority" field.
-func (_u *FieldTypeUpdateOne) ClearPriority() *FieldTypeUpdateOne {
-	_u.mutation.ClearPriority()
-	return _u
-}
-
-// SetOptionalUUID sets the "optional_uuid" field.
-func (_u *FieldTypeUpdateOne) SetOptionalUUID(v uuid.UUID) *FieldTypeUpdateOne {
-	_u.mutation.SetOptionalUUID(v)
-	return _u
-}
-
-// SetNillableOptionalUUID sets the "optional_uuid" field if the given value is not nil.
-func (_u *FieldTypeUpdateOne) SetNillableOptionalUUID(v *uuid.UUID) *FieldTypeUpdateOne {
-	if v != nil {
-		_u.SetOptionalUUID(*v)
-	}
-	return _u
-}
-
-// ClearOptionalUUID clears the value of the "optional_uuid" field.
-func (_u *FieldTypeUpdateOne) ClearOptionalUUID() *FieldTypeUpdateOne {
-	_u.mutation.ClearOptionalUUID()
-	return _u
-}
-
-// SetNillableUUID sets the "nillable_uuid" field.
-func (_u *FieldTypeUpdateOne) SetNillableUUID(v uuid.UUID) *FieldTypeUpdateOne {
-	_u.mutation.SetNillableUUID(v)
-	return _u
-}
-
-// SetNillableNillableUUID sets the "nillable_uuid" field if the given value is not nil.
-func (_u *FieldTypeUpdateOne) SetNillableNillableUUID(v *uuid.UUID) *FieldTypeUpdateOne {
-	if v != nil {
-		_u.SetNillableUUID(*v)
-	}
-	return _u
-}
-
-// ClearNillableUUID clears the value of the "nillable_uuid" field.
-func (_u *FieldTypeUpdateOne) ClearNillableUUID() *FieldTypeUpdateOne {
-	_u.mutation.ClearNillableUUID()
-	return _u
-}
-
-// SetStrings sets the "strings" field.
-func (_u *FieldTypeUpdateOne) SetStrings(v []string) *FieldTypeUpdateOne {
-	_u.mutation.SetStrings(v)
-	return _u
-}
-
-// AppendStrings appends value to the "strings" field.
-func (_u *FieldTypeUpdateOne) AppendStrings(v []string) *FieldTypeUpdateOne {
-	_u.mutation.AppendStrings(v)
-	return _u
-}
-
-// ClearStrings clears the value of the "strings" field.
-func (_u *FieldTypeUpdateOne) ClearStrings() *FieldTypeUpdateOne {
-	_u.mutation.ClearStrings()
-	return _u
-}
-
-// SetPair sets the "pair" field.
-func (_u *FieldTypeUpdateOne) SetPair(v schema.Pair) *FieldTypeUpdateOne {
-	_u.mutation.SetPair(v)
-	return _u
-}
-
-// SetNillablePair sets the "pair" field if the given value is not nil.
-func (_u *FieldTypeUpdateOne) SetNillablePair(v *schema.Pair) *FieldTypeUpdateOne {
-	if v != nil {
-		_u.SetPair(*v)
-	}
-	return _u
-}
-
-// SetNilPair sets the "nil_pair" field.
-func (_u *FieldTypeUpdateOne) SetNilPair(v *schema.Pair) *FieldTypeUpdateOne {
-	_u.mutation.SetNilPair(v)
-	return _u
-}
-
-// ClearNilPair clears the value of the "nil_pair" field.
-func (_u *FieldTypeUpdateOne) ClearNilPair() *FieldTypeUpdateOne {
-	_u.mutation.ClearNilPair()
-	return _u
-}
-
-// SetVstring sets the "vstring" field.
-func (_u *FieldTypeUpdateOne) SetVstring(v schema.VString) *FieldTypeUpdateOne {
-	_u.mutation.SetVstring(v)
-	return _u
-}
-
-// SetNillableVstring sets the "vstring" field if the given value is not nil.
-func (_u *FieldTypeUpdateOne) SetNillableVstring(v *schema.VString) *FieldTypeUpdateOne {
-	if v != nil {
-		_u.SetVstring(*v)
-	}
-	return _u
-}
-
-// SetTriple sets the "triple" field.
-func (_u *FieldTypeUpdateOne) SetTriple(v schema.Triple) *FieldTypeUpdateOne {
-	_u.mutation.SetTriple(v)
-	return _u
-}
-
-// SetNillableTriple sets the "triple" field if the given value is not nil.
-func (_u *FieldTypeUpdateOne) SetNillableTriple(v *schema.Triple) *FieldTypeUpdateOne {
-	if v != nil {
-		_u.SetTriple(*v)
-	}
-	return _u
-}
-
-// SetBigInt sets the "big_int" field.
-func (_u *FieldTypeUpdateOne) SetBigInt(v schema.BigInt) *FieldTypeUpdateOne {
-	_u.mutation.ResetBigInt()
-	_u.mutation.SetBigInt(v)
-	return _u
-}
-
-// SetNillableBigInt sets the "big_int" field if the given value is not nil.
-func (_u *FieldTypeUpdateOne) SetNillableBigInt(v *schema.BigInt) *FieldTypeUpdateOne {
-	if v != nil {
-		_u.SetBigInt(*v)
-	}
-	return _u
-}
-
-// AddBigInt adds value to the "big_int" field.
-func (_u *FieldTypeUpdateOne) AddBigInt(v schema.BigInt) *FieldTypeUpdateOne {
-	_u.mutation.AddBigInt(v)
-	return _u
-}
-
-// ClearBigInt clears the value of the "big_int" field.
-func (_u *FieldTypeUpdateOne) ClearBigInt() *FieldTypeUpdateOne {
-	_u.mutation.ClearBigInt()
-	return _u
-}
-
-// SetPasswordOther sets the "password_other" field.
-func (_u *FieldTypeUpdateOne) SetPasswordOther(v schema.Password) *FieldTypeUpdateOne {
-	_u.mutation.SetPasswordOther(v)
-	return _u
-}
-
-// SetNillablePasswordOther sets the "password_other" field if the given value is not nil.
-func (_u *FieldTypeUpdateOne) SetNillablePasswordOther(v *schema.Password) *FieldTypeUpdateOne {
-	if v != nil {
-		_u.SetPasswordOther(*v)
-	}
-	return _u
-}
-
-// ClearPasswordOther clears the value of the "password_other" field.
-func (_u *FieldTypeUpdateOne) ClearPasswordOther() *FieldTypeUpdateOne {
-	_u.mutation.ClearPasswordOther()
-	return _u
-}
-
-// Mutation returns the FieldTypeMutation object of the builder.
-func (_u *FieldTypeUpdateOne) Mutation() *FieldTypeMutation {
-	return _u.mutation
-}
-
-// Where appends a list predicates to the FieldTypeUpdate builder.
-func (_u *FieldTypeUpdateOne) Where(ps ...predicate.FieldType) *FieldTypeUpdateOne {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// Select allows selecting one or more fields (columns) of the returned entity.
-// The default is selecting all fields defined in the entity schema.
-func (_u *FieldTypeUpdateOne) Select(field string, fields ...string) *FieldTypeUpdateOne {
-	_u.fields = append([]string{field}, fields...)
-	return _u
-}
-
-// Save executes the query and returns the updated FieldType entity.
-func (_u *FieldTypeUpdateOne) Save(ctx context.Context) (*FieldType, error) {
-	if err := _u.defaults(); err != nil {
+	if err := b.defaults(); err != nil {
 		return nil, err
 	}
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
+	return b.sqlSave(ctx)
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_u *FieldTypeUpdateOne) SaveX(ctx context.Context) *FieldType {
-	node, err := _u.Save(ctx)
+func (b *FieldTypeUpdateOne) SaveX(ctx context.Context) *FieldType {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return node
+	return result
 }
 
-// Exec executes the query on the entity.
-func (_u *FieldTypeUpdateOne) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *FieldTypeUpdateOne) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *FieldTypeUpdateOne) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *FieldTypeUpdateOne) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// defaults sets the default values of the builder before save.
-func (_u *FieldTypeUpdateOne) defaults() error {
-	if _, ok := _u.mutation.Int64(); !ok {
+func (b *FieldTypeUpdateOne) Select(columns ...ent.EntityColumn[entity.FieldType]) *FieldTypeUpdateOne {
+	if len(columns) == 0 {
+		panic("ent: Select requires at least one column")
+	}
+	b.fields = make([]string, len(columns))
+	for index, column := range columns {
+		b.fields[index] = column.Ref().Name
+	}
+	return b
+}
+
+func (b *FieldTypeUpdateOne) SaveOld(ctx context.Context) (old *FieldType, updated *FieldType, err error) {
+	if !b.driver.Capabilities().ReturningOld {
+		return nil, nil, &dialect.UnsupportedError{Feature: "RETURNING OLD", Dialect: dialect.Dialect(b.driver.Dialect())}
+	}
+	b.old = &FieldType{config: b.config}
+	defer func() { b.old = nil }()
+	updated, err = b.Save(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return b.old, updated, nil
+}
+
+func (b *FieldTypeUpdateOne) defaults() error {
+
+	if b.mutation.patch.Int64.IsUnset() && b.mutation.patch.expressions[fieldtype.FieldInt64] == nil {
 		if fieldtype.UpdateDefaultInt64 == nil {
-			return fmt.Errorf("ent: uninitialized fieldtype.UpdateDefaultInt64 (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized fieldtype.UpdateDefaultInt64")
 		}
-		v := fieldtype.UpdateDefaultInt64()
-		_u.mutation.SetInt64(v)
+		b.mutation.patch.Int64 = ent.Some(fieldtype.UpdateDefaultInt64())
 	}
-	if _, ok := _u.mutation.Duration(); !ok && !_u.mutation.DurationCleared() {
+
+	if b.mutation.patch.Duration.IsUnset() && b.mutation.patch.expressions[fieldtype.FieldDuration] == nil {
 		if fieldtype.UpdateDefaultDuration == nil {
-			return fmt.Errorf("ent: uninitialized fieldtype.UpdateDefaultDuration (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized fieldtype.UpdateDefaultDuration")
 		}
-		v := fieldtype.UpdateDefaultDuration()
-		_u.mutation.SetDuration(v)
+		b.mutation.patch.Duration = ent.Some(fieldtype.UpdateDefaultDuration())
 	}
-	if _, ok := _u.mutation.DeletedAt(); !ok && !_u.mutation.DeletedAtCleared() {
+
+	if b.mutation.patch.DeletedAt.IsUnset() && b.mutation.patch.expressions[fieldtype.FieldDeletedAt] == nil {
 		if fieldtype.UpdateDefaultDeletedAt == nil {
-			return fmt.Errorf("ent: uninitialized fieldtype.UpdateDefaultDeletedAt (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized fieldtype.UpdateDefaultDeletedAt")
 		}
-		v := fieldtype.UpdateDefaultDeletedAt()
-		_u.mutation.SetDeletedAt(v)
+		b.mutation.patch.DeletedAt = ent.Some(fieldtype.UpdateDefaultDeletedAt())
 	}
+
 	return nil
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_u *FieldTypeUpdateOne) check() error {
-	if v, ok := _u.mutation.ValidateOptionalInt32(); ok {
+func (b *FieldTypeUpdateOne) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.Int.IsNull() {
+		return &ValidationError{Name: "int", err: errors.New(`ent: field "FieldType.int" is not nullable`)}
+	}
+
+	if b.mutation.patch.Int8.IsNull() {
+		return &ValidationError{Name: "int8", err: errors.New(`ent: field "FieldType.int8" is not nullable`)}
+	}
+
+	if b.mutation.patch.Int16.IsNull() {
+		return &ValidationError{Name: "int16", err: errors.New(`ent: field "FieldType.int16" is not nullable`)}
+	}
+
+	if b.mutation.patch.Int32.IsNull() {
+		return &ValidationError{Name: "int32", err: errors.New(`ent: field "FieldType.int32" is not nullable`)}
+	}
+
+	if b.mutation.patch.Int64.IsNull() {
+		return &ValidationError{Name: "int64", err: errors.New(`ent: field "FieldType.int64" is not nullable`)}
+	}
+
+	if v, ok := b.mutation.patch.ValidateOptionalInt32.Get(); ok && b.mutation.patch.expressions[fieldtype.FieldValidateOptionalInt32] == nil {
+
 		if err := fieldtype.ValidateOptionalInt32Validator(v); err != nil {
 			return &ValidationError{Name: "validate_optional_int32", err: fmt.Errorf(`ent: validator failed for field "FieldType.validate_optional_int32": %w`, err)}
 		}
+
 	}
-	if v, ok := _u.mutation.State(); ok {
+
+	if v, ok := b.mutation.patch.State.Get(); ok && b.mutation.patch.expressions[fieldtype.FieldState] == nil {
+
 		if err := fieldtype.StateValidator(v); err != nil {
 			return &ValidationError{Name: "state", err: fmt.Errorf(`ent: validator failed for field "FieldType.state": %w`, err)}
 		}
+
 	}
-	if v, ok := _u.mutation.MAC(); ok {
+
+	if v, ok := b.mutation.patch.MAC.Get(); ok && b.mutation.patch.expressions[fieldtype.FieldMAC] == nil {
+
 		if err := fieldtype.MACValidator(v); err != nil {
 			return &ValidationError{Name: "mac", err: fmt.Errorf(`ent: validator failed for field "FieldType.mac": %w`, err)}
 		}
+
 	}
-	if v, ok := _u.mutation.Ndir(); ok {
+
+	if b.mutation.patch.Dir.IsNull() {
+		return &ValidationError{Name: "dir", err: errors.New(`ent: field "FieldType.dir" is not nullable`)}
+	}
+
+	if v, ok := b.mutation.patch.Ndir.Get(); ok && b.mutation.patch.expressions[fieldtype.FieldNdir] == nil {
+
 		if err := fieldtype.NdirValidator(v); err != nil {
 			return &ValidationError{Name: "ndir", err: fmt.Errorf(`ent: validator failed for field "FieldType.ndir": %w`, err)}
 		}
+
 	}
-	if v, ok := _u.mutation.Link(); ok {
+
+	if v, ok := b.mutation.patch.Link.Get(); ok && b.mutation.patch.expressions[fieldtype.FieldLink] == nil {
+
 		if err := fieldtype.LinkValidator(v); err != nil {
 			return &ValidationError{Name: "link", err: fmt.Errorf(`ent: validator failed for field "FieldType.link": %w`, err)}
 		}
+
 	}
-	if v, ok := _u.mutation.RawData(); ok {
+
+	if v, ok := b.mutation.patch.RawData.Get(); ok && b.mutation.patch.expressions[fieldtype.FieldRawData] == nil {
+
 		if err := fieldtype.RawDataValidator(v); err != nil {
 			return &ValidationError{Name: "raw_data", err: fmt.Errorf(`ent: validator failed for field "FieldType.raw_data": %w`, err)}
 		}
+
 	}
-	if v, ok := _u.mutation.IP(); ok {
+
+	if v, ok := b.mutation.patch.IP.Get(); ok && b.mutation.patch.expressions[fieldtype.FieldIP] == nil {
+
 		if err := fieldtype.IPValidator(v); err != nil {
 			return &ValidationError{Name: "ip", err: fmt.Errorf(`ent: validator failed for field "FieldType.ip": %w`, err)}
 		}
+
 	}
-	if v, ok := _u.mutation.Role(); ok {
+
+	if b.mutation.patch.Role.IsNull() {
+		return &ValidationError{Name: "role", err: errors.New(`ent: field "FieldType.role" is not nullable`)}
+	}
+
+	if v, ok := b.mutation.patch.Role.Get(); ok && b.mutation.patch.expressions[fieldtype.FieldRole] == nil {
+
 		if err := fieldtype.RoleValidator(v); err != nil {
 			return &ValidationError{Name: "role", err: fmt.Errorf(`ent: validator failed for field "FieldType.role": %w`, err)}
 		}
+
 	}
-	if v, ok := _u.mutation.Priority(); ok {
+
+	if v, ok := b.mutation.patch.Priority.Get(); ok && b.mutation.patch.expressions[fieldtype.FieldPriority] == nil {
+
 		if err := fieldtype.PriorityValidator(v); err != nil {
 			return &ValidationError{Name: "priority", err: fmt.Errorf(`ent: validator failed for field "FieldType.priority": %w`, err)}
 		}
+
 	}
+
+	if b.mutation.patch.Pair.IsNull() {
+		return &ValidationError{Name: "pair", err: errors.New(`ent: field "FieldType.pair" is not nullable`)}
+	}
+
+	if b.mutation.patch.Vstring.IsNull() {
+		return &ValidationError{Name: "vstring", err: errors.New(`ent: field "FieldType.vstring" is not nullable`)}
+	}
+
+	if b.mutation.patch.Triple.IsNull() {
+		return &ValidationError{Name: "triple", err: errors.New(`ent: field "FieldType.triple" is not nullable`)}
+	}
+
 	return nil
 }
 
@@ -3412,468 +1418,476 @@ func (_u *FieldTypeUpdateOne) sqlSave(ctx context.Context) (_node *FieldType, er
 			}
 		}
 	}
-	if value, ok := _u.mutation.Int(); ok {
+	if value, ok := _u.mutation.patch.Int.Get(); ok {
 		_spec.SetField(fieldtype.FieldInt, field.TypeInt, value)
 	}
-	if value, ok := _u.mutation.AddedInt(); ok {
+	if value, ok := _u.mutation.patch.IntAdd.Get(); ok {
 		_spec.AddField(fieldtype.FieldInt, field.TypeInt, value)
 	}
-	if value, ok := _u.mutation.Int8(); ok {
+	if value, ok := _u.mutation.patch.Int8.Get(); ok {
 		_spec.SetField(fieldtype.FieldInt8, field.TypeInt8, value)
 	}
-	if value, ok := _u.mutation.AddedInt8(); ok {
+	if value, ok := _u.mutation.patch.Int8Add.Get(); ok {
 		_spec.AddField(fieldtype.FieldInt8, field.TypeInt8, value)
 	}
-	if value, ok := _u.mutation.Int16(); ok {
+	if value, ok := _u.mutation.patch.Int16.Get(); ok {
 		_spec.SetField(fieldtype.FieldInt16, field.TypeInt16, value)
 	}
-	if value, ok := _u.mutation.AddedInt16(); ok {
+	if value, ok := _u.mutation.patch.Int16Add.Get(); ok {
 		_spec.AddField(fieldtype.FieldInt16, field.TypeInt16, value)
 	}
-	if value, ok := _u.mutation.Int32(); ok {
+	if value, ok := _u.mutation.patch.Int32.Get(); ok {
 		_spec.SetField(fieldtype.FieldInt32, field.TypeInt32, value)
 	}
-	if value, ok := _u.mutation.AddedInt32(); ok {
+	if value, ok := _u.mutation.patch.Int32Add.Get(); ok {
 		_spec.AddField(fieldtype.FieldInt32, field.TypeInt32, value)
 	}
-	if value, ok := _u.mutation.Int64(); ok {
+	if value, ok := _u.mutation.patch.Int64.Get(); ok {
 		_spec.SetField(fieldtype.FieldInt64, field.TypeInt64, value)
 	}
-	if value, ok := _u.mutation.AddedInt64(); ok {
+	if value, ok := _u.mutation.patch.Int64Add.Get(); ok {
 		_spec.AddField(fieldtype.FieldInt64, field.TypeInt64, value)
 	}
-	if value, ok := _u.mutation.OptionalInt(); ok {
+	if value, ok := _u.mutation.patch.OptionalInt.Get(); ok {
 		_spec.SetField(fieldtype.FieldOptionalInt, field.TypeInt, value)
 	}
-	if value, ok := _u.mutation.AddedOptionalInt(); ok {
+	if value, ok := _u.mutation.patch.OptionalIntAdd.Get(); ok {
 		_spec.AddField(fieldtype.FieldOptionalInt, field.TypeInt, value)
 	}
-	if _u.mutation.OptionalIntCleared() {
+	if _u.mutation.patch.OptionalInt.IsNull() {
 		_spec.ClearField(fieldtype.FieldOptionalInt, field.TypeInt)
 	}
-	if value, ok := _u.mutation.OptionalInt8(); ok {
+	if value, ok := _u.mutation.patch.OptionalInt8.Get(); ok {
 		_spec.SetField(fieldtype.FieldOptionalInt8, field.TypeInt8, value)
 	}
-	if value, ok := _u.mutation.AddedOptionalInt8(); ok {
+	if value, ok := _u.mutation.patch.OptionalInt8Add.Get(); ok {
 		_spec.AddField(fieldtype.FieldOptionalInt8, field.TypeInt8, value)
 	}
-	if _u.mutation.OptionalInt8Cleared() {
+	if _u.mutation.patch.OptionalInt8.IsNull() {
 		_spec.ClearField(fieldtype.FieldOptionalInt8, field.TypeInt8)
 	}
-	if value, ok := _u.mutation.OptionalInt16(); ok {
+	if value, ok := _u.mutation.patch.OptionalInt16.Get(); ok {
 		_spec.SetField(fieldtype.FieldOptionalInt16, field.TypeInt16, value)
 	}
-	if value, ok := _u.mutation.AddedOptionalInt16(); ok {
+	if value, ok := _u.mutation.patch.OptionalInt16Add.Get(); ok {
 		_spec.AddField(fieldtype.FieldOptionalInt16, field.TypeInt16, value)
 	}
-	if _u.mutation.OptionalInt16Cleared() {
+	if _u.mutation.patch.OptionalInt16.IsNull() {
 		_spec.ClearField(fieldtype.FieldOptionalInt16, field.TypeInt16)
 	}
-	if value, ok := _u.mutation.OptionalInt32(); ok {
+	if value, ok := _u.mutation.patch.OptionalInt32.Get(); ok {
 		_spec.SetField(fieldtype.FieldOptionalInt32, field.TypeInt32, value)
 	}
-	if value, ok := _u.mutation.AddedOptionalInt32(); ok {
+	if value, ok := _u.mutation.patch.OptionalInt32Add.Get(); ok {
 		_spec.AddField(fieldtype.FieldOptionalInt32, field.TypeInt32, value)
 	}
-	if _u.mutation.OptionalInt32Cleared() {
+	if _u.mutation.patch.OptionalInt32.IsNull() {
 		_spec.ClearField(fieldtype.FieldOptionalInt32, field.TypeInt32)
 	}
-	if value, ok := _u.mutation.OptionalInt64(); ok {
+	if value, ok := _u.mutation.patch.OptionalInt64.Get(); ok {
 		_spec.SetField(fieldtype.FieldOptionalInt64, field.TypeInt64, value)
 	}
-	if value, ok := _u.mutation.AddedOptionalInt64(); ok {
+	if value, ok := _u.mutation.patch.OptionalInt64Add.Get(); ok {
 		_spec.AddField(fieldtype.FieldOptionalInt64, field.TypeInt64, value)
 	}
-	if _u.mutation.OptionalInt64Cleared() {
+	if _u.mutation.patch.OptionalInt64.IsNull() {
 		_spec.ClearField(fieldtype.FieldOptionalInt64, field.TypeInt64)
 	}
-	if value, ok := _u.mutation.NillableInt(); ok {
+	if value, ok := _u.mutation.patch.NillableInt.Get(); ok {
 		_spec.SetField(fieldtype.FieldNillableInt, field.TypeInt, value)
 	}
-	if value, ok := _u.mutation.AddedNillableInt(); ok {
+	if value, ok := _u.mutation.patch.NillableIntAdd.Get(); ok {
 		_spec.AddField(fieldtype.FieldNillableInt, field.TypeInt, value)
 	}
-	if _u.mutation.NillableIntCleared() {
+	if _u.mutation.patch.NillableInt.IsNull() {
 		_spec.ClearField(fieldtype.FieldNillableInt, field.TypeInt)
 	}
-	if value, ok := _u.mutation.NillableInt8(); ok {
+	if value, ok := _u.mutation.patch.NillableInt8.Get(); ok {
 		_spec.SetField(fieldtype.FieldNillableInt8, field.TypeInt8, value)
 	}
-	if value, ok := _u.mutation.AddedNillableInt8(); ok {
+	if value, ok := _u.mutation.patch.NillableInt8Add.Get(); ok {
 		_spec.AddField(fieldtype.FieldNillableInt8, field.TypeInt8, value)
 	}
-	if _u.mutation.NillableInt8Cleared() {
+	if _u.mutation.patch.NillableInt8.IsNull() {
 		_spec.ClearField(fieldtype.FieldNillableInt8, field.TypeInt8)
 	}
-	if value, ok := _u.mutation.NillableInt16(); ok {
+	if value, ok := _u.mutation.patch.NillableInt16.Get(); ok {
 		_spec.SetField(fieldtype.FieldNillableInt16, field.TypeInt16, value)
 	}
-	if value, ok := _u.mutation.AddedNillableInt16(); ok {
+	if value, ok := _u.mutation.patch.NillableInt16Add.Get(); ok {
 		_spec.AddField(fieldtype.FieldNillableInt16, field.TypeInt16, value)
 	}
-	if _u.mutation.NillableInt16Cleared() {
+	if _u.mutation.patch.NillableInt16.IsNull() {
 		_spec.ClearField(fieldtype.FieldNillableInt16, field.TypeInt16)
 	}
-	if value, ok := _u.mutation.NillableInt32(); ok {
+	if value, ok := _u.mutation.patch.NillableInt32.Get(); ok {
 		_spec.SetField(fieldtype.FieldNillableInt32, field.TypeInt32, value)
 	}
-	if value, ok := _u.mutation.AddedNillableInt32(); ok {
+	if value, ok := _u.mutation.patch.NillableInt32Add.Get(); ok {
 		_spec.AddField(fieldtype.FieldNillableInt32, field.TypeInt32, value)
 	}
-	if _u.mutation.NillableInt32Cleared() {
+	if _u.mutation.patch.NillableInt32.IsNull() {
 		_spec.ClearField(fieldtype.FieldNillableInt32, field.TypeInt32)
 	}
-	if value, ok := _u.mutation.NillableInt64(); ok {
+	if value, ok := _u.mutation.patch.NillableInt64.Get(); ok {
 		_spec.SetField(fieldtype.FieldNillableInt64, field.TypeInt64, value)
 	}
-	if value, ok := _u.mutation.AddedNillableInt64(); ok {
+	if value, ok := _u.mutation.patch.NillableInt64Add.Get(); ok {
 		_spec.AddField(fieldtype.FieldNillableInt64, field.TypeInt64, value)
 	}
-	if _u.mutation.NillableInt64Cleared() {
+	if _u.mutation.patch.NillableInt64.IsNull() {
 		_spec.ClearField(fieldtype.FieldNillableInt64, field.TypeInt64)
 	}
-	if value, ok := _u.mutation.ValidateOptionalInt32(); ok {
+	if value, ok := _u.mutation.patch.ValidateOptionalInt32.Get(); ok {
 		_spec.SetField(fieldtype.FieldValidateOptionalInt32, field.TypeInt32, value)
 	}
-	if value, ok := _u.mutation.AddedValidateOptionalInt32(); ok {
+	if value, ok := _u.mutation.patch.ValidateOptionalInt32Add.Get(); ok {
 		_spec.AddField(fieldtype.FieldValidateOptionalInt32, field.TypeInt32, value)
 	}
-	if _u.mutation.ValidateOptionalInt32Cleared() {
+	if _u.mutation.patch.ValidateOptionalInt32.IsNull() {
 		_spec.ClearField(fieldtype.FieldValidateOptionalInt32, field.TypeInt32)
 	}
-	if value, ok := _u.mutation.OptionalUint(); ok {
+	if value, ok := _u.mutation.patch.OptionalUint.Get(); ok {
 		_spec.SetField(fieldtype.FieldOptionalUint, field.TypeUint, value)
 	}
-	if value, ok := _u.mutation.AddedOptionalUint(); ok {
+	if value, ok := _u.mutation.patch.OptionalUintAdd.Get(); ok {
 		_spec.AddField(fieldtype.FieldOptionalUint, field.TypeUint, value)
 	}
-	if _u.mutation.OptionalUintCleared() {
+	if _u.mutation.patch.OptionalUint.IsNull() {
 		_spec.ClearField(fieldtype.FieldOptionalUint, field.TypeUint)
 	}
-	if value, ok := _u.mutation.OptionalUint8(); ok {
+	if value, ok := _u.mutation.patch.OptionalUint8.Get(); ok {
 		_spec.SetField(fieldtype.FieldOptionalUint8, field.TypeUint8, value)
 	}
-	if value, ok := _u.mutation.AddedOptionalUint8(); ok {
+	if value, ok := _u.mutation.patch.OptionalUint8Add.Get(); ok {
 		_spec.AddField(fieldtype.FieldOptionalUint8, field.TypeUint8, value)
 	}
-	if _u.mutation.OptionalUint8Cleared() {
+	if _u.mutation.patch.OptionalUint8.IsNull() {
 		_spec.ClearField(fieldtype.FieldOptionalUint8, field.TypeUint8)
 	}
-	if value, ok := _u.mutation.OptionalUint16(); ok {
+	if value, ok := _u.mutation.patch.OptionalUint16.Get(); ok {
 		_spec.SetField(fieldtype.FieldOptionalUint16, field.TypeUint16, value)
 	}
-	if value, ok := _u.mutation.AddedOptionalUint16(); ok {
+	if value, ok := _u.mutation.patch.OptionalUint16Add.Get(); ok {
 		_spec.AddField(fieldtype.FieldOptionalUint16, field.TypeUint16, value)
 	}
-	if _u.mutation.OptionalUint16Cleared() {
+	if _u.mutation.patch.OptionalUint16.IsNull() {
 		_spec.ClearField(fieldtype.FieldOptionalUint16, field.TypeUint16)
 	}
-	if value, ok := _u.mutation.OptionalUint32(); ok {
+	if value, ok := _u.mutation.patch.OptionalUint32.Get(); ok {
 		_spec.SetField(fieldtype.FieldOptionalUint32, field.TypeUint32, value)
 	}
-	if value, ok := _u.mutation.AddedOptionalUint32(); ok {
+	if value, ok := _u.mutation.patch.OptionalUint32Add.Get(); ok {
 		_spec.AddField(fieldtype.FieldOptionalUint32, field.TypeUint32, value)
 	}
-	if _u.mutation.OptionalUint32Cleared() {
+	if _u.mutation.patch.OptionalUint32.IsNull() {
 		_spec.ClearField(fieldtype.FieldOptionalUint32, field.TypeUint32)
 	}
-	if value, ok := _u.mutation.OptionalUint64(); ok {
+	if value, ok := _u.mutation.patch.OptionalUint64.Get(); ok {
 		_spec.SetField(fieldtype.FieldOptionalUint64, field.TypeUint64, value)
 	}
-	if value, ok := _u.mutation.AddedOptionalUint64(); ok {
+	if value, ok := _u.mutation.patch.OptionalUint64Add.Get(); ok {
 		_spec.AddField(fieldtype.FieldOptionalUint64, field.TypeUint64, value)
 	}
-	if _u.mutation.OptionalUint64Cleared() {
+	if _u.mutation.patch.OptionalUint64.IsNull() {
 		_spec.ClearField(fieldtype.FieldOptionalUint64, field.TypeUint64)
 	}
-	if value, ok := _u.mutation.State(); ok {
+	if value, ok := _u.mutation.patch.State.Get(); ok {
 		_spec.SetField(fieldtype.FieldState, field.TypeEnum, value)
 	}
-	if _u.mutation.StateCleared() {
+	if _u.mutation.patch.State.IsNull() {
 		_spec.ClearField(fieldtype.FieldState, field.TypeEnum)
 	}
-	if value, ok := _u.mutation.OptionalFloat(); ok {
+	if value, ok := _u.mutation.patch.OptionalFloat.Get(); ok {
 		_spec.SetField(fieldtype.FieldOptionalFloat, field.TypeFloat64, value)
 	}
-	if value, ok := _u.mutation.AddedOptionalFloat(); ok {
+	if value, ok := _u.mutation.patch.OptionalFloatAdd.Get(); ok {
 		_spec.AddField(fieldtype.FieldOptionalFloat, field.TypeFloat64, value)
 	}
-	if _u.mutation.OptionalFloatCleared() {
+	if _u.mutation.patch.OptionalFloat.IsNull() {
 		_spec.ClearField(fieldtype.FieldOptionalFloat, field.TypeFloat64)
 	}
-	if value, ok := _u.mutation.OptionalFloat32(); ok {
+	if value, ok := _u.mutation.patch.OptionalFloat32.Get(); ok {
 		_spec.SetField(fieldtype.FieldOptionalFloat32, field.TypeFloat32, value)
 	}
-	if value, ok := _u.mutation.AddedOptionalFloat32(); ok {
+	if value, ok := _u.mutation.patch.OptionalFloat32Add.Get(); ok {
 		_spec.AddField(fieldtype.FieldOptionalFloat32, field.TypeFloat32, value)
 	}
-	if _u.mutation.OptionalFloat32Cleared() {
+	if _u.mutation.patch.OptionalFloat32.IsNull() {
 		_spec.ClearField(fieldtype.FieldOptionalFloat32, field.TypeFloat32)
 	}
-	if value, ok := _u.mutation.Text(); ok {
+	if value, ok := _u.mutation.patch.Text.Get(); ok {
 		_spec.SetField(fieldtype.FieldText, field.TypeString, value)
 	}
-	if _u.mutation.TextCleared() {
+	if _u.mutation.patch.Text.IsNull() {
 		_spec.ClearField(fieldtype.FieldText, field.TypeString)
 	}
-	if value, ok := _u.mutation.Datetime(); ok {
+	if value, ok := _u.mutation.patch.Datetime.Get(); ok {
 		_spec.SetField(fieldtype.FieldDatetime, field.TypeTime, value)
 	}
-	if _u.mutation.DatetimeCleared() {
+	if _u.mutation.patch.Datetime.IsNull() {
 		_spec.ClearField(fieldtype.FieldDatetime, field.TypeTime)
 	}
-	if value, ok := _u.mutation.Decimal(); ok {
+	if value, ok := _u.mutation.patch.Decimal.Get(); ok {
 		_spec.SetField(fieldtype.FieldDecimal, field.TypeFloat64, value)
 	}
-	if value, ok := _u.mutation.AddedDecimal(); ok {
+	if value, ok := _u.mutation.patch.DecimalAdd.Get(); ok {
 		_spec.AddField(fieldtype.FieldDecimal, field.TypeFloat64, value)
 	}
-	if _u.mutation.DecimalCleared() {
+	if _u.mutation.patch.Decimal.IsNull() {
 		_spec.ClearField(fieldtype.FieldDecimal, field.TypeFloat64)
 	}
-	if value, ok := _u.mutation.LinkOther(); ok {
+	if value, ok := _u.mutation.patch.LinkOther.Get(); ok {
 		_spec.SetField(fieldtype.FieldLinkOther, field.TypeOther, value)
 	}
-	if _u.mutation.LinkOtherCleared() {
+	if _u.mutation.patch.LinkOther.IsNull() {
 		_spec.ClearField(fieldtype.FieldLinkOther, field.TypeOther)
 	}
-	if value, ok := _u.mutation.LinkOtherFunc(); ok {
+	if value, ok := _u.mutation.patch.LinkOtherFunc.Get(); ok {
 		_spec.SetField(fieldtype.FieldLinkOtherFunc, field.TypeOther, value)
 	}
-	if _u.mutation.LinkOtherFuncCleared() {
+	if _u.mutation.patch.LinkOtherFunc.IsNull() {
 		_spec.ClearField(fieldtype.FieldLinkOtherFunc, field.TypeOther)
 	}
-	if value, ok := _u.mutation.MAC(); ok {
+	if value, ok := _u.mutation.patch.MAC.Get(); ok {
 		_spec.SetField(fieldtype.FieldMAC, field.TypeString, value)
 	}
-	if _u.mutation.MACCleared() {
+	if _u.mutation.patch.MAC.IsNull() {
 		_spec.ClearField(fieldtype.FieldMAC, field.TypeString)
 	}
-	if value, ok := _u.mutation.StringArray(); ok {
+	if value, ok := _u.mutation.patch.StringArray.Get(); ok {
 		_spec.SetField(fieldtype.FieldStringArray, field.TypeOther, value)
 	}
-	if _u.mutation.StringArrayCleared() {
+	if _u.mutation.patch.StringArray.IsNull() {
 		_spec.ClearField(fieldtype.FieldStringArray, field.TypeOther)
 	}
-	if value, ok := _u.mutation.Password(); ok {
+	if value, ok := _u.mutation.patch.Password.Get(); ok {
 		_spec.SetField(fieldtype.FieldPassword, field.TypeString, value)
 	}
-	if _u.mutation.PasswordCleared() {
+	if _u.mutation.patch.Password.IsNull() {
 		_spec.ClearField(fieldtype.FieldPassword, field.TypeString)
 	}
-	if value, ok := _u.mutation.StringScanner(); ok {
+	if value, ok := _u.mutation.patch.StringScanner.Get(); ok {
 		_spec.SetField(fieldtype.FieldStringScanner, field.TypeString, value)
 	}
-	if _u.mutation.StringScannerCleared() {
+	if _u.mutation.patch.StringScanner.IsNull() {
 		_spec.ClearField(fieldtype.FieldStringScanner, field.TypeString)
 	}
-	if value, ok := _u.mutation.Duration(); ok {
+	if value, ok := _u.mutation.patch.Duration.Get(); ok {
 		_spec.SetField(fieldtype.FieldDuration, field.TypeInt64, value)
 	}
-	if value, ok := _u.mutation.AddedDuration(); ok {
+	if value, ok := _u.mutation.patch.DurationAdd.Get(); ok {
 		_spec.AddField(fieldtype.FieldDuration, field.TypeInt64, value)
 	}
-	if _u.mutation.DurationCleared() {
+	if _u.mutation.patch.Duration.IsNull() {
 		_spec.ClearField(fieldtype.FieldDuration, field.TypeInt64)
 	}
-	if value, ok := _u.mutation.Dir(); ok {
+	if value, ok := _u.mutation.patch.Dir.Get(); ok {
 		_spec.SetField(fieldtype.FieldDir, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.Ndir(); ok {
+	if value, ok := _u.mutation.patch.Ndir.Get(); ok {
 		_spec.SetField(fieldtype.FieldNdir, field.TypeString, value)
 	}
-	if _u.mutation.NdirCleared() {
+	if _u.mutation.patch.Ndir.IsNull() {
 		_spec.ClearField(fieldtype.FieldNdir, field.TypeString)
 	}
-	if value, ok := _u.mutation.Str(); ok {
+	if value, ok := _u.mutation.patch.Str.Get(); ok {
 		_spec.SetField(fieldtype.FieldStr, field.TypeString, value)
 	}
-	if _u.mutation.StrCleared() {
+	if _u.mutation.patch.Str.IsNull() {
 		_spec.ClearField(fieldtype.FieldStr, field.TypeString)
 	}
-	if value, ok := _u.mutation.NullStr(); ok {
+	if value, ok := _u.mutation.patch.NullStr.Get(); ok {
 		_spec.SetField(fieldtype.FieldNullStr, field.TypeString, value)
 	}
-	if _u.mutation.NullStrCleared() {
+	if _u.mutation.patch.NullStr.IsNull() {
 		_spec.ClearField(fieldtype.FieldNullStr, field.TypeString)
 	}
-	if value, ok := _u.mutation.Link(); ok {
+	if value, ok := _u.mutation.patch.Link.Get(); ok {
 		_spec.SetField(fieldtype.FieldLink, field.TypeString, value)
 	}
-	if _u.mutation.LinkCleared() {
+	if _u.mutation.patch.Link.IsNull() {
 		_spec.ClearField(fieldtype.FieldLink, field.TypeString)
 	}
-	if value, ok := _u.mutation.NullLink(); ok {
+	if value, ok := _u.mutation.patch.NullLink.Get(); ok {
 		_spec.SetField(fieldtype.FieldNullLink, field.TypeString, value)
 	}
-	if _u.mutation.NullLinkCleared() {
+	if _u.mutation.patch.NullLink.IsNull() {
 		_spec.ClearField(fieldtype.FieldNullLink, field.TypeString)
 	}
-	if value, ok := _u.mutation.Active(); ok {
+	if value, ok := _u.mutation.patch.Active.Get(); ok {
 		_spec.SetField(fieldtype.FieldActive, field.TypeBool, value)
 	}
-	if _u.mutation.ActiveCleared() {
+	if _u.mutation.patch.Active.IsNull() {
 		_spec.ClearField(fieldtype.FieldActive, field.TypeBool)
 	}
-	if value, ok := _u.mutation.NullActive(); ok {
+	if value, ok := _u.mutation.patch.NullActive.Get(); ok {
 		_spec.SetField(fieldtype.FieldNullActive, field.TypeBool, value)
 	}
-	if _u.mutation.NullActiveCleared() {
+	if _u.mutation.patch.NullActive.IsNull() {
 		_spec.ClearField(fieldtype.FieldNullActive, field.TypeBool)
 	}
-	if value, ok := _u.mutation.Deleted(); ok {
+	if value, ok := _u.mutation.patch.Deleted.Get(); ok {
 		_spec.SetField(fieldtype.FieldDeleted, field.TypeBool, value)
 	}
-	if _u.mutation.DeletedCleared() {
+	if _u.mutation.patch.Deleted.IsNull() {
 		_spec.ClearField(fieldtype.FieldDeleted, field.TypeBool)
 	}
-	if value, ok := _u.mutation.DeletedAt(); ok {
+	if value, ok := _u.mutation.patch.DeletedAt.Get(); ok {
 		_spec.SetField(fieldtype.FieldDeletedAt, field.TypeTime, value)
 	}
-	if _u.mutation.DeletedAtCleared() {
+	if _u.mutation.patch.DeletedAt.IsNull() {
 		_spec.ClearField(fieldtype.FieldDeletedAt, field.TypeTime)
 	}
-	if value, ok := _u.mutation.RawData(); ok {
+	if value, ok := _u.mutation.patch.RawData.Get(); ok {
 		_spec.SetField(fieldtype.FieldRawData, field.TypeBytes, value)
 	}
-	if _u.mutation.RawDataCleared() {
+	if _u.mutation.patch.RawData.IsNull() {
 		_spec.ClearField(fieldtype.FieldRawData, field.TypeBytes)
 	}
-	if value, ok := _u.mutation.Sensitive(); ok {
+	if value, ok := _u.mutation.patch.Sensitive.Get(); ok {
 		_spec.SetField(fieldtype.FieldSensitive, field.TypeBytes, value)
 	}
-	if _u.mutation.SensitiveCleared() {
+	if _u.mutation.patch.Sensitive.IsNull() {
 		_spec.ClearField(fieldtype.FieldSensitive, field.TypeBytes)
 	}
-	if value, ok := _u.mutation.IP(); ok {
+	if value, ok := _u.mutation.patch.IP.Get(); ok {
 		_spec.SetField(fieldtype.FieldIP, field.TypeBytes, value)
 	}
-	if _u.mutation.IPCleared() {
+	if _u.mutation.patch.IP.IsNull() {
 		_spec.ClearField(fieldtype.FieldIP, field.TypeBytes)
 	}
-	if value, ok := _u.mutation.NullInt64(); ok {
+	if value, ok := _u.mutation.patch.NullInt64.Get(); ok {
 		_spec.SetField(fieldtype.FieldNullInt64, field.TypeInt, value)
 	}
-	if _u.mutation.NullInt64Cleared() {
+	if _u.mutation.patch.NullInt64.IsNull() {
 		_spec.ClearField(fieldtype.FieldNullInt64, field.TypeInt)
 	}
-	if value, ok := _u.mutation.SchemaInt(); ok {
+	if value, ok := _u.mutation.patch.SchemaInt.Get(); ok {
 		_spec.SetField(fieldtype.FieldSchemaInt, field.TypeInt, value)
 	}
-	if value, ok := _u.mutation.AddedSchemaInt(); ok {
+	if value, ok := _u.mutation.patch.SchemaIntAdd.Get(); ok {
 		_spec.AddField(fieldtype.FieldSchemaInt, field.TypeInt, value)
 	}
-	if _u.mutation.SchemaIntCleared() {
+	if _u.mutation.patch.SchemaInt.IsNull() {
 		_spec.ClearField(fieldtype.FieldSchemaInt, field.TypeInt)
 	}
-	if value, ok := _u.mutation.SchemaInt8(); ok {
+	if value, ok := _u.mutation.patch.SchemaInt8.Get(); ok {
 		_spec.SetField(fieldtype.FieldSchemaInt8, field.TypeInt8, value)
 	}
-	if value, ok := _u.mutation.AddedSchemaInt8(); ok {
+	if value, ok := _u.mutation.patch.SchemaInt8Add.Get(); ok {
 		_spec.AddField(fieldtype.FieldSchemaInt8, field.TypeInt8, value)
 	}
-	if _u.mutation.SchemaInt8Cleared() {
+	if _u.mutation.patch.SchemaInt8.IsNull() {
 		_spec.ClearField(fieldtype.FieldSchemaInt8, field.TypeInt8)
 	}
-	if value, ok := _u.mutation.SchemaInt64(); ok {
+	if value, ok := _u.mutation.patch.SchemaInt64.Get(); ok {
 		_spec.SetField(fieldtype.FieldSchemaInt64, field.TypeInt64, value)
 	}
-	if value, ok := _u.mutation.AddedSchemaInt64(); ok {
+	if value, ok := _u.mutation.patch.SchemaInt64Add.Get(); ok {
 		_spec.AddField(fieldtype.FieldSchemaInt64, field.TypeInt64, value)
 	}
-	if _u.mutation.SchemaInt64Cleared() {
+	if _u.mutation.patch.SchemaInt64.IsNull() {
 		_spec.ClearField(fieldtype.FieldSchemaInt64, field.TypeInt64)
 	}
-	if value, ok := _u.mutation.SchemaFloat(); ok {
+	if value, ok := _u.mutation.patch.SchemaFloat.Get(); ok {
 		_spec.SetField(fieldtype.FieldSchemaFloat, field.TypeFloat64, value)
 	}
-	if value, ok := _u.mutation.AddedSchemaFloat(); ok {
+	if value, ok := _u.mutation.patch.SchemaFloatAdd.Get(); ok {
 		_spec.AddField(fieldtype.FieldSchemaFloat, field.TypeFloat64, value)
 	}
-	if _u.mutation.SchemaFloatCleared() {
+	if _u.mutation.patch.SchemaFloat.IsNull() {
 		_spec.ClearField(fieldtype.FieldSchemaFloat, field.TypeFloat64)
 	}
-	if value, ok := _u.mutation.SchemaFloat32(); ok {
+	if value, ok := _u.mutation.patch.SchemaFloat32.Get(); ok {
 		_spec.SetField(fieldtype.FieldSchemaFloat32, field.TypeFloat32, value)
 	}
-	if value, ok := _u.mutation.AddedSchemaFloat32(); ok {
+	if value, ok := _u.mutation.patch.SchemaFloat32Add.Get(); ok {
 		_spec.AddField(fieldtype.FieldSchemaFloat32, field.TypeFloat32, value)
 	}
-	if _u.mutation.SchemaFloat32Cleared() {
+	if _u.mutation.patch.SchemaFloat32.IsNull() {
 		_spec.ClearField(fieldtype.FieldSchemaFloat32, field.TypeFloat32)
 	}
-	if value, ok := _u.mutation.NullFloat(); ok {
+	if value, ok := _u.mutation.patch.NullFloat.Get(); ok {
 		_spec.SetField(fieldtype.FieldNullFloat, field.TypeFloat64, value)
 	}
-	if _u.mutation.NullFloatCleared() {
+	if _u.mutation.patch.NullFloat.IsNull() {
 		_spec.ClearField(fieldtype.FieldNullFloat, field.TypeFloat64)
 	}
-	if value, ok := _u.mutation.Role(); ok {
+	if value, ok := _u.mutation.patch.Role.Get(); ok {
 		_spec.SetField(fieldtype.FieldRole, field.TypeEnum, value)
 	}
-	if value, ok := _u.mutation.Priority(); ok {
+	if value, ok := _u.mutation.patch.Priority.Get(); ok {
 		_spec.SetField(fieldtype.FieldPriority, field.TypeEnum, value)
 	}
-	if _u.mutation.PriorityCleared() {
+	if _u.mutation.patch.Priority.IsNull() {
 		_spec.ClearField(fieldtype.FieldPriority, field.TypeEnum)
 	}
-	if value, ok := _u.mutation.OptionalUUID(); ok {
+	if value, ok := _u.mutation.patch.OptionalUUID.Get(); ok {
 		_spec.SetField(fieldtype.FieldOptionalUUID, field.TypeUUID, value)
 	}
-	if _u.mutation.OptionalUUIDCleared() {
+	if _u.mutation.patch.OptionalUUID.IsNull() {
 		_spec.ClearField(fieldtype.FieldOptionalUUID, field.TypeUUID)
 	}
-	if value, ok := _u.mutation.NillableUUID(); ok {
+	if value, ok := _u.mutation.patch.NillableUUID.Get(); ok {
 		_spec.SetField(fieldtype.FieldNillableUUID, field.TypeUUID, value)
 	}
-	if _u.mutation.NillableUUIDCleared() {
+	if _u.mutation.patch.NillableUUID.IsNull() {
 		_spec.ClearField(fieldtype.FieldNillableUUID, field.TypeUUID)
 	}
-	if value, ok := _u.mutation.Strings(); ok {
+	if value, ok := _u.mutation.patch.Strings.Get(); ok {
 		_spec.SetField(fieldtype.FieldStrings, field.TypeJSON, value)
 	}
-	if value, ok := _u.mutation.AppendedStrings(); ok {
+	if value := _u.mutation.patch.StringsAppend; len(value) > 0 {
 		_spec.AddModifier(func(u *sql.UpdateBuilder) {
 			sqljson.Append(u, fieldtype.FieldStrings, value)
 		})
 	}
-	if _u.mutation.StringsCleared() {
+	if _u.mutation.patch.Strings.IsNull() {
 		_spec.ClearField(fieldtype.FieldStrings, field.TypeJSON)
 	}
-	if value, ok := _u.mutation.Pair(); ok {
+	if value, ok := _u.mutation.patch.Pair.Get(); ok {
 		_spec.SetField(fieldtype.FieldPair, field.TypeBytes, value)
 	}
-	if value, ok := _u.mutation.NilPair(); ok {
+	if value, ok := _u.mutation.patch.NilPair.Get(); ok {
 		_spec.SetField(fieldtype.FieldNilPair, field.TypeBytes, value)
 	}
-	if _u.mutation.NilPairCleared() {
+	if _u.mutation.patch.NilPair.IsNull() {
 		_spec.ClearField(fieldtype.FieldNilPair, field.TypeBytes)
 	}
-	if value, ok := _u.mutation.Vstring(); ok {
+	if value, ok := _u.mutation.patch.Vstring.Get(); ok {
 		_spec.SetField(fieldtype.FieldVstring, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.Triple(); ok {
+	if value, ok := _u.mutation.patch.Triple.Get(); ok {
 		_spec.SetField(fieldtype.FieldTriple, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.BigInt(); ok {
+	if value, ok := _u.mutation.patch.BigInt.Get(); ok {
 		_spec.SetField(fieldtype.FieldBigInt, field.TypeInt, value)
 	}
-	if value, ok := _u.mutation.AddedBigInt(); ok {
+	if value, ok := _u.mutation.patch.BigIntAdd.Get(); ok {
 		_spec.AddField(fieldtype.FieldBigInt, field.TypeInt, value)
 	}
-	if _u.mutation.BigIntCleared() {
+	if _u.mutation.patch.BigInt.IsNull() {
 		_spec.ClearField(fieldtype.FieldBigInt, field.TypeInt)
 	}
-	if value, ok := _u.mutation.PasswordOther(); ok {
+	if value, ok := _u.mutation.patch.PasswordOther.Get(); ok {
 		_spec.SetField(fieldtype.FieldPasswordOther, field.TypeOther, value)
 	}
-	if _u.mutation.PasswordOtherCleared() {
+	if _u.mutation.patch.PasswordOther.IsNull() {
 		_spec.ClearField(fieldtype.FieldPasswordOther, field.TypeOther)
 	}
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
 	_spec.AddModifiers(_u.modifiers...)
+
 	_node = &FieldType{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
+	if _u.old != nil {
+		_spec.OldScanValues = _u.old.scanValues
+		_spec.OldAssign = _u.old.assignValues
+	}
 	if err = sqlgraph.UpdateNode(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{fieldtype.Label}
@@ -3882,6 +1896,5 @@ func (_u *FieldTypeUpdateOne) sqlSave(ctx context.Context) (_node *FieldType, er
 		}
 		return nil, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }

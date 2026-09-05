@@ -10,8 +10,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	time2 "time"
 
-	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
 	task2 "github.com/neko-sc/ent/entc/integration/ent/schema/task"
 	"github.com/neko-sc/ent/entc/integration/ent/task"
@@ -27,7 +27,7 @@ type Task struct {
 	// Priorities holds the value of the "priorities" field.
 	Priorities map[string]task2.Priority `json:"priorities,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
-	CreatedAt *time.Time `json:"created_at,omitempty"`
+	CreatedAt *time2.Time `json:"created_at,omitempty"`
 	// Name holds the value of the "name" field.
 	//
 	// Deprecated: Field "name" was marked as deprecated in the schema.
@@ -36,11 +36,10 @@ type Task struct {
 	Owner string `json:"owner,omitempty"`
 	// Order holds the value of the "order" field.
 	Order int `json:"order,omitempty"`
-	// OrderOption holds the value of the "order_option" field.
-	OrderOption int `json:"order_option,omitempty"`
+	// OrderingOption holds the value of the "ordering_option" field.
+	OrderingOption int `json:"ordering_option,omitempty"`
 	// Op holds the value of the "op" field.
-	Op           string `json:"op,omitempty"`
-	selectValues sql.SelectValues
+	Op string `json:"op,omitempty"`
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -48,14 +47,16 @@ func (*Task) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case task.FieldID, task.FieldOrder, task.FieldOrderingOption:
+			values[i] = new(*int)
+		case task.FieldName, task.FieldOwner, task.FieldOp:
+			values[i] = new(*string)
+		case task.FieldPriority:
+			values[i] = new(*task2.Priority)
+		case task.FieldCreatedAt:
+			values[i] = new(*time2.Time)
 		case task.FieldPriorities:
 			values[i] = new([]byte)
-		case task.FieldID, task.FieldPriority, task.FieldOrder, task.FieldOrderOption:
-			values[i] = new(sql.NullInt64)
-		case task.FieldName, task.FieldOwner, task.FieldOp:
-			values[i] = new(sql.NullString)
-		case task.FieldCreatedAt:
-			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -72,16 +73,18 @@ func (_m *Task) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case task.FieldID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field id", values[i])
-			} else if value.Valid {
-				_m.ID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.ID = **value
 			}
 		case task.FieldPriority:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**task2.Priority); !ok {
 				return fmt.Errorf("unexpected type %T for field priority", values[i])
-			} else if value.Valid {
-				_m.Priority = task2.Priority(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.Priority = **value
 			}
 		case task.FieldPriorities:
 			if value, ok := values[i].(*[]byte); !ok {
@@ -92,53 +95,50 @@ func (_m *Task) assignValues(columns []string, values []any) error {
 				}
 			}
 		case task.FieldCreatedAt:
-			if value, ok := values[i].(*sql.NullTime); !ok {
+
+			if value, ok := values[i].(**time2.Time); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
-			} else if value.Valid {
-				_m.CreatedAt = new(time.Time)
-				*_m.CreatedAt = time.Time(value.Time)
+			} else if value != nil && *value != nil {
+				_m.CreatedAt = *value
 			}
 		case task.FieldName:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field name", values[i])
-			} else if value.Valid {
-				_m.Name = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.Name = **value
 			}
 		case task.FieldOwner:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field owner", values[i])
-			} else if value.Valid {
-				_m.Owner = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.Owner = **value
 			}
 		case task.FieldOrder:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field order", values[i])
-			} else if value.Valid {
-				_m.Order = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.Order = **value
 			}
-		case task.FieldOrderOption:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
-				return fmt.Errorf("unexpected type %T for field order_option", values[i])
-			} else if value.Valid {
-				_m.OrderOption = int(value.Int64)
+		case task.FieldOrderingOption:
+
+			if value, ok := values[i].(**int); !ok {
+				return fmt.Errorf("unexpected type %T for field ordering_option", values[i])
+			} else if value != nil && *value != nil {
+				_m.OrderingOption = **value
 			}
 		case task.FieldOp:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field op", values[i])
-			} else if value.Valid {
-				_m.Op = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.Op = **value
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the Task.
-// This includes values selected through modifiers, order, etc.
-func (_m *Task) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // Update returns a builder for updating this Task.
@@ -184,8 +184,8 @@ func (_m *Task) String() string {
 	builder.WriteString("order=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Order))
 	builder.WriteString(", ")
-	builder.WriteString("order_option=")
-	builder.WriteString(fmt.Sprintf("%v", _m.OrderOption))
+	builder.WriteString("ordering_option=")
+	builder.WriteString(fmt.Sprintf("%v", _m.OrderingOption))
 	builder.WriteString(", ")
 	builder.WriteString("op=")
 	builder.WriteString(_m.Op)

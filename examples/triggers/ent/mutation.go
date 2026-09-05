@@ -6,104 +6,64 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
 
 	"github.com/neko-sc/ent"
-	"github.com/neko-sc/ent/examples/triggers/ent/user"
-	"github.com/neko-sc/ent/examples/triggers/ent/userauditlog"
+	"github.com/neko-sc/ent/examples/triggers/ent/entity"
 )
 
 const (
-	// Operation types.
 	OpCreate    = ent.OpCreate
-	OpDelete    = ent.OpDelete
-	OpDeleteOne = ent.OpDeleteOne
 	OpUpdate    = ent.OpUpdate
 	OpUpdateOne = ent.OpUpdateOne
+	OpDelete    = ent.OpDelete
+	OpDeleteOne = ent.OpDeleteOne
 
-	// Node types.
-	TypeUser         = "User"
+	TypeUser = "User"
+
 	TypeUserAuditLog = "UserAuditLog"
 )
 
-// UserMutation represents an operation that mutates the User nodes in the graph.
 type UserMutation struct {
-	user.Mutation
 	config
-	id       *int
-	done     bool
-	oldValue func(context.Context) (*User, error)
+	op         ent.Op
+	id         *int
+	insert     *UserInsert
+	patch      *UserPatch
+	predicates []ent.Predicate[entity.User]
 }
 
-var _ ent.Mutation = (*UserMutation)(nil)
-
-// userOption allows management of the mutation configuration using functional options.
-type userOption func(*UserMutation)
-
-// newUserMutation creates new mutation for the User entity.
-func newUserMutation(c config, op Op, opts ...userOption) *UserMutation {
-	m := &UserMutation{
-		Mutation: *user.NewMutation(op),
-		config:   c,
+func newUserMutation(c config, op ent.Op) *UserMutation {
+	m := &UserMutation{config: c, op: op}
+	if op.Is(OpCreate) {
+		m.insert = &UserInsert{}
 	}
-	for _, opt := range opts {
-		opt(m)
+	if op.Is(OpUpdate | OpUpdateOne) {
+		m.patch = &UserPatch{}
 	}
 	return m
 }
 
-// ID returns the ID value in the mutation. Note that the ID is only available
-// if it was provided to the builder or after it was returned from the database.
-func (m *UserMutation) ID() (id int, exists bool) {
-	if m.id == nil {
-		return
-	}
-	return *m.id, true
+func (m *UserMutation) Op() ent.Op { return m.op }
+
+func (m *UserMutation) Type() string { return "User" }
+
+func (m *UserMutation) Insert() *UserInsert { return m.insert }
+
+func (m *UserMutation) Patch() *UserPatch { return m.patch }
+
+func (m *UserMutation) Predicates() []ent.Predicate[entity.User] { return m.predicates }
+
+func (m *UserMutation) Where(predicates ...ent.Predicate[entity.User]) {
+	m.predicates = append(m.predicates, predicates...)
 }
 
-// withUserID sets the ID field of the mutation.
-func withUserID(id int) userOption {
-	return func(m *UserMutation) {
-		var (
-			err   error
-			once  sync.Once
-			value *User
-		)
-		m.oldValue = func(ctx context.Context) (*User, error) {
-			once.Do(func() {
-				if m.done {
-					err = errors.New("querying old values post mutation is not allowed")
-				} else {
-					value, err = m.Client().User.Get(ctx, id)
-				}
-			})
-			return value, err
-		}
-		m.id = &id
-	}
-}
-
-// withUser sets the old User of the mutation.
-func withUser(node *User) userOption {
-	return func(m *UserMutation) {
-		m.oldValue = func(context.Context) (*User, error) {
-			return node, nil
-		}
-		m.id = &node.ID
-	}
-}
-
-// Client returns a new `ent.Client` from the mutation. If the mutation was
-// executed in a transaction (ent.Tx), a transactional client is returned.
-func (m UserMutation) Client() *Client {
+func (m *UserMutation) Client() *Client {
 	client := &Client{config: m.config}
 	client.init()
 	return client
 }
 
-// Tx returns an `ent.Tx` for mutations that were executed in transactions;
-// it returns an error otherwise.
-func (m UserMutation) Tx() (*Tx, error) {
+func (m *UserMutation) Tx() (*Tx, error) {
 	if _, ok := m.driver.(*txDriver); !ok {
 		return nil, errors.New("ent: mutation is not running in a transaction")
 	}
@@ -112,131 +72,69 @@ func (m UserMutation) Tx() (*Tx, error) {
 	return tx, nil
 }
 
-// IDs queries the database and returns the entity ids that match the mutation's predicate.
-// That means, if the mutation is applied within a transaction with an isolation level such
-// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
-// or updated by the mutation.
+func (m *UserMutation) ID() (id int, exists bool) {
+	if m.id != nil {
+		return *m.id, true
+	}
+
+	return id, false
+}
+
 func (m *UserMutation) IDs(ctx context.Context) ([]int, error) {
 	switch {
-	case m.Op().Is(OpUpdateOne | OpDeleteOne):
-		id, exists := m.ID()
-		if exists {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		if id, exists := m.ID(); exists {
 			return []int{id}, nil
 		}
 		fallthrough
-	case m.Op().Is(OpUpdate | OpDelete):
-		return m.Client().User.Query().Where(m.Predicates()...).IDs(ctx)
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().User.Query().Where(m.predicates...).IDs(ctx)
 	default:
-		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.Op())
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
 	}
 }
 
-// OldName returns the old "name" field's value of the User entity.
-// If the User object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *UserMutation) OldName(ctx context.Context) (v string, err error) {
-	if !m.Op().Is(OpUpdateOne) {
-		return v, errors.New("OldName is only allowed on UpdateOne operations")
-	}
-	if _, exists := m.ID(); !exists || m.oldValue == nil {
-		return v, errors.New("OldName requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldName: %w", err)
-	}
-	return oldValue.Name, nil
-}
-
-// OldField returns the old value of the field from the database. An error is
-// returned if the mutation operation is not UpdateOne, or the query to the
-// database failed.
-func (m *UserMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
-	switch name {
-	case user.FieldName:
-		return m.OldName(ctx)
-	}
-	return nil, fmt.Errorf("unknown User field %s", name)
-}
-
-// UserAuditLogMutation represents an operation that mutates the UserAuditLog nodes in the graph.
 type UserAuditLogMutation struct {
-	userauditlog.Mutation
 	config
-	id       *int
-	done     bool
-	oldValue func(context.Context) (*UserAuditLog, error)
+	op         ent.Op
+	id         *int
+	insert     *UserAuditLogInsert
+	patch      *UserAuditLogPatch
+	predicates []ent.Predicate[entity.UserAuditLog]
 }
 
-var _ ent.Mutation = (*UserAuditLogMutation)(nil)
-
-// userauditlogOption allows management of the mutation configuration using functional options.
-type userauditlogOption func(*UserAuditLogMutation)
-
-// newUserAuditLogMutation creates new mutation for the UserAuditLog entity.
-func newUserAuditLogMutation(c config, op Op, opts ...userauditlogOption) *UserAuditLogMutation {
-	m := &UserAuditLogMutation{
-		Mutation: *userauditlog.NewMutation(op),
-		config:   c,
+func newUserAuditLogMutation(c config, op ent.Op) *UserAuditLogMutation {
+	m := &UserAuditLogMutation{config: c, op: op}
+	if op.Is(OpCreate) {
+		m.insert = &UserAuditLogInsert{}
 	}
-	for _, opt := range opts {
-		opt(m)
+	if op.Is(OpUpdate | OpUpdateOne) {
+		m.patch = &UserAuditLogPatch{}
 	}
 	return m
 }
 
-// ID returns the ID value in the mutation. Note that the ID is only available
-// if it was provided to the builder or after it was returned from the database.
-func (m *UserAuditLogMutation) ID() (id int, exists bool) {
-	if m.id == nil {
-		return
-	}
-	return *m.id, true
+func (m *UserAuditLogMutation) Op() ent.Op { return m.op }
+
+func (m *UserAuditLogMutation) Type() string { return "UserAuditLog" }
+
+func (m *UserAuditLogMutation) Insert() *UserAuditLogInsert { return m.insert }
+
+func (m *UserAuditLogMutation) Patch() *UserAuditLogPatch { return m.patch }
+
+func (m *UserAuditLogMutation) Predicates() []ent.Predicate[entity.UserAuditLog] { return m.predicates }
+
+func (m *UserAuditLogMutation) Where(predicates ...ent.Predicate[entity.UserAuditLog]) {
+	m.predicates = append(m.predicates, predicates...)
 }
 
-// withUserAuditLogID sets the ID field of the mutation.
-func withUserAuditLogID(id int) userauditlogOption {
-	return func(m *UserAuditLogMutation) {
-		var (
-			err   error
-			once  sync.Once
-			value *UserAuditLog
-		)
-		m.oldValue = func(ctx context.Context) (*UserAuditLog, error) {
-			once.Do(func() {
-				if m.done {
-					err = errors.New("querying old values post mutation is not allowed")
-				} else {
-					value, err = m.Client().UserAuditLog.Get(ctx, id)
-				}
-			})
-			return value, err
-		}
-		m.id = &id
-	}
-}
-
-// withUserAuditLog sets the old UserAuditLog of the mutation.
-func withUserAuditLog(node *UserAuditLog) userauditlogOption {
-	return func(m *UserAuditLogMutation) {
-		m.oldValue = func(context.Context) (*UserAuditLog, error) {
-			return node, nil
-		}
-		m.id = &node.ID
-	}
-}
-
-// Client returns a new `ent.Client` from the mutation. If the mutation was
-// executed in a transaction (ent.Tx), a transactional client is returned.
-func (m UserAuditLogMutation) Client() *Client {
+func (m *UserAuditLogMutation) Client() *Client {
 	client := &Client{config: m.config}
 	client.init()
 	return client
 }
 
-// Tx returns an `ent.Tx` for mutations that were executed in transactions;
-// it returns an error otherwise.
-func (m UserAuditLogMutation) Tx() (*Tx, error) {
+func (m *UserAuditLogMutation) Tx() (*Tx, error) {
 	if _, ok := m.driver.(*txDriver); !ok {
 		return nil, errors.New("ent: mutation is not running in a transaction")
 	}
@@ -245,106 +143,24 @@ func (m UserAuditLogMutation) Tx() (*Tx, error) {
 	return tx, nil
 }
 
-// IDs queries the database and returns the entity ids that match the mutation's predicate.
-// That means, if the mutation is applied within a transaction with an isolation level such
-// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
-// or updated by the mutation.
+func (m *UserAuditLogMutation) ID() (id int, exists bool) {
+	if m.id != nil {
+		return *m.id, true
+	}
+
+	return id, false
+}
+
 func (m *UserAuditLogMutation) IDs(ctx context.Context) ([]int, error) {
 	switch {
-	case m.Op().Is(OpUpdateOne | OpDeleteOne):
-		id, exists := m.ID()
-		if exists {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		if id, exists := m.ID(); exists {
 			return []int{id}, nil
 		}
 		fallthrough
-	case m.Op().Is(OpUpdate | OpDelete):
-		return m.Client().UserAuditLog.Query().Where(m.Predicates()...).IDs(ctx)
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().UserAuditLog.Query().Where(m.predicates...).IDs(ctx)
 	default:
-		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.Op())
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
 	}
-}
-
-// OldOperationType returns the old "operation_type" field's value of the UserAuditLog entity.
-// If the UserAuditLog object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *UserAuditLogMutation) OldOperationType(ctx context.Context) (v string, err error) {
-	if !m.Op().Is(OpUpdateOne) {
-		return v, errors.New("OldOperationType is only allowed on UpdateOne operations")
-	}
-	if _, exists := m.ID(); !exists || m.oldValue == nil {
-		return v, errors.New("OldOperationType requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldOperationType: %w", err)
-	}
-	return oldValue.OperationType, nil
-}
-
-// OldOperationTime returns the old "operation_time" field's value of the UserAuditLog entity.
-// If the UserAuditLog object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *UserAuditLogMutation) OldOperationTime(ctx context.Context) (v string, err error) {
-	if !m.Op().Is(OpUpdateOne) {
-		return v, errors.New("OldOperationTime is only allowed on UpdateOne operations")
-	}
-	if _, exists := m.ID(); !exists || m.oldValue == nil {
-		return v, errors.New("OldOperationTime requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldOperationTime: %w", err)
-	}
-	return oldValue.OperationTime, nil
-}
-
-// OldOldValue returns the old "old_value" field's value of the UserAuditLog entity.
-// If the UserAuditLog object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *UserAuditLogMutation) OldOldValue(ctx context.Context) (v string, err error) {
-	if !m.Op().Is(OpUpdateOne) {
-		return v, errors.New("OldOldValue is only allowed on UpdateOne operations")
-	}
-	if _, exists := m.ID(); !exists || m.oldValue == nil {
-		return v, errors.New("OldOldValue requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldOldValue: %w", err)
-	}
-	return oldValue.OldValue, nil
-}
-
-// OldNewValue returns the old "new_value" field's value of the UserAuditLog entity.
-// If the UserAuditLog object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *UserAuditLogMutation) OldNewValue(ctx context.Context) (v string, err error) {
-	if !m.Op().Is(OpUpdateOne) {
-		return v, errors.New("OldNewValue is only allowed on UpdateOne operations")
-	}
-	if _, exists := m.ID(); !exists || m.oldValue == nil {
-		return v, errors.New("OldNewValue requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldNewValue: %w", err)
-	}
-	return oldValue.NewValue, nil
-}
-
-// OldField returns the old value of the field from the database. An error is
-// returned if the mutation operation is not UpdateOne, or the query to the
-// database failed.
-func (m *UserAuditLogMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
-	switch name {
-	case userauditlog.FieldOperationType:
-		return m.OldOperationType(ctx)
-	case userauditlog.FieldOperationTime:
-		return m.OldOperationTime(ctx)
-	case userauditlog.FieldOldValue:
-		return m.OldOldValue(ctx)
-	case userauditlog.FieldNewValue:
-		return m.OldNewValue(ctx)
-	}
-	return nil, fmt.Errorf("unknown UserAuditLog field %s", name)
 }

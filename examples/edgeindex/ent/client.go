@@ -12,10 +12,10 @@ import (
 	"log"
 	"reflect"
 
-	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/examples/edgeindex/ent/migrate"
 
 	"github.com/neko-sc/ent/dialect"
+	"github.com/neko-sc/ent/dialect/pg"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/examples/edgeindex/ent/city"
@@ -34,7 +34,7 @@ type Client struct {
 }
 
 // NewClient creates a new client configured with the given options.
-func NewClient(opts ...Option) *Client {
+func NewClient(opts ...ClientOption) *Client {
 	client := &Client{config: newConfig(opts...)}
 	client.init()
 	return client
@@ -55,24 +55,20 @@ type (
 		debug bool
 		// log used for logging on debug mode.
 		log func(...any)
-		// hooks to execute on mutations.
-		hooks *hooks
-		// interceptors to execute on queries.
-		inters *inters
 	}
-	// Option function to configure the client.
-	Option func(*config)
+	// ClientOption function to configure the client.
+	ClientOption func(*config)
 )
 
 // newConfig creates a new config for the client.
-func newConfig(opts ...Option) config {
-	cfg := config{log: log.Println, hooks: &hooks{}, inters: &inters{}}
+func newConfig(opts ...ClientOption) config {
+	cfg := config{log: log.Println}
 	cfg.options(opts...)
 	return cfg
 }
 
 // options applies the options on the config object.
-func (c *config) options(opts ...Option) {
+func (c *config) options(opts ...ClientOption) {
 	for _, opt := range opts {
 		opt(c)
 	}
@@ -82,21 +78,21 @@ func (c *config) options(opts ...Option) {
 }
 
 // Debug enables debug logging on the ent.Driver.
-func Debug() Option {
+func Debug() ClientOption {
 	return func(c *config) {
 		c.debug = true
 	}
 }
 
 // Log sets the logging function for debug mode.
-func Log(fn func(...any)) Option {
+func Log(fn func(...any)) ClientOption {
 	return func(c *config) {
 		c.log = fn
 	}
 }
 
 // Driver configures the client driver.
-func Driver(driver dialect.Driver) Option {
+func Driver(driver dialect.Driver) ClientOption {
 	return func(c *config) {
 		c.driver = driver
 	}
@@ -104,11 +100,17 @@ func Driver(driver dialect.Driver) Option {
 
 // Open opens a database/sql.DB specified by the driver name and
 // the data source name, and returns a new client attached to it.
-// Optional parameters can be added for configuring the client.
-func Open(driverName, dataSourceName string, options ...Option) (*Client, error) {
+// ClientOptional parameters can be added for configuring the client.
+func Open(driverName, dataSourceName string, options ...ClientOption) (*Client, error) {
 	switch driverName {
 	case dialect.Postgres, dialect.SQLite:
-		drv, err := sql.Open(driverName, dataSourceName)
+		var drv dialect.Driver
+		var err error
+		if driverName == dialect.Postgres {
+			drv, err = pg.Open(context.Background(), dataSourceName)
+		} else {
+			drv, err = sql.Open(dialect.Dialect(driverName), dataSourceName)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -146,9 +148,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	if _, ok := c.driver.(*txDriver); ok {
 		return nil, errors.New("ent: cannot start a transaction within a transaction")
 	}
-	tx, err := c.driver.(interface {
-		BeginTx(context.Context, *sql.TxOptions) (dialect.Tx, error)
-	}).BeginTx(ctx, opts)
+	tx, err := c.driver.BeginTx(ctx, opts)
 	if err != nil {
 		return nil, fmt.Errorf("ent: starting a transaction: %w", err)
 	}
@@ -184,22 +184,8 @@ func (c *Client) Close() error {
 	return c.driver.Close()
 }
 
-// Use adds the mutation hooks to all the entity clients.
-// In order to add hooks to a specific client, call: `client.Node.Use(...)`.
-func (c *Client) Use(hooks ...Hook) {
-	c.City.Use(hooks...)
-	c.Street.Use(hooks...)
-}
-
-// Intercept adds the query interceptors to all the entity clients.
-// In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
-func (c *Client) Intercept(interceptors ...Interceptor) {
-	c.City.Intercept(interceptors...)
-	c.Street.Intercept(interceptors...)
-}
-
-// Mutate implements the ent.Mutator interface.
-func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
+// Mutate executes the given mutation.
+func (c *Client) Mutate(ctx context.Context, m Mutation) (any, error) {
 	switch m := m.(type) {
 	case *CityMutation:
 		return c.City.mutate(ctx, m)
@@ -220,22 +206,24 @@ func NewCityClient(c config) *CityClient {
 	return &CityClient{config: c}
 }
 
-// Use adds a list of mutation hooks to the hooks stack.
-// A call to `Use(f, g, h)` equals to `city.Hooks(f(g(h())))`.
-func (c *CityClient) Use(hooks ...Hook) {
-	c.hooks.City = append(c.hooks.City, hooks...)
-}
-
-// Intercept adds a list of query interceptors to the interceptors stack.
-// A call to `Intercept(f, g, h)` equals to `city.Intercept(f(g(h())))`.
-func (c *CityClient) Intercept(interceptors ...Interceptor) {
-	c.inters.City = append(c.inters.City, interceptors...)
-}
-
 // Create returns a builder for creating a City entity.
 func (c *CityClient) Create() *CityCreate {
 	mutation := newCityMutation(c.config, OpCreate)
-	return &CityCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &CityCreate{config: c.config, mutation: mutation, fromBuilder: true}
+}
+
+func (c *CityClient) Insert(value CityInsert) *CityCreate {
+	mutation := newCityMutation(c.config, OpCreate)
+	mutation.insert = &value
+	return &CityCreate{config: c.config, mutation: mutation}
+}
+
+func (c *CityClient) InsertBulk(values ...CityInsert) *CityCreateBulk {
+	builders := make([]*CityCreate, len(values))
+	for index := range values {
+		builders[index] = c.Insert(values[index])
+	}
+	return c.CreateBulk(builders...)
 }
 
 // CreateBulk returns a builder for creating a bulk of City entities.
@@ -261,25 +249,26 @@ func (c *CityClient) MapCreateBulk(slice any, setFunc func(*CityCreate, int)) *C
 // Update returns an update builder for City.
 func (c *CityClient) Update() *CityUpdate {
 	mutation := newCityMutation(c.config, OpUpdate)
-	return &CityUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &CityUpdate{config: c.config, mutation: mutation}
 }
 
 // UpdateOne returns an update builder for the given entity.
 func (c *CityClient) UpdateOne(_m *City) *CityUpdateOne {
-	mutation := newCityMutation(c.config, OpUpdateOne, withCity(_m))
-	return &CityUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return c.UpdateOneID(_m.ID)
+
 }
 
 // UpdateOneID returns an update builder for the given id.
 func (c *CityClient) UpdateOneID(id int) *CityUpdateOne {
-	mutation := newCityMutation(c.config, OpUpdateOne, withCityID(id))
-	return &CityUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	mutation := newCityMutation(c.config, OpUpdateOne)
+	mutation.id = &id
+	return &CityUpdateOne{config: c.config, mutation: mutation}
 }
 
 // Delete returns a delete builder for City.
 func (c *CityClient) Delete() *CityDelete {
 	mutation := newCityMutation(c.config, OpDelete)
-	return &CityDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &CityDelete{config: c.config, mutation: mutation}
 }
 
 // DeleteOne returns a builder for deleting the given entity.
@@ -289,9 +278,9 @@ func (c *CityClient) DeleteOne(_m *City) *CityDeleteOne {
 
 // DeleteOneID returns a builder for deleting the given entity by its id.
 func (c *CityClient) DeleteOneID(id int) *CityDeleteOne {
-	builder := c.Delete().Where(city.ID(id))
+	builder := c.Delete().Where(city.ID.EQ(id))
 	builder.mutation.id = &id
-	builder.mutation.SetOp(OpDeleteOne)
+	builder.mutation.op = OpDeleteOne
 	return &CityDeleteOne{builder}
 }
 
@@ -300,13 +289,12 @@ func (c *CityClient) Query() *CityQuery {
 	return &CityQuery{
 		config: c.config,
 		ctx:    &QueryContext{Type: TypeCity},
-		inters: c.Interceptors(),
 	}
 }
 
 // Get returns a City entity by its id.
 func (c *CityClient) Get(ctx context.Context, id int) (*City, error) {
-	return c.Query().Where(city.ID(id)).Only(ctx)
+	return c.Query().Where(city.ID.EQ(id)).Only(ctx)
 }
 
 // GetX is like Get, but panics if an error occurs.
@@ -334,26 +322,16 @@ func (c *CityClient) QueryStreets(_m *City) *StreetQuery {
 	return query
 }
 
-// Hooks returns the client hooks.
-func (c *CityClient) Hooks() []Hook {
-	return c.hooks.City
-}
-
-// Interceptors returns the client interceptors.
-func (c *CityClient) Interceptors() []Interceptor {
-	return c.inters.City
-}
-
-func (c *CityClient) mutate(ctx context.Context, m *CityMutation) (Value, error) {
+func (c *CityClient) mutate(ctx context.Context, m *CityMutation) (any, error) {
 	switch m.Op() {
 	case OpCreate:
-		return (&CityCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&CityCreate{config: c.config, mutation: m}).Save(ctx)
 	case OpUpdate:
-		return (&CityUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&CityUpdate{config: c.config, mutation: m}).Save(ctx)
 	case OpUpdateOne:
-		return (&CityUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&CityUpdateOne{config: c.config, mutation: m}).Save(ctx)
 	case OpDelete, OpDeleteOne:
-		return (&CityDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+		return (&CityDelete{config: c.config, mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown City mutation op: %q", m.Op())
 	}
@@ -369,22 +347,24 @@ func NewStreetClient(c config) *StreetClient {
 	return &StreetClient{config: c}
 }
 
-// Use adds a list of mutation hooks to the hooks stack.
-// A call to `Use(f, g, h)` equals to `street.Hooks(f(g(h())))`.
-func (c *StreetClient) Use(hooks ...Hook) {
-	c.hooks.Street = append(c.hooks.Street, hooks...)
-}
-
-// Intercept adds a list of query interceptors to the interceptors stack.
-// A call to `Intercept(f, g, h)` equals to `street.Intercept(f(g(h())))`.
-func (c *StreetClient) Intercept(interceptors ...Interceptor) {
-	c.inters.Street = append(c.inters.Street, interceptors...)
-}
-
 // Create returns a builder for creating a Street entity.
 func (c *StreetClient) Create() *StreetCreate {
 	mutation := newStreetMutation(c.config, OpCreate)
-	return &StreetCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &StreetCreate{config: c.config, mutation: mutation, fromBuilder: true}
+}
+
+func (c *StreetClient) Insert(value StreetInsert) *StreetCreate {
+	mutation := newStreetMutation(c.config, OpCreate)
+	mutation.insert = &value
+	return &StreetCreate{config: c.config, mutation: mutation}
+}
+
+func (c *StreetClient) InsertBulk(values ...StreetInsert) *StreetCreateBulk {
+	builders := make([]*StreetCreate, len(values))
+	for index := range values {
+		builders[index] = c.Insert(values[index])
+	}
+	return c.CreateBulk(builders...)
 }
 
 // CreateBulk returns a builder for creating a bulk of Street entities.
@@ -410,25 +390,26 @@ func (c *StreetClient) MapCreateBulk(slice any, setFunc func(*StreetCreate, int)
 // Update returns an update builder for Street.
 func (c *StreetClient) Update() *StreetUpdate {
 	mutation := newStreetMutation(c.config, OpUpdate)
-	return &StreetUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &StreetUpdate{config: c.config, mutation: mutation}
 }
 
 // UpdateOne returns an update builder for the given entity.
 func (c *StreetClient) UpdateOne(_m *Street) *StreetUpdateOne {
-	mutation := newStreetMutation(c.config, OpUpdateOne, withStreet(_m))
-	return &StreetUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return c.UpdateOneID(_m.ID)
+
 }
 
 // UpdateOneID returns an update builder for the given id.
 func (c *StreetClient) UpdateOneID(id int) *StreetUpdateOne {
-	mutation := newStreetMutation(c.config, OpUpdateOne, withStreetID(id))
-	return &StreetUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	mutation := newStreetMutation(c.config, OpUpdateOne)
+	mutation.id = &id
+	return &StreetUpdateOne{config: c.config, mutation: mutation}
 }
 
 // Delete returns a delete builder for Street.
 func (c *StreetClient) Delete() *StreetDelete {
 	mutation := newStreetMutation(c.config, OpDelete)
-	return &StreetDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &StreetDelete{config: c.config, mutation: mutation}
 }
 
 // DeleteOne returns a builder for deleting the given entity.
@@ -438,9 +419,9 @@ func (c *StreetClient) DeleteOne(_m *Street) *StreetDeleteOne {
 
 // DeleteOneID returns a builder for deleting the given entity by its id.
 func (c *StreetClient) DeleteOneID(id int) *StreetDeleteOne {
-	builder := c.Delete().Where(street.ID(id))
+	builder := c.Delete().Where(street.ID.EQ(id))
 	builder.mutation.id = &id
-	builder.mutation.SetOp(OpDeleteOne)
+	builder.mutation.op = OpDeleteOne
 	return &StreetDeleteOne{builder}
 }
 
@@ -449,13 +430,12 @@ func (c *StreetClient) Query() *StreetQuery {
 	return &StreetQuery{
 		config: c.config,
 		ctx:    &QueryContext{Type: TypeStreet},
-		inters: c.Interceptors(),
 	}
 }
 
 // Get returns a Street entity by its id.
 func (c *StreetClient) Get(ctx context.Context, id int) (*Street, error) {
-	return c.Query().Where(street.ID(id)).Only(ctx)
+	return c.Query().Where(street.ID.EQ(id)).Only(ctx)
 }
 
 // GetX is like Get, but panics if an error occurs.
@@ -483,37 +463,20 @@ func (c *StreetClient) QueryCity(_m *Street) *CityQuery {
 	return query
 }
 
-// Hooks returns the client hooks.
-func (c *StreetClient) Hooks() []Hook {
-	return c.hooks.Street
-}
-
-// Interceptors returns the client interceptors.
-func (c *StreetClient) Interceptors() []Interceptor {
-	return c.inters.Street
-}
-
-func (c *StreetClient) mutate(ctx context.Context, m *StreetMutation) (Value, error) {
+func (c *StreetClient) mutate(ctx context.Context, m *StreetMutation) (any, error) {
 	switch m.Op() {
 	case OpCreate:
-		return (&StreetCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&StreetCreate{config: c.config, mutation: m}).Save(ctx)
 	case OpUpdate:
-		return (&StreetUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&StreetUpdate{config: c.config, mutation: m}).Save(ctx)
 	case OpUpdateOne:
-		return (&StreetUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&StreetUpdateOne{config: c.config, mutation: m}).Save(ctx)
 	case OpDelete, OpDeleteOne:
-		return (&StreetDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+		return (&StreetDelete{config: c.config, mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown Street mutation op: %q", m.Op())
 	}
 }
 
-// hooks and interceptors per client, for fast access.
-type (
-	hooks struct {
-		City, Street []ent.Hook
-	}
-	inters struct {
-		City, Street []ent.Interceptor
-	}
-)
+// Driver returns the driver bound to this client or transaction.
+func (c *Client) Driver() dialect.Driver { return c.config.driver }

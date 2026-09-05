@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/entc/integration/migrate/entv1/conversion"
 )
@@ -37,7 +36,6 @@ type Conversion struct {
 	Int64ToString int64 `json:"int64_to_string,omitempty"`
 	// Uint64ToString holds the value of the "uint64_to_string" field.
 	Uint64ToString uint64 `json:"uint64_to_string,omitempty"`
-	selectValues   sql.SelectValues
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -45,10 +43,26 @@ func (*Conversion) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case conversion.FieldID, conversion.FieldInt8ToString, conversion.FieldUint8ToString, conversion.FieldInt16ToString, conversion.FieldUint16ToString, conversion.FieldInt32ToString, conversion.FieldUint32ToString, conversion.FieldInt64ToString, conversion.FieldUint64ToString:
-			values[i] = new(sql.NullInt64)
+		case conversion.FieldID:
+			values[i] = new(*int)
+		case conversion.FieldInt16ToString:
+			values[i] = new(*int16)
+		case conversion.FieldInt32ToString:
+			values[i] = new(*int32)
+		case conversion.FieldInt64ToString:
+			values[i] = new(*int64)
+		case conversion.FieldInt8ToString:
+			values[i] = new(*int8)
 		case conversion.FieldName:
-			values[i] = new(sql.NullString)
+			values[i] = new(*string)
+		case conversion.FieldUint16ToString:
+			values[i] = new(*uint16)
+		case conversion.FieldUint32ToString:
+			values[i] = new(*uint32)
+		case conversion.FieldUint64ToString:
+			values[i] = new(*uint64)
+		case conversion.FieldUint8ToString:
+			values[i] = new(*uint8)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -65,76 +79,78 @@ func (_m *Conversion) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case conversion.FieldID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field id", values[i])
-			} else if value.Valid {
-				_m.ID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.ID = **value
 			}
 		case conversion.FieldName:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field name", values[i])
-			} else if value.Valid {
-				_m.Name = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.Name = **value
 			}
 		case conversion.FieldInt8ToString:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int8); !ok {
 				return fmt.Errorf("unexpected type %T for field int8_to_string", values[i])
-			} else if value.Valid {
-				_m.Int8ToString = int8(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.Int8ToString = **value
 			}
 		case conversion.FieldUint8ToString:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**uint8); !ok {
 				return fmt.Errorf("unexpected type %T for field uint8_to_string", values[i])
-			} else if value.Valid {
-				_m.Uint8ToString = uint8(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.Uint8ToString = **value
 			}
 		case conversion.FieldInt16ToString:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int16); !ok {
 				return fmt.Errorf("unexpected type %T for field int16_to_string", values[i])
-			} else if value.Valid {
-				_m.Int16ToString = int16(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.Int16ToString = **value
 			}
 		case conversion.FieldUint16ToString:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**uint16); !ok {
 				return fmt.Errorf("unexpected type %T for field uint16_to_string", values[i])
-			} else if value.Valid {
-				_m.Uint16ToString = uint16(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.Uint16ToString = **value
 			}
 		case conversion.FieldInt32ToString:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int32); !ok {
 				return fmt.Errorf("unexpected type %T for field int32_to_string", values[i])
-			} else if value.Valid {
-				_m.Int32ToString = int32(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.Int32ToString = **value
 			}
 		case conversion.FieldUint32ToString:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**uint32); !ok {
 				return fmt.Errorf("unexpected type %T for field uint32_to_string", values[i])
-			} else if value.Valid {
-				_m.Uint32ToString = uint32(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.Uint32ToString = **value
 			}
 		case conversion.FieldInt64ToString:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int64); !ok {
 				return fmt.Errorf("unexpected type %T for field int64_to_string", values[i])
-			} else if value.Valid {
-				_m.Int64ToString = int64(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.Int64ToString = **value
 			}
 		case conversion.FieldUint64ToString:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**uint64); !ok {
 				return fmt.Errorf("unexpected type %T for field uint64_to_string", values[i])
-			} else if value.Valid {
-				_m.Uint64ToString = uint64(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.Uint64ToString = **value
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the Conversion.
-// This includes values selected through modifiers, order, etc.
-func (_m *Conversion) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // Update returns a builder for updating this Conversion.

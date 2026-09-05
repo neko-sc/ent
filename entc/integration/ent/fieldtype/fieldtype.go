@@ -6,14 +6,18 @@
 package fieldtype
 
 import (
+	"database/sql/driver"
 	"fmt"
 	"net"
 	"net/http"
-	"time"
+	time2 "time"
 
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/google/uuid"
+	"github.com/neko-sc/ent"
+	sql2 "github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/entc/integration/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/ent/role"
-	"github.com/neko-sc/ent/entc/integration/ent/schema"
+	schema2 "github.com/neko-sc/ent/entc/integration/ent/schema"
 )
 
 const (
@@ -155,6 +159,234 @@ const (
 	Table = "field_types"
 )
 
+var (
+	ID                    = ent.OrderedColumn[entity.FieldType, int]{Table: Table, Name: FieldID}
+	Int                   = ent.OrderedColumn[entity.FieldType, int]{Table: Table, Name: FieldInt}
+	Int8                  = ent.OrderedColumn[entity.FieldType, int8]{Table: Table, Name: FieldInt8}
+	Int16                 = ent.OrderedColumn[entity.FieldType, int16]{Table: Table, Name: FieldInt16}
+	Int32                 = ent.OrderedColumn[entity.FieldType, int32]{Table: Table, Name: FieldInt32}
+	Int64                 = ent.OrderedColumn[entity.FieldType, int64]{Table: Table, Name: FieldInt64}
+	OptionalInt           = ent.OrderedColumn[entity.FieldType, int]{Table: Table, Name: FieldOptionalInt}
+	OptionalInt8          = ent.OrderedColumn[entity.FieldType, int8]{Table: Table, Name: FieldOptionalInt8}
+	OptionalInt16         = ent.OrderedColumn[entity.FieldType, int16]{Table: Table, Name: FieldOptionalInt16}
+	OptionalInt32         = ent.OrderedColumn[entity.FieldType, int32]{Table: Table, Name: FieldOptionalInt32}
+	OptionalInt64         = ent.OrderedColumn[entity.FieldType, int64]{Table: Table, Name: FieldOptionalInt64}
+	NillableInt           = ent.OrderedColumn[entity.FieldType, int]{Table: Table, Name: FieldNillableInt}
+	NillableInt8          = ent.OrderedColumn[entity.FieldType, int8]{Table: Table, Name: FieldNillableInt8}
+	NillableInt16         = ent.OrderedColumn[entity.FieldType, int16]{Table: Table, Name: FieldNillableInt16}
+	NillableInt32         = ent.OrderedColumn[entity.FieldType, int32]{Table: Table, Name: FieldNillableInt32}
+	NillableInt64         = ent.OrderedColumn[entity.FieldType, int64]{Table: Table, Name: FieldNillableInt64}
+	ValidateOptionalInt32 = ent.OrderedColumn[entity.FieldType, int32]{Table: Table, Name: FieldValidateOptionalInt32}
+	OptionalUint          = ent.OrderedColumn[entity.FieldType, uint]{Table: Table, Name: FieldOptionalUint}
+	OptionalUint8         = ent.OrderedColumn[entity.FieldType, uint8]{Table: Table, Name: FieldOptionalUint8}
+	OptionalUint16        = ent.OrderedColumn[entity.FieldType, uint16]{Table: Table, Name: FieldOptionalUint16}
+	OptionalUint32        = ent.OrderedColumn[entity.FieldType, uint32]{Table: Table, Name: FieldOptionalUint32}
+	OptionalUint64        = ent.OrderedColumn[entity.FieldType, uint64]{Table: Table, Name: FieldOptionalUint64}
+	State                 = ent.StringColumn[entity.FieldType, StateValue]{Table: Table, Name: FieldState}
+	OptionalFloat         = ent.OrderedColumn[entity.FieldType, float64]{Table: Table, Name: FieldOptionalFloat}
+	OptionalFloat32       = ent.OrderedColumn[entity.FieldType, float32]{Table: Table, Name: FieldOptionalFloat32}
+	Text                  = ent.StringColumn[entity.FieldType, string]{Table: Table, Name: FieldText}
+	Datetime              = ent.OrderedColumn[entity.FieldType, time2.Time]{Table: Table, Name: FieldDatetime}
+	Decimal               = ent.OrderedColumn[entity.FieldType, float64]{Table: Table, Name: FieldDecimal}
+	LinkOther             = ent.OrderedColumn[entity.FieldType, *schema2.Link]{Table: Table, Name: FieldLinkOther}
+	LinkOtherFunc         = ent.OrderedColumn[entity.FieldType, *schema2.Link]{Table: Table, Name: FieldLinkOtherFunc}
+	MAC                   = ent.StringColumn[entity.FieldType, schema2.MAC]{Table: Table, Name: FieldMAC}
+	StringArray           = ent.Column[entity.FieldType, schema2.Strings]{Table: Table, Name: FieldStringArray}
+	Password              = ent.StringColumn[entity.FieldType, string]{Table: Table, Name: FieldPassword}
+	StringScanner         = ent.StringColumn[entity.FieldType, schema2.StringScanner]{Table: Table, Name: FieldStringScanner}
+	Duration              = ent.OrderedColumn[entity.FieldType, time2.Duration]{Table: Table, Name: FieldDuration, Valuer: func(value time2.Duration) (driver.Value, error) { return int64(value), nil }}
+	Dir                   = ent.StringColumn[entity.FieldType, http.Dir]{Table: Table, Name: FieldDir, Valuer: func(value http.Dir) (driver.Value, error) { return string(value), nil }}
+	Ndir                  = ent.StringColumn[entity.FieldType, http.Dir]{Table: Table, Name: FieldNdir, Valuer: func(value http.Dir) (driver.Value, error) { return string(value), nil }}
+	Str                   = ent.StringColumn[entity.FieldType, sql2.NullString]{Table: Table, Name: FieldStr}
+	NullStr               = ent.StringColumn[entity.FieldType, *sql2.NullString]{Table: Table, Name: FieldNullStr}
+	Link                  = ent.StringColumn[entity.FieldType, schema2.Link]{Table: Table, Name: FieldLink}
+	NullLink              = ent.StringColumn[entity.FieldType, *schema2.Link]{Table: Table, Name: FieldNullLink}
+	Active                = ent.Column[entity.FieldType, schema2.Status]{Table: Table, Name: FieldActive, Valuer: func(value schema2.Status) (driver.Value, error) { return bool(value), nil }}
+	NullActive            = ent.Column[entity.FieldType, schema2.Status]{Table: Table, Name: FieldNullActive, Valuer: func(value schema2.Status) (driver.Value, error) { return bool(value), nil }}
+	Deleted               = ent.Column[entity.FieldType, *sql2.NullBool]{Table: Table, Name: FieldDeleted}
+	DeletedAt             = ent.OrderedColumn[entity.FieldType, *sql2.NullTime]{Table: Table, Name: FieldDeletedAt}
+	RawData               = ent.OrderedColumn[entity.FieldType, []byte]{Table: Table, Name: FieldRawData}
+	Sensitive             = ent.OrderedColumn[entity.FieldType, []byte]{Table: Table, Name: FieldSensitive}
+	IP                    = ent.OrderedColumn[entity.FieldType, net.IP]{Table: Table, Name: FieldIP}
+	NullInt64             = ent.OrderedColumn[entity.FieldType, *sql2.NullInt64]{Table: Table, Name: FieldNullInt64}
+	SchemaInt             = ent.OrderedColumn[entity.FieldType, schema2.Int]{Table: Table, Name: FieldSchemaInt, Valuer: func(value schema2.Int) (driver.Value, error) { return int(value), nil }}
+	SchemaInt8            = ent.OrderedColumn[entity.FieldType, schema2.Int8]{Table: Table, Name: FieldSchemaInt8, Valuer: func(value schema2.Int8) (driver.Value, error) { return int8(value), nil }}
+	SchemaInt64           = ent.OrderedColumn[entity.FieldType, schema2.Int64]{Table: Table, Name: FieldSchemaInt64, Valuer: func(value schema2.Int64) (driver.Value, error) { return int64(value), nil }}
+	SchemaFloat           = ent.OrderedColumn[entity.FieldType, schema2.Float64]{Table: Table, Name: FieldSchemaFloat, Valuer: func(value schema2.Float64) (driver.Value, error) { return float64(value), nil }}
+	SchemaFloat32         = ent.OrderedColumn[entity.FieldType, schema2.Float32]{Table: Table, Name: FieldSchemaFloat32, Valuer: func(value schema2.Float32) (driver.Value, error) { return float32(value), nil }}
+	NullFloat             = ent.OrderedColumn[entity.FieldType, *sql2.NullFloat64]{Table: Table, Name: FieldNullFloat}
+	Role                  = ent.StringColumn[entity.FieldType, role.Role]{Table: Table, Name: FieldRole, Valuer: func(value role.Role) (driver.Value, error) { return string(value), nil }}
+	Priority              = ent.StringColumn[entity.FieldType, role.Priority]{Table: Table, Name: FieldPriority}
+	OptionalUUID          = ent.OrderedColumn[entity.FieldType, uuid.UUID]{Table: Table, Name: FieldOptionalUUID}
+	NillableUUID          = ent.OrderedColumn[entity.FieldType, uuid.UUID]{Table: Table, Name: FieldNillableUUID}
+	Strings               = ent.JSONColumn[entity.FieldType, []string]{Table: Table, Name: FieldStrings}
+	Pair                  = ent.OrderedColumn[entity.FieldType, schema2.Pair]{Table: Table, Name: FieldPair}
+	NilPair               = ent.OrderedColumn[entity.FieldType, *schema2.Pair]{Table: Table, Name: FieldNilPair}
+	Vstring               = ent.StringColumn[entity.FieldType, schema2.VString]{Table: Table, Name: FieldVstring}
+	Triple                = ent.StringColumn[entity.FieldType, schema2.Triple]{Table: Table, Name: FieldTriple}
+	BigInt                = ent.OrderedColumn[entity.FieldType, schema2.BigInt]{Table: Table, Name: FieldBigInt}
+	PasswordOther         = ent.OrderedColumn[entity.FieldType, schema2.Password]{Table: Table, Name: FieldPasswordOther}
+)
+
+// Alias returns the columns of the field_types table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias:            name,
+		ID:                    ent.OrderedColumn[entity.FieldType, int]{Table: name, Name: FieldID},
+		Int:                   ent.OrderedColumn[entity.FieldType, int]{Table: name, Name: FieldInt},
+		Int8:                  ent.OrderedColumn[entity.FieldType, int8]{Table: name, Name: FieldInt8},
+		Int16:                 ent.OrderedColumn[entity.FieldType, int16]{Table: name, Name: FieldInt16},
+		Int32:                 ent.OrderedColumn[entity.FieldType, int32]{Table: name, Name: FieldInt32},
+		Int64:                 ent.OrderedColumn[entity.FieldType, int64]{Table: name, Name: FieldInt64},
+		OptionalInt:           ent.OrderedColumn[entity.FieldType, int]{Table: name, Name: FieldOptionalInt},
+		OptionalInt8:          ent.OrderedColumn[entity.FieldType, int8]{Table: name, Name: FieldOptionalInt8},
+		OptionalInt16:         ent.OrderedColumn[entity.FieldType, int16]{Table: name, Name: FieldOptionalInt16},
+		OptionalInt32:         ent.OrderedColumn[entity.FieldType, int32]{Table: name, Name: FieldOptionalInt32},
+		OptionalInt64:         ent.OrderedColumn[entity.FieldType, int64]{Table: name, Name: FieldOptionalInt64},
+		NillableInt:           ent.OrderedColumn[entity.FieldType, int]{Table: name, Name: FieldNillableInt},
+		NillableInt8:          ent.OrderedColumn[entity.FieldType, int8]{Table: name, Name: FieldNillableInt8},
+		NillableInt16:         ent.OrderedColumn[entity.FieldType, int16]{Table: name, Name: FieldNillableInt16},
+		NillableInt32:         ent.OrderedColumn[entity.FieldType, int32]{Table: name, Name: FieldNillableInt32},
+		NillableInt64:         ent.OrderedColumn[entity.FieldType, int64]{Table: name, Name: FieldNillableInt64},
+		ValidateOptionalInt32: ent.OrderedColumn[entity.FieldType, int32]{Table: name, Name: FieldValidateOptionalInt32},
+		OptionalUint:          ent.OrderedColumn[entity.FieldType, uint]{Table: name, Name: FieldOptionalUint},
+		OptionalUint8:         ent.OrderedColumn[entity.FieldType, uint8]{Table: name, Name: FieldOptionalUint8},
+		OptionalUint16:        ent.OrderedColumn[entity.FieldType, uint16]{Table: name, Name: FieldOptionalUint16},
+		OptionalUint32:        ent.OrderedColumn[entity.FieldType, uint32]{Table: name, Name: FieldOptionalUint32},
+		OptionalUint64:        ent.OrderedColumn[entity.FieldType, uint64]{Table: name, Name: FieldOptionalUint64},
+		State:                 ent.StringColumn[entity.FieldType, StateValue]{Table: name, Name: FieldState},
+		OptionalFloat:         ent.OrderedColumn[entity.FieldType, float64]{Table: name, Name: FieldOptionalFloat},
+		OptionalFloat32:       ent.OrderedColumn[entity.FieldType, float32]{Table: name, Name: FieldOptionalFloat32},
+		Text:                  ent.StringColumn[entity.FieldType, string]{Table: name, Name: FieldText},
+		Datetime:              ent.OrderedColumn[entity.FieldType, time2.Time]{Table: name, Name: FieldDatetime},
+		Decimal:               ent.OrderedColumn[entity.FieldType, float64]{Table: name, Name: FieldDecimal},
+		LinkOther:             ent.OrderedColumn[entity.FieldType, *schema2.Link]{Table: name, Name: FieldLinkOther},
+		LinkOtherFunc:         ent.OrderedColumn[entity.FieldType, *schema2.Link]{Table: name, Name: FieldLinkOtherFunc},
+		MAC:                   ent.StringColumn[entity.FieldType, schema2.MAC]{Table: name, Name: FieldMAC},
+		StringArray:           ent.Column[entity.FieldType, schema2.Strings]{Table: name, Name: FieldStringArray},
+		Password:              ent.StringColumn[entity.FieldType, string]{Table: name, Name: FieldPassword},
+		StringScanner:         ent.StringColumn[entity.FieldType, schema2.StringScanner]{Table: name, Name: FieldStringScanner},
+		Duration:              ent.OrderedColumn[entity.FieldType, time2.Duration]{Table: name, Name: FieldDuration, Valuer: func(value time2.Duration) (driver.Value, error) { return int64(value), nil }},
+		Dir:                   ent.StringColumn[entity.FieldType, http.Dir]{Table: name, Name: FieldDir, Valuer: func(value http.Dir) (driver.Value, error) { return string(value), nil }},
+		Ndir:                  ent.StringColumn[entity.FieldType, http.Dir]{Table: name, Name: FieldNdir, Valuer: func(value http.Dir) (driver.Value, error) { return string(value), nil }},
+		Str:                   ent.StringColumn[entity.FieldType, sql2.NullString]{Table: name, Name: FieldStr},
+		NullStr:               ent.StringColumn[entity.FieldType, *sql2.NullString]{Table: name, Name: FieldNullStr},
+		Link:                  ent.StringColumn[entity.FieldType, schema2.Link]{Table: name, Name: FieldLink},
+		NullLink:              ent.StringColumn[entity.FieldType, *schema2.Link]{Table: name, Name: FieldNullLink},
+		Active:                ent.Column[entity.FieldType, schema2.Status]{Table: name, Name: FieldActive, Valuer: func(value schema2.Status) (driver.Value, error) { return bool(value), nil }},
+		NullActive:            ent.Column[entity.FieldType, schema2.Status]{Table: name, Name: FieldNullActive, Valuer: func(value schema2.Status) (driver.Value, error) { return bool(value), nil }},
+		Deleted:               ent.Column[entity.FieldType, *sql2.NullBool]{Table: name, Name: FieldDeleted},
+		DeletedAt:             ent.OrderedColumn[entity.FieldType, *sql2.NullTime]{Table: name, Name: FieldDeletedAt},
+		RawData:               ent.OrderedColumn[entity.FieldType, []byte]{Table: name, Name: FieldRawData},
+		Sensitive:             ent.OrderedColumn[entity.FieldType, []byte]{Table: name, Name: FieldSensitive},
+		IP:                    ent.OrderedColumn[entity.FieldType, net.IP]{Table: name, Name: FieldIP},
+		NullInt64:             ent.OrderedColumn[entity.FieldType, *sql2.NullInt64]{Table: name, Name: FieldNullInt64},
+		SchemaInt:             ent.OrderedColumn[entity.FieldType, schema2.Int]{Table: name, Name: FieldSchemaInt, Valuer: func(value schema2.Int) (driver.Value, error) { return int(value), nil }},
+		SchemaInt8:            ent.OrderedColumn[entity.FieldType, schema2.Int8]{Table: name, Name: FieldSchemaInt8, Valuer: func(value schema2.Int8) (driver.Value, error) { return int8(value), nil }},
+		SchemaInt64:           ent.OrderedColumn[entity.FieldType, schema2.Int64]{Table: name, Name: FieldSchemaInt64, Valuer: func(value schema2.Int64) (driver.Value, error) { return int64(value), nil }},
+		SchemaFloat:           ent.OrderedColumn[entity.FieldType, schema2.Float64]{Table: name, Name: FieldSchemaFloat, Valuer: func(value schema2.Float64) (driver.Value, error) { return float64(value), nil }},
+		SchemaFloat32:         ent.OrderedColumn[entity.FieldType, schema2.Float32]{Table: name, Name: FieldSchemaFloat32, Valuer: func(value schema2.Float32) (driver.Value, error) { return float32(value), nil }},
+		NullFloat:             ent.OrderedColumn[entity.FieldType, *sql2.NullFloat64]{Table: name, Name: FieldNullFloat},
+		Role:                  ent.StringColumn[entity.FieldType, role.Role]{Table: name, Name: FieldRole, Valuer: func(value role.Role) (driver.Value, error) { return string(value), nil }},
+		Priority:              ent.StringColumn[entity.FieldType, role.Priority]{Table: name, Name: FieldPriority},
+		OptionalUUID:          ent.OrderedColumn[entity.FieldType, uuid.UUID]{Table: name, Name: FieldOptionalUUID},
+		NillableUUID:          ent.OrderedColumn[entity.FieldType, uuid.UUID]{Table: name, Name: FieldNillableUUID},
+		Strings:               ent.JSONColumn[entity.FieldType, []string]{Table: name, Name: FieldStrings},
+		Pair:                  ent.OrderedColumn[entity.FieldType, schema2.Pair]{Table: name, Name: FieldPair},
+		NilPair:               ent.OrderedColumn[entity.FieldType, *schema2.Pair]{Table: name, Name: FieldNilPair},
+		Vstring:               ent.StringColumn[entity.FieldType, schema2.VString]{Table: name, Name: FieldVstring},
+		Triple:                ent.StringColumn[entity.FieldType, schema2.Triple]{Table: name, Name: FieldTriple},
+		BigInt:                ent.OrderedColumn[entity.FieldType, schema2.BigInt]{Table: name, Name: FieldBigInt},
+		PasswordOther:         ent.OrderedColumn[entity.FieldType, schema2.Password]{Table: name, Name: FieldPasswordOther},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias            string
+	ID                    ent.OrderedColumn[entity.FieldType, int]
+	Int                   ent.OrderedColumn[entity.FieldType, int]
+	Int8                  ent.OrderedColumn[entity.FieldType, int8]
+	Int16                 ent.OrderedColumn[entity.FieldType, int16]
+	Int32                 ent.OrderedColumn[entity.FieldType, int32]
+	Int64                 ent.OrderedColumn[entity.FieldType, int64]
+	OptionalInt           ent.OrderedColumn[entity.FieldType, int]
+	OptionalInt8          ent.OrderedColumn[entity.FieldType, int8]
+	OptionalInt16         ent.OrderedColumn[entity.FieldType, int16]
+	OptionalInt32         ent.OrderedColumn[entity.FieldType, int32]
+	OptionalInt64         ent.OrderedColumn[entity.FieldType, int64]
+	NillableInt           ent.OrderedColumn[entity.FieldType, int]
+	NillableInt8          ent.OrderedColumn[entity.FieldType, int8]
+	NillableInt16         ent.OrderedColumn[entity.FieldType, int16]
+	NillableInt32         ent.OrderedColumn[entity.FieldType, int32]
+	NillableInt64         ent.OrderedColumn[entity.FieldType, int64]
+	ValidateOptionalInt32 ent.OrderedColumn[entity.FieldType, int32]
+	OptionalUint          ent.OrderedColumn[entity.FieldType, uint]
+	OptionalUint8         ent.OrderedColumn[entity.FieldType, uint8]
+	OptionalUint16        ent.OrderedColumn[entity.FieldType, uint16]
+	OptionalUint32        ent.OrderedColumn[entity.FieldType, uint32]
+	OptionalUint64        ent.OrderedColumn[entity.FieldType, uint64]
+	State                 ent.StringColumn[entity.FieldType, StateValue]
+	OptionalFloat         ent.OrderedColumn[entity.FieldType, float64]
+	OptionalFloat32       ent.OrderedColumn[entity.FieldType, float32]
+	Text                  ent.StringColumn[entity.FieldType, string]
+	Datetime              ent.OrderedColumn[entity.FieldType, time2.Time]
+	Decimal               ent.OrderedColumn[entity.FieldType, float64]
+	LinkOther             ent.OrderedColumn[entity.FieldType, *schema2.Link]
+	LinkOtherFunc         ent.OrderedColumn[entity.FieldType, *schema2.Link]
+	MAC                   ent.StringColumn[entity.FieldType, schema2.MAC]
+	StringArray           ent.Column[entity.FieldType, schema2.Strings]
+	Password              ent.StringColumn[entity.FieldType, string]
+	StringScanner         ent.StringColumn[entity.FieldType, schema2.StringScanner]
+	Duration              ent.OrderedColumn[entity.FieldType, time2.Duration]
+	Dir                   ent.StringColumn[entity.FieldType, http.Dir]
+	Ndir                  ent.StringColumn[entity.FieldType, http.Dir]
+	Str                   ent.StringColumn[entity.FieldType, sql2.NullString]
+	NullStr               ent.StringColumn[entity.FieldType, *sql2.NullString]
+	Link                  ent.StringColumn[entity.FieldType, schema2.Link]
+	NullLink              ent.StringColumn[entity.FieldType, *schema2.Link]
+	Active                ent.Column[entity.FieldType, schema2.Status]
+	NullActive            ent.Column[entity.FieldType, schema2.Status]
+	Deleted               ent.Column[entity.FieldType, *sql2.NullBool]
+	DeletedAt             ent.OrderedColumn[entity.FieldType, *sql2.NullTime]
+	RawData               ent.OrderedColumn[entity.FieldType, []byte]
+	Sensitive             ent.OrderedColumn[entity.FieldType, []byte]
+	IP                    ent.OrderedColumn[entity.FieldType, net.IP]
+	NullInt64             ent.OrderedColumn[entity.FieldType, *sql2.NullInt64]
+	SchemaInt             ent.OrderedColumn[entity.FieldType, schema2.Int]
+	SchemaInt8            ent.OrderedColumn[entity.FieldType, schema2.Int8]
+	SchemaInt64           ent.OrderedColumn[entity.FieldType, schema2.Int64]
+	SchemaFloat           ent.OrderedColumn[entity.FieldType, schema2.Float64]
+	SchemaFloat32         ent.OrderedColumn[entity.FieldType, schema2.Float32]
+	NullFloat             ent.OrderedColumn[entity.FieldType, *sql2.NullFloat64]
+	Role                  ent.StringColumn[entity.FieldType, role.Role]
+	Priority              ent.StringColumn[entity.FieldType, role.Priority]
+	OptionalUUID          ent.OrderedColumn[entity.FieldType, uuid.UUID]
+	NillableUUID          ent.OrderedColumn[entity.FieldType, uuid.UUID]
+	Strings               ent.JSONColumn[entity.FieldType, []string]
+	Pair                  ent.OrderedColumn[entity.FieldType, schema2.Pair]
+	NilPair               ent.OrderedColumn[entity.FieldType, *schema2.Pair]
+	Vstring               ent.StringColumn[entity.FieldType, schema2.VString]
+	Triple                ent.StringColumn[entity.FieldType, schema2.Triple]
+	BigInt                ent.OrderedColumn[entity.FieldType, schema2.BigInt]
+	PasswordOther         ent.OrderedColumn[entity.FieldType, schema2.Password]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.FieldType]) ent.Predicate[entity.FieldType] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.FieldType]) ent.Predicate[entity.FieldType] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.FieldType]) ent.Predicate[entity.FieldType] {
+	return ent.Not(predicate)
+}
+
 // Columns holds all SQL columns for fieldtype fields.
 var Columns = []string{
 	FieldID,
@@ -252,27 +484,27 @@ var (
 	// ValidateOptionalInt32Validator is a validator for the "validate_optional_int32" field. It is called by the builders before save.
 	ValidateOptionalInt32Validator func(int32) error
 	// DefaultLinkOther holds the default value on creation for the "link_other" field.
-	DefaultLinkOther *schema.Link
+	DefaultLinkOther *schema2.Link
 	// DefaultLinkOtherFunc holds the default value on creation for the "link_other_func" field.
-	DefaultLinkOtherFunc func() *schema.Link
+	DefaultLinkOtherFunc func() *schema2.Link
 	// MACValidator is a validator for the "mac" field. It is called by the builders before save.
-	MACValidator func(schema.MAC) error
+	MACValidator func(schema2.MAC) error
 	// UpdateDefaultDuration holds the default value on update for the "duration" field.
-	UpdateDefaultDuration func() time.Duration
+	UpdateDefaultDuration func() time2.Duration
 	// DefaultDir holds the default value on creation for the "dir" field.
 	DefaultDir func() http.Dir
 	// NdirValidator is a validator for the "ndir" field. It is called by the builders before save.
 	NdirValidator func(http.Dir) error
 	// DefaultStr holds the default value on creation for the "str" field.
-	DefaultStr func() sql.NullString
+	DefaultStr func() sql2.NullString
 	// DefaultNullStr holds the default value on creation for the "null_str" field.
-	DefaultNullStr func() *sql.NullString
+	DefaultNullStr func() *sql2.NullString
 	// LinkValidator is a validator for the "link" field. It is called by the builders before save.
-	LinkValidator func(schema.Link) error
+	LinkValidator func(schema2.Link) error
 	// DefaultDeletedAt holds the default value on creation for the "deleted_at" field.
-	DefaultDeletedAt func() *sql.NullTime
+	DefaultDeletedAt func() *sql2.NullTime
 	// UpdateDefaultDeletedAt holds the default value on update for the "deleted_at" field.
-	UpdateDefaultDeletedAt func() *sql.NullTime
+	UpdateDefaultDeletedAt func() *sql2.NullTime
 	// RawDataValidator is a validator for the "raw_data" field. It is called by the builders before save.
 	RawDataValidator func([]byte) error
 	// DefaultIP holds the default value on creation for the "ip" field.
@@ -280,28 +512,28 @@ var (
 	// IPValidator is a validator for the "ip" field. It is called by the builders before save.
 	IPValidator func(net.IP) error
 	// DefaultPair holds the default value on creation for the "pair" field.
-	DefaultPair func() schema.Pair
+	DefaultPair func() schema2.Pair
 	// DefaultVstring holds the default value on creation for the "vstring" field.
-	DefaultVstring func() schema.VString
+	DefaultVstring func() schema2.VString
 	// DefaultTriple holds the default value on creation for the "triple" field.
-	DefaultTriple func() schema.Triple
+	DefaultTriple func() schema2.Triple
 )
 
-// State defines the type for the "state" enum field.
-type State string
+// StateValue defines the type for the "state" enum field.
+type StateValue string
 
-// State values.
+// StateValue values.
 const (
-	StateOn  State = "on"
-	StateOff State = "off"
+	StateOn  StateValue = "on"
+	StateOff StateValue = "off"
 )
 
-func (s State) String() string {
+func (s StateValue) String() string {
 	return string(s)
 }
 
 // StateValidator is a validator for the "state" field enum values. It is called by the builders before save.
-func StateValidator(s State) error {
+func StateValidator(s StateValue) error {
 	switch s {
 	case StateOn, StateOff:
 		return nil
@@ -332,291 +564,8 @@ func PriorityValidator(p role.Priority) error {
 	}
 }
 
-// OrderOption defines the ordering options for the FieldType queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByInt orders the results by the int field.
-func ByInt(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldInt, opts...).ToFunc()
-}
-
-// ByInt8 orders the results by the int8 field.
-func ByInt8(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldInt8, opts...).ToFunc()
-}
-
-// ByInt16 orders the results by the int16 field.
-func ByInt16(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldInt16, opts...).ToFunc()
-}
-
-// ByInt32 orders the results by the int32 field.
-func ByInt32(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldInt32, opts...).ToFunc()
-}
-
-// ByInt64 orders the results by the int64 field.
-func ByInt64(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldInt64, opts...).ToFunc()
-}
-
-// ByOptionalInt orders the results by the optional_int field.
-func ByOptionalInt(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldOptionalInt, opts...).ToFunc()
-}
-
-// ByOptionalInt8 orders the results by the optional_int8 field.
-func ByOptionalInt8(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldOptionalInt8, opts...).ToFunc()
-}
-
-// ByOptionalInt16 orders the results by the optional_int16 field.
-func ByOptionalInt16(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldOptionalInt16, opts...).ToFunc()
-}
-
-// ByOptionalInt32 orders the results by the optional_int32 field.
-func ByOptionalInt32(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldOptionalInt32, opts...).ToFunc()
-}
-
-// ByOptionalInt64 orders the results by the optional_int64 field.
-func ByOptionalInt64(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldOptionalInt64, opts...).ToFunc()
-}
-
-// ByNillableInt orders the results by the nillable_int field.
-func ByNillableInt(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldNillableInt, opts...).ToFunc()
-}
-
-// ByNillableInt8 orders the results by the nillable_int8 field.
-func ByNillableInt8(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldNillableInt8, opts...).ToFunc()
-}
-
-// ByNillableInt16 orders the results by the nillable_int16 field.
-func ByNillableInt16(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldNillableInt16, opts...).ToFunc()
-}
-
-// ByNillableInt32 orders the results by the nillable_int32 field.
-func ByNillableInt32(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldNillableInt32, opts...).ToFunc()
-}
-
-// ByNillableInt64 orders the results by the nillable_int64 field.
-func ByNillableInt64(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldNillableInt64, opts...).ToFunc()
-}
-
-// ByValidateOptionalInt32 orders the results by the validate_optional_int32 field.
-func ByValidateOptionalInt32(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldValidateOptionalInt32, opts...).ToFunc()
-}
-
-// ByOptionalUint orders the results by the optional_uint field.
-func ByOptionalUint(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldOptionalUint, opts...).ToFunc()
-}
-
-// ByOptionalUint8 orders the results by the optional_uint8 field.
-func ByOptionalUint8(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldOptionalUint8, opts...).ToFunc()
-}
-
-// ByOptionalUint16 orders the results by the optional_uint16 field.
-func ByOptionalUint16(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldOptionalUint16, opts...).ToFunc()
-}
-
-// ByOptionalUint32 orders the results by the optional_uint32 field.
-func ByOptionalUint32(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldOptionalUint32, opts...).ToFunc()
-}
-
-// ByOptionalUint64 orders the results by the optional_uint64 field.
-func ByOptionalUint64(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldOptionalUint64, opts...).ToFunc()
-}
-
-// ByState orders the results by the state field.
-func ByState(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldState, opts...).ToFunc()
-}
-
-// ByOptionalFloat orders the results by the optional_float field.
-func ByOptionalFloat(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldOptionalFloat, opts...).ToFunc()
-}
-
-// ByOptionalFloat32 orders the results by the optional_float32 field.
-func ByOptionalFloat32(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldOptionalFloat32, opts...).ToFunc()
-}
-
-// ByText orders the results by the text field.
-func ByText(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldText, opts...).ToFunc()
-}
-
-// ByDatetime orders the results by the datetime field.
-func ByDatetime(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldDatetime, opts...).ToFunc()
-}
-
-// ByDecimal orders the results by the decimal field.
-func ByDecimal(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldDecimal, opts...).ToFunc()
-}
-
-// ByMAC orders the results by the mac field.
-func ByMAC(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldMAC, opts...).ToFunc()
-}
-
-// ByPassword orders the results by the password field.
-func ByPassword(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldPassword, opts...).ToFunc()
-}
-
-// ByStringScanner orders the results by the string_scanner field.
-func ByStringScanner(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldStringScanner, opts...).ToFunc()
-}
-
-// ByDuration orders the results by the duration field.
-func ByDuration(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldDuration, opts...).ToFunc()
-}
-
-// ByDir orders the results by the dir field.
-func ByDir(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldDir, opts...).ToFunc()
-}
-
-// ByNdir orders the results by the ndir field.
-func ByNdir(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldNdir, opts...).ToFunc()
-}
-
-// ByStr orders the results by the str field.
-func ByStr(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldStr, opts...).ToFunc()
-}
-
-// ByNullStr orders the results by the null_str field.
-func ByNullStr(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldNullStr, opts...).ToFunc()
-}
-
-// ByLink orders the results by the link field.
-func ByLink(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldLink, opts...).ToFunc()
-}
-
-// ByNullLink orders the results by the null_link field.
-func ByNullLink(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldNullLink, opts...).ToFunc()
-}
-
-// ByActive orders the results by the active field.
-func ByActive(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldActive, opts...).ToFunc()
-}
-
-// ByNullActive orders the results by the null_active field.
-func ByNullActive(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldNullActive, opts...).ToFunc()
-}
-
-// ByDeleted orders the results by the deleted field.
-func ByDeleted(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldDeleted, opts...).ToFunc()
-}
-
-// ByDeletedAt orders the results by the deleted_at field.
-func ByDeletedAt(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldDeletedAt, opts...).ToFunc()
-}
-
-// ByNullInt64 orders the results by the null_int64 field.
-func ByNullInt64(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldNullInt64, opts...).ToFunc()
-}
-
-// BySchemaInt orders the results by the schema_int field.
-func BySchemaInt(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldSchemaInt, opts...).ToFunc()
-}
-
-// BySchemaInt8 orders the results by the schema_int8 field.
-func BySchemaInt8(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldSchemaInt8, opts...).ToFunc()
-}
-
-// BySchemaInt64 orders the results by the schema_int64 field.
-func BySchemaInt64(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldSchemaInt64, opts...).ToFunc()
-}
-
-// BySchemaFloat orders the results by the schema_float field.
-func BySchemaFloat(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldSchemaFloat, opts...).ToFunc()
-}
-
-// BySchemaFloat32 orders the results by the schema_float32 field.
-func BySchemaFloat32(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldSchemaFloat32, opts...).ToFunc()
-}
-
-// ByNullFloat orders the results by the null_float field.
-func ByNullFloat(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldNullFloat, opts...).ToFunc()
-}
-
-// ByRole orders the results by the role field.
-func ByRole(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldRole, opts...).ToFunc()
-}
-
-// ByPriority orders the results by the priority field.
-func ByPriority(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldPriority, opts...).ToFunc()
-}
-
-// ByOptionalUUID orders the results by the optional_uuid field.
-func ByOptionalUUID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldOptionalUUID, opts...).ToFunc()
-}
-
-// ByNillableUUID orders the results by the nillable_uuid field.
-func ByNillableUUID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldNillableUUID, opts...).ToFunc()
-}
-
-// ByVstring orders the results by the vstring field.
-func ByVstring(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldVstring, opts...).ToFunc()
-}
-
-// ByTriple orders the results by the triple field.
-func ByTriple(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldTriple, opts...).ToFunc()
-}
-
-// ByBigInt orders the results by the big_int field.
-func ByBigInt(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldBigInt, opts...).ToFunc()
-}
-
 // Ptr returns a new pointer to the enum value.
-func (s State) Ptr() *State {
+func (s StateValue) Ptr() *StateValue {
 	return &s
 }
 

@@ -38,14 +38,14 @@ func Do(ctx context.Context, client *ent.Client) error {
 	// Unlike `Save`, `SaveX` panics if an error occurs.
 	a8m := client.User.
 		Create().
-		SetAge(30).
-		SetName("a8m").
+		Set(user.Age, 30).
+		Set(user.Name, "a8m").
 		SaveX(ctx)
 	nati := client.User.
 		Create().
-		SetAge(28).
-		SetName("nati").
-		AddFriends(a8m).
+		Set(user.Age, 28).
+		Set(user.Name, "nati").
+		AddIDs(user.Friends, a8m.ID).
 		SaveX(ctx)
 
 	// Query friends. Unlike `All`, `AllX` panics if an error occurs.
@@ -64,7 +64,7 @@ func Do(ctx context.Context, client *ent.Client) error {
 	// Query the graph:
 	friends = client.User.
 		Query().
-		Where(user.HasFriends()).
+		Where(user.Friends.Has()).
 		AllX(ctx)
 	fmt.Println(friends)
 	// Output: [User(id=1, age=30, name=a8m) User(id=2, age=28, name=nati)]

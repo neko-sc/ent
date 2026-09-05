@@ -12,22 +12,24 @@ import (
 	"reflect"
 	"strings"
 	"time"
+
+	"github.com/neko-sc/ent/dialect"
 )
 
 // ScanOne scans one row to the given value. It fails if the rows holds more than 1 row.
-func ScanOne(rows ColumnScanner, v any) error {
+func ScanOne(rows dialect.Rows, v any) error {
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return err
+		}
+		return dialect.ErrNoRows
+	}
 	columns, err := rows.Columns()
 	if err != nil {
 		return fmt.Errorf("sql/scan: failed getting column names: %w", err)
 	}
 	if n := len(columns); n != 1 {
 		return fmt.Errorf("sql/scan: unexpected number of columns: %d", n)
-	}
-	if !rows.Next() {
-		if err := rows.Err(); err != nil {
-			return err
-		}
-		return sql.ErrNoRows
 	}
 	if err := rows.Scan(v); err != nil {
 		return err
@@ -39,7 +41,7 @@ func ScanOne(rows ColumnScanner, v any) error {
 }
 
 // ScanInt64 scans and returns an int64 from the rows.
-func ScanInt64(rows ColumnScanner) (int64, error) {
+func ScanInt64(rows dialect.Rows) (int64, error) {
 	var n int64
 	if err := ScanOne(rows, &n); err != nil {
 		return 0, err
@@ -48,7 +50,7 @@ func ScanInt64(rows ColumnScanner) (int64, error) {
 }
 
 // ScanInt scans and returns an int from the rows.
-func ScanInt(rows ColumnScanner) (int, error) {
+func ScanInt(rows dialect.Rows) (int, error) {
 	n, err := ScanInt64(rows)
 	if err != nil {
 		return 0, err
@@ -57,7 +59,7 @@ func ScanInt(rows ColumnScanner) (int, error) {
 }
 
 // ScanBool scans and returns a boolean from the rows.
-func ScanBool(rows ColumnScanner) (bool, error) {
+func ScanBool(rows dialect.Rows) (bool, error) {
 	var b bool
 	if err := ScanOne(rows, &b); err != nil {
 		return false, err
@@ -66,7 +68,7 @@ func ScanBool(rows ColumnScanner) (bool, error) {
 }
 
 // ScanString scans and returns a string from the rows.
-func ScanString(rows ColumnScanner) (string, error) {
+func ScanString(rows dialect.Rows) (string, error) {
 	var s string
 	if err := ScanOne(rows, &s); err != nil {
 		return "", err
@@ -75,7 +77,7 @@ func ScanString(rows ColumnScanner) (string, error) {
 }
 
 // ScanValue scans and returns a driver.Value from the rows.
-func ScanValue(rows ColumnScanner) (driver.Value, error) {
+func ScanValue(rows dialect.Rows) (driver.Value, error) {
 	var v driver.Value
 	if err := ScanOne(rows, &v); err != nil {
 		return "", err
@@ -84,7 +86,7 @@ func ScanValue(rows ColumnScanner) (driver.Value, error) {
 }
 
 // ScanSlice scans the given ColumnScanner (basically, sql.Row or sql.Rows) into the given slice.
-func ScanSlice(rows ColumnScanner, v any) error {
+func ScanSlice(rows dialect.Rows, v any) error {
 	columns, err := rows.Columns()
 	if err != nil {
 		return fmt.Errorf("sql/scan: failed getting column names: %w", err)
@@ -123,6 +125,9 @@ func ScanSlice(rows ColumnScanner, v any) error {
 	}
 	return rows.Err()
 }
+
+// ScanReflect is the reflection-based escape hatch for scanning slices of structs.
+func ScanReflect(rows dialect.Rows, destination any) error { return ScanSlice(rows, destination) }
 
 // rowScan is the configuration for scanning one sql.Row.
 type rowScan struct {
@@ -342,9 +347,15 @@ func supportsScan(t reflect.Type) bool {
 type UnknownType any
 
 // ScanTypeOf returns the type used for scanning column i from the database.
-func ScanTypeOf(rows *Rows, i int) any {
+func ScanTypeOf(rows dialect.Rows, i int) any {
 	unknown := new(any)
-	ct, err := rows.ColumnTypes()
+	typed, ok := rows.(interface {
+		ColumnTypes() ([]*sql.ColumnType, error)
+	})
+	if !ok {
+		return unknown
+	}
+	ct, err := typed.ColumnTypes()
 	if err != nil || len(ct) <= i {
 		return unknown
 	}
@@ -369,57 +380,4 @@ func ScanTypeOf(rows *Rows, i int) any {
 		}
 	}
 	return reflect.New(rt).Interface()
-}
-
-// SelectValues maps a selected column to its value.
-// Used by the generated code for storing runtime selected columns/expressions.
-type SelectValues map[string]any
-
-// Set sets the value of the given column.
-func (s *SelectValues) Set(name string, v any) {
-	if *s == nil {
-		*s = make(SelectValues)
-	}
-	if pv, ok := v.(*any); ok && pv != nil {
-		v = *pv
-	}
-	(*s)[name] = v
-}
-
-// Get returns the value of the given column.
-func (s SelectValues) Get(name string) (any, error) {
-	v, ok := s[name]
-	if !ok {
-		return nil, fmt.Errorf("%s value was not selected", name)
-	}
-	if v == nil {
-		return nil, nil
-	}
-	switch rv := reflect.Indirect(reflect.ValueOf(v)).Interface().(type) {
-	case NullString:
-		if rv.Valid {
-			return rv.String, nil
-		}
-	case NullInt64:
-		if rv.Valid {
-			return rv.Int64, nil
-		}
-	case NullFloat64:
-		if rv.Valid {
-			return rv.Float64, nil
-		}
-	case NullBool:
-		if rv.Valid {
-			return rv.Bool, nil
-		}
-	case NullTime:
-		if rv.Valid {
-			return rv.Time, nil
-		}
-	case sql.RawBytes:
-		return []byte(rv), nil
-	default:
-		return rv, nil
-	}
-	return nil, nil
 }

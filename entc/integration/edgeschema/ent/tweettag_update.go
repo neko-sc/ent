@@ -9,135 +9,216 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
-	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/predicate"
+	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/tag"
 	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/tweet"
 	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/tweettag"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// TweetTagUpdate is the builder for updating TweetTag entities.
 type TweetTagUpdate struct {
 	config
-	hooks    []Hook
-	mutation *TweetTagMutation
+	mutation  *TweetTagMutation
+	err       error
+	returning *sqlgraph.Returning
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// Where appends a list predicates to the TweetTagUpdate builder.
-func (_u *TweetTagUpdate) Where(ps ...predicate.TweetTag) *TweetTagUpdate {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// SetAddedAt sets the "added_at" field.
-func (_u *TweetTagUpdate) SetAddedAt(v time.Time) *TweetTagUpdate {
-	_u.mutation.SetAddedAt(v)
-	return _u
-}
-
-// SetNillableAddedAt sets the "added_at" field if the given value is not nil.
-func (_u *TweetTagUpdate) SetNillableAddedAt(v *time.Time) *TweetTagUpdate {
-	if v != nil {
-		_u.SetAddedAt(*v)
+func (b *TweetTagUpdate) Set[T any](column ent.ColumnOf[entity.TweetTag, T], value T) *TweetTagUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// SetTagID sets the "tag_id" field.
-func (_u *TweetTagUpdate) SetTagID(v int) *TweetTagUpdate {
-	_u.mutation.SetTagID(v)
-	return _u
+	return b
 }
-
-// SetNillableTagID sets the "tag_id" field if the given value is not nil.
-func (_u *TweetTagUpdate) SetNillableTagID(v *int) *TweetTagUpdate {
-	if v != nil {
-		_u.SetTagID(*v)
+func (b *TweetTagUpdate) SetOptional[T any](column ent.ColumnOf[entity.TweetTag, T], value ent.Option[T]) *TweetTagUpdate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u
-}
-
-// SetTweetID sets the "tweet_id" field.
-func (_u *TweetTagUpdate) SetTweetID(v int) *TweetTagUpdate {
-	_u.mutation.SetTweetID(v)
-	return _u
-}
-
-// SetNillableTweetID sets the "tweet_id" field if the given value is not nil.
-func (_u *TweetTagUpdate) SetNillableTweetID(v *int) *TweetTagUpdate {
-	if v != nil {
-		_u.SetTweetID(*v)
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
 	}
-	return _u
+	return b
+}
+func (b *TweetTagUpdate) SetExpr[T any](column ent.ColumnOf[entity.TweetTag, T], value ent.Expr[T]) *TweetTagUpdate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case tweettag.FieldAddedAt:
+
+	case tweettag.FieldTagID:
+
+	case tweettag.FieldTweetID:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of TweetTag is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *TweetTagUpdate) SetEdge[N, K any](edge ent.UniqueRelation[entity.TweetTag, N, K], id K) *TweetTagUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *TweetTagUpdate) AddIDs[N, K any](edge ent.Relation[entity.TweetTag, N, K], ids ...K) *TweetTagUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *TweetTagUpdate) Mutation() *TweetTagMutation { return b.mutation }
+
+func (b *TweetTagUpdate) Patch() *TweetTagPatch                 { return b.mutation.patch }
+func (b *TweetTagUpdate) Apply(p TweetTagPatch) *TweetTagUpdate { b.mutation.patch.apply(p); return b }
+func (b *TweetTagUpdate) Add[T ent.Number](column ent.ColumnOf[entity.TweetTag, T], delta T) *TweetTagUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *TweetTagUpdate) Append[T any](column ent.ColumnOf[entity.TweetTag, T], values T) *TweetTagUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *TweetTagUpdate) Clear[T any](column ent.ColumnOf[entity.TweetTag, T]) *TweetTagUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *TweetTagUpdate) RemoveIDs[N, K any](edge ent.Relation[entity.TweetTag, N, K], ids ...K) *TweetTagUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *TweetTagUpdate) ClearEdge[N, K any](edge ent.RelationOf[entity.TweetTag, N, K]) *TweetTagUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// SetTag sets the "tag" edge to the Tag entity.
-func (_u *TweetTagUpdate) SetTag(v *Tag) *TweetTagUpdate {
-	return _u.SetTagID(v.ID)
+func (b *TweetTagUpdate) Where(predicates ...ent.Predicate[entity.TweetTag]) *TweetTagUpdate {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// SetTweet sets the "tweet" edge to the Tweet entity.
-func (_u *TweetTagUpdate) SetTweet(v *Tweet) *TweetTagUpdate {
-	return _u.SetTweetID(v.ID)
+func (b *TweetTagUpdate) Save(ctx context.Context) (int, error) {
+	if b.err != nil {
+		return 0, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return 0, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Mutation returns the TweetTagMutation object of the builder.
-func (_u *TweetTagUpdate) Mutation() *TweetTagMutation {
-	return _u.mutation
-}
-
-// ClearTag clears the "tag" edge to the Tag entity.
-func (_u *TweetTagUpdate) ClearTag() *TweetTagUpdate {
-	_u.mutation.ClearTag()
-	return _u
-}
-
-// ClearTweet clears the "tweet" edge to the Tweet entity.
-func (_u *TweetTagUpdate) ClearTweet() *TweetTagUpdate {
-	_u.mutation.ClearTweet()
-	return _u
-}
-
-// Save executes the query and returns the number of nodes affected by the update operation.
-func (_u *TweetTagUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *TweetTagUpdate) SaveX(ctx context.Context) int {
-	affected, err := _u.Save(ctx)
+func (b *TweetTagUpdate) SaveX(ctx context.Context) int {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return affected
+	return result
 }
 
-// Exec executes the query.
-func (_u *TweetTagUpdate) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *TweetTagUpdate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *TweetTagUpdate) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *TweetTagUpdate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_u *TweetTagUpdate) check() error {
-	if _u.mutation.TagCleared() && len(_u.mutation.TagIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "TweetTag.tag"`)
+func (b *TweetTagUpdate) Returning(ctx context.Context) ([]*TweetTag, error) {
+	nodes := make([]*TweetTag, 0)
+	b.returning = &sqlgraph.Returning{Columns: tweettag.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &TweetTag{config: b.config}
+		values, err := _node.scanValues(tweettag.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(tweettag.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Save(ctx); err != nil {
+		return nil, err
 	}
-	if _u.mutation.TweetCleared() && len(_u.mutation.TweetIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "TweetTag.tweet"`)
-	}
+	return nodes, nil
+}
+
+func (b *TweetTagUpdate) defaults() error {
+
 	return nil
+}
+
+func (b *TweetTagUpdate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.AddedAt.IsNull() {
+		return &ValidationError{Name: "added_at", err: errors.New(`ent: field "TweetTag.added_at" is not nullable`)}
+	}
+
+	if b.mutation.patch.TagID.IsNull() {
+		return &ValidationError{Name: "tag_id", err: errors.New(`ent: field "TweetTag.tag_id" is not nullable`)}
+	}
+
+	if b.mutation.patch.TweetID.IsNull() {
+		return &ValidationError{Name: "tweet_id", err: errors.New(`ent: field "TweetTag.tweet_id" is not nullable`)}
+	}
+
+	if b.mutation.patch.TagID.IsNull() {
+		return &ValidationError{Name: "tag", err: errors.New(`ent: clearing required edge "TweetTag.tag"`)}
+	}
+
+	if b.mutation.patch.TweetID.IsNull() {
+		return &ValidationError{Name: "tweet", err: errors.New(`ent: clearing required edge "TweetTag.tweet"`)}
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *TweetTagUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *TweetTagUpdate {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
 }
 
 func (_u *TweetTagUpdate) sqlSave(ctx context.Context) (_node int, err error) {
@@ -152,10 +233,10 @@ func (_u *TweetTagUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.AddedAt(); ok {
+	if value, ok := _u.mutation.patch.AddedAt.Get(); ok {
 		_spec.SetField(tweettag.FieldAddedAt, field.TypeTime, value)
 	}
-	if _u.mutation.TagCleared() {
+	if _u.mutation.patch.TagID.IsNull() || _u.mutation.patch.clearedEdges[tweettag.EdgeTag] {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
@@ -168,7 +249,7 @@ func (_u *TweetTagUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.TagIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.tagIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
@@ -179,12 +260,17 @@ func (_u *TweetTagUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(tag.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
-	if _u.mutation.TweetCleared() {
+	if _u.mutation.patch.TweetID.IsNull() || _u.mutation.patch.clearedEdges[tweettag.EdgeTweet] {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
@@ -197,7 +283,7 @@ func (_u *TweetTagUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.TweetIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.tweetIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
@@ -208,11 +294,22 @@ func (_u *TweetTagUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(tweet.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	_spec.Returning = _u.returning
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{tweettag.Label}
@@ -221,136 +318,212 @@ func (_u *TweetTagUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		return 0, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }
 
-// TweetTagUpdateOne is the builder for updating a single TweetTag entity.
 type TweetTagUpdateOne struct {
 	config
-	fields   []string
-	hooks    []Hook
 	mutation *TweetTagMutation
+	err      error
+
+	fields []string
+	old    *TweetTag
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// SetAddedAt sets the "added_at" field.
-func (_u *TweetTagUpdateOne) SetAddedAt(v time.Time) *TweetTagUpdateOne {
-	_u.mutation.SetAddedAt(v)
-	return _u
-}
-
-// SetNillableAddedAt sets the "added_at" field if the given value is not nil.
-func (_u *TweetTagUpdateOne) SetNillableAddedAt(v *time.Time) *TweetTagUpdateOne {
-	if v != nil {
-		_u.SetAddedAt(*v)
+func (b *TweetTagUpdateOne) Set[T any](column ent.ColumnOf[entity.TweetTag, T], value T) *TweetTagUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// SetTagID sets the "tag_id" field.
-func (_u *TweetTagUpdateOne) SetTagID(v int) *TweetTagUpdateOne {
-	_u.mutation.SetTagID(v)
-	return _u
+	return b
 }
-
-// SetNillableTagID sets the "tag_id" field if the given value is not nil.
-func (_u *TweetTagUpdateOne) SetNillableTagID(v *int) *TweetTagUpdateOne {
-	if v != nil {
-		_u.SetTagID(*v)
+func (b *TweetTagUpdateOne) SetOptional[T any](column ent.ColumnOf[entity.TweetTag, T], value ent.Option[T]) *TweetTagUpdateOne {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u
-}
-
-// SetTweetID sets the "tweet_id" field.
-func (_u *TweetTagUpdateOne) SetTweetID(v int) *TweetTagUpdateOne {
-	_u.mutation.SetTweetID(v)
-	return _u
-}
-
-// SetNillableTweetID sets the "tweet_id" field if the given value is not nil.
-func (_u *TweetTagUpdateOne) SetNillableTweetID(v *int) *TweetTagUpdateOne {
-	if v != nil {
-		_u.SetTweetID(*v)
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
 	}
-	return _u
+	return b
+}
+func (b *TweetTagUpdateOne) SetExpr[T any](column ent.ColumnOf[entity.TweetTag, T], value ent.Expr[T]) *TweetTagUpdateOne {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case tweettag.FieldAddedAt:
+
+	case tweettag.FieldTagID:
+
+	case tweettag.FieldTweetID:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of TweetTag is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *TweetTagUpdateOne) SetEdge[N, K any](edge ent.UniqueRelation[entity.TweetTag, N, K], id K) *TweetTagUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *TweetTagUpdateOne) AddIDs[N, K any](edge ent.Relation[entity.TweetTag, N, K], ids ...K) *TweetTagUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *TweetTagUpdateOne) Mutation() *TweetTagMutation { return b.mutation }
+
+func (b *TweetTagUpdateOne) Patch() *TweetTagPatch { return b.mutation.patch }
+func (b *TweetTagUpdateOne) Apply(p TweetTagPatch) *TweetTagUpdateOne {
+	b.mutation.patch.apply(p)
+	return b
+}
+func (b *TweetTagUpdateOne) Add[T ent.Number](column ent.ColumnOf[entity.TweetTag, T], delta T) *TweetTagUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *TweetTagUpdateOne) Append[T any](column ent.ColumnOf[entity.TweetTag, T], values T) *TweetTagUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *TweetTagUpdateOne) Clear[T any](column ent.ColumnOf[entity.TweetTag, T]) *TweetTagUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *TweetTagUpdateOne) RemoveIDs[N, K any](edge ent.Relation[entity.TweetTag, N, K], ids ...K) *TweetTagUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *TweetTagUpdateOne) ClearEdge[N, K any](edge ent.RelationOf[entity.TweetTag, N, K]) *TweetTagUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// SetTag sets the "tag" edge to the Tag entity.
-func (_u *TweetTagUpdateOne) SetTag(v *Tag) *TweetTagUpdateOne {
-	return _u.SetTagID(v.ID)
+func (b *TweetTagUpdateOne) Where(predicates ...ent.Predicate[entity.TweetTag]) *TweetTagUpdateOne {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// SetTweet sets the "tweet" edge to the Tweet entity.
-func (_u *TweetTagUpdateOne) SetTweet(v *Tweet) *TweetTagUpdateOne {
-	return _u.SetTweetID(v.ID)
+func (b *TweetTagUpdateOne) Save(ctx context.Context) (*TweetTag, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Mutation returns the TweetTagMutation object of the builder.
-func (_u *TweetTagUpdateOne) Mutation() *TweetTagMutation {
-	return _u.mutation
-}
-
-// ClearTag clears the "tag" edge to the Tag entity.
-func (_u *TweetTagUpdateOne) ClearTag() *TweetTagUpdateOne {
-	_u.mutation.ClearTag()
-	return _u
-}
-
-// ClearTweet clears the "tweet" edge to the Tweet entity.
-func (_u *TweetTagUpdateOne) ClearTweet() *TweetTagUpdateOne {
-	_u.mutation.ClearTweet()
-	return _u
-}
-
-// Where appends a list predicates to the TweetTagUpdate builder.
-func (_u *TweetTagUpdateOne) Where(ps ...predicate.TweetTag) *TweetTagUpdateOne {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// Select allows selecting one or more fields (columns) of the returned entity.
-// The default is selecting all fields defined in the entity schema.
-func (_u *TweetTagUpdateOne) Select(field string, fields ...string) *TweetTagUpdateOne {
-	_u.fields = append([]string{field}, fields...)
-	return _u
-}
-
-// Save executes the query and returns the updated TweetTag entity.
-func (_u *TweetTagUpdateOne) Save(ctx context.Context) (*TweetTag, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *TweetTagUpdateOne) SaveX(ctx context.Context) *TweetTag {
-	node, err := _u.Save(ctx)
+func (b *TweetTagUpdateOne) SaveX(ctx context.Context) *TweetTag {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return node
+	return result
 }
 
-// Exec executes the query on the entity.
-func (_u *TweetTagUpdateOne) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *TweetTagUpdateOne) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *TweetTagUpdateOne) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *TweetTagUpdateOne) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_u *TweetTagUpdateOne) check() error {
-	if _u.mutation.TagCleared() && len(_u.mutation.TagIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "TweetTag.tag"`)
+func (b *TweetTagUpdateOne) Select(columns ...ent.EntityColumn[entity.TweetTag]) *TweetTagUpdateOne {
+	if len(columns) == 0 {
+		panic("ent: Select requires at least one column")
 	}
-	if _u.mutation.TweetCleared() && len(_u.mutation.TweetIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "TweetTag.tweet"`)
+	b.fields = make([]string, len(columns))
+	for index, column := range columns {
+		b.fields[index] = column.Ref().Name
 	}
+	return b
+}
+
+func (b *TweetTagUpdateOne) SaveOld(ctx context.Context) (old *TweetTag, updated *TweetTag, err error) {
+	if !b.driver.Capabilities().ReturningOld {
+		return nil, nil, &dialect.UnsupportedError{Feature: "RETURNING OLD", Dialect: dialect.Dialect(b.driver.Dialect())}
+	}
+	b.old = &TweetTag{config: b.config}
+	defer func() { b.old = nil }()
+	updated, err = b.Save(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return b.old, updated, nil
+}
+
+func (b *TweetTagUpdateOne) defaults() error {
+
 	return nil
+}
+
+func (b *TweetTagUpdateOne) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.AddedAt.IsNull() {
+		return &ValidationError{Name: "added_at", err: errors.New(`ent: field "TweetTag.added_at" is not nullable`)}
+	}
+
+	if b.mutation.patch.TagID.IsNull() {
+		return &ValidationError{Name: "tag_id", err: errors.New(`ent: field "TweetTag.tag_id" is not nullable`)}
+	}
+
+	if b.mutation.patch.TweetID.IsNull() {
+		return &ValidationError{Name: "tweet_id", err: errors.New(`ent: field "TweetTag.tweet_id" is not nullable`)}
+	}
+
+	if b.mutation.patch.TagID.IsNull() {
+		return &ValidationError{Name: "tag", err: errors.New(`ent: clearing required edge "TweetTag.tag"`)}
+	}
+
+	if b.mutation.patch.TweetID.IsNull() {
+		return &ValidationError{Name: "tweet", err: errors.New(`ent: clearing required edge "TweetTag.tweet"`)}
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *TweetTagUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *TweetTagUpdateOne {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
 }
 
 func (_u *TweetTagUpdateOne) sqlSave(ctx context.Context) (_node *TweetTag, err error) {
@@ -382,10 +555,10 @@ func (_u *TweetTagUpdateOne) sqlSave(ctx context.Context) (_node *TweetTag, err 
 			}
 		}
 	}
-	if value, ok := _u.mutation.AddedAt(); ok {
+	if value, ok := _u.mutation.patch.AddedAt.Get(); ok {
 		_spec.SetField(tweettag.FieldAddedAt, field.TypeTime, value)
 	}
-	if _u.mutation.TagCleared() {
+	if _u.mutation.patch.TagID.IsNull() || _u.mutation.patch.clearedEdges[tweettag.EdgeTag] {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
@@ -398,7 +571,7 @@ func (_u *TweetTagUpdateOne) sqlSave(ctx context.Context) (_node *TweetTag, err 
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.TagIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.tagIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
@@ -409,12 +582,17 @@ func (_u *TweetTagUpdateOne) sqlSave(ctx context.Context) (_node *TweetTag, err 
 				IDSpec: sqlgraph.NewFieldSpec(tag.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
-	if _u.mutation.TweetCleared() {
+	if _u.mutation.patch.TweetID.IsNull() || _u.mutation.patch.clearedEdges[tweettag.EdgeTweet] {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
@@ -427,7 +605,7 @@ func (_u *TweetTagUpdateOne) sqlSave(ctx context.Context) (_node *TweetTag, err 
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.TweetIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.tweetIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
@@ -438,14 +616,28 @@ func (_u *TweetTagUpdateOne) sqlSave(ctx context.Context) (_node *TweetTag, err 
 				IDSpec: sqlgraph.NewFieldSpec(tweet.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	_node = &TweetTag{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
+	if _u.old != nil {
+		_spec.OldScanValues = _u.old.scanValues
+		_spec.OldAssign = _u.old.assignValues
+	}
 	if err = sqlgraph.UpdateNode(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{tweettag.Label}
@@ -454,6 +646,5 @@ func (_u *TweetTagUpdateOne) sqlSave(ctx context.Context) (_node *TweetTag, err 
 		}
 		return nil, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }

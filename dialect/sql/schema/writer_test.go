@@ -27,11 +27,11 @@ func TestWriteDriver(t *testing.T) {
 	ctx := context.Background()
 	tx, err := w.Tx(ctx)
 	require.NoError(t, err)
-	err = tx.Query(ctx, "SELECT `name` FROM `users`", nil, nil)
+	_, err = tx.Query(ctx, "SELECT `name` FROM `users`", nil)
 	require.EqualError(t, err, "query is not supported by the WriteDriver")
-	err = tx.Exec(ctx, "ALTER TABLE `users` ADD COLUMN `age` int", nil, nil)
+	_, err = tx.Exec(ctx, "ALTER TABLE `users` ADD COLUMN `age` int", nil)
 	require.NoError(t, err)
-	err = tx.Exec(ctx, "ALTER TABLE `users` ADD COLUMN `NAME` varchar(100);", nil, nil)
+	_, err = tx.Exec(ctx, "ALTER TABLE `users` ADD COLUMN `NAME` varchar(100);", nil)
 	require.NoError(t, err)
 	require.NoError(t, tx.Commit())
 	lines := strings.Split(b.String(), "\n")
@@ -42,31 +42,31 @@ func TestWriteDriver(t *testing.T) {
 
 	b.Reset()
 	query, args := sql.Dialect(dialect.Postgres).Update("users").Schema("test").Set("a", 1).Set("b", "a").Set("c", "'c'").Set("d", true).Where(sql.EQ("p", 0.2)).Query()
-	err = w.Exec(ctx, query, args, nil)
+	_, err = w.Exec(ctx, query, args)
 	require.NoError(t, err)
 	require.Equal(t, "UPDATE \"test\".\"users\" SET \"a\" = 1, \"b\" = 'a', \"c\" = '''c''', \"d\" = 1 WHERE \"p\" = 0.2;\n", b.String())
 
 	b.Reset()
 	query, args = sql.Dialect(dialect.Postgres).Update("users").Schema("test").Set("a", "{}").Where(sqljson.ValueIsNull("a")).Query()
-	err = w.Exec(ctx, query, args, nil)
+	_, err = w.Exec(ctx, query, args)
 	require.NoError(t, err)
 	require.Equal(t, "UPDATE \"test\".\"users\" SET \"a\" = '{}' WHERE \"a\" = 'null'::jsonb;\n", b.String())
 
 	b.Reset()
 	w = NewWriteDriver(dialect.Postgres, b)
 	query, args = sql.Dialect(dialect.Postgres).Update("users").Set("id", uuid.Nil).Set("a", 1).Set("b", time.Now()).Query()
-	err = w.Exec(ctx, query, args, nil)
+	_, err = w.Exec(ctx, query, args)
 	require.NoError(t, err)
 	require.Equal(t, `UPDATE "users" SET "id" = '00000000-0000-0000-0000-000000000000', "a" = 1, "b" = {{ TIME_VALUE }};`+"\n", b.String())
 
 	b.Reset()
-	err = w.Exec(ctx, `INSERT INTO "users" (name) VALUES("a8m") RETURNING id`, nil, nil)
+	_, err = w.Exec(ctx, `INSERT INTO "users" (name) VALUES("a8m") RETURNING id`, nil)
 	require.NoError(t, err)
 	require.Equal(t, `INSERT INTO "users" (name) VALUES("a8m") RETURNING id;`+"\n", b.String())
 
 	// batchCreator uses tx.Query when doing an insert
 	b.Reset()
-	err = w.Query(ctx, `INSERT INTO "users" (name) VALUES("a8m") RETURNING id`, nil, nil)
+	_, err = w.Query(ctx, `INSERT INTO "users" (name) VALUES("a8m") RETURNING id`, nil)
 	require.NoError(t, err)
 	require.Equal(t, `INSERT INTO "users" (name) VALUES("a8m") RETURNING id;`+"\n", b.String())
 
@@ -77,8 +77,7 @@ func TestWriteDriver(t *testing.T) {
 		`INSERT INTO "users" (name) VALUES("a8m") RETURNING "id", "name"`:                {`"id"`, `"name"`},
 		`INSERT INTO "users" (name) VALUES("a8m") RETURNING "id", "name"; DROP "groups"`: {`"id"`, `"name"`},
 	} {
-		var rows sql.Rows
-		err = w.Query(ctx, q, nil, &rows)
+		rows, err := w.Query(ctx, q, nil)
 		require.NoError(t, err)
 		require.True(t, rows.Next())
 		c, err := rows.Columns()
@@ -171,7 +170,8 @@ func TestDirWriter(t *testing.T) {
 				drv = NewWriteDriver(tt.dialect, w)
 			)
 			for i := range tt.exec {
-				require.NoError(t, drv.Exec(context.Background(), tt.exec[i], tt.args[i], nil))
+				_, err := drv.Exec(context.Background(), tt.exec[i], tt.args[i])
+				require.NoError(t, err)
 				w.Change(tt.comments[i])
 			}
 			require.NoError(t, w.Flush("migration_file"))

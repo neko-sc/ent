@@ -10,99 +10,200 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/examples/edgeindex/ent/city"
-	"github.com/neko-sc/ent/examples/edgeindex/ent/predicate"
+	"github.com/neko-sc/ent/examples/edgeindex/ent/entity"
 	"github.com/neko-sc/ent/examples/edgeindex/ent/street"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// StreetUpdate is the builder for updating Street entities.
 type StreetUpdate struct {
 	config
-	hooks    []Hook
-	mutation *StreetMutation
+	mutation  *StreetMutation
+	err       error
+	returning *sqlgraph.Returning
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// Where appends a list predicates to the StreetUpdate builder.
-func (_u *StreetUpdate) Where(ps ...predicate.Street) *StreetUpdate {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// SetName sets the "name" field.
-func (_u *StreetUpdate) SetName(v string) *StreetUpdate {
-	_u.mutation.SetName(v)
-	return _u
-}
-
-// SetNillableName sets the "name" field if the given value is not nil.
-func (_u *StreetUpdate) SetNillableName(v *string) *StreetUpdate {
-	if v != nil {
-		_u.SetName(*v)
+func (b *StreetUpdate) Set[T any](column ent.ColumnOf[entity.Street, T], value T) *StreetUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// SetCityID sets the "city" edge to the City entity by ID.
-func (_u *StreetUpdate) SetCityID(id int) *StreetUpdate {
-	_u.mutation.SetCityID(id)
-	return _u
+	return b
 }
-
-// SetNillableCityID sets the "city" edge to the City entity by ID if the given value is not nil.
-func (_u *StreetUpdate) SetNillableCityID(id *int) *StreetUpdate {
-	if id != nil {
-		_u = _u.SetCityID(*id)
+func (b *StreetUpdate) SetOptional[T any](column ent.ColumnOf[entity.Street, T], value ent.Option[T]) *StreetUpdate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *StreetUpdate) SetExpr[T any](column ent.ColumnOf[entity.Street, T], value ent.Expr[T]) *StreetUpdate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case street.FieldName:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Street is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *StreetUpdate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Street, N, K], id K) *StreetUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *StreetUpdate) AddIDs[N, K any](edge ent.Relation[entity.Street, N, K], ids ...K) *StreetUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *StreetUpdate) Mutation() *StreetMutation { return b.mutation }
+
+func (b *StreetUpdate) Patch() *StreetPatch               { return b.mutation.patch }
+func (b *StreetUpdate) Apply(p StreetPatch) *StreetUpdate { b.mutation.patch.apply(p); return b }
+func (b *StreetUpdate) Add[T ent.Number](column ent.ColumnOf[entity.Street, T], delta T) *StreetUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *StreetUpdate) Append[T any](column ent.ColumnOf[entity.Street, T], values T) *StreetUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *StreetUpdate) Clear[T any](column ent.ColumnOf[entity.Street, T]) *StreetUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *StreetUpdate) RemoveIDs[N, K any](edge ent.Relation[entity.Street, N, K], ids ...K) *StreetUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *StreetUpdate) ClearEdge[N, K any](edge ent.RelationOf[entity.Street, N, K]) *StreetUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// SetCity sets the "city" edge to the City entity.
-func (_u *StreetUpdate) SetCity(v *City) *StreetUpdate {
-	return _u.SetCityID(v.ID)
+func (b *StreetUpdate) Where(predicates ...ent.Predicate[entity.Street]) *StreetUpdate {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Mutation returns the StreetMutation object of the builder.
-func (_u *StreetUpdate) Mutation() *StreetMutation {
-	return _u.mutation
+func (b *StreetUpdate) Save(ctx context.Context) (int, error) {
+	if b.err != nil {
+		return 0, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return 0, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// ClearCity clears the "city" edge to the City entity.
-func (_u *StreetUpdate) ClearCity() *StreetUpdate {
-	_u.mutation.ClearCity()
-	return _u
-}
-
-// Save executes the query and returns the number of nodes affected by the update operation.
-func (_u *StreetUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *StreetUpdate) SaveX(ctx context.Context) int {
-	affected, err := _u.Save(ctx)
+func (b *StreetUpdate) SaveX(ctx context.Context) int {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return affected
+	return result
 }
 
-// Exec executes the query.
-func (_u *StreetUpdate) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *StreetUpdate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *StreetUpdate) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *StreetUpdate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
+func (b *StreetUpdate) Returning(ctx context.Context) ([]*Street, error) {
+	nodes := make([]*Street, 0)
+	b.returning = &sqlgraph.Returning{Columns: street.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Street{config: b.config}
+		values, err := _node.scanValues(street.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(street.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Save(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
+}
+
+func (b *StreetUpdate) defaults() error {
+
+	return nil
+}
+
+func (b *StreetUpdate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.Name.IsNull() {
+		return &ValidationError{Name: "name", err: errors.New(`ent: field "Street.name" is not nullable`)}
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *StreetUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *StreetUpdate {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *StreetUpdate) sqlSave(ctx context.Context) (_node int, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(street.Table, street.Columns, sqlgraph.NewFieldSpec(street.FieldID, field.TypeInt))
 	if ps := _u.mutation.Predicates(); len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -111,10 +212,10 @@ func (_u *StreetUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.Name(); ok {
+	if value, ok := _u.mutation.patch.Name.Get(); ok {
 		_spec.SetField(street.FieldName, field.TypeString, value)
 	}
-	if _u.mutation.CityCleared() {
+	if _u.mutation.patch.CityID.IsNull() || _u.mutation.patch.clearedEdges[street.EdgeCity] {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -127,7 +228,7 @@ func (_u *StreetUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.CityIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.cityIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -138,11 +239,22 @@ func (_u *StreetUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(city.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	_spec.Returning = _u.returning
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{street.Label}
@@ -151,103 +263,195 @@ func (_u *StreetUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		return 0, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }
 
-// StreetUpdateOne is the builder for updating a single Street entity.
 type StreetUpdateOne struct {
 	config
-	fields   []string
-	hooks    []Hook
 	mutation *StreetMutation
+	err      error
+
+	fields []string
+	old    *Street
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// SetName sets the "name" field.
-func (_u *StreetUpdateOne) SetName(v string) *StreetUpdateOne {
-	_u.mutation.SetName(v)
-	return _u
-}
-
-// SetNillableName sets the "name" field if the given value is not nil.
-func (_u *StreetUpdateOne) SetNillableName(v *string) *StreetUpdateOne {
-	if v != nil {
-		_u.SetName(*v)
+func (b *StreetUpdateOne) Set[T any](column ent.ColumnOf[entity.Street, T], value T) *StreetUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// SetCityID sets the "city" edge to the City entity by ID.
-func (_u *StreetUpdateOne) SetCityID(id int) *StreetUpdateOne {
-	_u.mutation.SetCityID(id)
-	return _u
+	return b
 }
-
-// SetNillableCityID sets the "city" edge to the City entity by ID if the given value is not nil.
-func (_u *StreetUpdateOne) SetNillableCityID(id *int) *StreetUpdateOne {
-	if id != nil {
-		_u = _u.SetCityID(*id)
+func (b *StreetUpdateOne) SetOptional[T any](column ent.ColumnOf[entity.Street, T], value ent.Option[T]) *StreetUpdateOne {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *StreetUpdateOne) SetExpr[T any](column ent.ColumnOf[entity.Street, T], value ent.Expr[T]) *StreetUpdateOne {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case street.FieldName:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Street is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *StreetUpdateOne) SetEdge[N, K any](edge ent.UniqueRelation[entity.Street, N, K], id K) *StreetUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *StreetUpdateOne) AddIDs[N, K any](edge ent.Relation[entity.Street, N, K], ids ...K) *StreetUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *StreetUpdateOne) Mutation() *StreetMutation { return b.mutation }
+
+func (b *StreetUpdateOne) Patch() *StreetPatch                  { return b.mutation.patch }
+func (b *StreetUpdateOne) Apply(p StreetPatch) *StreetUpdateOne { b.mutation.patch.apply(p); return b }
+func (b *StreetUpdateOne) Add[T ent.Number](column ent.ColumnOf[entity.Street, T], delta T) *StreetUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *StreetUpdateOne) Append[T any](column ent.ColumnOf[entity.Street, T], values T) *StreetUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *StreetUpdateOne) Clear[T any](column ent.ColumnOf[entity.Street, T]) *StreetUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *StreetUpdateOne) RemoveIDs[N, K any](edge ent.Relation[entity.Street, N, K], ids ...K) *StreetUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *StreetUpdateOne) ClearEdge[N, K any](edge ent.RelationOf[entity.Street, N, K]) *StreetUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// SetCity sets the "city" edge to the City entity.
-func (_u *StreetUpdateOne) SetCity(v *City) *StreetUpdateOne {
-	return _u.SetCityID(v.ID)
+func (b *StreetUpdateOne) Where(predicates ...ent.Predicate[entity.Street]) *StreetUpdateOne {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Mutation returns the StreetMutation object of the builder.
-func (_u *StreetUpdateOne) Mutation() *StreetMutation {
-	return _u.mutation
+func (b *StreetUpdateOne) Save(ctx context.Context) (*Street, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// ClearCity clears the "city" edge to the City entity.
-func (_u *StreetUpdateOne) ClearCity() *StreetUpdateOne {
-	_u.mutation.ClearCity()
-	return _u
-}
-
-// Where appends a list predicates to the StreetUpdate builder.
-func (_u *StreetUpdateOne) Where(ps ...predicate.Street) *StreetUpdateOne {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// Select allows selecting one or more fields (columns) of the returned entity.
-// The default is selecting all fields defined in the entity schema.
-func (_u *StreetUpdateOne) Select(field string, fields ...string) *StreetUpdateOne {
-	_u.fields = append([]string{field}, fields...)
-	return _u
-}
-
-// Save executes the query and returns the updated Street entity.
-func (_u *StreetUpdateOne) Save(ctx context.Context) (*Street, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *StreetUpdateOne) SaveX(ctx context.Context) *Street {
-	node, err := _u.Save(ctx)
+func (b *StreetUpdateOne) SaveX(ctx context.Context) *Street {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return node
+	return result
 }
 
-// Exec executes the query on the entity.
-func (_u *StreetUpdateOne) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *StreetUpdateOne) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *StreetUpdateOne) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *StreetUpdateOne) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
+func (b *StreetUpdateOne) Select(columns ...ent.EntityColumn[entity.Street]) *StreetUpdateOne {
+	if len(columns) == 0 {
+		panic("ent: Select requires at least one column")
+	}
+	b.fields = make([]string, len(columns))
+	for index, column := range columns {
+		b.fields[index] = column.Ref().Name
+	}
+	return b
+}
+
+func (b *StreetUpdateOne) SaveOld(ctx context.Context) (old *Street, updated *Street, err error) {
+	if !b.driver.Capabilities().ReturningOld {
+		return nil, nil, &dialect.UnsupportedError{Feature: "RETURNING OLD", Dialect: dialect.Dialect(b.driver.Dialect())}
+	}
+	b.old = &Street{config: b.config}
+	defer func() { b.old = nil }()
+	updated, err = b.Save(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return b.old, updated, nil
+}
+
+func (b *StreetUpdateOne) defaults() error {
+
+	return nil
+}
+
+func (b *StreetUpdateOne) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.Name.IsNull() {
+		return &ValidationError{Name: "name", err: errors.New(`ent: field "Street.name" is not nullable`)}
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *StreetUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *StreetUpdateOne {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *StreetUpdateOne) sqlSave(ctx context.Context) (_node *Street, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(street.Table, street.Columns, sqlgraph.NewFieldSpec(street.FieldID, field.TypeInt))
 	id, ok := _u.mutation.ID()
 	if !ok {
@@ -273,10 +477,10 @@ func (_u *StreetUpdateOne) sqlSave(ctx context.Context) (_node *Street, err erro
 			}
 		}
 	}
-	if value, ok := _u.mutation.Name(); ok {
+	if value, ok := _u.mutation.patch.Name.Get(); ok {
 		_spec.SetField(street.FieldName, field.TypeString, value)
 	}
-	if _u.mutation.CityCleared() {
+	if _u.mutation.patch.CityID.IsNull() || _u.mutation.patch.clearedEdges[street.EdgeCity] {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -289,7 +493,7 @@ func (_u *StreetUpdateOne) sqlSave(ctx context.Context) (_node *Street, err erro
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.CityIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.cityIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -300,14 +504,28 @@ func (_u *StreetUpdateOne) sqlSave(ctx context.Context) (_node *Street, err erro
 				IDSpec: sqlgraph.NewFieldSpec(city.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	_node = &Street{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
+	if _u.old != nil {
+		_spec.OldScanValues = _u.old.scanValues
+		_spec.OldAssign = _u.old.assignValues
+	}
 	if err = sqlgraph.UpdateNode(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{street.Label}
@@ -316,6 +534,5 @@ func (_u *StreetUpdateOne) sqlSave(ctx context.Context) (_node *Street, err erro
 		}
 		return nil, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }

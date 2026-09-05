@@ -8,29 +8,56 @@ package versioned
 import (
 	"context"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/migrate/versioned/entity"
 	"github.com/neko-sc/ent/entc/integration/migrate/versioned/group"
-	"github.com/neko-sc/ent/entc/integration/migrate/versioned/predicate"
 	"github.com/neko-sc/ent/schema/field"
 )
 
 // GroupDelete is the builder for deleting a Group entity.
 type GroupDelete struct {
 	config
-	hooks    []Hook
-	mutation *GroupMutation
+
+	mutation  *GroupMutation
+	returning *sqlgraph.Returning
 }
 
 // Where appends a list predicates to the GroupDelete builder.
-func (_d *GroupDelete) Where(ps ...predicate.Group) *GroupDelete {
-	_d.mutation.Where(ps...)
+func (_d *GroupDelete) Where(predicates ...ent.Predicate[entity.Group]) *GroupDelete {
+	_d.mutation.Where(predicates...)
 	return _d
 }
 
 // Exec executes the deletion query and returns how many vertices were deleted.
 func (_d *GroupDelete) Exec(ctx context.Context) (int, error) {
-	return withHooks(ctx, _d.sqlExec, _d.mutation, _d.hooks)
+	return _d.sqlExec(ctx)
+}
+
+func (b *GroupDelete) Returning(ctx context.Context) ([]*Group, error) {
+	nodes := make([]*Group, 0)
+	b.returning = &sqlgraph.Returning{Columns: group.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Group{config: b.config}
+		values, err := _node.scanValues(group.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(group.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Exec(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
 }
 
 // ExecX is like Exec, but panics if an error occurs.
@@ -51,11 +78,11 @@ func (_d *GroupDelete) sqlExec(ctx context.Context) (int, error) {
 			}
 		}
 	}
+	_spec.Returning = _d.returning
 	affected, err := sqlgraph.DeleteNodes(ctx, _d.driver, _spec)
 	if err != nil && sqlgraph.IsConstraintError(err) {
 		err = &ConstraintError{msg: err.Error(), wrap: err}
 	}
-	_d.mutation.done = true
 	return affected, err
 }
 
@@ -65,8 +92,8 @@ type GroupDeleteOne struct {
 }
 
 // Where appends a list predicates to the GroupDelete builder.
-func (_d *GroupDeleteOne) Where(ps ...predicate.Group) *GroupDeleteOne {
-	_d._d.mutation.Where(ps...)
+func (_d *GroupDeleteOne) Where(predicates ...ent.Predicate[entity.Group]) *GroupDeleteOne {
+	_d._d.mutation.Where(predicates...)
 	return _d
 }
 

@@ -5,6 +5,7 @@ package schema
 
 import (
 	"context"
+	stdsql "database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -28,6 +29,38 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/require"
 )
+
+type nativeMigrationDriver struct {
+	dialect.Driver
+	database *stdsql.DB
+}
+
+func (driver nativeMigrationDriver) DB() *stdsql.DB    { return driver.database }
+func (nativeMigrationDriver) Dialect() dialect.Dialect { return dialect.Postgres }
+
+func TestMigrationDriverWrappers(t *testing.T) {
+	database, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer database.Close()
+	var output strings.Builder
+	native := nativeMigrationDriver{database: database}
+	writer := &WriteDriver{Driver: native, Writer: &output}
+	for _, driver := range []dialect.Driver{native, writer, dialect.Debug(writer, func(...any) {})} {
+		mock.ExpectQuery("SELECT 1").WillReturnRows(sqlmock.NewRows([]string{"value"}).AddRow(1))
+		adapted := migrationDriver(driver)
+		rows, err := (&db{adapted}).QueryContext(t.Context(), "SELECT 1")
+		require.NoError(t, err)
+		require.True(t, rows.Next())
+		require.NoError(t, rows.Close())
+		if driver != native {
+			_, err := adapted.Exec(t.Context(), "CREATE TABLE example (id int)", nil)
+			require.NoError(t, err)
+		}
+	}
+	require.Equal(t, "CREATE TABLE example (id int);\nCREATE TABLE example (id int);\n", output.String())
+	require.Equal(t, native, writer.Driver, "do not mutate caller's wrapper")
+	require.NoError(t, mock.ExpectationsWereMet())
+}
 
 func TestMigrate_SchemaName(t *testing.T) {
 	db, mk, err := sqlmock.New()

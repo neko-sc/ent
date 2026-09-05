@@ -8,14 +8,16 @@ package ent
 import (
 	"context"
 	"database/sql/driver"
+	"errors"
 	"fmt"
 	"math"
 
 	"github.com/google/uuid"
 	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
-	"github.com/neko-sc/ent/examples/migration/ent/predicate"
+	"github.com/neko-sc/ent/examples/migration/ent/entity"
 	"github.com/neko-sc/ent/examples/migration/ent/session"
 	"github.com/neko-sc/ent/examples/migration/ent/sessiondevice"
 	"github.com/neko-sc/ent/schema/field"
@@ -24,19 +26,90 @@ import (
 // SessionDeviceQuery is the builder for querying SessionDevice entities.
 type SessionDeviceQuery struct {
 	config
-	ctx          *QueryContext
-	order        []sessiondevice.OrderOption
-	inters       []Interceptor
-	predicates   []predicate.SessionDevice
+	ctx        *QueryContext
+	order      []ent.OrderOption[entity.SessionDevice]
+	joins      []func(*sql.Selector)
+	withCounts []ent.RelationRef
+
+	predicates   []ent.Predicate[entity.SessionDevice]
 	withSessions *SessionQuery
+	modifiers    []func(*sql.Selector)
+
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
 }
 
 // Where adds a new predicate for the SessionDeviceQuery builder.
-func (_q *SessionDeviceQuery) Where(ps ...predicate.SessionDevice) *SessionDeviceQuery {
-	_q.predicates = append(_q.predicates, ps...)
+func (_q *SessionDeviceQuery) Where(predicates ...ent.Predicate[entity.SessionDevice]) *SessionDeviceQuery {
+	_q.predicates = append(_q.predicates, predicates...)
+	return _q
+}
+
+func (_q *SessionDeviceQuery) WhereP(predicates ...func(*sql.Selector)) *SessionDeviceQuery {
+	for _, predicate := range predicates {
+		_q.predicates = append(_q.predicates, predicate)
+	}
+	return _q
+}
+
+func (_q *SessionDeviceQuery) Join(table string, on ...func(*sql.Selector)) *SessionDeviceQuery {
+	return _q.JoinAs(table, "", on...)
+}
+
+func (_q *SessionDeviceQuery) JoinAs(table, alias string, on ...func(*sql.Selector)) *SessionDeviceQuery {
+	on = append([]func(*sql.Selector){}, on...)
+	_q.joins = append(_q.joins, func(selector *sql.Selector) {
+		joined := sql.Dialect(selector.Dialect()).Table(table)
+		if alias != "" {
+			joined.As(alias)
+		} else {
+			joined.As(table)
+		}
+		condition := sql.Dialect(selector.Dialect()).Select().From(selector.Table())
+		for _, predicate := range on {
+			predicate(condition)
+		}
+		if err := condition.Err(); err != nil {
+			selector.AddError(err)
+		}
+		selector.Join(joined).OnP(condition.P())
+	})
+	return _q
+}
+
+func (_q *SessionDeviceQuery) LeftJoin(table string, on ...func(*sql.Selector)) *SessionDeviceQuery {
+	return _q.LeftJoinAs(table, "", on...)
+}
+
+func (_q *SessionDeviceQuery) LeftJoinAs(table, alias string, on ...func(*sql.Selector)) *SessionDeviceQuery {
+	on = append([]func(*sql.Selector){}, on...)
+	_q.joins = append(_q.joins, func(selector *sql.Selector) {
+		joined := sql.Dialect(selector.Dialect()).Table(table)
+		if alias != "" {
+			joined.As(alias)
+		} else {
+			joined.As(table)
+		}
+		condition := sql.Dialect(selector.Dialect()).Select().From(selector.Table())
+		for _, predicate := range on {
+			predicate(condition)
+		}
+		if err := condition.Err(); err != nil {
+			selector.AddError(err)
+		}
+		selector.LeftJoin(joined).OnP(condition.P())
+	})
+	return _q
+}
+
+func (_q *SessionDeviceQuery) WithCount[N, K any](edge ent.Relation[entity.SessionDevice, N, K]) *SessionDeviceQuery {
+	for _, requested := range _q.withCounts {
+		if requested.Name == edge.Ref().Name {
+			return _q
+		}
+	}
+	_q.withCounts = append(_q.withCounts, edge.Ref())
 	return _q
 }
 
@@ -60,7 +133,7 @@ func (_q *SessionDeviceQuery) Unique(unique bool) *SessionDeviceQuery {
 }
 
 // Order specifies how the records should be ordered.
-func (_q *SessionDeviceQuery) Order(o ...sessiondevice.OrderOption) *SessionDeviceQuery {
+func (_q *SessionDeviceQuery) Order(o ...ent.OrderOption[entity.SessionDevice]) *SessionDeviceQuery {
 	_q.order = append(_q.order, o...)
 	return _q
 }
@@ -90,7 +163,7 @@ func (_q *SessionDeviceQuery) QuerySessions() *SessionQuery {
 // First returns the first SessionDevice entity from the query.
 // Returns a *NotFoundError when no SessionDevice was found.
 func (_q *SessionDeviceQuery) First(ctx context.Context) (*SessionDevice, error) {
-	nodes, err := _q.Limit(1).All(setContextOp(ctx, _q.ctx, ent.OpQueryFirst))
+	nodes, err := _q.Limit(1).All(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -113,7 +186,7 @@ func (_q *SessionDeviceQuery) FirstX(ctx context.Context) *SessionDevice {
 // Returns a *NotFoundError when no SessionDevice ID was found.
 func (_q *SessionDeviceQuery) FirstID(ctx context.Context) (id uuid.UUID, err error) {
 	var ids []uuid.UUID
-	if ids, err = _q.Limit(1).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryFirstID)); err != nil {
+	if ids, err = _q.Limit(1).IDs(ctx); err != nil {
 		return
 	}
 	if len(ids) == 0 {
@@ -136,7 +209,7 @@ func (_q *SessionDeviceQuery) FirstIDX(ctx context.Context) uuid.UUID {
 // Returns a *NotSingularError when more than one SessionDevice entity is found.
 // Returns a *NotFoundError when no SessionDevice entities are found.
 func (_q *SessionDeviceQuery) Only(ctx context.Context) (*SessionDevice, error) {
-	nodes, err := _q.Limit(2).All(setContextOp(ctx, _q.ctx, ent.OpQueryOnly))
+	nodes, err := _q.Limit(2).All(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -164,7 +237,7 @@ func (_q *SessionDeviceQuery) OnlyX(ctx context.Context) *SessionDevice {
 // Returns a *NotFoundError when no entities are found.
 func (_q *SessionDeviceQuery) OnlyID(ctx context.Context) (id uuid.UUID, err error) {
 	var ids []uuid.UUID
-	if ids, err = _q.Limit(2).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryOnlyID)); err != nil {
+	if ids, err = _q.Limit(2).IDs(ctx); err != nil {
 		return
 	}
 	switch len(ids) {
@@ -189,12 +262,10 @@ func (_q *SessionDeviceQuery) OnlyIDX(ctx context.Context) uuid.UUID {
 
 // All executes the query and returns a list of SessionDevices.
 func (_q *SessionDeviceQuery) All(ctx context.Context) ([]*SessionDevice, error) {
-	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryAll)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
-	qr := querierAll[[]*SessionDevice, *SessionDeviceQuery]()
-	return withInterceptors[[]*SessionDevice](ctx, _q, qr, _q.inters)
+	return _q.sqlAll(ctx)
 }
 
 // AllX is like All, but panics if an error occurs.
@@ -211,8 +282,7 @@ func (_q *SessionDeviceQuery) IDs(ctx context.Context) (ids []uuid.UUID, err err
 	if _q.ctx.Unique == nil && _q.path != nil {
 		_q.Unique(true)
 	}
-	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryIDs)
-	if err = _q.Select(sessiondevice.FieldID).Scan(ctx, &ids); err != nil {
+	if ids, err = ent.Values(ctx, _q.Select(sessiondevice.ID), sessiondevice.ID); err != nil {
 		return nil, err
 	}
 	return ids, nil
@@ -229,11 +299,10 @@ func (_q *SessionDeviceQuery) IDsX(ctx context.Context) []uuid.UUID {
 
 // Count returns the count of the given query.
 func (_q *SessionDeviceQuery) Count(ctx context.Context) (int, error) {
-	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryCount)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
-	return withInterceptors[int](ctx, _q, querierCount[*SessionDeviceQuery](), _q.inters)
+	return _q.sqlCount(ctx)
 }
 
 // CountX is like Count, but panics if an error occurs.
@@ -247,7 +316,6 @@ func (_q *SessionDeviceQuery) CountX(ctx context.Context) int {
 
 // Exist returns true if the query has elements in the graph.
 func (_q *SessionDeviceQuery) Exist(ctx context.Context) (bool, error) {
-	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryExist)
 	switch _, err := _q.FirstID(ctx); {
 	case IsNotFound(err):
 		return false, nil
@@ -273,17 +341,22 @@ func (_q *SessionDeviceQuery) Clone() *SessionDeviceQuery {
 	if _q == nil {
 		return nil
 	}
-	return &SessionDeviceQuery{
-		config:       _q.config,
-		ctx:          _q.ctx.Clone(),
-		order:        append([]sessiondevice.OrderOption{}, _q.order...),
-		inters:       append([]Interceptor{}, _q.inters...),
-		predicates:   append([]predicate.SessionDevice{}, _q.predicates...),
+	cloned := &SessionDeviceQuery{
+		config:     _q.config,
+		ctx:        _q.ctx.Clone(),
+		order:      append([]ent.OrderOption[entity.SessionDevice]{}, _q.order...),
+		predicates: append([]ent.Predicate[entity.SessionDevice]{}, _q.predicates...),
+		joins:      append([]func(*sql.Selector){}, _q.joins...),
+		withCounts: append([]ent.RelationRef{}, _q.withCounts...),
+
 		withSessions: _q.withSessions.Clone(),
 		// clone intermediate query.
-		sql:  _q.sql.Clone(),
-		path: _q.path,
+		sql:       _q.sql.Clone(),
+		path:      _q.path,
+		modifiers: append([]func(*sql.Selector){}, _q.modifiers...),
 	}
+
+	return cloned
 }
 
 // WithSessions tells the query-builder to eager-load the nodes that are connected to
@@ -298,7 +371,7 @@ func (_q *SessionDeviceQuery) WithSessions(opts ...func(*SessionQuery)) *Session
 }
 
 // GroupBy is used to group vertices by one or more fields/columns.
-// It is often used with aggregate functions, like: count, max, mean, min, sum.
+// It can be combined with typed aggregate selections.
 //
 // Example:
 //
@@ -308,16 +381,14 @@ func (_q *SessionDeviceQuery) WithSessions(opts ...func(*SessionQuery)) *Session
 //	}
 //
 //	client.SessionDevice.Query().
-//		GroupBy(sessiondevice.FieldIPAddress).
+//		GroupBy(sessiondevice.IPAddress).
 //		Aggregate(ent.Count()).
 //		Scan(ctx, &v)
-func (_q *SessionDeviceQuery) GroupBy(field string, fields ...string) *SessionDeviceGroupBy {
-	_q.ctx.Fields = append([]string{field}, fields...)
-	grbuild := &SessionDeviceGroupBy{build: _q}
-	grbuild.flds = &_q.ctx.Fields
-	grbuild.label = sessiondevice.Label
-	grbuild.scan = grbuild.Scan
-	return grbuild
+func (_q *SessionDeviceQuery) GroupBy(columns ...ent.EntityColumn[entity.SessionDevice]) *SessionDeviceGroupBy {
+	if len(columns) == 0 {
+		panic("ent: GroupBy requires at least one column")
+	}
+	return &SessionDeviceGroupBy{query: _q, columns: append([]ent.EntityColumn[entity.SessionDevice](nil), columns...)}
 }
 
 // Select allows the selection one or more fields/columns for the given query,
@@ -330,32 +401,18 @@ func (_q *SessionDeviceQuery) GroupBy(field string, fields ...string) *SessionDe
 //	}
 //
 //	client.SessionDevice.Query().
-//		Select(sessiondevice.FieldIPAddress).
+//		Select(sessiondevice.IPAddress).
 //		Scan(ctx, &v)
-func (_q *SessionDeviceQuery) Select(fields ...string) *SessionDeviceSelect {
-	_q.ctx.Fields = append(_q.ctx.Fields, fields...)
-	sbuild := &SessionDeviceSelect{SessionDeviceQuery: _q}
-	sbuild.label = sessiondevice.Label
-	sbuild.flds, sbuild.scan = &_q.ctx.Fields, sbuild.Scan
-	return sbuild
+func (_q *SessionDeviceQuery) Select(selections ...ent.Selection) *SessionDeviceSelect {
+	return &SessionDeviceSelect{query: _q, selections: append([]ent.Selection(nil), selections...)}
 }
 
 // Aggregate returns a SessionDeviceSelect configured with the given aggregations.
-func (_q *SessionDeviceQuery) Aggregate(fns ...AggregateFunc) *SessionDeviceSelect {
-	return _q.Select().Aggregate(fns...)
+func (_q *SessionDeviceQuery) Aggregate(selections ...ent.Selection) *SessionDeviceSelect {
+	return _q.Select(selections...)
 }
 
 func (_q *SessionDeviceQuery) prepareQuery(ctx context.Context) error {
-	for _, inter := range _q.inters {
-		if inter == nil {
-			return fmt.Errorf("ent: uninitialized interceptor (forgotten import ent/runtime?)")
-		}
-		if trv, ok := inter.(Traverser); ok {
-			if err := trv.Traverse(ctx, _q); err != nil {
-				return err
-			}
-		}
-	}
 	for _, f := range _q.ctx.Fields {
 		if !sessiondevice.ValidColumn(f) {
 			return &ValidationError{Name: f, err: fmt.Errorf("ent: invalid field %q for query", f)}
@@ -388,6 +445,10 @@ func (_q *SessionDeviceQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([
 		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
+	if len(_q.modifiers) > 0 {
+		_spec.Modifiers = _q.modifiers
+	}
+
 	for i := range hooks {
 		hooks[i](ctx, _spec)
 	}
@@ -404,10 +465,81 @@ func (_q *SessionDeviceQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([
 			return nil, err
 		}
 	}
+
+	if len(_q.withCounts) > 0 {
+		ids := make([]any, len(nodes))
+		parents := make(map[uuid.UUID][]*SessionDevice, len(nodes))
+		for index, node := range nodes {
+			ids[index] = node.ID
+			parents[node.ID] = append(parents[node.ID], node)
+			if node.Edges.counts == nil {
+				node.Edges.counts = make(map[string]int)
+			}
+			for _, edge := range _q.withCounts {
+				node.Edges.counts[edge.Name] = 0
+			}
+		}
+		selector := sql.Dialect(_q.driver.Dialect()).Select()
+
+		for _, edge := range _q.withCounts {
+			statement, arguments := edge.CountQuery(selector, ids...).Query()
+			rows, err := _q.driver.Query(ctx, statement, arguments)
+			if err != nil {
+				return nil, err
+			}
+			for rows.Next() {
+				values, err := (*SessionDevice)(nil).scanValues([]string{sessiondevice.FieldID})
+				if err != nil {
+					rows.Close()
+					return nil, err
+				}
+				var count int
+				if err := rows.Scan(values[0], &count); err != nil {
+					rows.Close()
+					return nil, err
+				}
+				decoded := &SessionDevice{}
+				if err := decoded.assignValues([]string{sessiondevice.FieldID}, values); err != nil {
+					rows.Close()
+					return nil, err
+				}
+				for _, parent := range parents[decoded.ID] {
+					parent.Edges.counts[edge.Name] = count
+				}
+			}
+			if err := rows.Err(); err != nil {
+				rows.Close()
+				return nil, err
+			}
+			if err := rows.Close(); err != nil {
+				return nil, err
+			}
+		}
+	}
+
 	return nodes, nil
 }
 
 func (_q *SessionDeviceQuery) loadSessions(ctx context.Context, query *SessionQuery, nodes []*SessionDevice, init func(*SessionDevice), assign func(*SessionDevice, *Session)) error {
+	query = query.Clone()
+
+	if query.ctx.Limit != nil || query.ctx.Offset != nil {
+		limit, offset := -1, 0
+		if query.ctx.Limit != nil {
+			limit = *query.ctx.Limit
+		}
+		if query.ctx.Offset != nil {
+			offset = *query.ctx.Offset
+		}
+		query.ctx.Limit, query.ctx.Offset = nil, nil
+		query.modifiers = append(query.modifiers, func(selector *sql.Selector) {
+
+			partition := selector.C(sessiondevice.SessionsColumn)
+
+			(&sqlgraph.NeighborsLimit{RowNumber: "ent_row_number", DefaultOrderField: session.FieldID, Offset: offset}).Modifier(partition, limit)(selector)
+		})
+	}
+
 	fks := make([]driver.Value, 0, len(nodes))
 	nodeids := make(map[uuid.UUID]*SessionDevice)
 	for i := range nodes {
@@ -420,9 +552,9 @@ func (_q *SessionDeviceQuery) loadSessions(ctx context.Context, query *SessionQu
 	if len(query.ctx.Fields) > 0 {
 		query.ctx.AppendFieldOnce(session.FieldDeviceID)
 	}
-	query.Where(predicate.Session(func(s *sql.Selector) {
+	query.Where(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(sessiondevice.SessionsColumn), fks...))
-	}))
+	})
 	neighbors, err := query.All(ctx)
 	if err != nil {
 		return err
@@ -440,6 +572,10 @@ func (_q *SessionDeviceQuery) loadSessions(ctx context.Context, query *SessionQu
 
 func (_q *SessionDeviceQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := _q.querySpec()
+	if len(_q.modifiers) > 0 {
+		_spec.Modifiers = _q.modifiers
+	}
+
 	_spec.Node.Columns = _q.ctx.Fields
 	if len(_q.ctx.Fields) > 0 {
 		_spec.Unique = _q.ctx.Unique != nil && *_q.ctx.Unique
@@ -464,10 +600,13 @@ func (_q *SessionDeviceQuery) querySpec() *sqlgraph.QuerySpec {
 			}
 		}
 	}
-	if ps := _q.predicates; len(ps) > 0 {
+	if predicates := _q.predicates; len(predicates) > 0 || len(_q.joins) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
-			for i := range ps {
-				ps[i](selector)
+			for _, join := range _q.joins {
+				join(selector)
+			}
+			for i := range predicates {
+				predicates[i](selector)
 			}
 		}
 	}
@@ -502,6 +641,9 @@ func (_q *SessionDeviceQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	if _q.ctx.Unique != nil && *_q.ctx.Unique {
 		selector.Distinct()
 	}
+	for _, join := range _q.joins {
+		join(selector)
+	}
 	for _, p := range _q.predicates {
 		p(selector)
 	}
@@ -516,95 +658,188 @@ func (_q *SessionDeviceQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	if limit := _q.ctx.Limit; limit != nil {
 		selector.Limit(*limit)
 	}
+	for _, modifier := range _q.modifiers {
+		modifier(selector)
+	}
 	return selector
+}
+
+// ForUpdate locks the selected rows against concurrent updates, and prevent them from being
+// updated, deleted or "selected ... for update" by other sessions, until the transaction is
+// either committed or rolled-back.
+func (_q *SessionDeviceQuery) ForUpdate(opts ...sql.LockOption) *SessionDeviceQuery {
+	if _q.driver.Dialect() == dialect.Postgres {
+		_q.Unique(false)
+	}
+	_q.modifiers = append(_q.modifiers, func(s *sql.Selector) {
+		s.ForUpdate(opts...)
+	})
+	return _q
+}
+
+// ForShare behaves similarly to ForUpdate, except that it acquires a shared mode lock
+// on any rows that are read. Other sessions can read the rows, but cannot modify them
+// until your transaction commits.
+func (_q *SessionDeviceQuery) ForShare(opts ...sql.LockOption) *SessionDeviceQuery {
+	if _q.driver.Dialect() == dialect.Postgres {
+		_q.Unique(false)
+	}
+	_q.modifiers = append(_q.modifiers, func(s *sql.Selector) {
+		s.ForShare(opts...)
+	})
+	return _q
+}
+
+// Modify adds a query modifier for attaching custom logic to queries.
+func (_q *SessionDeviceQuery) Modify(modifiers ...func(s *sql.Selector)) *SessionDeviceSelect {
+	_q.modifiers = append(_q.modifiers, modifiers...)
+	return _q.Select()
 }
 
 // SessionDeviceGroupBy is the group-by builder for SessionDevice entities.
 type SessionDeviceGroupBy struct {
-	selector
-	build *SessionDeviceQuery
+	query      *SessionDeviceQuery
+	columns    []ent.EntityColumn[entity.SessionDevice]
+	aggregates []ent.Selection
 }
 
-// Aggregate adds the given aggregation functions to the group-by query.
-func (_g *SessionDeviceGroupBy) Aggregate(fns ...AggregateFunc) *SessionDeviceGroupBy {
-	_g.fns = append(_g.fns, fns...)
+func (_g *SessionDeviceGroupBy) Aggregate(selections ...ent.Selection) *SessionDeviceGroupBy {
+	_g.aggregates = append(_g.aggregates, selections...)
 	return _g
 }
 
-// Scan applies the selector query and scans the result into the given value.
 func (_g *SessionDeviceGroupBy) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, _g.build.ctx, ent.OpQueryGroupBy)
-	if err := _g.build.prepareQuery(ctx); err != nil {
-		return err
-	}
-	return scanWithInterceptors[*SessionDeviceQuery, *SessionDeviceGroupBy](ctx, _g.build, _g, _g.build.inters, v)
+	return _g.selectQuery().Scan(ctx, v)
 }
 
-func (_g *SessionDeviceGroupBy) sqlScan(ctx context.Context, root *SessionDeviceQuery, v any) error {
-	selector := root.sqlQuery(ctx).Select()
-	aggregation := make([]string, 0, len(_g.fns))
-	for _, fn := range _g.fns {
-		aggregation = append(aggregation, fn(selector))
+func (_g *SessionDeviceGroupBy) Rows(ctx context.Context) ([]*ent.Row, error) {
+	return _g.selectQuery().Rows(ctx)
+}
+
+func (_g *SessionDeviceGroupBy) selectQuery() *SessionDeviceSelect {
+	selections := make([]ent.Selection, 0, len(_g.columns)+len(_g.aggregates))
+	for _, column := range _g.columns {
+		selections = append(selections, column)
 	}
-	if len(selector.SelectedColumns()) == 0 {
-		columns := make([]string, 0, len(*_g.flds)+len(_g.fns))
-		for _, f := range *_g.flds {
-			columns = append(columns, selector.C(f))
-		}
-		columns = append(columns, aggregation...)
-		selector.Select(columns...)
-	}
-	selector.GroupBy(selector.Columns(*_g.flds...)...)
-	if err := selector.Err(); err != nil {
-		return err
-	}
-	rows := &sql.Rows{}
-	query, args := selector.Query()
-	if err := _g.build.driver.Query(ctx, query, args, rows); err != nil {
-		return err
-	}
-	defer rows.Close()
-	return sql.ScanSlice(rows, v)
+	selected := _g.query.Select(append(selections, _g.aggregates...)...)
+	selected.groups = _g.columns
+	return selected
 }
 
 // SessionDeviceSelect is the builder for selecting fields of SessionDevice entities.
 type SessionDeviceSelect struct {
-	*SessionDeviceQuery
-	selector
+	query      *SessionDeviceQuery
+	selections []ent.Selection
+	groups     []ent.EntityColumn[entity.SessionDevice]
 }
 
-// Aggregate adds the given aggregation functions to the selector query.
-func (_s *SessionDeviceSelect) Aggregate(fns ...AggregateFunc) *SessionDeviceSelect {
-	_s.fns = append(_s.fns, fns...)
+func (_s *SessionDeviceSelect) Aggregate(selections ...ent.Selection) *SessionDeviceSelect {
+	_s.selections = append(_s.selections, selections...)
 	return _s
 }
 
-// Scan applies the selector query and scans the result into the given value.
-func (_s *SessionDeviceSelect) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, _s.ctx, ent.OpQuerySelect)
-	if err := _s.prepareQuery(ctx); err != nil {
-		return err
+func (_s *SessionDeviceSelect) Row(ctx context.Context) (*ent.Row, error) {
+	rows, err := _s.Rows(ctx)
+	if err != nil {
+		return nil, err
 	}
-	return scanWithInterceptors[*SessionDeviceQuery, *SessionDeviceSelect](ctx, _s.SessionDeviceQuery, _s, _s.inters, v)
+	switch len(rows) {
+	case 0:
+		return nil, &NotFoundError{sessiondevice.Label}
+	case 1:
+		return rows[0], nil
+	default:
+		return nil, &NotSingularError{sessiondevice.Label}
+	}
 }
 
-func (_s *SessionDeviceSelect) sqlScan(ctx context.Context, root *SessionDeviceQuery, v any) error {
+func (_s *SessionDeviceSelect) sqlQuery(ctx context.Context) (*sql.Selector, error) {
+	root := _s.query.Clone()
+	root.ctx.Fields = nil
+	for _, selection := range _s.selections {
+		if column := selection.Ref(); column.Name != "" && (column.Table == "" || column.Table == sessiondevice.Table) {
+			root.ctx.AppendFieldOnce(column.Name)
+		}
+	}
+	if err := root.prepareQuery(ctx); err != nil {
+		return nil, err
+	}
+	root.modifiers = nil
 	selector := root.sqlQuery(ctx)
-	aggregation := make([]string, 0, len(_s.fns))
-	for _, fn := range _s.fns {
-		aggregation = append(aggregation, fn(selector))
+	if len(_s.selections) > 0 {
+		ent.SelectColumns(selector, _s.selections...)
 	}
-	switch n := len(*_s.selector.flds); {
-	case n == 0 && len(aggregation) > 0:
-		selector.Select(aggregation...)
-	case n != 0 && len(aggregation) > 0:
-		selector.AppendSelect(aggregation...)
+	for _, column := range _s.groups {
+		reference := column.Ref()
+		if reference.Table == "" || reference.Table == selector.TableName() {
+			selector.GroupBy(selector.C(reference.Name))
+		} else {
+			selector.GroupBy(sql.Dialect(selector.Dialect()).Table(reference.Table).C(reference.Name))
+		}
 	}
-	rows := &sql.Rows{}
-	query, args := selector.Query()
-	if err := _s.driver.Query(ctx, query, args, rows); err != nil {
+	for _, modifier := range _s.query.modifiers {
+		modifier(selector)
+	}
+	return selector, selector.Err()
+}
+
+func (_s *SessionDeviceSelect) Scan(ctx context.Context, value any) error {
+	selector, err := _s.sqlQuery(ctx)
+	if err != nil {
+		return err
+	}
+	query, arguments := selector.Query()
+	if err := selector.Err(); err != nil {
+		return err
+	}
+	rows, err := _s.query.driver.Query(ctx, query, arguments)
+	if err != nil {
 		return err
 	}
 	defer rows.Close()
-	return sql.ScanSlice(rows, v)
+	return sql.ScanSlice(rows, value)
+}
+
+func (_s *SessionDeviceSelect) Rows(ctx context.Context) ([]*ent.Row, error) {
+	if len(_s.selections) == 0 {
+		return nil, errors.New("ent: Rows requires explicit selections")
+	}
+	selector, err := _s.sqlQuery(ctx)
+	if err != nil {
+		return nil, err
+	}
+	query, arguments := selector.Query()
+	if err := selector.Err(); err != nil {
+		return nil, err
+	}
+	rows, err := _s.query.driver.Query(ctx, query, arguments)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	columns, err := rows.Columns()
+	if err != nil {
+		return nil, err
+	}
+	if len(columns) != len(_s.selections) {
+		return nil, fmt.Errorf("ent: projection column count %d differs from selection count %d", len(columns), len(_s.selections))
+	}
+	result := make([]*ent.Row, 0)
+	for rows.Next() {
+		row, destinations := ent.NewRow(_s.selections)
+		if err := rows.Scan(destinations...); err != nil {
+			return nil, err
+		}
+		result = append(result, row)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+// Modify adds a query modifier for attaching custom logic to queries.
+func (_s *SessionDeviceSelect) Modify(modifiers ...func(s *sql.Selector)) *SessionDeviceSelect {
+	_s.query.modifiers = append(_s.query.modifiers, modifiers...)
+	return _s
 }

@@ -10,136 +10,179 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/ent/file"
 	"github.com/neko-sc/ent/entc/integration/ent/filetype"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// FileTypeCreate is the builder for creating a FileType entity.
 type FileTypeCreate struct {
 	config
-	mutation *FileTypeMutation
-	hooks    []Hook
+	mutation    *FileTypeMutation
+	err         error
+	fromBuilder bool
+	present     map[string]struct{}
+
 	conflict []sql.ConflictOption
 }
 
-// SetName sets the "name" field.
-func (_c *FileTypeCreate) SetName(v string) *FileTypeCreate {
-	_c.mutation.SetName(v)
-	return _c
-}
-
-// SetType sets the "type" field.
-func (_c *FileTypeCreate) SetType(v filetype.Type) *FileTypeCreate {
-	_c.mutation.SetType(v)
-	return _c
-}
-
-// SetNillableType sets the "type" field if the given value is not nil.
-func (_c *FileTypeCreate) SetNillableType(v *filetype.Type) *FileTypeCreate {
-	if v != nil {
-		_c.SetType(*v)
+func (b *FileTypeCreate) Set[T any](column ent.ColumnOf[entity.FileType, T], value T) *FileTypeCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.set(column.Ref().Name, value)
 	}
-	return _c
-}
-
-// SetState sets the "state" field.
-func (_c *FileTypeCreate) SetState(v filetype.State) *FileTypeCreate {
-	_c.mutation.SetState(v)
-	return _c
-}
-
-// SetNillableState sets the "state" field if the given value is not nil.
-func (_c *FileTypeCreate) SetNillableState(v *filetype.State) *FileTypeCreate {
-	if v != nil {
-		_c.SetState(*v)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
 	}
-	return _c
+	b.present[column.Ref().Name] = struct{}{}
+	return b
 }
-
-// AddFileIDs adds the "files" edge to the File entity by IDs.
-func (_c *FileTypeCreate) AddFileIDs(ids ...int) *FileTypeCreate {
-	_c.mutation.AddFileIDs(ids...)
-	return _c
-}
-
-// AddFiles adds the "files" edges to the File entity.
-func (_c *FileTypeCreate) AddFiles(v ...*File) *FileTypeCreate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+func (b *FileTypeCreate) SetOptional[T any](column ent.ColumnOf[entity.FileType, T], value ent.Option[T]) *FileTypeCreate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.insert.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _c.AddFileIDs(ids...)
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *FileTypeCreate) SetExpr[T any](column ent.ColumnOf[entity.FileType, T], value ent.Expr[T]) *FileTypeCreate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case filetype.FieldName:
+
+	case filetype.FieldType:
+
+	case filetype.FieldState:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of FileType is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.insert.setExpr(column.Ref().Name, value.Render)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+
+}
+func (b *FileTypeCreate) SetEdge[N, K any](edge ent.UniqueRelation[entity.FileType, N, K], id K) *FileTypeCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.setEdge(edge.Ref().Name, id)
+	}
+
+	switch edge.Ref().Name {
+
+	}
+
+	return b
+}
+func (b *FileTypeCreate) AddIDs[N, K any](edge ent.Relation[entity.FileType, N, K], ids ...K) *FileTypeCreate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.insert.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *FileTypeCreate) Mutation() *FileTypeMutation { return b.mutation }
+
+func (b *FileTypeCreate) Insert() *FileTypeInsert { return b.mutation.insert }
+
+func (b *FileTypeCreate) Save(ctx context.Context) (*FileType, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Mutation returns the FileTypeMutation object of the builder.
-func (_c *FileTypeCreate) Mutation() *FileTypeMutation {
-	return _c.mutation
-}
-
-// Save creates the FileType in the database.
-func (_c *FileTypeCreate) Save(ctx context.Context) (*FileType, error) {
-	_c.defaults()
-	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
-}
-
-// SaveX calls Save and panics if Save returns an error.
-func (_c *FileTypeCreate) SaveX(ctx context.Context) *FileType {
-	v, err := _c.Save(ctx)
+func (b *FileTypeCreate) SaveX(ctx context.Context) *FileType {
+	node, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return node
 }
 
-// Exec executes the query.
-func (_c *FileTypeCreate) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *FileTypeCreate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *FileTypeCreate) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *FileTypeCreate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// defaults sets the default values of the builder before save.
-func (_c *FileTypeCreate) defaults() {
-	if _, ok := _c.mutation.GetType(); !ok {
-		v := filetype.DefaultType
-		_c.mutation.SetType(v)
+func (b *FileTypeCreate) defaults() error {
+
+	if b.mutation.insert.Type.IsUnset() && b.mutation.insert.expressions[filetype.FieldType] == nil {
+
+		b.mutation.insert.Type = ent.Some(filetype.DefaultType)
 	}
-	if _, ok := _c.mutation.State(); !ok {
-		v := filetype.DefaultState
-		_c.mutation.SetState(v)
+
+	if b.mutation.insert.State.IsUnset() && b.mutation.insert.expressions[filetype.FieldState] == nil {
+
+		b.mutation.insert.State = ent.Some(filetype.DefaultState)
 	}
+
+	return nil
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_c *FileTypeCreate) check() error {
-	if _, ok := _c.mutation.Name(); !ok {
-		return &ValidationError{Name: "name", err: errors.New(`ent: missing required field "FileType.name"`)}
+func (b *FileTypeCreate) check() error {
+	if b.err != nil {
+		return b.err
 	}
-	if _, ok := _c.mutation.GetType(); !ok {
-		return &ValidationError{Name: "type", err: errors.New(`ent: missing required field "FileType.type"`)}
-	}
-	if v, ok := _c.mutation.GetType(); ok {
-		if err := filetype.TypeValidator(v); err != nil {
-			return &ValidationError{Name: "type", err: fmt.Errorf(`ent: validator failed for field "FileType.type": %w`, err)}
+
+	switch b.driver.Dialect() {
+	case dialect.Postgres, dialect.SQLite:
+		if _, present := b.present[filetype.FieldName]; b.fromBuilder && !present {
+			return &ValidationError{Name: "name", err: errors.New(`ent: missing required field "FileType.name"`)}
 		}
 	}
-	if _, ok := _c.mutation.State(); !ok {
-		return &ValidationError{Name: "state", err: errors.New(`ent: missing required field "FileType.state"`)}
+
+	if b.mutation.insert.Type.IsNull() {
+		return &ValidationError{Name: "type", err: errors.New(`ent: field "FileType.type" is not nullable`)}
 	}
-	if v, ok := _c.mutation.State(); ok {
-		if err := filetype.StateValidator(v); err != nil {
-			return &ValidationError{Name: "state", err: fmt.Errorf(`ent: validator failed for field "FileType.state": %w`, err)}
+
+	if b.mutation.insert.expressions[filetype.FieldType] == nil {
+		if v, ok := b.mutation.insert.Type.Get(); ok {
+
+			if err := filetype.TypeValidator(v); err != nil {
+				return &ValidationError{Name: "type", err: fmt.Errorf(`ent: validator failed for field "FileType.type": %w`, err)}
+			}
+
 		}
 	}
+
+	if b.mutation.insert.State.IsNull() {
+		return &ValidationError{Name: "state", err: errors.New(`ent: field "FileType.state" is not nullable`)}
+	}
+
+	if b.mutation.insert.expressions[filetype.FieldState] == nil {
+		if v, ok := b.mutation.insert.State.Get(); ok {
+
+			if err := filetype.StateValidator(v); err != nil {
+				return &ValidationError{Name: "state", err: fmt.Errorf(`ent: validator failed for field "FileType.state": %w`, err)}
+			}
+
+		}
+	}
+
 	return nil
 }
 
@@ -147,39 +190,51 @@ func (_c *FileTypeCreate) sqlSave(ctx context.Context) (*FileType, error) {
 	if err := _c.check(); err != nil {
 		return nil, err
 	}
-	_node, _spec := _c.createSpec()
-	if err := sqlgraph.CreateNode(ctx, _c.driver, _spec); err != nil {
+	node, spec, err := _c.createSpec()
+	if err != nil {
+		return nil, err
+	}
+	if err := sqlgraph.CreateNode(ctx, _c.driver, spec); err != nil {
 		if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
 		return nil, err
 	}
-	id := _spec.ID.Value.(int64)
-	_node.ID = int(id)
-	_c.mutation.id = &_node.ID
-	_c.mutation.done = true
-	return _node, nil
+	_c.mutation.id = &node.ID
+	return node, nil
 }
 
-func (_c *FileTypeCreate) createSpec() (*FileType, *sqlgraph.CreateSpec) {
-	var (
-		_node = &FileType{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(filetype.Table, sqlgraph.NewFieldSpec(filetype.FieldID, field.TypeInt))
-	)
+func (_c *FileTypeCreate) createSpec() (*FileType, *sqlgraph.CreateSpec, error) {
+	_node := &FileType{config: _c.config}
+	_spec := sqlgraph.NewCreateSpec(filetype.Table, sqlgraph.NewFieldSpec(filetype.FieldID, field.TypeInt))
+
 	_spec.OnConflict = _c.conflict
-	if value, ok := _c.mutation.Name(); ok {
+
+	if _, present := _c.present[filetype.FieldName]; !_c.fromBuilder || present {
+		value := _c.mutation.insert.Name
 		_spec.SetField(filetype.FieldName, field.TypeString, value)
-		_node.Name = value
 	}
-	if value, ok := _c.mutation.GetType(); ok {
+
+	if value, ok := _c.mutation.insert.Type.Get(); ok {
 		_spec.SetField(filetype.FieldType, field.TypeEnum, value)
-		_node.Type = value
 	}
-	if value, ok := _c.mutation.State(); ok {
+	if _c.mutation.insert.Type.IsNull() {
+		_spec.SetField(filetype.FieldType, field.TypeEnum, nil)
+	}
+
+	if value, ok := _c.mutation.insert.State.Get(); ok {
 		_spec.SetField(filetype.FieldState, field.TypeEnum, value)
-		_node.State = value
 	}
-	if nodes := _c.mutation.FilesIDs(); len(nodes) > 0 {
+	if _c.mutation.insert.State.IsNull() {
+		_spec.SetField(filetype.FieldState, field.TypeEnum, nil)
+	}
+
+	_spec.Expressions = _c.mutation.insert.expressions
+
+	if nodes := _c.mutation.insert.filesIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -190,206 +245,142 @@ func (_c *FileTypeCreate) createSpec() (*FileType, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(file.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	return _node, _spec
+
+	_spec.Returning = &sqlgraph.Returning{Columns: filetype.Columns, Scan: func(rows dialect.Rows) error {
+		values, err := _node.scanValues(filetype.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(filetype.Columns, values); err != nil {
+			return err
+		}
+
+		_spec.ID.Value = _node.ID
+
+		return nil
+	}}
+	return _node, _spec, nil
 }
 
-// OnConflict allows configuring the `ON CONFLICT` clause of the `INSERT`
-// statement. For example:
-//
-//	client.FileType.Create().
-//		SetName(v).
-//		OnConflict(
-//			// Update the row with the new values
-//			// the was proposed for insertion.
-//			sql.ResolveWithNewValues(),
-//		).
-//		// Override some of the fields with custom
-//		// update values.
-//		Update(func(u *ent.FileTypeUpsert) {
-//			SetName(v+v).
-//		}).
-//		Exec(ctx)
-func (_c *FileTypeCreate) OnConflict(opts ...sql.ConflictOption) *FileTypeUpsertOne {
-	_c.conflict = opts
-	return &FileTypeUpsertOne{
-		create: _c,
+type FileTypeUpsertOne struct{ create *FileTypeCreate }
+
+func (b *FileTypeCreate) OnConflict(columns ...ent.EntityColumn[entity.FileType]) *FileTypeUpsertOne {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
 	}
-}
-
-// OnConflictColumns calls `OnConflict` and configures the columns
-// as conflict target. Using this option is equivalent to using:
-//
-//	client.FileType.Create().
-//		OnConflict(sql.ConflictColumns(columns...)).
-//		Exec(ctx)
-func (_c *FileTypeCreate) OnConflictColumns(columns ...string) *FileTypeUpsertOne {
-	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
-	return &FileTypeUpsertOne{
-		create: _c,
+	if len(names) == 0 {
+		return b.OnConflictOptions()
 	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
 }
 
-type (
-	// FileTypeUpsertOne is the builder for "upsert"-ing
-	//  one FileType node.
-	FileTypeUpsertOne struct {
-		create *FileTypeCreate
-	}
-
-	// FileTypeUpsert is the "OnConflict" setter.
-	FileTypeUpsert struct {
-		*sql.UpdateSet
-	}
-)
-
-// SetName sets the "name" field.
-func (u *FileTypeUpsert) SetName(v string) *FileTypeUpsert {
-	u.Set(filetype.FieldName, v)
-	return u
+func (b *FileTypeCreate) OnConflictConstraint(name string) *FileTypeUpsertOne {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
 }
 
-// UpdateName sets the "name" field to the value that was provided on create.
-func (u *FileTypeUpsert) UpdateName() *FileTypeUpsert {
-	u.SetExcluded(filetype.FieldName)
-	return u
+func (b *FileTypeCreate) OnConflictOptions(options ...sql.ConflictOption) *FileTypeUpsertOne {
+	b.conflict = options
+	return &FileTypeUpsertOne{create: b}
 }
 
-// SetType sets the "type" field.
-func (u *FileTypeUpsert) SetType(v filetype.Type) *FileTypeUpsert {
-	u.Set(filetype.FieldType, v)
-	return u
-}
-
-// UpdateType sets the "type" field to the value that was provided on create.
-func (u *FileTypeUpsert) UpdateType() *FileTypeUpsert {
-	u.SetExcluded(filetype.FieldType)
-	return u
-}
-
-// SetState sets the "state" field.
-func (u *FileTypeUpsert) SetState(v filetype.State) *FileTypeUpsert {
-	u.Set(filetype.FieldState, v)
-	return u
-}
-
-// UpdateState sets the "state" field to the value that was provided on create.
-func (u *FileTypeUpsert) UpdateState() *FileTypeUpsert {
-	u.SetExcluded(filetype.FieldState)
-	return u
-}
-
-// UpdateNewValues updates the mutable fields using the new values that were set on create.
-// Using this option is equivalent to using:
-//
-//	client.FileType.Create().
-//		OnConflict(
-//			sql.ResolveWithNewValues(),
-//		).
-//		Exec(ctx)
-func (u *FileTypeUpsertOne) UpdateNewValues() *FileTypeUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
-	return u
-}
-
-// Ignore sets each column to itself in case of conflict.
-// Using this option is equivalent to using:
-//
-//	client.FileType.Create().
-//	    OnConflict(sql.ResolveWithIgnore()).
-//	    Exec(ctx)
-func (u *FileTypeUpsertOne) Ignore() *FileTypeUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
-	return u
-}
-
-// DoNothing configures the conflict_action to `DO NOTHING`.
-// Supported only by SQLite and PostgreSQL.
 func (u *FileTypeUpsertOne) DoNothing() *FileTypeUpsertOne {
 	u.create.conflict = append(u.create.conflict, sql.DoNothing())
 	return u
 }
 
-// Update allows overriding fields `UPDATE` values. See the FileTypeCreate.OnConflict
-// documentation for more info.
-func (u *FileTypeUpsertOne) Update(set func(*FileTypeUpsert)) *FileTypeUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
-		set(&FileTypeUpsert{UpdateSet: update})
+func (u *FileTypeUpsertOne) DoSelect() *FileTypeUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *FileTypeUpsertOne) Ignore() *FileTypeUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *FileTypeUpsertOne) DoUpdate(set func(*FileTypeUpsert)) *FileTypeUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&FileTypeUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *FileTypeUpsertOne) UpdateNewValues() *FileTypeUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case filetype.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
 	}))
 	return u
 }
 
-// SetName sets the "name" field.
-func (u *FileTypeUpsertOne) SetName(v string) *FileTypeUpsertOne {
-	return u.Update(func(s *FileTypeUpsert) {
-		s.SetName(v)
-	})
+func (u *FileTypeUpsertOne) Where(predicates ...ent.Predicate[entity.FileType]) *FileTypeUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(filetype.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// UpdateName sets the "name" field to the value that was provided on create.
-func (u *FileTypeUpsertOne) UpdateName() *FileTypeUpsertOne {
-	return u.Update(func(s *FileTypeUpsert) {
-		s.UpdateName()
-	})
+func (u *FileTypeUpsertOne) UpdateWhere(predicates ...ent.Predicate[entity.FileType]) *FileTypeUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(filetype.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// SetType sets the "type" field.
-func (u *FileTypeUpsertOne) SetType(v filetype.Type) *FileTypeUpsertOne {
-	return u.Update(func(s *FileTypeUpsert) {
-		s.SetType(v)
-	})
-}
-
-// UpdateType sets the "type" field to the value that was provided on create.
-func (u *FileTypeUpsertOne) UpdateType() *FileTypeUpsertOne {
-	return u.Update(func(s *FileTypeUpsert) {
-		s.UpdateType()
-	})
-}
-
-// SetState sets the "state" field.
-func (u *FileTypeUpsertOne) SetState(v filetype.State) *FileTypeUpsertOne {
-	return u.Update(func(s *FileTypeUpsert) {
-		s.SetState(v)
-	})
-}
-
-// UpdateState sets the "state" field to the value that was provided on create.
-func (u *FileTypeUpsertOne) UpdateState() *FileTypeUpsertOne {
-	return u.Update(func(s *FileTypeUpsert) {
-		s.UpdateState()
-	})
-}
-
-// Exec executes the query.
-func (u *FileTypeUpsertOne) Exec(ctx context.Context) error {
+func (u *FileTypeUpsertOne) Save(ctx context.Context) (*FileType, error) {
 	if len(u.create.conflict) == 0 {
-		return errors.New("ent: missing options for FileTypeCreate.OnConflict")
+		return nil, errors.New("ent: missing options for FileTypeCreate.OnConflict")
 	}
-	return u.create.Exec(ctx)
+	return u.create.Save(ctx)
 }
 
-// ExecX is like Exec, but panics if an error occurs.
+func (u *FileTypeUpsertOne) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
 func (u *FileTypeUpsertOne) ExecX(ctx context.Context) {
-	if err := u.create.Exec(ctx); err != nil {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// Exec executes the UPSERT query and returns the inserted/updated ID.
 func (u *FileTypeUpsertOne) ID(ctx context.Context) (id int, err error) {
-	node, err := u.create.Save(ctx)
+	node, err := u.Save(ctx)
 	if err != nil {
 		return id, err
 	}
 	return node.ID, nil
 }
 
-// IDX is like ID, but panics if an error occurs.
 func (u *FileTypeUpsertOne) IDX(ctx context.Context) int {
 	id, err := u.ID(ctx)
 	if err != nil {
@@ -398,238 +389,247 @@ func (u *FileTypeUpsertOne) IDX(ctx context.Context) int {
 	return id
 }
 
-// FileTypeCreateBulk is the builder for creating many FileType entities in bulk.
+type FileTypeUpsert struct{ *sql.UpdateSet }
+
+func (u *FileTypeUpsert) Set[T any](column ent.ColumnOf[entity.FileType, T], value T) *FileTypeUpsert {
+	switch column.Ref().Name {
+
+	case filetype.FieldName:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case filetype.FieldType:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case filetype.FieldState:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of FileType is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *FileTypeUpsert) SetExpr[T any](column ent.ColumnOf[entity.FileType, T], value ent.Expr[T]) *FileTypeUpsert {
+	switch column.Ref().Name {
+
+	case filetype.FieldName:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case filetype.FieldType:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case filetype.FieldState:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of FileType is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *FileTypeUpsert) UpdateNewValue[T any](column ent.ColumnOf[entity.FileType, T]) *FileTypeUpsert {
+	switch column.Ref().Name {
+
+	case filetype.FieldName:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case filetype.FieldType:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case filetype.FieldState:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of FileType is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *FileTypeUpsert) Add[T ent.Number](column ent.ColumnOf[entity.FileType, T], delta T) *FileTypeUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of FileType does not support addition", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *FileTypeUpsert) Clear[T any](column ent.ColumnOf[entity.FileType, T]) *FileTypeUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of FileType is not nullable", column.Ref().Name)})
+	}
+	return u
+}
+
 type FileTypeCreateBulk struct {
 	config
 	err      error
 	builders []*FileTypeCreate
+
 	conflict []sql.ConflictOption
 }
 
-// Save creates the FileType entities in the database.
 func (_c *FileTypeCreateBulk) Save(ctx context.Context) ([]*FileType, error) {
 	if _c.err != nil {
 		return nil, _c.err
 	}
-	specs := make([]*sqlgraph.CreateSpec, len(_c.builders))
 	nodes := make([]*FileType, len(_c.builders))
-	mutators := make([]Mutator, len(_c.builders))
-	for i := range _c.builders {
-		func(i int, root context.Context) {
-			builder := _c.builders[i]
-			builder.defaults()
-			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*FileTypeMutation)
-				if !ok {
-					return nil, fmt.Errorf("unexpected mutation type %T", m)
-				}
-				if err := builder.check(); err != nil {
-					return nil, err
-				}
-				builder.mutation = mutation
-				var err error
-				nodes[i], specs[i] = builder.createSpec()
-				if i < len(mutators)-1 {
-					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
-				} else {
-					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
-					spec.OnConflict = _c.conflict
-					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
-						if sqlgraph.IsConstraintError(err) {
-							err = &ConstraintError{msg: err.Error(), wrap: err}
-						}
-					}
-				}
-				if err != nil {
-					return nil, err
-				}
-				mutation.id = &nodes[i].ID
-				if specs[i].ID.Value != nil {
-					id := specs[i].ID.Value.(int64)
-					nodes[i].ID = int(id)
-				}
-				mutation.done = true
-				return nodes[i], nil
-			})
-			for i := len(builder.hooks) - 1; i >= 0; i-- {
-				mut = builder.hooks[i](mut)
-			}
-			mutators[i] = mut
-		}(i, ctx)
-	}
-	if len(mutators) > 0 {
-		if _, err := mutators[0].Mutate(ctx, _c.builders[0].mutation); err != nil {
+	specs := make([]*sqlgraph.CreateSpec, len(nodes))
+	for index, builder := range _c.builders {
+		if builder.err != nil {
+			return nil, builder.err
+		}
+		if err := builder.defaults(); err != nil {
+			return nil, err
+		}
+		if err := builder.check(); err != nil {
+			return nil, err
+		}
+		var err error
+		nodes[index], specs[index], err = builder.createSpec()
+		if err != nil {
 			return nil, err
 		}
 	}
-	return nodes, nil
+	if len(specs) == 0 {
+		return nodes, nil
+	}
+	spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+
+	spec.OnConflict = _c.conflict
+
+	if err := sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
+		if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{msg: err.Error(), wrap: err}
+		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
+		return nil, err
+	}
+	result := nodes[:0]
+	for index, builder := range _c.builders {
+		if specs[index].Skipped {
+			continue
+		}
+		builder.mutation.id = &nodes[index].ID
+		result = append(result, nodes[index])
+	}
+	return result, nil
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_c *FileTypeCreateBulk) SaveX(ctx context.Context) []*FileType {
-	v, err := _c.Save(ctx)
+func (b *FileTypeCreateBulk) SaveX(ctx context.Context) []*FileType {
+	nodes, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return nodes
 }
 
-// Exec executes the query.
-func (_c *FileTypeCreateBulk) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *FileTypeCreateBulk) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *FileTypeCreateBulk) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *FileTypeCreateBulk) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// OnConflict allows configuring the `ON CONFLICT` clause of the `INSERT`
-// statement. For example:
-//
-//	client.FileType.CreateBulk(builders...).
-//		OnConflict(
-//			// Update the row with the new values
-//			// the was proposed for insertion.
-//			sql.ResolveWithNewValues(),
-//		).
-//		// Override some of the fields with custom
-//		// update values.
-//		Update(func(u *ent.FileTypeUpsert) {
-//			SetName(v+v).
-//		}).
-//		Exec(ctx)
-func (_c *FileTypeCreateBulk) OnConflict(opts ...sql.ConflictOption) *FileTypeUpsertBulk {
-	_c.conflict = opts
-	return &FileTypeUpsertBulk{
-		create: _c,
+type FileTypeUpsertBulk struct{ create *FileTypeCreateBulk }
+
+func (b *FileTypeCreateBulk) OnConflict(columns ...ent.EntityColumn[entity.FileType]) *FileTypeUpsertBulk {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
 	}
-}
-
-// OnConflictColumns calls `OnConflict` and configures the columns
-// as conflict target. Using this option is equivalent to using:
-//
-//	client.FileType.Create().
-//		OnConflict(sql.ConflictColumns(columns...)).
-//		Exec(ctx)
-func (_c *FileTypeCreateBulk) OnConflictColumns(columns ...string) *FileTypeUpsertBulk {
-	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
-	return &FileTypeUpsertBulk{
-		create: _c,
+	if len(names) == 0 {
+		return b.OnConflictOptions()
 	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
 }
 
-// FileTypeUpsertBulk is the builder for "upsert"-ing
-// a bulk of FileType nodes.
-type FileTypeUpsertBulk struct {
-	create *FileTypeCreateBulk
+func (b *FileTypeCreateBulk) OnConflictConstraint(name string) *FileTypeUpsertBulk {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
 }
 
-// UpdateNewValues updates the mutable fields using the new values that
-// were set on create. Using this option is equivalent to using:
-//
-//	client.FileType.Create().
-//		OnConflict(
-//			sql.ResolveWithNewValues(),
-//		).
-//		Exec(ctx)
-func (u *FileTypeUpsertBulk) UpdateNewValues() *FileTypeUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
-	return u
+func (b *FileTypeCreateBulk) OnConflictOptions(options ...sql.ConflictOption) *FileTypeUpsertBulk {
+	b.conflict = options
+	return &FileTypeUpsertBulk{create: b}
 }
 
-// Ignore sets each column to itself in case of conflict.
-// Using this option is equivalent to using:
-//
-//	client.FileType.Create().
-//		OnConflict(sql.ResolveWithIgnore()).
-//		Exec(ctx)
-func (u *FileTypeUpsertBulk) Ignore() *FileTypeUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
-	return u
-}
-
-// DoNothing configures the conflict_action to `DO NOTHING`.
-// Supported only by SQLite and PostgreSQL.
 func (u *FileTypeUpsertBulk) DoNothing() *FileTypeUpsertBulk {
 	u.create.conflict = append(u.create.conflict, sql.DoNothing())
 	return u
 }
 
-// Update allows overriding fields `UPDATE` values. See the FileTypeCreateBulk.OnConflict
-// documentation for more info.
-func (u *FileTypeUpsertBulk) Update(set func(*FileTypeUpsert)) *FileTypeUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
-		set(&FileTypeUpsert{UpdateSet: update})
+func (u *FileTypeUpsertBulk) DoSelect() *FileTypeUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *FileTypeUpsertBulk) Ignore() *FileTypeUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *FileTypeUpsertBulk) DoUpdate(set func(*FileTypeUpsert)) *FileTypeUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&FileTypeUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *FileTypeUpsertBulk) UpdateNewValues() *FileTypeUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case filetype.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
 	}))
 	return u
 }
 
-// SetName sets the "name" field.
-func (u *FileTypeUpsertBulk) SetName(v string) *FileTypeUpsertBulk {
-	return u.Update(func(s *FileTypeUpsert) {
-		s.SetName(v)
-	})
-}
-
-// UpdateName sets the "name" field to the value that was provided on create.
-func (u *FileTypeUpsertBulk) UpdateName() *FileTypeUpsertBulk {
-	return u.Update(func(s *FileTypeUpsert) {
-		s.UpdateName()
-	})
-}
-
-// SetType sets the "type" field.
-func (u *FileTypeUpsertBulk) SetType(v filetype.Type) *FileTypeUpsertBulk {
-	return u.Update(func(s *FileTypeUpsert) {
-		s.SetType(v)
-	})
-}
-
-// UpdateType sets the "type" field to the value that was provided on create.
-func (u *FileTypeUpsertBulk) UpdateType() *FileTypeUpsertBulk {
-	return u.Update(func(s *FileTypeUpsert) {
-		s.UpdateType()
-	})
-}
-
-// SetState sets the "state" field.
-func (u *FileTypeUpsertBulk) SetState(v filetype.State) *FileTypeUpsertBulk {
-	return u.Update(func(s *FileTypeUpsert) {
-		s.SetState(v)
-	})
-}
-
-// UpdateState sets the "state" field to the value that was provided on create.
-func (u *FileTypeUpsertBulk) UpdateState() *FileTypeUpsertBulk {
-	return u.Update(func(s *FileTypeUpsert) {
-		s.UpdateState()
-	})
-}
-
-// Exec executes the query.
-func (u *FileTypeUpsertBulk) Exec(ctx context.Context) error {
-	if u.create.err != nil {
-		return u.create.err
-	}
-	for i, b := range u.create.builders {
-		if len(b.conflict) != 0 {
-			return fmt.Errorf("ent: OnConflict was set for builder %d. Set it on the FileTypeCreateBulk instead", i)
+func (u *FileTypeUpsertBulk) Where(predicates ...ent.Predicate[entity.FileType]) *FileTypeUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(filetype.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
 		}
-	}
-	if len(u.create.conflict) == 0 {
-		return errors.New("ent: missing options for FileTypeCreateBulk.OnConflict")
-	}
-	return u.create.Exec(ctx)
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// ExecX is like Exec, but panics if an error occurs.
+func (u *FileTypeUpsertBulk) UpdateWhere(predicates ...ent.Predicate[entity.FileType]) *FileTypeUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(filetype.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *FileTypeUpsertBulk) Save(ctx context.Context) ([]*FileType, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for FileTypeCreateBulk.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *FileTypeUpsertBulk) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
 func (u *FileTypeUpsertBulk) ExecX(ctx context.Context) {
-	if err := u.create.Exec(ctx); err != nil {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

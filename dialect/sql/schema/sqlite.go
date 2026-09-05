@@ -208,17 +208,9 @@ type tx struct {
 }
 
 func (tx *tx) QueryContext(ctx context.Context, query string, args ...any) (*stdsql.Rows, error) {
-	rows := &sql.Rows{}
-	if err := tx.Query(ctx, query, args, rows); err != nil {
-		return nil, err
-	}
-	return rows.ColumnScanner.(*stdsql.Rows), nil
+	return (&db{tx.Tx}).QueryContext(ctx, query, args...)
 }
 
 func (tx *tx) ExecContext(ctx context.Context, query string, args ...any) (stdsql.Result, error) {
-	var r stdsql.Result
-	if err := tx.Exec(ctx, query, args, &r); err != nil {
-		return nil, err
-	}
-	return r, nil
+	return (&db{tx.Tx}).ExecContext(ctx, query, args...)
 }

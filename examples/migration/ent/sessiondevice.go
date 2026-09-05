@@ -9,10 +9,12 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	time2 "time"
 
 	"github.com/google/uuid"
 	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/examples/migration/ent/entity"
 	"github.com/neko-sc/ent/examples/migration/ent/sessiondevice"
 )
 
@@ -28,13 +30,12 @@ type SessionDevice struct {
 	// Location holds the value of the "location" field.
 	Location string `json:"location,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
-	CreatedAt time.Time `json:"created_at,omitempty"`
+	CreatedAt time2.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
-	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	UpdatedAt time2.Time `json:"updated_at,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the SessionDeviceQuery when eager-loading is set.
-	Edges        SessionDeviceEdges `json:"edges"`
-	selectValues sql.SelectValues
+	Edges SessionDeviceEdges `json:"edges"`
 }
 
 // SessionDeviceEdges holds the relations/edges for other nodes in the graph.
@@ -44,6 +45,30 @@ type SessionDeviceEdges struct {
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes [1]bool
+	counts      map[string]int
+}
+
+func (e SessionDeviceEdges) Loaded[N, K any](edge ent.RelationOf[entity.SessionDevice, N, K]) bool {
+	switch edge.Ref().Name {
+	case "sessions":
+		return e.loadedTypes[0]
+
+	default:
+		return false
+	}
+}
+
+func (e *SessionDeviceEdges) SetLoaded[N, K any](edge ent.RelationOf[entity.SessionDevice, N, K], loaded bool) {
+	switch edge.Ref().Name {
+	case "sessions":
+		e.loadedTypes[0] = loaded
+
+	}
+}
+
+func (e SessionDeviceEdges) Count[N, K any](edge ent.Relation[entity.SessionDevice, N, K]) (int, bool) {
+	count, loaded := e.counts[edge.Ref().Name]
+	return count, loaded
 }
 
 // SessionsOrErr returns the Sessions value or an error if the edge
@@ -61,9 +86,9 @@ func (*SessionDevice) scanValues(columns []string) ([]any, error) {
 	for i := range columns {
 		switch columns[i] {
 		case sessiondevice.FieldIPAddress, sessiondevice.FieldUserAgent, sessiondevice.FieldLocation:
-			values[i] = new(sql.NullString)
+			values[i] = new(*string)
 		case sessiondevice.FieldCreatedAt, sessiondevice.FieldUpdatedAt:
-			values[i] = new(sql.NullTime)
+			values[i] = new(*time2.Time)
 		case sessiondevice.FieldID:
 			values[i] = new(uuid.UUID)
 		default:
@@ -88,46 +113,43 @@ func (_m *SessionDevice) assignValues(columns []string, values []any) error {
 				_m.ID = *value
 			}
 		case sessiondevice.FieldIPAddress:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field ip_address", values[i])
-			} else if value.Valid {
-				_m.IPAddress = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.IPAddress = **value
 			}
 		case sessiondevice.FieldUserAgent:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field user_agent", values[i])
-			} else if value.Valid {
-				_m.UserAgent = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.UserAgent = **value
 			}
 		case sessiondevice.FieldLocation:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field location", values[i])
-			} else if value.Valid {
-				_m.Location = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.Location = **value
 			}
 		case sessiondevice.FieldCreatedAt:
-			if value, ok := values[i].(*sql.NullTime); !ok {
+
+			if value, ok := values[i].(**time2.Time); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
-			} else if value.Valid {
-				_m.CreatedAt = time.Time(value.Time)
+			} else if value != nil && *value != nil {
+				_m.CreatedAt = **value
 			}
 		case sessiondevice.FieldUpdatedAt:
-			if value, ok := values[i].(*sql.NullTime); !ok {
+
+			if value, ok := values[i].(**time2.Time); !ok {
 				return fmt.Errorf("unexpected type %T for field updated_at", values[i])
-			} else if value.Valid {
-				_m.UpdatedAt = time.Time(value.Time)
+			} else if value != nil && *value != nil {
+				_m.UpdatedAt = **value
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the SessionDevice.
-// This includes values selected through modifiers, order, etc.
-func (_m *SessionDevice) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // QuerySessions queries the "sessions" edge of the SessionDevice entity.

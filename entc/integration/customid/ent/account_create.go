@@ -10,114 +10,160 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/account"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/token"
 	"github.com/neko-sc/ent/entc/integration/customid/sid"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// AccountCreate is the builder for creating a Account entity.
 type AccountCreate struct {
 	config
-	mutation *AccountMutation
-	hooks    []Hook
+	mutation    *AccountMutation
+	err         error
+	fromBuilder bool
+	present     map[string]struct{}
+
 	conflict []sql.ConflictOption
 }
 
-// SetEmail sets the "email" field.
-func (_c *AccountCreate) SetEmail(v string) *AccountCreate {
-	_c.mutation.SetEmail(v)
-	return _c
-}
-
-// SetID sets the "id" field.
-func (_c *AccountCreate) SetID(v sid.ID) *AccountCreate {
-	_c.mutation.SetID(v)
-	return _c
-}
-
-// SetNillableID sets the "id" field if the given value is not nil.
-func (_c *AccountCreate) SetNillableID(v *sid.ID) *AccountCreate {
-	if v != nil {
-		_c.SetID(*v)
+func (b *AccountCreate) Set[T any](column ent.ColumnOf[entity.Account, T], value T) *AccountCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.set(column.Ref().Name, value)
 	}
-	return _c
-}
-
-// AddTokenIDs adds the "token" edge to the Token entity by IDs.
-func (_c *AccountCreate) AddTokenIDs(ids ...sid.ID) *AccountCreate {
-	_c.mutation.AddTokenIDs(ids...)
-	return _c
-}
-
-// AddToken adds the "token" edges to the Token entity.
-func (_c *AccountCreate) AddToken(v ...*Token) *AccountCreate {
-	ids := make([]sid.ID, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+	if b.present == nil {
+		b.present = make(map[string]struct{})
 	}
-	return _c.AddTokenIDs(ids...)
+	b.present[column.Ref().Name] = struct{}{}
+	return b
 }
-
-// Mutation returns the AccountMutation object of the builder.
-func (_c *AccountCreate) Mutation() *AccountMutation {
-	return _c.mutation
+func (b *AccountCreate) SetOptional[T any](column ent.ColumnOf[entity.Account, T], value ent.Option[T]) *AccountCreate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.insert.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
 }
+func (b *AccountCreate) SetExpr[T any](column ent.ColumnOf[entity.Account, T], value ent.Expr[T]) *AccountCreate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
 
-// Save creates the Account in the database.
-func (_c *AccountCreate) Save(ctx context.Context) (*Account, error) {
-	if err := _c.defaults(); err != nil {
+	case account.FieldID:
+
+	case account.FieldEmail:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Account is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.insert.setExpr(column.Ref().Name, value.Render)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+
+}
+func (b *AccountCreate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Account, N, K], id K) *AccountCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.setEdge(edge.Ref().Name, id)
+	}
+
+	switch edge.Ref().Name {
+
+	}
+
+	return b
+}
+func (b *AccountCreate) AddIDs[N, K any](edge ent.Relation[entity.Account, N, K], ids ...K) *AccountCreate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.insert.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *AccountCreate) Mutation() *AccountMutation { return b.mutation }
+
+func (b *AccountCreate) Insert() *AccountInsert { return b.mutation.insert }
+
+func (b *AccountCreate) Save(ctx context.Context) (*Account, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
 		return nil, err
 	}
-	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
+	return b.sqlSave(ctx)
 }
 
-// SaveX calls Save and panics if Save returns an error.
-func (_c *AccountCreate) SaveX(ctx context.Context) *Account {
-	v, err := _c.Save(ctx)
+func (b *AccountCreate) SaveX(ctx context.Context) *Account {
+	node, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return node
 }
 
-// Exec executes the query.
-func (_c *AccountCreate) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *AccountCreate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *AccountCreate) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *AccountCreate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// defaults sets the default values of the builder before save.
-func (_c *AccountCreate) defaults() error {
-	if _, ok := _c.mutation.ID(); !ok {
+func (b *AccountCreate) defaults() error {
+
+	if b.mutation.insert.ID.IsUnset() && b.mutation.insert.expressions[account.FieldID] == nil {
 		if account.DefaultID == nil {
-			return fmt.Errorf("ent: uninitialized account.DefaultID (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized account.DefaultID")
 		}
-		v := account.DefaultID()
-		_c.mutation.SetID(v)
+		b.mutation.insert.ID = ent.Some(account.DefaultID())
 	}
+
 	return nil
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_c *AccountCreate) check() error {
-	if _, ok := _c.mutation.Email(); !ok {
-		return &ValidationError{Name: "email", err: errors.New(`ent: missing required field "Account.email"`)}
+func (b *AccountCreate) check() error {
+	if b.err != nil {
+		return b.err
 	}
-	if v, ok := _c.mutation.Email(); ok {
+
+	if b.mutation.insert.ID.IsNull() {
+		return &ValidationError{Name: "id", err: errors.New(`ent: field "Account.id" is not nullable`)}
+	}
+
+	switch b.driver.Dialect() {
+	case dialect.Postgres, dialect.SQLite:
+		if _, present := b.present[account.FieldEmail]; b.fromBuilder && !present {
+			return &ValidationError{Name: "email", err: errors.New(`ent: missing required field "Account.email"`)}
+		}
+	}
+
+	if b.mutation.insert.expressions[account.FieldEmail] == nil {
+		v := b.mutation.insert.Email
+
 		if err := account.EmailValidator(v); err != nil {
 			return &ValidationError{Name: "email", err: fmt.Errorf(`ent: validator failed for field "Account.email": %w`, err)}
 		}
+
 	}
+
 	return nil
 }
 
@@ -125,40 +171,41 @@ func (_c *AccountCreate) sqlSave(ctx context.Context) (*Account, error) {
 	if err := _c.check(); err != nil {
 		return nil, err
 	}
-	_node, _spec := _c.createSpec()
-	if err := sqlgraph.CreateNode(ctx, _c.driver, _spec); err != nil {
+	node, spec, err := _c.createSpec()
+	if err != nil {
+		return nil, err
+	}
+	if err := sqlgraph.CreateNode(ctx, _c.driver, spec); err != nil {
 		if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
 		return nil, err
 	}
-	if _spec.ID.Value != nil {
-		if id, ok := _spec.ID.Value.(*sid.ID); ok {
-			_node.ID = *id
-		} else if err := _node.ID.Scan(_spec.ID.Value); err != nil {
-			return nil, err
-		}
-	}
-	_c.mutation.id = &_node.ID
-	_c.mutation.done = true
-	return _node, nil
+	_c.mutation.id = &node.ID
+	return node, nil
 }
 
-func (_c *AccountCreate) createSpec() (*Account, *sqlgraph.CreateSpec) {
-	var (
-		_node = &Account{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(account.Table, sqlgraph.NewFieldSpec(account.FieldID, field.TypeOther))
-	)
+func (_c *AccountCreate) createSpec() (*Account, *sqlgraph.CreateSpec, error) {
+	_node := &Account{config: _c.config}
+	_spec := sqlgraph.NewCreateSpec(account.Table, sqlgraph.NewFieldSpec(account.FieldID, field.TypeOther))
+
 	_spec.OnConflict = _c.conflict
-	if id, ok := _c.mutation.ID(); ok {
-		_node.ID = id
-		_spec.ID.Value = &id
+
+	if value, ok := _c.mutation.insert.ID.Get(); ok {
+		_spec.ID.Value = &value
 	}
-	if value, ok := _c.mutation.Email(); ok {
+
+	if _, present := _c.present[account.FieldEmail]; !_c.fromBuilder || present {
+		value := _c.mutation.insert.Email
 		_spec.SetField(account.FieldEmail, field.TypeString, value)
-		_node.Email = value
 	}
-	if nodes := _c.mutation.TokenIDs(); len(nodes) > 0 {
+
+	_spec.Expressions = _c.mutation.insert.expressions
+
+	if nodes := _c.mutation.insert.tokenIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -169,162 +216,142 @@ func (_c *AccountCreate) createSpec() (*Account, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(token.FieldID, field.TypeOther),
 			},
 		}
+		seen := make(map[sid.ID]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	return _node, _spec
-}
 
-// OnConflict allows configuring the `ON CONFLICT` clause of the `INSERT`
-// statement. For example:
-//
-//	client.Account.Create().
-//		SetEmail(v).
-//		OnConflict(
-//			// Update the row with the new values
-//			// the was proposed for insertion.
-//			sql.ResolveWithNewValues(),
-//		).
-//		// Override some of the fields with custom
-//		// update values.
-//		Update(func(u *ent.AccountUpsert) {
-//			SetEmail(v+v).
-//		}).
-//		Exec(ctx)
-func (_c *AccountCreate) OnConflict(opts ...sql.ConflictOption) *AccountUpsertOne {
-	_c.conflict = opts
-	return &AccountUpsertOne{
-		create: _c,
-	}
-}
-
-// OnConflictColumns calls `OnConflict` and configures the columns
-// as conflict target. Using this option is equivalent to using:
-//
-//	client.Account.Create().
-//		OnConflict(sql.ConflictColumns(columns...)).
-//		Exec(ctx)
-func (_c *AccountCreate) OnConflictColumns(columns ...string) *AccountUpsertOne {
-	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
-	return &AccountUpsertOne{
-		create: _c,
-	}
-}
-
-type (
-	// AccountUpsertOne is the builder for "upsert"-ing
-	//  one Account node.
-	AccountUpsertOne struct {
-		create *AccountCreate
-	}
-
-	// AccountUpsert is the "OnConflict" setter.
-	AccountUpsert struct {
-		*sql.UpdateSet
-	}
-)
-
-// SetEmail sets the "email" field.
-func (u *AccountUpsert) SetEmail(v string) *AccountUpsert {
-	u.Set(account.FieldEmail, v)
-	return u
-}
-
-// UpdateEmail sets the "email" field to the value that was provided on create.
-func (u *AccountUpsert) UpdateEmail() *AccountUpsert {
-	u.SetExcluded(account.FieldEmail)
-	return u
-}
-
-// UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
-// Using this option is equivalent to using:
-//
-//	client.Account.Create().
-//		OnConflict(
-//			sql.ResolveWithNewValues(),
-//			sql.ResolveWith(func(u *sql.UpdateSet) {
-//				u.SetIgnore(account.FieldID)
-//			}),
-//		).
-//		Exec(ctx)
-func (u *AccountUpsertOne) UpdateNewValues() *AccountUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
-		if _, exists := u.create.mutation.ID(); exists {
-			s.SetIgnore(account.FieldID)
+	_spec.Returning = &sqlgraph.Returning{Columns: account.Columns, Scan: func(rows dialect.Rows) error {
+		values, err := _node.scanValues(account.Columns)
+		if err != nil {
+			return err
 		}
-	}))
-	return u
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(account.Columns, values); err != nil {
+			return err
+		}
+
+		_spec.ID.Value = _node.ID
+
+		return nil
+	}}
+	return _node, _spec, nil
 }
 
-// Ignore sets each column to itself in case of conflict.
-// Using this option is equivalent to using:
-//
-//	client.Account.Create().
-//	    OnConflict(sql.ResolveWithIgnore()).
-//	    Exec(ctx)
-func (u *AccountUpsertOne) Ignore() *AccountUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
-	return u
+type AccountUpsertOne struct{ create *AccountCreate }
+
+func (b *AccountCreate) OnConflict(columns ...ent.EntityColumn[entity.Account]) *AccountUpsertOne {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
+	}
+	if len(names) == 0 {
+		return b.OnConflictOptions()
+	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
 }
 
-// DoNothing configures the conflict_action to `DO NOTHING`.
-// Supported only by SQLite and PostgreSQL.
+func (b *AccountCreate) OnConflictConstraint(name string) *AccountUpsertOne {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
+}
+
+func (b *AccountCreate) OnConflictOptions(options ...sql.ConflictOption) *AccountUpsertOne {
+	b.conflict = options
+	return &AccountUpsertOne{create: b}
+}
+
 func (u *AccountUpsertOne) DoNothing() *AccountUpsertOne {
 	u.create.conflict = append(u.create.conflict, sql.DoNothing())
 	return u
 }
 
-// Update allows overriding fields `UPDATE` values. See the AccountCreate.OnConflict
-// documentation for more info.
-func (u *AccountUpsertOne) Update(set func(*AccountUpsert)) *AccountUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
-		set(&AccountUpsert{UpdateSet: update})
+func (u *AccountUpsertOne) DoSelect() *AccountUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *AccountUpsertOne) Ignore() *AccountUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *AccountUpsertOne) DoUpdate(set func(*AccountUpsert)) *AccountUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&AccountUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *AccountUpsertOne) UpdateNewValues() *AccountUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case account.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
 	}))
 	return u
 }
 
-// SetEmail sets the "email" field.
-func (u *AccountUpsertOne) SetEmail(v string) *AccountUpsertOne {
-	return u.Update(func(s *AccountUpsert) {
-		s.SetEmail(v)
-	})
+func (u *AccountUpsertOne) Where(predicates ...ent.Predicate[entity.Account]) *AccountUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(account.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// UpdateEmail sets the "email" field to the value that was provided on create.
-func (u *AccountUpsertOne) UpdateEmail() *AccountUpsertOne {
-	return u.Update(func(s *AccountUpsert) {
-		s.UpdateEmail()
-	})
+func (u *AccountUpsertOne) UpdateWhere(predicates ...ent.Predicate[entity.Account]) *AccountUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(account.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// Exec executes the query.
-func (u *AccountUpsertOne) Exec(ctx context.Context) error {
+func (u *AccountUpsertOne) Save(ctx context.Context) (*Account, error) {
 	if len(u.create.conflict) == 0 {
-		return errors.New("ent: missing options for AccountCreate.OnConflict")
+		return nil, errors.New("ent: missing options for AccountCreate.OnConflict")
 	}
-	return u.create.Exec(ctx)
+	return u.create.Save(ctx)
 }
 
-// ExecX is like Exec, but panics if an error occurs.
+func (u *AccountUpsertOne) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
 func (u *AccountUpsertOne) ExecX(ctx context.Context) {
-	if err := u.create.Exec(ctx); err != nil {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// Exec executes the UPSERT query and returns the inserted/updated ID.
 func (u *AccountUpsertOne) ID(ctx context.Context) (id sid.ID, err error) {
-	node, err := u.create.Save(ctx)
+	node, err := u.Save(ctx)
 	if err != nil {
 		return id, err
 	}
 	return node.ID, nil
 }
 
-// IDX is like ID, but panics if an error occurs.
 func (u *AccountUpsertOne) IDX(ctx context.Context) sid.ID {
 	id, err := u.ID(ctx)
 	if err != nil {
@@ -333,216 +360,229 @@ func (u *AccountUpsertOne) IDX(ctx context.Context) sid.ID {
 	return id
 }
 
-// AccountCreateBulk is the builder for creating many Account entities in bulk.
+type AccountUpsert struct{ *sql.UpdateSet }
+
+func (u *AccountUpsert) Set[T any](column ent.ColumnOf[entity.Account, T], value T) *AccountUpsert {
+	switch column.Ref().Name {
+
+	case account.FieldEmail:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Account is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *AccountUpsert) SetExpr[T any](column ent.ColumnOf[entity.Account, T], value ent.Expr[T]) *AccountUpsert {
+	switch column.Ref().Name {
+
+	case account.FieldEmail:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Account is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *AccountUpsert) UpdateNewValue[T any](column ent.ColumnOf[entity.Account, T]) *AccountUpsert {
+	switch column.Ref().Name {
+
+	case account.FieldEmail:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Account is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *AccountUpsert) Add[T ent.Number](column ent.ColumnOf[entity.Account, T], delta T) *AccountUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Account does not support addition", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *AccountUpsert) Clear[T any](column ent.ColumnOf[entity.Account, T]) *AccountUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Account is not nullable", column.Ref().Name)})
+	}
+	return u
+}
+
 type AccountCreateBulk struct {
 	config
 	err      error
 	builders []*AccountCreate
+
 	conflict []sql.ConflictOption
 }
 
-// Save creates the Account entities in the database.
 func (_c *AccountCreateBulk) Save(ctx context.Context) ([]*Account, error) {
 	if _c.err != nil {
 		return nil, _c.err
 	}
-	specs := make([]*sqlgraph.CreateSpec, len(_c.builders))
 	nodes := make([]*Account, len(_c.builders))
-	mutators := make([]Mutator, len(_c.builders))
-	for i := range _c.builders {
-		func(i int, root context.Context) {
-			builder := _c.builders[i]
-			builder.defaults()
-			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*AccountMutation)
-				if !ok {
-					return nil, fmt.Errorf("unexpected mutation type %T", m)
-				}
-				if err := builder.check(); err != nil {
-					return nil, err
-				}
-				builder.mutation = mutation
-				var err error
-				nodes[i], specs[i] = builder.createSpec()
-				if i < len(mutators)-1 {
-					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
-				} else {
-					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
-					spec.OnConflict = _c.conflict
-					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
-						if sqlgraph.IsConstraintError(err) {
-							err = &ConstraintError{msg: err.Error(), wrap: err}
-						}
-					}
-				}
-				if err != nil {
-					return nil, err
-				}
-				mutation.id = &nodes[i].ID
-				mutation.done = true
-				return nodes[i], nil
-			})
-			for i := len(builder.hooks) - 1; i >= 0; i-- {
-				mut = builder.hooks[i](mut)
-			}
-			mutators[i] = mut
-		}(i, ctx)
-	}
-	if len(mutators) > 0 {
-		if _, err := mutators[0].Mutate(ctx, _c.builders[0].mutation); err != nil {
+	specs := make([]*sqlgraph.CreateSpec, len(nodes))
+	for index, builder := range _c.builders {
+		if builder.err != nil {
+			return nil, builder.err
+		}
+		if err := builder.defaults(); err != nil {
+			return nil, err
+		}
+		if err := builder.check(); err != nil {
+			return nil, err
+		}
+		var err error
+		nodes[index], specs[index], err = builder.createSpec()
+		if err != nil {
 			return nil, err
 		}
 	}
-	return nodes, nil
+	if len(specs) == 0 {
+		return nodes, nil
+	}
+	spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+
+	spec.OnConflict = _c.conflict
+
+	if err := sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
+		if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{msg: err.Error(), wrap: err}
+		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
+		return nil, err
+	}
+	result := nodes[:0]
+	for index, builder := range _c.builders {
+		if specs[index].Skipped {
+			continue
+		}
+		builder.mutation.id = &nodes[index].ID
+		result = append(result, nodes[index])
+	}
+	return result, nil
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_c *AccountCreateBulk) SaveX(ctx context.Context) []*Account {
-	v, err := _c.Save(ctx)
+func (b *AccountCreateBulk) SaveX(ctx context.Context) []*Account {
+	nodes, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return nodes
 }
 
-// Exec executes the query.
-func (_c *AccountCreateBulk) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *AccountCreateBulk) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *AccountCreateBulk) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *AccountCreateBulk) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// OnConflict allows configuring the `ON CONFLICT` clause of the `INSERT`
-// statement. For example:
-//
-//	client.Account.CreateBulk(builders...).
-//		OnConflict(
-//			// Update the row with the new values
-//			// the was proposed for insertion.
-//			sql.ResolveWithNewValues(),
-//		).
-//		// Override some of the fields with custom
-//		// update values.
-//		Update(func(u *ent.AccountUpsert) {
-//			SetEmail(v+v).
-//		}).
-//		Exec(ctx)
-func (_c *AccountCreateBulk) OnConflict(opts ...sql.ConflictOption) *AccountUpsertBulk {
-	_c.conflict = opts
-	return &AccountUpsertBulk{
-		create: _c,
+type AccountUpsertBulk struct{ create *AccountCreateBulk }
+
+func (b *AccountCreateBulk) OnConflict(columns ...ent.EntityColumn[entity.Account]) *AccountUpsertBulk {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
 	}
-}
-
-// OnConflictColumns calls `OnConflict` and configures the columns
-// as conflict target. Using this option is equivalent to using:
-//
-//	client.Account.Create().
-//		OnConflict(sql.ConflictColumns(columns...)).
-//		Exec(ctx)
-func (_c *AccountCreateBulk) OnConflictColumns(columns ...string) *AccountUpsertBulk {
-	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
-	return &AccountUpsertBulk{
-		create: _c,
+	if len(names) == 0 {
+		return b.OnConflictOptions()
 	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
 }
 
-// AccountUpsertBulk is the builder for "upsert"-ing
-// a bulk of Account nodes.
-type AccountUpsertBulk struct {
-	create *AccountCreateBulk
+func (b *AccountCreateBulk) OnConflictConstraint(name string) *AccountUpsertBulk {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
 }
 
-// UpdateNewValues updates the mutable fields using the new values that
-// were set on create. Using this option is equivalent to using:
-//
-//	client.Account.Create().
-//		OnConflict(
-//			sql.ResolveWithNewValues(),
-//			sql.ResolveWith(func(u *sql.UpdateSet) {
-//				u.SetIgnore(account.FieldID)
-//			}),
-//		).
-//		Exec(ctx)
-func (u *AccountUpsertBulk) UpdateNewValues() *AccountUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
-		for _, b := range u.create.builders {
-			if _, exists := b.mutation.ID(); exists {
-				s.SetIgnore(account.FieldID)
-			}
-		}
-	}))
-	return u
+func (b *AccountCreateBulk) OnConflictOptions(options ...sql.ConflictOption) *AccountUpsertBulk {
+	b.conflict = options
+	return &AccountUpsertBulk{create: b}
 }
 
-// Ignore sets each column to itself in case of conflict.
-// Using this option is equivalent to using:
-//
-//	client.Account.Create().
-//		OnConflict(sql.ResolveWithIgnore()).
-//		Exec(ctx)
-func (u *AccountUpsertBulk) Ignore() *AccountUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
-	return u
-}
-
-// DoNothing configures the conflict_action to `DO NOTHING`.
-// Supported only by SQLite and PostgreSQL.
 func (u *AccountUpsertBulk) DoNothing() *AccountUpsertBulk {
 	u.create.conflict = append(u.create.conflict, sql.DoNothing())
 	return u
 }
 
-// Update allows overriding fields `UPDATE` values. See the AccountCreateBulk.OnConflict
-// documentation for more info.
-func (u *AccountUpsertBulk) Update(set func(*AccountUpsert)) *AccountUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
-		set(&AccountUpsert{UpdateSet: update})
+func (u *AccountUpsertBulk) DoSelect() *AccountUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *AccountUpsertBulk) Ignore() *AccountUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *AccountUpsertBulk) DoUpdate(set func(*AccountUpsert)) *AccountUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&AccountUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *AccountUpsertBulk) UpdateNewValues() *AccountUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case account.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
 	}))
 	return u
 }
 
-// SetEmail sets the "email" field.
-func (u *AccountUpsertBulk) SetEmail(v string) *AccountUpsertBulk {
-	return u.Update(func(s *AccountUpsert) {
-		s.SetEmail(v)
-	})
-}
-
-// UpdateEmail sets the "email" field to the value that was provided on create.
-func (u *AccountUpsertBulk) UpdateEmail() *AccountUpsertBulk {
-	return u.Update(func(s *AccountUpsert) {
-		s.UpdateEmail()
-	})
-}
-
-// Exec executes the query.
-func (u *AccountUpsertBulk) Exec(ctx context.Context) error {
-	if u.create.err != nil {
-		return u.create.err
-	}
-	for i, b := range u.create.builders {
-		if len(b.conflict) != 0 {
-			return fmt.Errorf("ent: OnConflict was set for builder %d. Set it on the AccountCreateBulk instead", i)
+func (u *AccountUpsertBulk) Where(predicates ...ent.Predicate[entity.Account]) *AccountUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(account.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
 		}
-	}
-	if len(u.create.conflict) == 0 {
-		return errors.New("ent: missing options for AccountCreateBulk.OnConflict")
-	}
-	return u.create.Exec(ctx)
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// ExecX is like Exec, but panics if an error occurs.
+func (u *AccountUpsertBulk) UpdateWhere(predicates ...ent.Predicate[entity.Account]) *AccountUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(account.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *AccountUpsertBulk) Save(ctx context.Context) ([]*Account, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for AccountCreateBulk.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *AccountUpsertBulk) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
 func (u *AccountUpsertBulk) ExecX(ctx context.Context) {
-	if err := u.create.Exec(ctx); err != nil {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

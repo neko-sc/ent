@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/entc/integration/migrate/versioned/user"
 )
@@ -24,8 +23,7 @@ type User struct {
 	// Name holds the value of the "name" field.
 	Name string `json:"name,omitempty"`
 	// Address holds the value of the "address" field.
-	Address      string `json:"address,omitempty"`
-	selectValues sql.SelectValues
+	Address string `json:"address,omitempty"`
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -33,10 +31,12 @@ func (*User) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case user.FieldID, user.FieldAge:
-			values[i] = new(sql.NullInt64)
+		case user.FieldID:
+			values[i] = new(*int)
+		case user.FieldAge:
+			values[i] = new(*int32)
 		case user.FieldName, user.FieldAddress:
-			values[i] = new(sql.NullString)
+			values[i] = new(*string)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -53,40 +53,36 @@ func (_m *User) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case user.FieldID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field id", values[i])
-			} else if value.Valid {
-				_m.ID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.ID = **value
 			}
 		case user.FieldAge:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int32); !ok {
 				return fmt.Errorf("unexpected type %T for field age", values[i])
-			} else if value.Valid {
-				_m.Age = int32(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.Age = **value
 			}
 		case user.FieldName:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field name", values[i])
-			} else if value.Valid {
-				_m.Name = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.Name = **value
 			}
 		case user.FieldAddress:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field address", values[i])
-			} else if value.Valid {
-				_m.Address = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.Address = **value
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the User.
-// This includes values selected through modifiers, order, etc.
-func (_m *User) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // Update returns a builder for updating this User.

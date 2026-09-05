@@ -7,8 +7,9 @@ package pet
 
 import (
 	"github.com/google/uuid"
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/examples/migration/ent/entity"
 )
 
 const (
@@ -45,6 +46,54 @@ const (
 	OwnerColumn = "owner_id"
 )
 
+var (
+	ID           = ent.OrderedColumn[entity.Pet, uuid.UUID]{Table: Table, Name: FieldID}
+	Name         = ent.StringColumn[entity.Pet, string]{Table: Table, Name: FieldName}
+	Age          = ent.OrderedColumn[entity.Pet, float64]{Table: Table, Name: FieldAge}
+	Weight       = ent.OrderedColumn[entity.Pet, float64]{Table: Table, Name: FieldWeight}
+	BestFriendID = ent.OrderedColumn[entity.Pet, uuid.UUID]{Table: Table, Name: FieldBestFriendID}
+	OwnerID      = ent.OrderedColumn[entity.Pet, int]{Table: Table, Name: FieldOwnerID}
+	BestFriend   = ent.NewUniqueRelation[entity.Pet, entity.Pet, uuid.UUID](EdgeBestFriend, newBestFriendStep)
+	Owner        = ent.NewUniqueRelation[entity.Pet, entity.User, int](EdgeOwner, newOwnerStep)
+)
+
+// Alias returns the columns of the pets table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias:   name,
+		ID:           ent.OrderedColumn[entity.Pet, uuid.UUID]{Table: name, Name: FieldID},
+		Name:         ent.StringColumn[entity.Pet, string]{Table: name, Name: FieldName},
+		Age:          ent.OrderedColumn[entity.Pet, float64]{Table: name, Name: FieldAge},
+		Weight:       ent.OrderedColumn[entity.Pet, float64]{Table: name, Name: FieldWeight},
+		BestFriendID: ent.OrderedColumn[entity.Pet, uuid.UUID]{Table: name, Name: FieldBestFriendID},
+		OwnerID:      ent.OrderedColumn[entity.Pet, int]{Table: name, Name: FieldOwnerID},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias   string
+	ID           ent.OrderedColumn[entity.Pet, uuid.UUID]
+	Name         ent.StringColumn[entity.Pet, string]
+	Age          ent.OrderedColumn[entity.Pet, float64]
+	Weight       ent.OrderedColumn[entity.Pet, float64]
+	BestFriendID ent.OrderedColumn[entity.Pet, uuid.UUID]
+	OwnerID      ent.OrderedColumn[entity.Pet, int]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.Pet]) ent.Predicate[entity.Pet] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.Pet]) ent.Predicate[entity.Pet] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.Pet]) ent.Predicate[entity.Pet] { return ent.Not(predicate) }
+
 // Columns holds all SQL columns for pet fields.
 var Columns = []string{
 	FieldID,
@@ -72,52 +121,6 @@ var (
 	DefaultID func() uuid.UUID
 )
 
-// OrderOption defines the ordering options for the Pet queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByName orders the results by the name field.
-func ByName(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldName, opts...).ToFunc()
-}
-
-// ByAge orders the results by the age field.
-func ByAge(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldAge, opts...).ToFunc()
-}
-
-// ByWeight orders the results by the weight field.
-func ByWeight(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldWeight, opts...).ToFunc()
-}
-
-// ByBestFriendID orders the results by the best_friend_id field.
-func ByBestFriendID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldBestFriendID, opts...).ToFunc()
-}
-
-// ByOwnerID orders the results by the owner_id field.
-func ByOwnerID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldOwnerID, opts...).ToFunc()
-}
-
-// ByBestFriendField orders the results by best_friend field.
-func ByBestFriendField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newBestFriendStep(), sql.OrderByField(field, opts...))
-	}
-}
-
-// ByOwnerField orders the results by owner field.
-func ByOwnerField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newOwnerStep(), sql.OrderByField(field, opts...))
-	}
-}
 func newBestFriendStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),

@@ -11,6 +11,7 @@ import (
 
 	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/tag"
 )
 
@@ -23,8 +24,7 @@ type Tag struct {
 	Value string `json:"value,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the TagQuery when eager-loading is set.
-	Edges        TagEdges `json:"edges"`
-	selectValues sql.SelectValues
+	Edges TagEdges `json:"edges"`
 }
 
 // TagEdges holds the relations/edges for other nodes in the graph.
@@ -40,6 +40,42 @@ type TagEdges struct {
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes [4]bool
+	counts      map[string]int
+}
+
+func (e TagEdges) Loaded[N, K any](edge ent.RelationOf[entity.Tag, N, K]) bool {
+	switch edge.Ref().Name {
+	case "tweets":
+		return e.loadedTypes[0]
+	case "groups":
+		return e.loadedTypes[1]
+	case "tweet_tags":
+		return e.loadedTypes[2]
+	case "group_tags":
+		return e.loadedTypes[3]
+
+	default:
+		return false
+	}
+}
+
+func (e *TagEdges) SetLoaded[N, K any](edge ent.RelationOf[entity.Tag, N, K], loaded bool) {
+	switch edge.Ref().Name {
+	case "tweets":
+		e.loadedTypes[0] = loaded
+	case "groups":
+		e.loadedTypes[1] = loaded
+	case "tweet_tags":
+		e.loadedTypes[2] = loaded
+	case "group_tags":
+		e.loadedTypes[3] = loaded
+
+	}
+}
+
+func (e TagEdges) Count[N, K any](edge ent.Relation[entity.Tag, N, K]) (int, bool) {
+	count, loaded := e.counts[edge.Ref().Name]
+	return count, loaded
 }
 
 // TweetsOrErr returns the Tweets value or an error if the edge
@@ -84,9 +120,9 @@ func (*Tag) scanValues(columns []string) ([]any, error) {
 	for i := range columns {
 		switch columns[i] {
 		case tag.FieldID:
-			values[i] = new(sql.NullInt64)
+			values[i] = new(*int)
 		case tag.FieldValue:
-			values[i] = new(sql.NullString)
+			values[i] = new(*string)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -103,28 +139,22 @@ func (_m *Tag) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case tag.FieldID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field id", values[i])
-			} else if value.Valid {
-				_m.ID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.ID = **value
 			}
 		case tag.FieldValue:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field value", values[i])
-			} else if value.Valid {
-				_m.Value = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.Value = **value
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// GetValue returns the ent.Value that was dynamically selected and assigned to the Tag.
-// This includes values selected through modifiers, order, etc.
-func (_m *Tag) GetValue(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // QueryTweets queries the "tweets" edge of the Tag entity.

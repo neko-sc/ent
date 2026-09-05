@@ -6,7 +6,8 @@
 package other
 
 import (
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/customid/sid"
 )
 
@@ -18,6 +19,39 @@ const (
 	// Table holds the table name of the other in the database.
 	Table = "others"
 )
+
+var (
+	ID = ent.OrderedColumn[entity.Other, sid.ID]{Table: Table, Name: FieldID}
+)
+
+// Alias returns the columns of the others table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.Other, sid.ID]{Table: name, Name: FieldID},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.Other, sid.ID]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.Other]) ent.Predicate[entity.Other] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.Other]) ent.Predicate[entity.Other] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.Other]) ent.Predicate[entity.Other] {
+	return ent.Not(predicate)
+}
 
 // Columns holds all SQL columns for other fields.
 var Columns = []string{
@@ -38,11 +72,3 @@ var (
 	// DefaultID holds the default value on creation for the "id" field.
 	DefaultID func() sid.ID
 )
-
-// OrderOption defines the ordering options for the Other queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}

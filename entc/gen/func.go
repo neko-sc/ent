@@ -17,8 +17,6 @@ import (
 	"text/template"
 	"unicode"
 
-	"github.com/neko-sc/ent/schema/field"
-
 	"github.com/go-openapi/inflect"
 )
 
@@ -26,11 +24,9 @@ var (
 	// Funcs are the predefined template
 	// functions used by the codegen.
 	Funcs = template.FuncMap{
-		"ops":           fieldOps,
 		"add":           add,
 		"append":        reflect.Append,
 		"appends":       reflect.AppendSlice,
-		"order":         order,
 		"camel":         camel,
 		"snake":         snake,
 		"pascal":        pascal,
@@ -38,8 +34,6 @@ var (
 		"xrange":        xrange,
 		"receiver":      receiver,
 		"plural":        plural,
-		"aggregate":     aggregate,
-		"primitives":    primitives,
 		"singular":      rules.Singularize,
 		"quote":         quote,
 		"base":          filepath.Base,
@@ -117,42 +111,6 @@ func quote(v any) any {
 	return v
 }
 
-// fieldOps returns all predicate operations for a given field.
-func fieldOps(f *Field) (ops []Op) {
-	switch t := f.Type; {
-	case t == field.TypeJSON:
-	case t == field.TypeBytes:
-		if f.StorageComparable() && f.LogicalValueSupported() {
-			ops = enumOps
-		}
-	case t == field.TypeBool:
-		if f.StorageComparable() {
-			ops = boolOps
-		}
-	case t == field.TypeString:
-		switch {
-		case strings.EqualFold(f.Name, "id"):
-			if f.StorageOrderable() && (f.ConvertedToBasic() || f.TypeValuer()) {
-				ops = numericOps
-			}
-		case f.StorageComparable() && (f.ConvertedToBasic() || f.HasValueScanner() || f.Semantic.Capabilities.LogicalProjection != ""):
-			ops = stringOps
-		case f.StorageOrderable() && f.TypeValuer():
-			ops = numericOps
-		}
-	case t == field.TypeEnum || t == field.TypeOther || f.IsEdgeField():
-		if f.StorageComparable() && f.LogicalValueSupported() {
-			ops = enumOps
-		}
-	case f.StorageOrderable() && f.LogicalValueSupported():
-		ops = numericOps
-	}
-	if f.Optional {
-		ops = append(ops, nillableOps...)
-	}
-	return ops
-}
-
 // xrange generates a slice of len n.
 func xrange(n int) (a []int) {
 	for i := range n {
@@ -177,13 +135,22 @@ func isSeparator(r rune) bool {
 func pascalWords(words []string) string {
 	for i, w := range words {
 		upper := strings.ToUpper(w)
-		if _, ok := acronyms[upper]; ok {
+		switch singular := strings.TrimSuffix(upper, "S"); {
+		case acronym(upper):
 			words[i] = upper
-		} else {
+		case singular != upper && acronym(singular):
+			// Plural acronyms keep the lowercase suffix: ids => IDs, urls => URLs.
+			words[i] = singular + "s"
+		default:
 			words[i] = rules.Capitalize(w)
 		}
 	}
 	return strings.Join(words, "")
+}
+
+func acronym(word string) bool {
+	_, ok := acronyms[word]
+	return ok
 }
 
 // pascal converts the given name into a PascalCase.
@@ -348,26 +315,6 @@ func AddAcronym(word string) {
 	rules.AddAcronym(word)
 }
 
-// order returns a map of sort orders.
-// The key is the function name, and the value its database keyword.
-func order() map[string]string {
-	return map[string]string{
-		"asc":  "incr",
-		"desc": "decr",
-	}
-}
-
-// aggregate returns a map between all agg-functions and if they accept a field name as a parameter or not.
-func aggregate() map[string]bool {
-	return map[string]bool{
-		"min":   true,
-		"max":   true,
-		"sum":   true,
-		"mean":  true,
-		"count": false,
-	}
-}
-
 // keys returns the given map keys.
 func keys(v reflect.Value) ([]string, error) {
 	v = indirect(v)
@@ -380,11 +327,6 @@ func keys(v reflect.Value) ([]string, error) {
 	}
 	sort.Strings(keys)
 	return keys, nil
-}
-
-// primitives returns all primitives types.
-func primitives() []string {
-	return []string{field.TypeString.String(), field.TypeInt.String(), field.TypeFloat64.String(), field.TypeBool.String()}
 }
 
 // join is a wrapper around strings.Join to provide consistent output.

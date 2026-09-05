@@ -6,8 +6,9 @@
 package car
 
 import (
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
 )
 
 const (
@@ -33,6 +34,47 @@ const (
 	// OwnerColumn is the table column denoting the owner relation/edge.
 	OwnerColumn = "pet_cars"
 )
+
+var (
+	ID       = ent.OrderedColumn[entity.Car, int]{Table: Table, Name: FieldID}
+	BeforeID = ent.OrderedColumn[entity.Car, float64]{Table: Table, Name: FieldBeforeID}
+	AfterID  = ent.OrderedColumn[entity.Car, float64]{Table: Table, Name: FieldAfterID}
+	Model    = ent.StringColumn[entity.Car, string]{Table: Table, Name: FieldModel}
+	Owner    = ent.NewUniqueRelation[entity.Car, entity.Pet, string](EdgeOwner, newOwnerStep)
+)
+
+// Alias returns the columns of the cars table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.Car, int]{Table: name, Name: FieldID},
+		BeforeID:   ent.OrderedColumn[entity.Car, float64]{Table: name, Name: FieldBeforeID},
+		AfterID:    ent.OrderedColumn[entity.Car, float64]{Table: name, Name: FieldAfterID},
+		Model:      ent.StringColumn[entity.Car, string]{Table: name, Name: FieldModel},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.Car, int]
+	BeforeID   ent.OrderedColumn[entity.Car, float64]
+	AfterID    ent.OrderedColumn[entity.Car, float64]
+	Model      ent.StringColumn[entity.Car, string]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.Car]) ent.Predicate[entity.Car] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.Car]) ent.Predicate[entity.Car] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.Car]) ent.Predicate[entity.Car] { return ent.Not(predicate) }
 
 // Columns holds all SQL columns for car fields.
 var Columns = []string{
@@ -72,35 +114,6 @@ var (
 	IDValidator func(int) error
 )
 
-// OrderOption defines the ordering options for the Car queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByBeforeID orders the results by the before_id field.
-func ByBeforeID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldBeforeID, opts...).ToFunc()
-}
-
-// ByAfterID orders the results by the after_id field.
-func ByAfterID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldAfterID, opts...).ToFunc()
-}
-
-// ByModel orders the results by the model field.
-func ByModel(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldModel, opts...).ToFunc()
-}
-
-// ByOwnerField orders the results by owner field.
-func ByOwnerField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newOwnerStep(), sql.OrderByField(field, opts...))
-	}
-}
 func newOwnerStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),

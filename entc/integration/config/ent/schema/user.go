@@ -46,7 +46,8 @@ func (User) Fields() []ent.Field {
 			}).Comment(`Name of the user.
 Comment line1
 Comment line2`),
-		field.String("label").
+		field.String("display_label").
+			StorageKey("label").
 			Optional(),
 	}
 }

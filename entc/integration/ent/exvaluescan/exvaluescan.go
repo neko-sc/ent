@@ -6,10 +6,12 @@
 package exvaluescan
 
 import (
+	"database/sql/driver"
 	"math/big"
 	"net/url"
 
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/entc/integration/ent/entity"
 	"github.com/neko-sc/ent/schema/field"
 )
 
@@ -37,6 +39,63 @@ const (
 	// Table holds the table name of the exvaluescan in the database.
 	Table = "ex_value_scans"
 )
+
+var (
+	ID             = ent.OrderedColumn[entity.ExValueScan, int]{Table: Table, Name: FieldID}
+	Binary         = ent.StringColumn[entity.ExValueScan, *url.URL]{Table: Table, Name: FieldBinary, Valuer: func(value *url.URL) (driver.Value, error) { return ValueScanner.Binary.Value(value) }}
+	BinaryBytes    = ent.OrderedColumn[entity.ExValueScan, *url.URL]{Table: Table, Name: FieldBinaryBytes, Valuer: func(value *url.URL) (driver.Value, error) { return ValueScanner.BinaryBytes.Value(value) }}
+	BinaryOptional = ent.StringColumn[entity.ExValueScan, *url.URL]{Table: Table, Name: FieldBinaryOptional, Valuer: func(value *url.URL) (driver.Value, error) { return ValueScanner.BinaryOptional.Value(value) }}
+	Text           = ent.StringColumn[entity.ExValueScan, *big.Int]{Table: Table, Name: FieldText, Valuer: func(value *big.Int) (driver.Value, error) { return ValueScanner.Text.Value(value) }}
+	TextOptional   = ent.StringColumn[entity.ExValueScan, *big.Int]{Table: Table, Name: FieldTextOptional, Valuer: func(value *big.Int) (driver.Value, error) { return ValueScanner.TextOptional.Value(value) }}
+	Base64         = ent.StringColumn[entity.ExValueScan, string]{Table: Table, Name: FieldBase64, Valuer: func(value string) (driver.Value, error) { return ValueScanner.Base64.Value(value) }}
+	Custom         = ent.StringColumn[entity.ExValueScan, string]{Table: Table, Name: FieldCustom, Valuer: func(value string) (driver.Value, error) { return ValueScanner.Custom.Value(value) }}
+	CustomOptional = ent.StringColumn[entity.ExValueScan, string]{Table: Table, Name: FieldCustomOptional, Valuer: func(value string) (driver.Value, error) { return ValueScanner.CustomOptional.Value(value) }}
+)
+
+// Alias returns the columns of the ex_value_scans table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias:     name,
+		ID:             ent.OrderedColumn[entity.ExValueScan, int]{Table: name, Name: FieldID},
+		Binary:         ent.StringColumn[entity.ExValueScan, *url.URL]{Table: name, Name: FieldBinary, Valuer: func(value *url.URL) (driver.Value, error) { return ValueScanner.Binary.Value(value) }},
+		BinaryBytes:    ent.OrderedColumn[entity.ExValueScan, *url.URL]{Table: name, Name: FieldBinaryBytes, Valuer: func(value *url.URL) (driver.Value, error) { return ValueScanner.BinaryBytes.Value(value) }},
+		BinaryOptional: ent.StringColumn[entity.ExValueScan, *url.URL]{Table: name, Name: FieldBinaryOptional, Valuer: func(value *url.URL) (driver.Value, error) { return ValueScanner.BinaryOptional.Value(value) }},
+		Text:           ent.StringColumn[entity.ExValueScan, *big.Int]{Table: name, Name: FieldText, Valuer: func(value *big.Int) (driver.Value, error) { return ValueScanner.Text.Value(value) }},
+		TextOptional:   ent.StringColumn[entity.ExValueScan, *big.Int]{Table: name, Name: FieldTextOptional, Valuer: func(value *big.Int) (driver.Value, error) { return ValueScanner.TextOptional.Value(value) }},
+		Base64:         ent.StringColumn[entity.ExValueScan, string]{Table: name, Name: FieldBase64, Valuer: func(value string) (driver.Value, error) { return ValueScanner.Base64.Value(value) }},
+		Custom:         ent.StringColumn[entity.ExValueScan, string]{Table: name, Name: FieldCustom, Valuer: func(value string) (driver.Value, error) { return ValueScanner.Custom.Value(value) }},
+		CustomOptional: ent.StringColumn[entity.ExValueScan, string]{Table: name, Name: FieldCustomOptional, Valuer: func(value string) (driver.Value, error) { return ValueScanner.CustomOptional.Value(value) }},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias     string
+	ID             ent.OrderedColumn[entity.ExValueScan, int]
+	Binary         ent.StringColumn[entity.ExValueScan, *url.URL]
+	BinaryBytes    ent.OrderedColumn[entity.ExValueScan, *url.URL]
+	BinaryOptional ent.StringColumn[entity.ExValueScan, *url.URL]
+	Text           ent.StringColumn[entity.ExValueScan, *big.Int]
+	TextOptional   ent.StringColumn[entity.ExValueScan, *big.Int]
+	Base64         ent.StringColumn[entity.ExValueScan, string]
+	Custom         ent.StringColumn[entity.ExValueScan, string]
+	CustomOptional ent.StringColumn[entity.ExValueScan, string]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.ExValueScan]) ent.Predicate[entity.ExValueScan] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.ExValueScan]) ent.Predicate[entity.ExValueScan] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.ExValueScan]) ent.Predicate[entity.ExValueScan] {
+	return ent.Not(predicate)
+}
 
 // Columns holds all SQL columns for exvaluescan fields.
 var Columns = []string{
@@ -74,48 +133,5 @@ var (
 		CustomOptional field.TypeValueScanner[string]
 	}
 )
-
-// OrderOption defines the ordering options for the ExValueScan queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByBinary orders the results by the binary field.
-func ByBinary(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldBinary, opts...).ToFunc()
-}
-
-// ByBinaryOptional orders the results by the binary_optional field.
-func ByBinaryOptional(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldBinaryOptional, opts...).ToFunc()
-}
-
-// ByText orders the results by the text field.
-func ByText(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldText, opts...).ToFunc()
-}
-
-// ByTextOptional orders the results by the text_optional field.
-func ByTextOptional(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldTextOptional, opts...).ToFunc()
-}
-
-// ByBase64 orders the results by the base64 field.
-func ByBase64(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldBase64, opts...).ToFunc()
-}
-
-// ByCustom orders the results by the custom field.
-func ByCustom(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldCustom, opts...).ToFunc()
-}
-
-// ByCustomOptional orders the results by the custom_optional field.
-func ByCustomOptional(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldCustomOptional, opts...).ToFunc()
-}
 
 // comment from another template.

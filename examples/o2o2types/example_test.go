@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/neko-sc/ent/examples/o2o2types/ent"
+	card "github.com/neko-sc/ent/examples/o2o2types/ent/card"
+	user "github.com/neko-sc/ent/examples/o2o2types/ent/user"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -38,8 +40,8 @@ func Example_o2o2Types() {
 func Do(ctx context.Context, client *ent.Client) error {
 	a8m, err := client.User.
 		Create().
-		SetAge(30).
-		SetName("Mashraki").
+		Set(user.Age, 30).
+		Set(user.Name, "Mashraki").
 		Save(ctx)
 	if err != nil {
 		return fmt.Errorf("creating user: %w", err)
@@ -51,9 +53,9 @@ func Do(ctx context.Context, client *ent.Client) error {
 	}
 	card1, err := client.Card.
 		Create().
-		SetOwner(a8m).
-		SetNumber("1020").
-		SetExpired(expired).
+		SetEdge(card.Owner, a8m.ID).
+		Set(card.Number, "1020").
+		Set(card.Expired, expired).
 		Save(ctx)
 	if err != nil {
 		return fmt.Errorf("creating card: %w", err)

@@ -9,124 +9,179 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/google/uuid"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/blob"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/bloblink"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// BlobLinkCreate is the builder for creating a BlobLink entity.
 type BlobLinkCreate struct {
 	config
-	mutation *BlobLinkMutation
-	hooks    []Hook
+	mutation    *BlobLinkMutation
+	err         error
+	fromBuilder bool
+	present     map[string]struct{}
+
 	conflict []sql.ConflictOption
 }
 
-// SetCreatedAt sets the "created_at" field.
-func (_c *BlobLinkCreate) SetCreatedAt(v time.Time) *BlobLinkCreate {
-	_c.mutation.SetCreatedAt(v)
-	return _c
-}
-
-// SetNillableCreatedAt sets the "created_at" field if the given value is not nil.
-func (_c *BlobLinkCreate) SetNillableCreatedAt(v *time.Time) *BlobLinkCreate {
-	if v != nil {
-		_c.SetCreatedAt(*v)
+func (b *BlobLinkCreate) Set[T any](column ent.ColumnOf[entity.BlobLink, T], value T) *BlobLinkCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.set(column.Ref().Name, value)
 	}
-	return _c
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
 }
-
-// SetBlobID sets the "blob_id" field.
-func (_c *BlobLinkCreate) SetBlobID(v uuid.UUID) *BlobLinkCreate {
-	_c.mutation.SetBlobID(v)
-	return _c
+func (b *BlobLinkCreate) SetOptional[T any](column ent.ColumnOf[entity.BlobLink, T], value ent.Option[T]) *BlobLinkCreate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.insert.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
 }
+func (b *BlobLinkCreate) SetExpr[T any](column ent.ColumnOf[entity.BlobLink, T], value ent.Expr[T]) *BlobLinkCreate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
 
-// SetLinkID sets the "link_id" field.
-func (_c *BlobLinkCreate) SetLinkID(v uuid.UUID) *BlobLinkCreate {
-	_c.mutation.SetLinkID(v)
-	return _c
+	case bloblink.FieldCreatedAt:
+
+	case bloblink.FieldBlobID:
+
+	case bloblink.FieldLinkID:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of BlobLink is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.insert.setExpr(column.Ref().Name, value.Render)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+
 }
+func (b *BlobLinkCreate) SetEdge[N, K any](edge ent.UniqueRelation[entity.BlobLink, N, K], id K) *BlobLinkCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.setEdge(edge.Ref().Name, id)
+	}
 
-// SetBlob sets the "blob" edge to the Blob entity.
-func (_c *BlobLinkCreate) SetBlob(v *Blob) *BlobLinkCreate {
-	return _c.SetBlobID(v.ID)
+	switch edge.Ref().Name {
+	case bloblink.EdgeBlob:
+		if b.present == nil {
+			b.present = make(map[string]struct{})
+		}
+		b.present[bloblink.FieldBlobID] = struct{}{}
+	case bloblink.EdgeLink:
+		if b.present == nil {
+			b.present = make(map[string]struct{})
+		}
+		b.present[bloblink.FieldLinkID] = struct{}{}
+
+	}
+
+	return b
 }
-
-// SetLink sets the "link" edge to the Blob entity.
-func (_c *BlobLinkCreate) SetLink(v *Blob) *BlobLinkCreate {
-	return _c.SetLinkID(v.ID)
+func (b *BlobLinkCreate) AddIDs[N, K any](edge ent.Relation[entity.BlobLink, N, K], ids ...K) *BlobLinkCreate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.insert.addIDs(edge.Ref().Name, values...)
+	}
+	return b
 }
+func (b *BlobLinkCreate) Mutation() *BlobLinkMutation { return b.mutation }
 
-// Mutation returns the BlobLinkMutation object of the builder.
-func (_c *BlobLinkCreate) Mutation() *BlobLinkMutation {
-	return _c.mutation
-}
+func (b *BlobLinkCreate) Insert() *BlobLinkInsert { return b.mutation.insert }
 
-// Save creates the BlobLink in the database.
-func (_c *BlobLinkCreate) Save(ctx context.Context) (*BlobLink, error) {
-	if err := _c.defaults(); err != nil {
+func (b *BlobLinkCreate) Save(ctx context.Context) (*BlobLink, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
 		return nil, err
 	}
-	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
+	return b.sqlSave(ctx)
 }
 
-// SaveX calls Save and panics if Save returns an error.
-func (_c *BlobLinkCreate) SaveX(ctx context.Context) *BlobLink {
-	v, err := _c.Save(ctx)
+func (b *BlobLinkCreate) SaveX(ctx context.Context) *BlobLink {
+	node, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return node
 }
 
-// Exec executes the query.
-func (_c *BlobLinkCreate) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *BlobLinkCreate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *BlobLinkCreate) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *BlobLinkCreate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// defaults sets the default values of the builder before save.
-func (_c *BlobLinkCreate) defaults() error {
-	if _, ok := _c.mutation.CreatedAt(); !ok {
+func (b *BlobLinkCreate) defaults() error {
+
+	if b.mutation.insert.CreatedAt.IsUnset() && b.mutation.insert.expressions[bloblink.FieldCreatedAt] == nil {
 		if bloblink.DefaultCreatedAt == nil {
-			return fmt.Errorf("ent: uninitialized bloblink.DefaultCreatedAt (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized bloblink.DefaultCreatedAt")
 		}
-		v := bloblink.DefaultCreatedAt()
-		_c.mutation.SetCreatedAt(v)
+		b.mutation.insert.CreatedAt = ent.Some(bloblink.DefaultCreatedAt())
 	}
+
 	return nil
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_c *BlobLinkCreate) check() error {
-	if _, ok := _c.mutation.CreatedAt(); !ok {
-		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "BlobLink.created_at"`)}
+func (b *BlobLinkCreate) check() error {
+	if b.err != nil {
+		return b.err
 	}
-	if _, ok := _c.mutation.BlobID(); !ok {
-		return &ValidationError{Name: "blob_id", err: errors.New(`ent: missing required field "BlobLink.blob_id"`)}
+
+	if b.mutation.insert.CreatedAt.IsNull() {
+		return &ValidationError{Name: "created_at", err: errors.New(`ent: field "BlobLink.created_at" is not nullable`)}
 	}
-	if _, ok := _c.mutation.LinkID(); !ok {
-		return &ValidationError{Name: "link_id", err: errors.New(`ent: missing required field "BlobLink.link_id"`)}
+
+	switch b.driver.Dialect() {
+	case dialect.Postgres, dialect.SQLite:
+		if _, present := b.present[bloblink.FieldBlobID]; b.fromBuilder && !present {
+			return &ValidationError{Name: "blob_id", err: errors.New(`ent: missing required field "BlobLink.blob_id"`)}
+		}
 	}
-	if len(_c.mutation.BlobIDs()) == 0 {
+
+	switch b.driver.Dialect() {
+	case dialect.Postgres, dialect.SQLite:
+		if _, present := b.present[bloblink.FieldLinkID]; b.fromBuilder && !present {
+			return &ValidationError{Name: "link_id", err: errors.New(`ent: missing required field "BlobLink.link_id"`)}
+		}
+	}
+
+	if len(b.mutation.insert.blobIDs()) == 0 {
 		return &ValidationError{Name: "blob", err: errors.New(`ent: missing required edge "BlobLink.blob"`)}
 	}
-	if len(_c.mutation.LinkIDs()) == 0 {
+
+	if len(b.mutation.insert.linkIDs()) == 0 {
 		return &ValidationError{Name: "link", err: errors.New(`ent: missing required edge "BlobLink.link"`)}
 	}
+
 	return nil
 }
 
@@ -134,27 +189,39 @@ func (_c *BlobLinkCreate) sqlSave(ctx context.Context) (*BlobLink, error) {
 	if err := _c.check(); err != nil {
 		return nil, err
 	}
-	_node, _spec := _c.createSpec()
-	if err := sqlgraph.CreateNode(ctx, _c.driver, _spec); err != nil {
+	node, spec, err := _c.createSpec()
+	if err != nil {
+		return nil, err
+	}
+	if err := sqlgraph.CreateNode(ctx, _c.driver, spec); err != nil {
 		if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
 		return nil, err
 	}
-	return _node, nil
+
+	return node, nil
 }
 
-func (_c *BlobLinkCreate) createSpec() (*BlobLink, *sqlgraph.CreateSpec) {
-	var (
-		_node = &BlobLink{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(bloblink.Table, nil)
-	)
+func (_c *BlobLinkCreate) createSpec() (*BlobLink, *sqlgraph.CreateSpec, error) {
+	_node := &BlobLink{config: _c.config}
+	_spec := sqlgraph.NewCreateSpec(bloblink.Table, nil)
+
 	_spec.OnConflict = _c.conflict
-	if value, ok := _c.mutation.CreatedAt(); ok {
+
+	if value, ok := _c.mutation.insert.CreatedAt.Get(); ok {
 		_spec.SetField(bloblink.FieldCreatedAt, field.TypeTime, value)
-		_node.CreatedAt = value
 	}
-	if nodes := _c.mutation.BlobIDs(); len(nodes) > 0 {
+	if _c.mutation.insert.CreatedAt.IsNull() {
+		_spec.SetField(bloblink.FieldCreatedAt, field.TypeTime, nil)
+	}
+
+	_spec.Expressions = _c.mutation.insert.expressions
+
+	if nodes := _c.mutation.insert.blobIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
@@ -165,13 +232,18 @@ func (_c *BlobLinkCreate) createSpec() (*BlobLink, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(blob.FieldID, field.TypeUUID),
 			},
 		}
+		seen := make(map[uuid.UUID]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
-		_node.BlobID = nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	if nodes := _c.mutation.LinkIDs(); len(nodes) > 0 {
+
+	if nodes := _c.mutation.insert.linkIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
@@ -182,424 +254,369 @@ func (_c *BlobLinkCreate) createSpec() (*BlobLink, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(blob.FieldID, field.TypeUUID),
 			},
 		}
+		seen := make(map[uuid.UUID]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
-		_node.LinkID = nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	return _node, _spec
+
+	_spec.Returning = &sqlgraph.Returning{Columns: bloblink.Columns, Scan: func(rows dialect.Rows) error {
+		values, err := _node.scanValues(bloblink.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(bloblink.Columns, values); err != nil {
+			return err
+		}
+
+		return nil
+	}}
+	return _node, _spec, nil
 }
 
-// OnConflict allows configuring the `ON CONFLICT` clause of the `INSERT`
-// statement. For example:
-//
-//	client.BlobLink.Create().
-//		SetCreatedAt(v).
-//		OnConflict(
-//			// Update the row with the new values
-//			// the was proposed for insertion.
-//			sql.ResolveWithNewValues(),
-//		).
-//		// Override some of the fields with custom
-//		// update values.
-//		Update(func(u *ent.BlobLinkUpsert) {
-//			SetCreatedAt(v+v).
-//		}).
-//		Exec(ctx)
-func (_c *BlobLinkCreate) OnConflict(opts ...sql.ConflictOption) *BlobLinkUpsertOne {
-	_c.conflict = opts
-	return &BlobLinkUpsertOne{
-		create: _c,
+type BlobLinkUpsertOne struct{ create *BlobLinkCreate }
+
+func (b *BlobLinkCreate) OnConflict(columns ...ent.EntityColumn[entity.BlobLink]) *BlobLinkUpsertOne {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
 	}
-}
-
-// OnConflictColumns calls `OnConflict` and configures the columns
-// as conflict target. Using this option is equivalent to using:
-//
-//	client.BlobLink.Create().
-//		OnConflict(sql.ConflictColumns(columns...)).
-//		Exec(ctx)
-func (_c *BlobLinkCreate) OnConflictColumns(columns ...string) *BlobLinkUpsertOne {
-	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
-	return &BlobLinkUpsertOne{
-		create: _c,
+	if len(names) == 0 {
+		return b.OnConflictOptions()
 	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
 }
 
-type (
-	// BlobLinkUpsertOne is the builder for "upsert"-ing
-	//  one BlobLink node.
-	BlobLinkUpsertOne struct {
-		create *BlobLinkCreate
-	}
-
-	// BlobLinkUpsert is the "OnConflict" setter.
-	BlobLinkUpsert struct {
-		*sql.UpdateSet
-	}
-)
-
-// SetCreatedAt sets the "created_at" field.
-func (u *BlobLinkUpsert) SetCreatedAt(v time.Time) *BlobLinkUpsert {
-	u.Set(bloblink.FieldCreatedAt, v)
-	return u
+func (b *BlobLinkCreate) OnConflictConstraint(name string) *BlobLinkUpsertOne {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
 }
 
-// UpdateCreatedAt sets the "created_at" field to the value that was provided on create.
-func (u *BlobLinkUpsert) UpdateCreatedAt() *BlobLinkUpsert {
-	u.SetExcluded(bloblink.FieldCreatedAt)
-	return u
+func (b *BlobLinkCreate) OnConflictOptions(options ...sql.ConflictOption) *BlobLinkUpsertOne {
+	b.conflict = options
+	return &BlobLinkUpsertOne{create: b}
 }
 
-// SetBlobID sets the "blob_id" field.
-func (u *BlobLinkUpsert) SetBlobID(v uuid.UUID) *BlobLinkUpsert {
-	u.Set(bloblink.FieldBlobID, v)
-	return u
-}
-
-// UpdateBlobID sets the "blob_id" field to the value that was provided on create.
-func (u *BlobLinkUpsert) UpdateBlobID() *BlobLinkUpsert {
-	u.SetExcluded(bloblink.FieldBlobID)
-	return u
-}
-
-// SetLinkID sets the "link_id" field.
-func (u *BlobLinkUpsert) SetLinkID(v uuid.UUID) *BlobLinkUpsert {
-	u.Set(bloblink.FieldLinkID, v)
-	return u
-}
-
-// UpdateLinkID sets the "link_id" field to the value that was provided on create.
-func (u *BlobLinkUpsert) UpdateLinkID() *BlobLinkUpsert {
-	u.SetExcluded(bloblink.FieldLinkID)
-	return u
-}
-
-// UpdateNewValues updates the mutable fields using the new values that were set on create.
-// Using this option is equivalent to using:
-//
-//	client.BlobLink.Create().
-//		OnConflict(
-//			sql.ResolveWithNewValues(),
-//		).
-//		Exec(ctx)
-func (u *BlobLinkUpsertOne) UpdateNewValues() *BlobLinkUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
-	return u
-}
-
-// Ignore sets each column to itself in case of conflict.
-// Using this option is equivalent to using:
-//
-//	client.BlobLink.Create().
-//	    OnConflict(sql.ResolveWithIgnore()).
-//	    Exec(ctx)
-func (u *BlobLinkUpsertOne) Ignore() *BlobLinkUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
-	return u
-}
-
-// DoNothing configures the conflict_action to `DO NOTHING`.
-// Supported only by SQLite and PostgreSQL.
 func (u *BlobLinkUpsertOne) DoNothing() *BlobLinkUpsertOne {
 	u.create.conflict = append(u.create.conflict, sql.DoNothing())
 	return u
 }
 
-// Update allows overriding fields `UPDATE` values. See the BlobLinkCreate.OnConflict
-// documentation for more info.
-func (u *BlobLinkUpsertOne) Update(set func(*BlobLinkUpsert)) *BlobLinkUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
-		set(&BlobLinkUpsert{UpdateSet: update})
-	}))
+func (u *BlobLinkUpsertOne) DoSelect() *BlobLinkUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
 	return u
 }
 
-// SetCreatedAt sets the "created_at" field.
-func (u *BlobLinkUpsertOne) SetCreatedAt(v time.Time) *BlobLinkUpsertOne {
-	return u.Update(func(s *BlobLinkUpsert) {
-		s.SetCreatedAt(v)
-	})
-}
-
-// UpdateCreatedAt sets the "created_at" field to the value that was provided on create.
-func (u *BlobLinkUpsertOne) UpdateCreatedAt() *BlobLinkUpsertOne {
-	return u.Update(func(s *BlobLinkUpsert) {
-		s.UpdateCreatedAt()
-	})
-}
-
-// SetBlobID sets the "blob_id" field.
-func (u *BlobLinkUpsertOne) SetBlobID(v uuid.UUID) *BlobLinkUpsertOne {
-	return u.Update(func(s *BlobLinkUpsert) {
-		s.SetBlobID(v)
-	})
-}
-
-// UpdateBlobID sets the "blob_id" field to the value that was provided on create.
-func (u *BlobLinkUpsertOne) UpdateBlobID() *BlobLinkUpsertOne {
-	return u.Update(func(s *BlobLinkUpsert) {
-		s.UpdateBlobID()
-	})
-}
-
-// SetLinkID sets the "link_id" field.
-func (u *BlobLinkUpsertOne) SetLinkID(v uuid.UUID) *BlobLinkUpsertOne {
-	return u.Update(func(s *BlobLinkUpsert) {
-		s.SetLinkID(v)
-	})
-}
-
-// UpdateLinkID sets the "link_id" field to the value that was provided on create.
-func (u *BlobLinkUpsertOne) UpdateLinkID() *BlobLinkUpsertOne {
-	return u.Update(func(s *BlobLinkUpsert) {
-		s.UpdateLinkID()
-	})
-}
-
-// Exec executes the query.
-func (u *BlobLinkUpsertOne) Exec(ctx context.Context) error {
-	if len(u.create.conflict) == 0 {
-		return errors.New("ent: missing options for BlobLinkCreate.OnConflict")
-	}
-	return u.create.Exec(ctx)
-}
-
-// ExecX is like Exec, but panics if an error occurs.
-func (u *BlobLinkUpsertOne) ExecX(ctx context.Context) {
-	if err := u.create.Exec(ctx); err != nil {
-		panic(err)
-	}
-}
-
-// BlobLinkCreateBulk is the builder for creating many BlobLink entities in bulk.
-type BlobLinkCreateBulk struct {
-	config
-	err      error
-	builders []*BlobLinkCreate
-	conflict []sql.ConflictOption
-}
-
-// Save creates the BlobLink entities in the database.
-func (_c *BlobLinkCreateBulk) Save(ctx context.Context) ([]*BlobLink, error) {
-	if _c.err != nil {
-		return nil, _c.err
-	}
-	specs := make([]*sqlgraph.CreateSpec, len(_c.builders))
-	nodes := make([]*BlobLink, len(_c.builders))
-	mutators := make([]Mutator, len(_c.builders))
-	for i := range _c.builders {
-		func(i int, root context.Context) {
-			builder := _c.builders[i]
-			builder.defaults()
-			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*BlobLinkMutation)
-				if !ok {
-					return nil, fmt.Errorf("unexpected mutation type %T", m)
-				}
-				if err := builder.check(); err != nil {
-					return nil, err
-				}
-				builder.mutation = mutation
-				var err error
-				nodes[i], specs[i] = builder.createSpec()
-				if i < len(mutators)-1 {
-					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
-				} else {
-					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
-					spec.OnConflict = _c.conflict
-					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
-						if sqlgraph.IsConstraintError(err) {
-							err = &ConstraintError{msg: err.Error(), wrap: err}
-						}
-					}
-				}
-				if err != nil {
-					return nil, err
-				}
-				mutation.done = true
-				return nodes[i], nil
-			})
-			for i := len(builder.hooks) - 1; i >= 0; i-- {
-				mut = builder.hooks[i](mut)
-			}
-			mutators[i] = mut
-		}(i, ctx)
-	}
-	if len(mutators) > 0 {
-		if _, err := mutators[0].Mutate(ctx, _c.builders[0].mutation); err != nil {
-			return nil, err
-		}
-	}
-	return nodes, nil
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_c *BlobLinkCreateBulk) SaveX(ctx context.Context) []*BlobLink {
-	v, err := _c.Save(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Exec executes the query.
-func (_c *BlobLinkCreateBulk) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
-
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *BlobLinkCreateBulk) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
-		panic(err)
-	}
-}
-
-// OnConflict allows configuring the `ON CONFLICT` clause of the `INSERT`
-// statement. For example:
-//
-//	client.BlobLink.CreateBulk(builders...).
-//		OnConflict(
-//			// Update the row with the new values
-//			// the was proposed for insertion.
-//			sql.ResolveWithNewValues(),
-//		).
-//		// Override some of the fields with custom
-//		// update values.
-//		Update(func(u *ent.BlobLinkUpsert) {
-//			SetCreatedAt(v+v).
-//		}).
-//		Exec(ctx)
-func (_c *BlobLinkCreateBulk) OnConflict(opts ...sql.ConflictOption) *BlobLinkUpsertBulk {
-	_c.conflict = opts
-	return &BlobLinkUpsertBulk{
-		create: _c,
-	}
-}
-
-// OnConflictColumns calls `OnConflict` and configures the columns
-// as conflict target. Using this option is equivalent to using:
-//
-//	client.BlobLink.Create().
-//		OnConflict(sql.ConflictColumns(columns...)).
-//		Exec(ctx)
-func (_c *BlobLinkCreateBulk) OnConflictColumns(columns ...string) *BlobLinkUpsertBulk {
-	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
-	return &BlobLinkUpsertBulk{
-		create: _c,
-	}
-}
-
-// BlobLinkUpsertBulk is the builder for "upsert"-ing
-// a bulk of BlobLink nodes.
-type BlobLinkUpsertBulk struct {
-	create *BlobLinkCreateBulk
-}
-
-// UpdateNewValues updates the mutable fields using the new values that
-// were set on create. Using this option is equivalent to using:
-//
-//	client.BlobLink.Create().
-//		OnConflict(
-//			sql.ResolveWithNewValues(),
-//		).
-//		Exec(ctx)
-func (u *BlobLinkUpsertBulk) UpdateNewValues() *BlobLinkUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
-	return u
-}
-
-// Ignore sets each column to itself in case of conflict.
-// Using this option is equivalent to using:
-//
-//	client.BlobLink.Create().
-//		OnConflict(sql.ResolveWithIgnore()).
-//		Exec(ctx)
-func (u *BlobLinkUpsertBulk) Ignore() *BlobLinkUpsertBulk {
+func (u *BlobLinkUpsertOne) Ignore() *BlobLinkUpsertOne {
 	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
 	return u
 }
 
-// DoNothing configures the conflict_action to `DO NOTHING`.
-// Supported only by SQLite and PostgreSQL.
+func (u *BlobLinkUpsertOne) DoUpdate(set func(*BlobLinkUpsert)) *BlobLinkUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&BlobLinkUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *BlobLinkUpsertOne) UpdateNewValues() *BlobLinkUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+
+			}
+		}
+	}))
+	return u
+}
+
+func (u *BlobLinkUpsertOne) Where(predicates ...ent.Predicate[entity.BlobLink]) *BlobLinkUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(bloblink.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *BlobLinkUpsertOne) UpdateWhere(predicates ...ent.Predicate[entity.BlobLink]) *BlobLinkUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(bloblink.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *BlobLinkUpsertOne) Save(ctx context.Context) (*BlobLink, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for BlobLinkCreate.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *BlobLinkUpsertOne) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
+func (u *BlobLinkUpsertOne) ExecX(ctx context.Context) {
+	if err := u.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+type BlobLinkUpsert struct{ *sql.UpdateSet }
+
+func (u *BlobLinkUpsert) Set[T any](column ent.ColumnOf[entity.BlobLink, T], value T) *BlobLinkUpsert {
+	switch column.Ref().Name {
+
+	case bloblink.FieldCreatedAt:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case bloblink.FieldBlobID:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case bloblink.FieldLinkID:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of BlobLink is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *BlobLinkUpsert) SetExpr[T any](column ent.ColumnOf[entity.BlobLink, T], value ent.Expr[T]) *BlobLinkUpsert {
+	switch column.Ref().Name {
+
+	case bloblink.FieldCreatedAt:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case bloblink.FieldBlobID:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case bloblink.FieldLinkID:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of BlobLink is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *BlobLinkUpsert) UpdateNewValue[T any](column ent.ColumnOf[entity.BlobLink, T]) *BlobLinkUpsert {
+	switch column.Ref().Name {
+
+	case bloblink.FieldCreatedAt:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case bloblink.FieldBlobID:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case bloblink.FieldLinkID:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of BlobLink is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *BlobLinkUpsert) Add[T ent.Number](column ent.ColumnOf[entity.BlobLink, T], delta T) *BlobLinkUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of BlobLink does not support addition", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *BlobLinkUpsert) Clear[T any](column ent.ColumnOf[entity.BlobLink, T]) *BlobLinkUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of BlobLink is not nullable", column.Ref().Name)})
+	}
+	return u
+}
+
+type BlobLinkCreateBulk struct {
+	config
+	err      error
+	builders []*BlobLinkCreate
+
+	conflict []sql.ConflictOption
+}
+
+func (_c *BlobLinkCreateBulk) Save(ctx context.Context) ([]*BlobLink, error) {
+	if _c.err != nil {
+		return nil, _c.err
+	}
+	nodes := make([]*BlobLink, len(_c.builders))
+	specs := make([]*sqlgraph.CreateSpec, len(nodes))
+	for index, builder := range _c.builders {
+		if builder.err != nil {
+			return nil, builder.err
+		}
+		if err := builder.defaults(); err != nil {
+			return nil, err
+		}
+		if err := builder.check(); err != nil {
+			return nil, err
+		}
+		var err error
+		nodes[index], specs[index], err = builder.createSpec()
+		if err != nil {
+			return nil, err
+		}
+	}
+	if len(specs) == 0 {
+		return nodes, nil
+	}
+	spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+
+	spec.OnConflict = _c.conflict
+
+	if err := sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
+		if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{msg: err.Error(), wrap: err}
+		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
+		return nil, err
+	}
+	result := nodes[:0]
+	for index := range _c.builders {
+		if specs[index].Skipped {
+			continue
+		}
+
+		result = append(result, nodes[index])
+	}
+	return result, nil
+}
+
+func (b *BlobLinkCreateBulk) SaveX(ctx context.Context) []*BlobLink {
+	nodes, err := b.Save(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return nodes
+}
+
+func (b *BlobLinkCreateBulk) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
+
+func (b *BlobLinkCreateBulk) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+type BlobLinkUpsertBulk struct{ create *BlobLinkCreateBulk }
+
+func (b *BlobLinkCreateBulk) OnConflict(columns ...ent.EntityColumn[entity.BlobLink]) *BlobLinkUpsertBulk {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
+	}
+	if len(names) == 0 {
+		return b.OnConflictOptions()
+	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
+}
+
+func (b *BlobLinkCreateBulk) OnConflictConstraint(name string) *BlobLinkUpsertBulk {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
+}
+
+func (b *BlobLinkCreateBulk) OnConflictOptions(options ...sql.ConflictOption) *BlobLinkUpsertBulk {
+	b.conflict = options
+	return &BlobLinkUpsertBulk{create: b}
+}
+
 func (u *BlobLinkUpsertBulk) DoNothing() *BlobLinkUpsertBulk {
 	u.create.conflict = append(u.create.conflict, sql.DoNothing())
 	return u
 }
 
-// Update allows overriding fields `UPDATE` values. See the BlobLinkCreateBulk.OnConflict
-// documentation for more info.
-func (u *BlobLinkUpsertBulk) Update(set func(*BlobLinkUpsert)) *BlobLinkUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
-		set(&BlobLinkUpsert{UpdateSet: update})
+func (u *BlobLinkUpsertBulk) DoSelect() *BlobLinkUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *BlobLinkUpsertBulk) Ignore() *BlobLinkUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *BlobLinkUpsertBulk) DoUpdate(set func(*BlobLinkUpsert)) *BlobLinkUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&BlobLinkUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *BlobLinkUpsertBulk) UpdateNewValues() *BlobLinkUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+
+			}
+		}
 	}))
 	return u
 }
 
-// SetCreatedAt sets the "created_at" field.
-func (u *BlobLinkUpsertBulk) SetCreatedAt(v time.Time) *BlobLinkUpsertBulk {
-	return u.Update(func(s *BlobLinkUpsert) {
-		s.SetCreatedAt(v)
-	})
-}
-
-// UpdateCreatedAt sets the "created_at" field to the value that was provided on create.
-func (u *BlobLinkUpsertBulk) UpdateCreatedAt() *BlobLinkUpsertBulk {
-	return u.Update(func(s *BlobLinkUpsert) {
-		s.UpdateCreatedAt()
-	})
-}
-
-// SetBlobID sets the "blob_id" field.
-func (u *BlobLinkUpsertBulk) SetBlobID(v uuid.UUID) *BlobLinkUpsertBulk {
-	return u.Update(func(s *BlobLinkUpsert) {
-		s.SetBlobID(v)
-	})
-}
-
-// UpdateBlobID sets the "blob_id" field to the value that was provided on create.
-func (u *BlobLinkUpsertBulk) UpdateBlobID() *BlobLinkUpsertBulk {
-	return u.Update(func(s *BlobLinkUpsert) {
-		s.UpdateBlobID()
-	})
-}
-
-// SetLinkID sets the "link_id" field.
-func (u *BlobLinkUpsertBulk) SetLinkID(v uuid.UUID) *BlobLinkUpsertBulk {
-	return u.Update(func(s *BlobLinkUpsert) {
-		s.SetLinkID(v)
-	})
-}
-
-// UpdateLinkID sets the "link_id" field to the value that was provided on create.
-func (u *BlobLinkUpsertBulk) UpdateLinkID() *BlobLinkUpsertBulk {
-	return u.Update(func(s *BlobLinkUpsert) {
-		s.UpdateLinkID()
-	})
-}
-
-// Exec executes the query.
-func (u *BlobLinkUpsertBulk) Exec(ctx context.Context) error {
-	if u.create.err != nil {
-		return u.create.err
-	}
-	for i, b := range u.create.builders {
-		if len(b.conflict) != 0 {
-			return fmt.Errorf("ent: OnConflict was set for builder %d. Set it on the BlobLinkCreateBulk instead", i)
+func (u *BlobLinkUpsertBulk) Where(predicates ...ent.Predicate[entity.BlobLink]) *BlobLinkUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(bloblink.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
 		}
-	}
-	if len(u.create.conflict) == 0 {
-		return errors.New("ent: missing options for BlobLinkCreateBulk.OnConflict")
-	}
-	return u.create.Exec(ctx)
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// ExecX is like Exec, but panics if an error occurs.
+func (u *BlobLinkUpsertBulk) UpdateWhere(predicates ...ent.Predicate[entity.BlobLink]) *BlobLinkUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(bloblink.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *BlobLinkUpsertBulk) Save(ctx context.Context) ([]*BlobLink, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for BlobLinkCreateBulk.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *BlobLinkUpsertBulk) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
 func (u *BlobLinkUpsertBulk) ExecX(ctx context.Context) {
-	if err := u.create.Exec(ctx); err != nil {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

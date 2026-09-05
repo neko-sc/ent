@@ -10,87 +10,205 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/mixinid"
-	"github.com/neko-sc/ent/entc/integration/customid/ent/predicate"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// MixinIDUpdate is the builder for updating MixinID entities.
 type MixinIDUpdate struct {
 	config
-	hooks    []Hook
-	mutation *MixinIDMutation
+	mutation  *MixinIDMutation
+	err       error
+	returning *sqlgraph.Returning
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// Where appends a list predicates to the MixinIDUpdate builder.
-func (_u *MixinIDUpdate) Where(ps ...predicate.MixinID) *MixinIDUpdate {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// SetSomeField sets the "some_field" field.
-func (_u *MixinIDUpdate) SetSomeField(v string) *MixinIDUpdate {
-	_u.mutation.SetSomeField(v)
-	return _u
-}
-
-// SetNillableSomeField sets the "some_field" field if the given value is not nil.
-func (_u *MixinIDUpdate) SetNillableSomeField(v *string) *MixinIDUpdate {
-	if v != nil {
-		_u.SetSomeField(*v)
+func (b *MixinIDUpdate) Set[T any](column ent.ColumnOf[entity.MixinID, T], value T) *MixinIDUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// SetMixinField sets the "mixin_field" field.
-func (_u *MixinIDUpdate) SetMixinField(v string) *MixinIDUpdate {
-	_u.mutation.SetMixinField(v)
-	return _u
+	return b
 }
-
-// SetNillableMixinField sets the "mixin_field" field if the given value is not nil.
-func (_u *MixinIDUpdate) SetNillableMixinField(v *string) *MixinIDUpdate {
-	if v != nil {
-		_u.SetMixinField(*v)
+func (b *MixinIDUpdate) SetOptional[T any](column ent.ColumnOf[entity.MixinID, T], value ent.Option[T]) *MixinIDUpdate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *MixinIDUpdate) SetExpr[T any](column ent.ColumnOf[entity.MixinID, T], value ent.Expr[T]) *MixinIDUpdate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case mixinid.FieldSomeField:
+
+	case mixinid.FieldMixinField:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of MixinID is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *MixinIDUpdate) SetEdge[N, K any](edge ent.UniqueRelation[entity.MixinID, N, K], id K) *MixinIDUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *MixinIDUpdate) AddIDs[N, K any](edge ent.Relation[entity.MixinID, N, K], ids ...K) *MixinIDUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *MixinIDUpdate) Mutation() *MixinIDMutation { return b.mutation }
+
+func (b *MixinIDUpdate) Patch() *MixinIDPatch                { return b.mutation.patch }
+func (b *MixinIDUpdate) Apply(p MixinIDPatch) *MixinIDUpdate { b.mutation.patch.apply(p); return b }
+func (b *MixinIDUpdate) Add[T ent.Number](column ent.ColumnOf[entity.MixinID, T], delta T) *MixinIDUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *MixinIDUpdate) Append[T any](column ent.ColumnOf[entity.MixinID, T], values T) *MixinIDUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *MixinIDUpdate) Clear[T any](column ent.ColumnOf[entity.MixinID, T]) *MixinIDUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *MixinIDUpdate) RemoveIDs[N, K any](edge ent.Relation[entity.MixinID, N, K], ids ...K) *MixinIDUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *MixinIDUpdate) ClearEdge[N, K any](edge ent.RelationOf[entity.MixinID, N, K]) *MixinIDUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// Mutation returns the MixinIDMutation object of the builder.
-func (_u *MixinIDUpdate) Mutation() *MixinIDMutation {
-	return _u.mutation
+func (b *MixinIDUpdate) Where(predicates ...ent.Predicate[entity.MixinID]) *MixinIDUpdate {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Save executes the query and returns the number of nodes affected by the update operation.
-func (_u *MixinIDUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
+func (b *MixinIDUpdate) Save(ctx context.Context) (int, error) {
+	if b.err != nil {
+		return 0, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return 0, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_u *MixinIDUpdate) SaveX(ctx context.Context) int {
-	affected, err := _u.Save(ctx)
+func (b *MixinIDUpdate) SaveX(ctx context.Context) int {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return affected
+	return result
 }
 
-// Exec executes the query.
-func (_u *MixinIDUpdate) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *MixinIDUpdate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *MixinIDUpdate) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *MixinIDUpdate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
+func (b *MixinIDUpdate) Returning(ctx context.Context) ([]*MixinID, error) {
+	nodes := make([]*MixinID, 0)
+	b.returning = &sqlgraph.Returning{Columns: mixinid.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &MixinID{config: b.config}
+		values, err := _node.scanValues(mixinid.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(mixinid.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Save(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
+}
+
+func (b *MixinIDUpdate) defaults() error {
+
+	return nil
+}
+
+func (b *MixinIDUpdate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.SomeField.IsNull() {
+		return &ValidationError{Name: "some_field", err: errors.New(`ent: field "MixinID.some_field" is not nullable`)}
+	}
+
+	if b.mutation.patch.MixinField.IsNull() {
+		return &ValidationError{Name: "mixin_field", err: errors.New(`ent: field "MixinID.mixin_field" is not nullable`)}
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *MixinIDUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *MixinIDUpdate {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *MixinIDUpdate) sqlSave(ctx context.Context) (_node int, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(mixinid.Table, mixinid.Columns, sqlgraph.NewFieldSpec(mixinid.FieldID, field.TypeUUID))
 	if ps := _u.mutation.Predicates(); len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -99,12 +217,18 @@ func (_u *MixinIDUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.SomeField(); ok {
+	if value, ok := _u.mutation.patch.SomeField.Get(); ok {
 		_spec.SetField(mixinid.FieldSomeField, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.MixinField(); ok {
+	if value, ok := _u.mutation.patch.MixinField.Get(); ok {
 		_spec.SetField(mixinid.FieldMixinField, field.TypeString, value)
 	}
+	_spec.Returning = _u.returning
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{mixinid.Label}
@@ -113,92 +237,204 @@ func (_u *MixinIDUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		return 0, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }
 
-// MixinIDUpdateOne is the builder for updating a single MixinID entity.
 type MixinIDUpdateOne struct {
 	config
-	fields   []string
-	hooks    []Hook
 	mutation *MixinIDMutation
+	err      error
+
+	fields []string
+	old    *MixinID
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// SetSomeField sets the "some_field" field.
-func (_u *MixinIDUpdateOne) SetSomeField(v string) *MixinIDUpdateOne {
-	_u.mutation.SetSomeField(v)
-	return _u
-}
-
-// SetNillableSomeField sets the "some_field" field if the given value is not nil.
-func (_u *MixinIDUpdateOne) SetNillableSomeField(v *string) *MixinIDUpdateOne {
-	if v != nil {
-		_u.SetSomeField(*v)
+func (b *MixinIDUpdateOne) Set[T any](column ent.ColumnOf[entity.MixinID, T], value T) *MixinIDUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// SetMixinField sets the "mixin_field" field.
-func (_u *MixinIDUpdateOne) SetMixinField(v string) *MixinIDUpdateOne {
-	_u.mutation.SetMixinField(v)
-	return _u
+	return b
 }
-
-// SetNillableMixinField sets the "mixin_field" field if the given value is not nil.
-func (_u *MixinIDUpdateOne) SetNillableMixinField(v *string) *MixinIDUpdateOne {
-	if v != nil {
-		_u.SetMixinField(*v)
+func (b *MixinIDUpdateOne) SetOptional[T any](column ent.ColumnOf[entity.MixinID, T], value ent.Option[T]) *MixinIDUpdateOne {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *MixinIDUpdateOne) SetExpr[T any](column ent.ColumnOf[entity.MixinID, T], value ent.Expr[T]) *MixinIDUpdateOne {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case mixinid.FieldSomeField:
+
+	case mixinid.FieldMixinField:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of MixinID is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *MixinIDUpdateOne) SetEdge[N, K any](edge ent.UniqueRelation[entity.MixinID, N, K], id K) *MixinIDUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *MixinIDUpdateOne) AddIDs[N, K any](edge ent.Relation[entity.MixinID, N, K], ids ...K) *MixinIDUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *MixinIDUpdateOne) Mutation() *MixinIDMutation { return b.mutation }
+
+func (b *MixinIDUpdateOne) Patch() *MixinIDPatch { return b.mutation.patch }
+func (b *MixinIDUpdateOne) Apply(p MixinIDPatch) *MixinIDUpdateOne {
+	b.mutation.patch.apply(p)
+	return b
+}
+func (b *MixinIDUpdateOne) Add[T ent.Number](column ent.ColumnOf[entity.MixinID, T], delta T) *MixinIDUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *MixinIDUpdateOne) Append[T any](column ent.ColumnOf[entity.MixinID, T], values T) *MixinIDUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *MixinIDUpdateOne) Clear[T any](column ent.ColumnOf[entity.MixinID, T]) *MixinIDUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *MixinIDUpdateOne) RemoveIDs[N, K any](edge ent.Relation[entity.MixinID, N, K], ids ...K) *MixinIDUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *MixinIDUpdateOne) ClearEdge[N, K any](edge ent.RelationOf[entity.MixinID, N, K]) *MixinIDUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// Mutation returns the MixinIDMutation object of the builder.
-func (_u *MixinIDUpdateOne) Mutation() *MixinIDMutation {
-	return _u.mutation
+func (b *MixinIDUpdateOne) Where(predicates ...ent.Predicate[entity.MixinID]) *MixinIDUpdateOne {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Where appends a list predicates to the MixinIDUpdate builder.
-func (_u *MixinIDUpdateOne) Where(ps ...predicate.MixinID) *MixinIDUpdateOne {
-	_u.mutation.Where(ps...)
-	return _u
+func (b *MixinIDUpdateOne) Save(ctx context.Context) (*MixinID, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Select allows selecting one or more fields (columns) of the returned entity.
-// The default is selecting all fields defined in the entity schema.
-func (_u *MixinIDUpdateOne) Select(field string, fields ...string) *MixinIDUpdateOne {
-	_u.fields = append([]string{field}, fields...)
-	return _u
-}
-
-// Save executes the query and returns the updated MixinID entity.
-func (_u *MixinIDUpdateOne) Save(ctx context.Context) (*MixinID, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *MixinIDUpdateOne) SaveX(ctx context.Context) *MixinID {
-	node, err := _u.Save(ctx)
+func (b *MixinIDUpdateOne) SaveX(ctx context.Context) *MixinID {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return node
+	return result
 }
 
-// Exec executes the query on the entity.
-func (_u *MixinIDUpdateOne) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *MixinIDUpdateOne) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *MixinIDUpdateOne) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *MixinIDUpdateOne) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
+func (b *MixinIDUpdateOne) Select(columns ...ent.EntityColumn[entity.MixinID]) *MixinIDUpdateOne {
+	if len(columns) == 0 {
+		panic("ent: Select requires at least one column")
+	}
+	b.fields = make([]string, len(columns))
+	for index, column := range columns {
+		b.fields[index] = column.Ref().Name
+	}
+	return b
+}
+
+func (b *MixinIDUpdateOne) SaveOld(ctx context.Context) (old *MixinID, updated *MixinID, err error) {
+	if !b.driver.Capabilities().ReturningOld {
+		return nil, nil, &dialect.UnsupportedError{Feature: "RETURNING OLD", Dialect: dialect.Dialect(b.driver.Dialect())}
+	}
+	b.old = &MixinID{config: b.config}
+	defer func() { b.old = nil }()
+	updated, err = b.Save(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return b.old, updated, nil
+}
+
+func (b *MixinIDUpdateOne) defaults() error {
+
+	return nil
+}
+
+func (b *MixinIDUpdateOne) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.SomeField.IsNull() {
+		return &ValidationError{Name: "some_field", err: errors.New(`ent: field "MixinID.some_field" is not nullable`)}
+	}
+
+	if b.mutation.patch.MixinField.IsNull() {
+		return &ValidationError{Name: "mixin_field", err: errors.New(`ent: field "MixinID.mixin_field" is not nullable`)}
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *MixinIDUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *MixinIDUpdateOne {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *MixinIDUpdateOne) sqlSave(ctx context.Context) (_node *MixinID, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(mixinid.Table, mixinid.Columns, sqlgraph.NewFieldSpec(mixinid.FieldID, field.TypeUUID))
 	id, ok := _u.mutation.ID()
 	if !ok {
@@ -224,15 +460,24 @@ func (_u *MixinIDUpdateOne) sqlSave(ctx context.Context) (_node *MixinID, err er
 			}
 		}
 	}
-	if value, ok := _u.mutation.SomeField(); ok {
+	if value, ok := _u.mutation.patch.SomeField.Get(); ok {
 		_spec.SetField(mixinid.FieldSomeField, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.MixinField(); ok {
+	if value, ok := _u.mutation.patch.MixinField.Get(); ok {
 		_spec.SetField(mixinid.FieldMixinField, field.TypeString, value)
 	}
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	_node = &MixinID{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
+	if _u.old != nil {
+		_spec.OldScanValues = _u.old.scanValues
+		_spec.OldAssign = _u.old.assignValues
+	}
 	if err = sqlgraph.UpdateNode(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{mixinid.Label}
@@ -241,6 +486,5 @@ func (_u *MixinIDUpdateOne) sqlSave(ctx context.Context) (_node *MixinID, err er
 		}
 		return nil, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }

@@ -10,81 +10,134 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
+	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/entc/integration/migrate/entv2/car"
+	"github.com/neko-sc/ent/entc/integration/migrate/entv2/entity"
 	"github.com/neko-sc/ent/entc/integration/migrate/entv2/user"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// CarCreate is the builder for creating a Car entity.
 type CarCreate struct {
 	config
-	mutation *CarMutation
-	hooks    []Hook
+	mutation    *CarMutation
+	err         error
+	fromBuilder bool
+	present     map[string]struct{}
+
+	conflict []sql.ConflictOption
 }
 
-// SetName sets the "name" field.
-func (_c *CarCreate) SetName(v string) *CarCreate {
-	_c.mutation.SetName(v)
-	return _c
-}
-
-// SetNillableName sets the "name" field if the given value is not nil.
-func (_c *CarCreate) SetNillableName(v *string) *CarCreate {
-	if v != nil {
-		_c.SetName(*v)
+func (b *CarCreate) Set[T any](column ent.ColumnOf[entity.Car, T], value T) *CarCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.set(column.Ref().Name, value)
 	}
-	return _c
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+}
+func (b *CarCreate) SetOptional[T any](column ent.ColumnOf[entity.Car, T], value ent.Option[T]) *CarCreate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.insert.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *CarCreate) SetExpr[T any](column ent.ColumnOf[entity.Car, T], value ent.Expr[T]) *CarCreate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case car.FieldName:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Car is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.insert.setExpr(column.Ref().Name, value.Render)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+
+}
+func (b *CarCreate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Car, N, K], id K) *CarCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.setEdge(edge.Ref().Name, id)
+	}
+
+	switch edge.Ref().Name {
+
+	}
+
+	return b
+}
+func (b *CarCreate) AddIDs[N, K any](edge ent.Relation[entity.Car, N, K], ids ...K) *CarCreate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.insert.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *CarCreate) Mutation() *CarMutation { return b.mutation }
+
+func (b *CarCreate) Insert() *CarInsert { return b.mutation.insert }
+
+func (b *CarCreate) Save(ctx context.Context) (*Car, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// SetOwnerID sets the "owner" edge to the User entity by ID.
-func (_c *CarCreate) SetOwnerID(id int) *CarCreate {
-	_c.mutation.SetOwnerID(id)
-	return _c
-}
-
-// SetOwner sets the "owner" edge to the User entity.
-func (_c *CarCreate) SetOwner(v *User) *CarCreate {
-	return _c.SetOwnerID(v.ID)
-}
-
-// Mutation returns the CarMutation object of the builder.
-func (_c *CarCreate) Mutation() *CarMutation {
-	return _c.mutation
-}
-
-// Save creates the Car in the database.
-func (_c *CarCreate) Save(ctx context.Context) (*Car, error) {
-	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
-}
-
-// SaveX calls Save and panics if Save returns an error.
-func (_c *CarCreate) SaveX(ctx context.Context) *Car {
-	v, err := _c.Save(ctx)
+func (b *CarCreate) SaveX(ctx context.Context) *Car {
+	node, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return node
 }
 
-// Exec executes the query.
-func (_c *CarCreate) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *CarCreate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *CarCreate) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *CarCreate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_c *CarCreate) check() error {
-	if len(_c.mutation.OwnerIDs()) == 0 {
-		return &ValidationError{Name: "owner", err: errors.New(`entv2: missing required edge "Car.owner"`)}
+func (b *CarCreate) defaults() error {
+
+	return nil
+}
+
+func (b *CarCreate) check() error {
+	if b.err != nil {
+		return b.err
 	}
+
+	if len(b.mutation.insert.ownerIDs()) == 0 {
+		return &ValidationError{Name: "owner", err: errors.New(`ent: missing required edge "Car.owner"`)}
+	}
+
 	return nil
 }
 
@@ -92,30 +145,39 @@ func (_c *CarCreate) sqlSave(ctx context.Context) (*Car, error) {
 	if err := _c.check(); err != nil {
 		return nil, err
 	}
-	_node, _spec := _c.createSpec()
-	if err := sqlgraph.CreateNode(ctx, _c.driver, _spec); err != nil {
+	node, spec, err := _c.createSpec()
+	if err != nil {
+		return nil, err
+	}
+	if err := sqlgraph.CreateNode(ctx, _c.driver, spec); err != nil {
 		if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
 		return nil, err
 	}
-	id := _spec.ID.Value.(int64)
-	_node.ID = int(id)
-	_c.mutation.id = &_node.ID
-	_c.mutation.done = true
-	return _node, nil
+	_c.mutation.id = &node.ID
+	return node, nil
 }
 
-func (_c *CarCreate) createSpec() (*Car, *sqlgraph.CreateSpec) {
-	var (
-		_node = &Car{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(car.Table, sqlgraph.NewFieldSpec(car.FieldID, field.TypeInt))
-	)
-	if value, ok := _c.mutation.Name(); ok {
+func (_c *CarCreate) createSpec() (*Car, *sqlgraph.CreateSpec, error) {
+	_node := &Car{config: _c.config}
+	_spec := sqlgraph.NewCreateSpec(car.Table, sqlgraph.NewFieldSpec(car.FieldID, field.TypeInt))
+
+	_spec.OnConflict = _c.conflict
+
+	if value, ok := _c.mutation.insert.Name.Get(); ok {
 		_spec.SetField(car.FieldName, field.TypeString, value)
-		_node.Name = value
 	}
-	if nodes := _c.mutation.OwnerIDs(); len(nodes) > 0 {
+	if _c.mutation.insert.Name.IsNull() {
+		_spec.SetField(car.FieldName, field.TypeString, nil)
+	}
+
+	_spec.Expressions = _c.mutation.insert.expressions
+
+	if nodes := _c.mutation.insert.ownerIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -126,98 +188,376 @@ func (_c *CarCreate) createSpec() (*Car, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
-		_node.user_car = &nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	return _node, _spec
+
+	_spec.Returning = &sqlgraph.Returning{Columns: car.Columns, Scan: func(rows dialect.Rows) error {
+		values, err := _node.scanValues(car.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(car.Columns, values); err != nil {
+			return err
+		}
+
+		_spec.ID.Value = _node.ID
+
+		return nil
+	}}
+	return _node, _spec, nil
 }
 
-// CarCreateBulk is the builder for creating many Car entities in bulk.
+type CarUpsertOne struct{ create *CarCreate }
+
+func (b *CarCreate) OnConflict(columns ...ent.EntityColumn[entity.Car]) *CarUpsertOne {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
+	}
+	if len(names) == 0 {
+		return b.OnConflictOptions()
+	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
+}
+
+func (b *CarCreate) OnConflictConstraint(name string) *CarUpsertOne {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
+}
+
+func (b *CarCreate) OnConflictOptions(options ...sql.ConflictOption) *CarUpsertOne {
+	b.conflict = options
+	return &CarUpsertOne{create: b}
+}
+
+func (u *CarUpsertOne) DoNothing() *CarUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+func (u *CarUpsertOne) DoSelect() *CarUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *CarUpsertOne) Ignore() *CarUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *CarUpsertOne) DoUpdate(set func(*CarUpsert)) *CarUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&CarUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *CarUpsertOne) UpdateNewValues() *CarUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case car.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
+	}))
+	return u
+}
+
+func (u *CarUpsertOne) Where(predicates ...ent.Predicate[entity.Car]) *CarUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(car.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *CarUpsertOne) UpdateWhere(predicates ...ent.Predicate[entity.Car]) *CarUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(car.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *CarUpsertOne) Save(ctx context.Context) (*Car, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for CarCreate.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *CarUpsertOne) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
+func (u *CarUpsertOne) ExecX(ctx context.Context) {
+	if err := u.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+func (u *CarUpsertOne) ID(ctx context.Context) (id int, err error) {
+	node, err := u.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+func (u *CarUpsertOne) IDX(ctx context.Context) int {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
+type CarUpsert struct{ *sql.UpdateSet }
+
+func (u *CarUpsert) Set[T any](column ent.ColumnOf[entity.Car, T], value T) *CarUpsert {
+	switch column.Ref().Name {
+
+	case car.FieldName:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Car is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *CarUpsert) SetExpr[T any](column ent.ColumnOf[entity.Car, T], value ent.Expr[T]) *CarUpsert {
+	switch column.Ref().Name {
+
+	case car.FieldName:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Car is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *CarUpsert) UpdateNewValue[T any](column ent.ColumnOf[entity.Car, T]) *CarUpsert {
+	switch column.Ref().Name {
+
+	case car.FieldName:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Car is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *CarUpsert) Add[T ent.Number](column ent.ColumnOf[entity.Car, T], delta T) *CarUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Car does not support addition", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *CarUpsert) Clear[T any](column ent.ColumnOf[entity.Car, T]) *CarUpsert {
+	switch column.Ref().Name {
+
+	case car.FieldName:
+		u.UpdateSet.SetNull(column.Ref().Name)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Car is not nullable", column.Ref().Name)})
+	}
+	return u
+}
+
 type CarCreateBulk struct {
 	config
 	err      error
 	builders []*CarCreate
+
+	conflict []sql.ConflictOption
 }
 
-// Save creates the Car entities in the database.
 func (_c *CarCreateBulk) Save(ctx context.Context) ([]*Car, error) {
 	if _c.err != nil {
 		return nil, _c.err
 	}
-	specs := make([]*sqlgraph.CreateSpec, len(_c.builders))
 	nodes := make([]*Car, len(_c.builders))
-	mutators := make([]Mutator, len(_c.builders))
-	for i := range _c.builders {
-		func(i int, root context.Context) {
-			builder := _c.builders[i]
-			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*CarMutation)
-				if !ok {
-					return nil, fmt.Errorf("unexpected mutation type %T", m)
-				}
-				if err := builder.check(); err != nil {
-					return nil, err
-				}
-				builder.mutation = mutation
-				var err error
-				nodes[i], specs[i] = builder.createSpec()
-				if i < len(mutators)-1 {
-					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
-				} else {
-					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
-					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
-						if sqlgraph.IsConstraintError(err) {
-							err = &ConstraintError{msg: err.Error(), wrap: err}
-						}
-					}
-				}
-				if err != nil {
-					return nil, err
-				}
-				mutation.id = &nodes[i].ID
-				if specs[i].ID.Value != nil {
-					id := specs[i].ID.Value.(int64)
-					nodes[i].ID = int(id)
-				}
-				mutation.done = true
-				return nodes[i], nil
-			})
-			for i := len(builder.hooks) - 1; i >= 0; i-- {
-				mut = builder.hooks[i](mut)
-			}
-			mutators[i] = mut
-		}(i, ctx)
-	}
-	if len(mutators) > 0 {
-		if _, err := mutators[0].Mutate(ctx, _c.builders[0].mutation); err != nil {
+	specs := make([]*sqlgraph.CreateSpec, len(nodes))
+	for index, builder := range _c.builders {
+		if builder.err != nil {
+			return nil, builder.err
+		}
+		if err := builder.defaults(); err != nil {
+			return nil, err
+		}
+		if err := builder.check(); err != nil {
+			return nil, err
+		}
+		var err error
+		nodes[index], specs[index], err = builder.createSpec()
+		if err != nil {
 			return nil, err
 		}
 	}
-	return nodes, nil
+	if len(specs) == 0 {
+		return nodes, nil
+	}
+	spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+
+	spec.OnConflict = _c.conflict
+
+	if err := sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
+		if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{msg: err.Error(), wrap: err}
+		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
+		return nil, err
+	}
+	result := nodes[:0]
+	for index, builder := range _c.builders {
+		if specs[index].Skipped {
+			continue
+		}
+		builder.mutation.id = &nodes[index].ID
+		result = append(result, nodes[index])
+	}
+	return result, nil
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_c *CarCreateBulk) SaveX(ctx context.Context) []*Car {
-	v, err := _c.Save(ctx)
+func (b *CarCreateBulk) SaveX(ctx context.Context) []*Car {
+	nodes, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return nodes
 }
 
-// Exec executes the query.
-func (_c *CarCreateBulk) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
+func (b *CarCreateBulk) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
+
+func (b *CarCreateBulk) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+type CarUpsertBulk struct{ create *CarCreateBulk }
+
+func (b *CarCreateBulk) OnConflict(columns ...ent.EntityColumn[entity.Car]) *CarUpsertBulk {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
+	}
+	if len(names) == 0 {
+		return b.OnConflictOptions()
+	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
+}
+
+func (b *CarCreateBulk) OnConflictConstraint(name string) *CarUpsertBulk {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
+}
+
+func (b *CarCreateBulk) OnConflictOptions(options ...sql.ConflictOption) *CarUpsertBulk {
+	b.conflict = options
+	return &CarUpsertBulk{create: b}
+}
+
+func (u *CarUpsertBulk) DoNothing() *CarUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+func (u *CarUpsertBulk) DoSelect() *CarUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *CarUpsertBulk) Ignore() *CarUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *CarUpsertBulk) DoUpdate(set func(*CarUpsert)) *CarUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&CarUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *CarUpsertBulk) UpdateNewValues() *CarUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case car.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
+	}))
+	return u
+}
+
+func (u *CarUpsertBulk) Where(predicates ...ent.Predicate[entity.Car]) *CarUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(car.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *CarUpsertBulk) UpdateWhere(predicates ...ent.Predicate[entity.Car]) *CarUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(car.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *CarUpsertBulk) Save(ctx context.Context) ([]*Car, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for CarCreateBulk.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *CarUpsertBulk) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
 	return err
 }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *CarCreateBulk) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (u *CarUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

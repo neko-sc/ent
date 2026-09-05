@@ -8,6 +8,7 @@ package ent
 import (
 	"context"
 	"database/sql/driver"
+	"errors"
 	"fmt"
 	"math"
 
@@ -16,10 +17,10 @@ import (
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/entc/integration/ent/card"
+	"github.com/neko-sc/ent/entc/integration/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/ent/file"
 	"github.com/neko-sc/ent/entc/integration/ent/group"
 	"github.com/neko-sc/ent/entc/integration/ent/pet"
-	"github.com/neko-sc/ent/entc/integration/ent/predicate"
 	"github.com/neko-sc/ent/entc/integration/ent/user"
 	"github.com/neko-sc/ent/schema/field"
 )
@@ -27,23 +28,26 @@ import (
 // UserQuery is the builder for querying User entities.
 type UserQuery struct {
 	config
-	ctx                *QueryContext
-	order              []user.OrderOption
-	inters             []Interceptor
-	predicates         []predicate.User
-	withCard           *CardQuery
-	withPets           *PetQuery
-	withFiles          *FileQuery
-	withGroups         *GroupQuery
-	withFriends        *UserQuery
-	withFollowers      *UserQuery
-	withFollowing      *UserQuery
-	withTeam           *PetQuery
-	withSpouse         *UserQuery
-	withChildren       *UserQuery
-	withParent         *UserQuery
-	withFKs            bool
-	modifiers          []func(*sql.Selector)
+	ctx        *QueryContext
+	order      []ent.OrderOption[entity.User]
+	joins      []func(*sql.Selector)
+	withCounts []ent.RelationRef
+
+	predicates    []ent.Predicate[entity.User]
+	withCard      *CardQuery
+	withPets      *PetQuery
+	withFiles     *FileQuery
+	withGroups    *GroupQuery
+	withFriends   *UserQuery
+	withFollowers *UserQuery
+	withFollowing *UserQuery
+	withTeam      *PetQuery
+	withSpouse    *UserQuery
+	withChildren  *UserQuery
+	withParent    *UserQuery
+	withFKs       bool
+	modifiers     []func(*sql.Selector)
+
 	withNamedPets      map[string]*PetQuery
 	withNamedFiles     map[string]*FileQuery
 	withNamedGroups    map[string]*GroupQuery
@@ -57,8 +61,75 @@ type UserQuery struct {
 }
 
 // Where adds a new predicate for the UserQuery builder.
-func (_q *UserQuery) Where(ps ...predicate.User) *UserQuery {
-	_q.predicates = append(_q.predicates, ps...)
+func (_q *UserQuery) Where(predicates ...ent.Predicate[entity.User]) *UserQuery {
+	_q.predicates = append(_q.predicates, predicates...)
+	return _q
+}
+
+func (_q *UserQuery) WhereP(predicates ...func(*sql.Selector)) *UserQuery {
+	for _, predicate := range predicates {
+		_q.predicates = append(_q.predicates, predicate)
+	}
+	return _q
+}
+
+func (_q *UserQuery) Join(table string, on ...func(*sql.Selector)) *UserQuery {
+	return _q.JoinAs(table, "", on...)
+}
+
+func (_q *UserQuery) JoinAs(table, alias string, on ...func(*sql.Selector)) *UserQuery {
+	on = append([]func(*sql.Selector){}, on...)
+	_q.joins = append(_q.joins, func(selector *sql.Selector) {
+		joined := sql.Dialect(selector.Dialect()).Table(table)
+		if alias != "" {
+			joined.As(alias)
+		} else {
+			joined.As(table)
+		}
+		condition := sql.Dialect(selector.Dialect()).Select().From(selector.Table())
+		for _, predicate := range on {
+			predicate(condition)
+		}
+		if err := condition.Err(); err != nil {
+			selector.AddError(err)
+		}
+		selector.Join(joined).OnP(condition.P())
+	})
+	return _q
+}
+
+func (_q *UserQuery) LeftJoin(table string, on ...func(*sql.Selector)) *UserQuery {
+	return _q.LeftJoinAs(table, "", on...)
+}
+
+func (_q *UserQuery) LeftJoinAs(table, alias string, on ...func(*sql.Selector)) *UserQuery {
+	on = append([]func(*sql.Selector){}, on...)
+	_q.joins = append(_q.joins, func(selector *sql.Selector) {
+		joined := sql.Dialect(selector.Dialect()).Table(table)
+		if alias != "" {
+			joined.As(alias)
+		} else {
+			joined.As(table)
+		}
+		condition := sql.Dialect(selector.Dialect()).Select().From(selector.Table())
+		for _, predicate := range on {
+			predicate(condition)
+		}
+		if err := condition.Err(); err != nil {
+			selector.AddError(err)
+		}
+		selector.LeftJoin(joined).OnP(condition.P())
+	})
+	return _q
+}
+
+func (_q *UserQuery) WithCount[N, K any](edge ent.Relation[entity.User, N, K]) *UserQuery {
+	for _, requested := range _q.withCounts {
+		if requested.Name == edge.Ref().Name {
+			return _q
+		}
+	}
+	_q.withCounts = append(_q.withCounts, edge.Ref())
 	return _q
 }
 
@@ -82,7 +153,7 @@ func (_q *UserQuery) Unique(unique bool) *UserQuery {
 }
 
 // Order specifies how the records should be ordered.
-func (_q *UserQuery) Order(o ...user.OrderOption) *UserQuery {
+func (_q *UserQuery) Order(o ...ent.OrderOption[entity.User]) *UserQuery {
 	_q.order = append(_q.order, o...)
 	return _q
 }
@@ -332,7 +403,7 @@ func (_q *UserQuery) QueryParent() *UserQuery {
 // First returns the first User entity from the query.
 // Returns a *NotFoundError when no User was found.
 func (_q *UserQuery) First(ctx context.Context) (*User, error) {
-	nodes, err := _q.Limit(1).All(setContextOp(ctx, _q.ctx, ent.OpQueryFirst))
+	nodes, err := _q.Limit(1).All(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -355,7 +426,7 @@ func (_q *UserQuery) FirstX(ctx context.Context) *User {
 // Returns a *NotFoundError when no User ID was found.
 func (_q *UserQuery) FirstID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = _q.Limit(1).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryFirstID)); err != nil {
+	if ids, err = _q.Limit(1).IDs(ctx); err != nil {
 		return
 	}
 	if len(ids) == 0 {
@@ -378,7 +449,7 @@ func (_q *UserQuery) FirstIDX(ctx context.Context) int {
 // Returns a *NotSingularError when more than one User entity is found.
 // Returns a *NotFoundError when no User entities are found.
 func (_q *UserQuery) Only(ctx context.Context) (*User, error) {
-	nodes, err := _q.Limit(2).All(setContextOp(ctx, _q.ctx, ent.OpQueryOnly))
+	nodes, err := _q.Limit(2).All(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -406,7 +477,7 @@ func (_q *UserQuery) OnlyX(ctx context.Context) *User {
 // Returns a *NotFoundError when no entities are found.
 func (_q *UserQuery) OnlyID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = _q.Limit(2).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryOnlyID)); err != nil {
+	if ids, err = _q.Limit(2).IDs(ctx); err != nil {
 		return
 	}
 	switch len(ids) {
@@ -431,12 +502,10 @@ func (_q *UserQuery) OnlyIDX(ctx context.Context) int {
 
 // All executes the query and returns a list of Users.
 func (_q *UserQuery) All(ctx context.Context) ([]*User, error) {
-	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryAll)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
-	qr := querierAll[[]*User, *UserQuery]()
-	return withInterceptors[[]*User](ctx, _q, qr, _q.inters)
+	return _q.sqlAll(ctx)
 }
 
 // AllX is like All, but panics if an error occurs.
@@ -453,8 +522,7 @@ func (_q *UserQuery) IDs(ctx context.Context) (ids []int, err error) {
 	if _q.ctx.Unique == nil && _q.path != nil {
 		_q.Unique(true)
 	}
-	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryIDs)
-	if err = _q.Select(user.FieldID).Scan(ctx, &ids); err != nil {
+	if ids, err = ent.Values(ctx, _q.Select(user.ID), user.ID); err != nil {
 		return nil, err
 	}
 	return ids, nil
@@ -471,11 +539,10 @@ func (_q *UserQuery) IDsX(ctx context.Context) []int {
 
 // Count returns the count of the given query.
 func (_q *UserQuery) Count(ctx context.Context) (int, error) {
-	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryCount)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
-	return withInterceptors[int](ctx, _q, querierCount[*UserQuery](), _q.inters)
+	return _q.sqlCount(ctx)
 }
 
 // CountX is like Count, but panics if an error occurs.
@@ -489,7 +556,6 @@ func (_q *UserQuery) CountX(ctx context.Context) int {
 
 // Exist returns true if the query has elements in the graph.
 func (_q *UserQuery) Exist(ctx context.Context) (bool, error) {
-	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryExist)
 	switch _, err := _q.FirstID(ctx); {
 	case IsNotFound(err):
 		return false, nil
@@ -515,12 +581,14 @@ func (_q *UserQuery) Clone() *UserQuery {
 	if _q == nil {
 		return nil
 	}
-	return &UserQuery{
+	cloned := &UserQuery{
 		config:        _q.config,
 		ctx:           _q.ctx.Clone(),
-		order:         append([]user.OrderOption{}, _q.order...),
-		inters:        append([]Interceptor{}, _q.inters...),
-		predicates:    append([]predicate.User{}, _q.predicates...),
+		order:         append([]ent.OrderOption[entity.User]{}, _q.order...),
+		predicates:    append([]ent.Predicate[entity.User]{}, _q.predicates...),
+		joins:         append([]func(*sql.Selector){}, _q.joins...),
+		withCounts:    append([]ent.RelationRef{}, _q.withCounts...),
+		withFKs:       _q.withFKs,
 		withCard:      _q.withCard.Clone(),
 		withPets:      _q.withPets.Clone(),
 		withFiles:     _q.withFiles.Clone(),
@@ -537,6 +605,57 @@ func (_q *UserQuery) Clone() *UserQuery {
 		path:      _q.path,
 		modifiers: append([]func(*sql.Selector){}, _q.modifiers...),
 	}
+
+	if _q.withNamedPets != nil {
+		cloned.withNamedPets = make(map[string]*PetQuery, len(_q.withNamedPets))
+		for name, query := range _q.withNamedPets {
+			cloned.withNamedPets[name] = query.Clone()
+		}
+	}
+
+	if _q.withNamedFiles != nil {
+		cloned.withNamedFiles = make(map[string]*FileQuery, len(_q.withNamedFiles))
+		for name, query := range _q.withNamedFiles {
+			cloned.withNamedFiles[name] = query.Clone()
+		}
+	}
+
+	if _q.withNamedGroups != nil {
+		cloned.withNamedGroups = make(map[string]*GroupQuery, len(_q.withNamedGroups))
+		for name, query := range _q.withNamedGroups {
+			cloned.withNamedGroups[name] = query.Clone()
+		}
+	}
+
+	if _q.withNamedFriends != nil {
+		cloned.withNamedFriends = make(map[string]*UserQuery, len(_q.withNamedFriends))
+		for name, query := range _q.withNamedFriends {
+			cloned.withNamedFriends[name] = query.Clone()
+		}
+	}
+
+	if _q.withNamedFollowers != nil {
+		cloned.withNamedFollowers = make(map[string]*UserQuery, len(_q.withNamedFollowers))
+		for name, query := range _q.withNamedFollowers {
+			cloned.withNamedFollowers[name] = query.Clone()
+		}
+	}
+
+	if _q.withNamedFollowing != nil {
+		cloned.withNamedFollowing = make(map[string]*UserQuery, len(_q.withNamedFollowing))
+		for name, query := range _q.withNamedFollowing {
+			cloned.withNamedFollowing[name] = query.Clone()
+		}
+	}
+
+	if _q.withNamedChildren != nil {
+		cloned.withNamedChildren = make(map[string]*UserQuery, len(_q.withNamedChildren))
+		for name, query := range _q.withNamedChildren {
+			cloned.withNamedChildren[name] = query.Clone()
+		}
+	}
+
+	return cloned
 }
 
 // WithCard tells the query-builder to eager-load the nodes that are connected to
@@ -661,7 +780,7 @@ func (_q *UserQuery) WithParent(opts ...func(*UserQuery)) *UserQuery {
 }
 
 // GroupBy is used to group vertices by one or more fields/columns.
-// It is often used with aggregate functions, like: count, max, mean, min, sum.
+// It can be combined with typed aggregate selections.
 //
 // Example:
 //
@@ -671,16 +790,14 @@ func (_q *UserQuery) WithParent(opts ...func(*UserQuery)) *UserQuery {
 //	}
 //
 //	client.User.Query().
-//		GroupBy(user.FieldOptionalInt).
+//		GroupBy(user.OptionalInt).
 //		Aggregate(ent.Count()).
 //		Scan(ctx, &v)
-func (_q *UserQuery) GroupBy(field string, fields ...string) *UserGroupBy {
-	_q.ctx.Fields = append([]string{field}, fields...)
-	grbuild := &UserGroupBy{build: _q}
-	grbuild.flds = &_q.ctx.Fields
-	grbuild.label = user.Label
-	grbuild.scan = grbuild.Scan
-	return grbuild
+func (_q *UserQuery) GroupBy(columns ...ent.EntityColumn[entity.User]) *UserGroupBy {
+	if len(columns) == 0 {
+		panic("ent: GroupBy requires at least one column")
+	}
+	return &UserGroupBy{query: _q, columns: append([]ent.EntityColumn[entity.User](nil), columns...)}
 }
 
 // Select allows the selection one or more fields/columns for the given query,
@@ -693,32 +810,18 @@ func (_q *UserQuery) GroupBy(field string, fields ...string) *UserGroupBy {
 //	}
 //
 //	client.User.Query().
-//		Select(user.FieldOptionalInt).
+//		Select(user.OptionalInt).
 //		Scan(ctx, &v)
-func (_q *UserQuery) Select(fields ...string) *UserSelect {
-	_q.ctx.Fields = append(_q.ctx.Fields, fields...)
-	sbuild := &UserSelect{UserQuery: _q}
-	sbuild.label = user.Label
-	sbuild.flds, sbuild.scan = &_q.ctx.Fields, sbuild.Scan
-	return sbuild
+func (_q *UserQuery) Select(selections ...ent.Selection) *UserSelect {
+	return &UserSelect{query: _q, selections: append([]ent.Selection(nil), selections...)}
 }
 
 // Aggregate returns a UserSelect configured with the given aggregations.
-func (_q *UserQuery) Aggregate(fns ...AggregateFunc) *UserSelect {
-	return _q.Select().Aggregate(fns...)
+func (_q *UserQuery) Aggregate(selections ...ent.Selection) *UserSelect {
+	return _q.Select(selections...)
 }
 
 func (_q *UserQuery) prepareQuery(ctx context.Context) error {
-	for _, inter := range _q.inters {
-		if inter == nil {
-			return fmt.Errorf("ent: uninitialized interceptor (forgotten import ent/runtime?)")
-		}
-		if trv, ok := inter.(Traverser); ok {
-			if err := trv.Traverse(ctx, _q); err != nil {
-				return err
-			}
-		}
-	}
 	for _, f := range _q.ctx.Fields {
 		if !user.ValidColumn(f) {
 			return &ValidationError{Name: f, err: fmt.Errorf("ent: invalid field %q for query", f)}
@@ -771,6 +874,7 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 	if len(_q.modifiers) > 0 {
 		_spec.Modifiers = _q.modifiers
 	}
+
 	for i := range hooks {
 		hooks[i](ctx, _spec)
 	}
@@ -878,6 +982,58 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 			return nil, err
 		}
 	}
+
+	if len(_q.withCounts) > 0 {
+		ids := make([]any, len(nodes))
+		parents := make(map[int][]*User, len(nodes))
+		for index, node := range nodes {
+			ids[index] = node.ID
+			parents[node.ID] = append(parents[node.ID], node)
+			if node.Edges.counts == nil {
+				node.Edges.counts = make(map[string]int)
+			}
+			for _, edge := range _q.withCounts {
+				node.Edges.counts[edge.Name] = 0
+			}
+		}
+		selector := sql.Dialect(_q.driver.Dialect()).Select()
+
+		for _, edge := range _q.withCounts {
+			statement, arguments := edge.CountQuery(selector, ids...).Query()
+			rows, err := _q.driver.Query(ctx, statement, arguments)
+			if err != nil {
+				return nil, err
+			}
+			for rows.Next() {
+				values, err := (*User)(nil).scanValues([]string{user.FieldID})
+				if err != nil {
+					rows.Close()
+					return nil, err
+				}
+				var count int
+				if err := rows.Scan(values[0], &count); err != nil {
+					rows.Close()
+					return nil, err
+				}
+				decoded := &User{}
+				if err := decoded.assignValues([]string{user.FieldID}, values); err != nil {
+					rows.Close()
+					return nil, err
+				}
+				for _, parent := range parents[decoded.ID] {
+					parent.Edges.counts[edge.Name] = count
+				}
+			}
+			if err := rows.Err(); err != nil {
+				rows.Close()
+				return nil, err
+			}
+			if err := rows.Close(); err != nil {
+				return nil, err
+			}
+		}
+	}
+
 	for name, query := range _q.withNamedPets {
 		if err := _q.loadPets(ctx, query, nodes,
 			func(n *User) { n.appendNamedPets(name) },
@@ -946,6 +1102,25 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 }
 
 func (_q *UserQuery) loadCard(ctx context.Context, query *CardQuery, nodes []*User, init func(*User), assign func(*User, *Card)) error {
+	query = query.Clone()
+
+	if query.ctx.Limit != nil || query.ctx.Offset != nil {
+		limit, offset := -1, 0
+		if query.ctx.Limit != nil {
+			limit = *query.ctx.Limit
+		}
+		if query.ctx.Offset != nil {
+			offset = *query.ctx.Offset
+		}
+		query.ctx.Limit, query.ctx.Offset = nil, nil
+		query.modifiers = append(query.modifiers, func(selector *sql.Selector) {
+
+			partition := selector.C(user.CardColumn)
+
+			(&sqlgraph.NeighborsLimit{RowNumber: "ent_row_number", DefaultOrderField: card.FieldID, Offset: offset}).Modifier(partition, limit)(selector)
+		})
+	}
+
 	fks := make([]driver.Value, 0, len(nodes))
 	nodeids := make(map[int]*User)
 	for i := range nodes {
@@ -953,9 +1128,9 @@ func (_q *UserQuery) loadCard(ctx context.Context, query *CardQuery, nodes []*Us
 		nodeids[nodes[i].ID] = nodes[i]
 	}
 	query.withFKs = true
-	query.Where(predicate.Card(func(s *sql.Selector) {
+	query.Where(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(user.CardColumn), fks...))
-	}))
+	})
 	neighbors, err := query.All(ctx)
 	if err != nil {
 		return err
@@ -974,6 +1149,25 @@ func (_q *UserQuery) loadCard(ctx context.Context, query *CardQuery, nodes []*Us
 	return nil
 }
 func (_q *UserQuery) loadPets(ctx context.Context, query *PetQuery, nodes []*User, init func(*User), assign func(*User, *Pet)) error {
+	query = query.Clone()
+
+	if query.ctx.Limit != nil || query.ctx.Offset != nil {
+		limit, offset := -1, 0
+		if query.ctx.Limit != nil {
+			limit = *query.ctx.Limit
+		}
+		if query.ctx.Offset != nil {
+			offset = *query.ctx.Offset
+		}
+		query.ctx.Limit, query.ctx.Offset = nil, nil
+		query.modifiers = append(query.modifiers, func(selector *sql.Selector) {
+
+			partition := selector.C(user.PetsColumn)
+
+			(&sqlgraph.NeighborsLimit{RowNumber: "ent_row_number", DefaultOrderField: pet.FieldID, Offset: offset}).Modifier(partition, limit)(selector)
+		})
+	}
+
 	fks := make([]driver.Value, 0, len(nodes))
 	nodeids := make(map[int]*User)
 	for i := range nodes {
@@ -984,9 +1178,9 @@ func (_q *UserQuery) loadPets(ctx context.Context, query *PetQuery, nodes []*Use
 		}
 	}
 	query.withFKs = true
-	query.Where(predicate.Pet(func(s *sql.Selector) {
+	query.Where(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(user.PetsColumn), fks...))
-	}))
+	})
 	neighbors, err := query.All(ctx)
 	if err != nil {
 		return err
@@ -1005,6 +1199,25 @@ func (_q *UserQuery) loadPets(ctx context.Context, query *PetQuery, nodes []*Use
 	return nil
 }
 func (_q *UserQuery) loadFiles(ctx context.Context, query *FileQuery, nodes []*User, init func(*User), assign func(*User, *File)) error {
+	query = query.Clone()
+
+	if query.ctx.Limit != nil || query.ctx.Offset != nil {
+		limit, offset := -1, 0
+		if query.ctx.Limit != nil {
+			limit = *query.ctx.Limit
+		}
+		if query.ctx.Offset != nil {
+			offset = *query.ctx.Offset
+		}
+		query.ctx.Limit, query.ctx.Offset = nil, nil
+		query.modifiers = append(query.modifiers, func(selector *sql.Selector) {
+
+			partition := selector.C(user.FilesColumn)
+
+			(&sqlgraph.NeighborsLimit{RowNumber: "ent_row_number", DefaultOrderField: file.FieldID, Offset: offset}).Modifier(partition, limit)(selector)
+		})
+	}
+
 	fks := make([]driver.Value, 0, len(nodes))
 	nodeids := make(map[int]*User)
 	for i := range nodes {
@@ -1015,9 +1228,9 @@ func (_q *UserQuery) loadFiles(ctx context.Context, query *FileQuery, nodes []*U
 		}
 	}
 	query.withFKs = true
-	query.Where(predicate.File(func(s *sql.Selector) {
+	query.Where(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(user.FilesColumn), fks...))
-	}))
+	})
 	neighbors, err := query.All(ctx)
 	if err != nil {
 		return err
@@ -1036,9 +1249,30 @@ func (_q *UserQuery) loadFiles(ctx context.Context, query *FileQuery, nodes []*U
 	return nil
 }
 func (_q *UserQuery) loadGroups(ctx context.Context, query *GroupQuery, nodes []*User, init func(*User), assign func(*User, *Group)) error {
+	query = query.Clone()
+
+	if query.ctx.Limit != nil || query.ctx.Offset != nil {
+		limit, offset := -1, 0
+		if query.ctx.Limit != nil {
+			limit = *query.ctx.Limit
+		}
+		if query.ctx.Offset != nil {
+			offset = *query.ctx.Offset
+		}
+		query.ctx.Limit, query.ctx.Offset = nil, nil
+		query.modifiers = append(query.modifiers, func(selector *sql.Selector) {
+
+			joined, _ := selector.JoinedTable(user.GroupsTable)
+			partition := joined.C(user.GroupsPrimaryKey[0])
+
+			(&sqlgraph.NeighborsLimit{RowNumber: "ent_row_number", DefaultOrderField: group.FieldID, Offset: offset}).Modifier(partition, limit)(selector)
+		})
+	}
+
 	edgeIDs := make([]driver.Value, len(nodes))
 	byID := make(map[int]*User)
-	nids := make(map[int]map[*User]struct{})
+	nids := make(map[int]bool)
+	orderedIDs := make(map[int][]int)
 	for i, node := range nodes {
 		edgeIDs[i] = node.ID
 		byID[node.ID] = node
@@ -1058,48 +1292,78 @@ func (_q *UserQuery) loadGroups(ctx context.Context, query *GroupQuery, nodes []
 	if err := query.prepareQuery(ctx); err != nil {
 		return err
 	}
-	qr := QuerierFunc(func(ctx context.Context, q Query) (Value, error) {
-		return query.sqlAll(ctx, func(_ context.Context, spec *sqlgraph.QuerySpec) {
-			assign := spec.Assign
-			values := spec.ScanValues
-			spec.ScanValues = func(columns []string) ([]any, error) {
-				values, err := values(columns[1:])
-				if err != nil {
-					return nil, err
-				}
-				return append([]any{new(sql.NullInt64)}, values...), nil
+	neighbors, err := query.sqlAll(ctx, func(_ context.Context, spec *sqlgraph.QuerySpec) {
+		assign := spec.Assign
+		values := spec.ScanValues
+		spec.ScanValues = func(columns []string) ([]any, error) {
+			values, err := values(columns[1:])
+			if err != nil {
+				return nil, err
 			}
-			spec.Assign = func(columns []string, values []any) error {
-				outValue := int(values[0].(*sql.NullInt64).Int64)
-				inValue := int(values[1].(*sql.NullInt64).Int64)
-				if nids[inValue] == nil {
-					nids[inValue] = map[*User]struct{}{byID[outValue]: {}}
-					return assign(columns[1:], values[1:])
-				}
-				nids[inValue][byID[outValue]] = struct{}{}
-				return nil
+			return append([]any{new(*int)}, values...), nil
+		}
+		spec.Assign = func(columns []string, values []any) error {
+			var outValue int
+
+			if value, ok := values[0].(**int); !ok {
+				return fmt.Errorf("unexpected type %T for edge id", values[0])
+			} else if value != nil && *value != nil {
+				outValue = **value
 			}
-		})
+			var inValue int
+
+			if value, ok := values[1].(**int); !ok {
+				return fmt.Errorf("unexpected type %T for edge id", values[1])
+			} else if value != nil && *value != nil {
+				inValue = **value
+			}
+			orderedIDs[outValue] = append(orderedIDs[outValue], inValue)
+			if !nids[inValue] {
+				nids[inValue] = true
+				return assign(columns[1:], values[1:])
+			}
+			return nil
+		}
 	})
-	neighbors, err := withInterceptors[[]*Group](ctx, query, qr, query.inters)
 	if err != nil {
 		return err
 	}
-	for _, n := range neighbors {
-		nodes, ok := nids[n.ID]
-		if !ok {
-			return fmt.Errorf(`unexpected "groups" node returned %v`, n.ID)
-		}
-		for kn := range nodes {
-			assign(kn, n)
+	byNeighborID := make(map[int]*Group, len(neighbors))
+	for _, neighbor := range neighbors {
+		byNeighborID[neighbor.ID] = neighbor
+	}
+	for parentID, ids := range orderedIDs {
+		for _, id := range ids {
+			assign(byID[parentID], byNeighborID[id])
 		}
 	}
 	return nil
 }
 func (_q *UserQuery) loadFriends(ctx context.Context, query *UserQuery, nodes []*User, init func(*User), assign func(*User, *User)) error {
+	query = query.Clone()
+
+	if query.ctx.Limit != nil || query.ctx.Offset != nil {
+		limit, offset := -1, 0
+		if query.ctx.Limit != nil {
+			limit = *query.ctx.Limit
+		}
+		if query.ctx.Offset != nil {
+			offset = *query.ctx.Offset
+		}
+		query.ctx.Limit, query.ctx.Offset = nil, nil
+		query.modifiers = append(query.modifiers, func(selector *sql.Selector) {
+
+			joined, _ := selector.JoinedTable(user.FriendsTable)
+			partition := joined.C(user.FriendsPrimaryKey[0])
+
+			(&sqlgraph.NeighborsLimit{RowNumber: "ent_row_number", DefaultOrderField: user.FieldID, Offset: offset}).Modifier(partition, limit)(selector)
+		})
+	}
+
 	edgeIDs := make([]driver.Value, len(nodes))
 	byID := make(map[int]*User)
-	nids := make(map[int]map[*User]struct{})
+	nids := make(map[int]bool)
+	orderedIDs := make(map[int][]int)
 	for i, node := range nodes {
 		edgeIDs[i] = node.ID
 		byID[node.ID] = node
@@ -1119,48 +1383,78 @@ func (_q *UserQuery) loadFriends(ctx context.Context, query *UserQuery, nodes []
 	if err := query.prepareQuery(ctx); err != nil {
 		return err
 	}
-	qr := QuerierFunc(func(ctx context.Context, q Query) (Value, error) {
-		return query.sqlAll(ctx, func(_ context.Context, spec *sqlgraph.QuerySpec) {
-			assign := spec.Assign
-			values := spec.ScanValues
-			spec.ScanValues = func(columns []string) ([]any, error) {
-				values, err := values(columns[1:])
-				if err != nil {
-					return nil, err
-				}
-				return append([]any{new(sql.NullInt64)}, values...), nil
+	neighbors, err := query.sqlAll(ctx, func(_ context.Context, spec *sqlgraph.QuerySpec) {
+		assign := spec.Assign
+		values := spec.ScanValues
+		spec.ScanValues = func(columns []string) ([]any, error) {
+			values, err := values(columns[1:])
+			if err != nil {
+				return nil, err
 			}
-			spec.Assign = func(columns []string, values []any) error {
-				outValue := int(values[0].(*sql.NullInt64).Int64)
-				inValue := int(values[1].(*sql.NullInt64).Int64)
-				if nids[inValue] == nil {
-					nids[inValue] = map[*User]struct{}{byID[outValue]: {}}
-					return assign(columns[1:], values[1:])
-				}
-				nids[inValue][byID[outValue]] = struct{}{}
-				return nil
+			return append([]any{new(*int)}, values...), nil
+		}
+		spec.Assign = func(columns []string, values []any) error {
+			var outValue int
+
+			if value, ok := values[0].(**int); !ok {
+				return fmt.Errorf("unexpected type %T for edge id", values[0])
+			} else if value != nil && *value != nil {
+				outValue = **value
 			}
-		})
+			var inValue int
+
+			if value, ok := values[1].(**int); !ok {
+				return fmt.Errorf("unexpected type %T for edge id", values[1])
+			} else if value != nil && *value != nil {
+				inValue = **value
+			}
+			orderedIDs[outValue] = append(orderedIDs[outValue], inValue)
+			if !nids[inValue] {
+				nids[inValue] = true
+				return assign(columns[1:], values[1:])
+			}
+			return nil
+		}
 	})
-	neighbors, err := withInterceptors[[]*User](ctx, query, qr, query.inters)
 	if err != nil {
 		return err
 	}
-	for _, n := range neighbors {
-		nodes, ok := nids[n.ID]
-		if !ok {
-			return fmt.Errorf(`unexpected "friends" node returned %v`, n.ID)
-		}
-		for kn := range nodes {
-			assign(kn, n)
+	byNeighborID := make(map[int]*User, len(neighbors))
+	for _, neighbor := range neighbors {
+		byNeighborID[neighbor.ID] = neighbor
+	}
+	for parentID, ids := range orderedIDs {
+		for _, id := range ids {
+			assign(byID[parentID], byNeighborID[id])
 		}
 	}
 	return nil
 }
 func (_q *UserQuery) loadFollowers(ctx context.Context, query *UserQuery, nodes []*User, init func(*User), assign func(*User, *User)) error {
+	query = query.Clone()
+
+	if query.ctx.Limit != nil || query.ctx.Offset != nil {
+		limit, offset := -1, 0
+		if query.ctx.Limit != nil {
+			limit = *query.ctx.Limit
+		}
+		if query.ctx.Offset != nil {
+			offset = *query.ctx.Offset
+		}
+		query.ctx.Limit, query.ctx.Offset = nil, nil
+		query.modifiers = append(query.modifiers, func(selector *sql.Selector) {
+
+			joined, _ := selector.JoinedTable(user.FollowersTable)
+			partition := joined.C(user.FollowersPrimaryKey[1])
+
+			(&sqlgraph.NeighborsLimit{RowNumber: "ent_row_number", DefaultOrderField: user.FieldID, Offset: offset}).Modifier(partition, limit)(selector)
+		})
+	}
+
 	edgeIDs := make([]driver.Value, len(nodes))
 	byID := make(map[int]*User)
-	nids := make(map[int]map[*User]struct{})
+	nids := make(map[int]bool)
+	orderedIDs := make(map[int][]int)
 	for i, node := range nodes {
 		edgeIDs[i] = node.ID
 		byID[node.ID] = node
@@ -1180,48 +1474,78 @@ func (_q *UserQuery) loadFollowers(ctx context.Context, query *UserQuery, nodes 
 	if err := query.prepareQuery(ctx); err != nil {
 		return err
 	}
-	qr := QuerierFunc(func(ctx context.Context, q Query) (Value, error) {
-		return query.sqlAll(ctx, func(_ context.Context, spec *sqlgraph.QuerySpec) {
-			assign := spec.Assign
-			values := spec.ScanValues
-			spec.ScanValues = func(columns []string) ([]any, error) {
-				values, err := values(columns[1:])
-				if err != nil {
-					return nil, err
-				}
-				return append([]any{new(sql.NullInt64)}, values...), nil
+	neighbors, err := query.sqlAll(ctx, func(_ context.Context, spec *sqlgraph.QuerySpec) {
+		assign := spec.Assign
+		values := spec.ScanValues
+		spec.ScanValues = func(columns []string) ([]any, error) {
+			values, err := values(columns[1:])
+			if err != nil {
+				return nil, err
 			}
-			spec.Assign = func(columns []string, values []any) error {
-				outValue := int(values[0].(*sql.NullInt64).Int64)
-				inValue := int(values[1].(*sql.NullInt64).Int64)
-				if nids[inValue] == nil {
-					nids[inValue] = map[*User]struct{}{byID[outValue]: {}}
-					return assign(columns[1:], values[1:])
-				}
-				nids[inValue][byID[outValue]] = struct{}{}
-				return nil
+			return append([]any{new(*int)}, values...), nil
+		}
+		spec.Assign = func(columns []string, values []any) error {
+			var outValue int
+
+			if value, ok := values[0].(**int); !ok {
+				return fmt.Errorf("unexpected type %T for edge id", values[0])
+			} else if value != nil && *value != nil {
+				outValue = **value
 			}
-		})
+			var inValue int
+
+			if value, ok := values[1].(**int); !ok {
+				return fmt.Errorf("unexpected type %T for edge id", values[1])
+			} else if value != nil && *value != nil {
+				inValue = **value
+			}
+			orderedIDs[outValue] = append(orderedIDs[outValue], inValue)
+			if !nids[inValue] {
+				nids[inValue] = true
+				return assign(columns[1:], values[1:])
+			}
+			return nil
+		}
 	})
-	neighbors, err := withInterceptors[[]*User](ctx, query, qr, query.inters)
 	if err != nil {
 		return err
 	}
-	for _, n := range neighbors {
-		nodes, ok := nids[n.ID]
-		if !ok {
-			return fmt.Errorf(`unexpected "followers" node returned %v`, n.ID)
-		}
-		for kn := range nodes {
-			assign(kn, n)
+	byNeighborID := make(map[int]*User, len(neighbors))
+	for _, neighbor := range neighbors {
+		byNeighborID[neighbor.ID] = neighbor
+	}
+	for parentID, ids := range orderedIDs {
+		for _, id := range ids {
+			assign(byID[parentID], byNeighborID[id])
 		}
 	}
 	return nil
 }
 func (_q *UserQuery) loadFollowing(ctx context.Context, query *UserQuery, nodes []*User, init func(*User), assign func(*User, *User)) error {
+	query = query.Clone()
+
+	if query.ctx.Limit != nil || query.ctx.Offset != nil {
+		limit, offset := -1, 0
+		if query.ctx.Limit != nil {
+			limit = *query.ctx.Limit
+		}
+		if query.ctx.Offset != nil {
+			offset = *query.ctx.Offset
+		}
+		query.ctx.Limit, query.ctx.Offset = nil, nil
+		query.modifiers = append(query.modifiers, func(selector *sql.Selector) {
+
+			joined, _ := selector.JoinedTable(user.FollowingTable)
+			partition := joined.C(user.FollowingPrimaryKey[0])
+
+			(&sqlgraph.NeighborsLimit{RowNumber: "ent_row_number", DefaultOrderField: user.FieldID, Offset: offset}).Modifier(partition, limit)(selector)
+		})
+	}
+
 	edgeIDs := make([]driver.Value, len(nodes))
 	byID := make(map[int]*User)
-	nids := make(map[int]map[*User]struct{})
+	nids := make(map[int]bool)
+	orderedIDs := make(map[int][]int)
 	for i, node := range nodes {
 		edgeIDs[i] = node.ID
 		byID[node.ID] = node
@@ -1241,45 +1565,73 @@ func (_q *UserQuery) loadFollowing(ctx context.Context, query *UserQuery, nodes 
 	if err := query.prepareQuery(ctx); err != nil {
 		return err
 	}
-	qr := QuerierFunc(func(ctx context.Context, q Query) (Value, error) {
-		return query.sqlAll(ctx, func(_ context.Context, spec *sqlgraph.QuerySpec) {
-			assign := spec.Assign
-			values := spec.ScanValues
-			spec.ScanValues = func(columns []string) ([]any, error) {
-				values, err := values(columns[1:])
-				if err != nil {
-					return nil, err
-				}
-				return append([]any{new(sql.NullInt64)}, values...), nil
+	neighbors, err := query.sqlAll(ctx, func(_ context.Context, spec *sqlgraph.QuerySpec) {
+		assign := spec.Assign
+		values := spec.ScanValues
+		spec.ScanValues = func(columns []string) ([]any, error) {
+			values, err := values(columns[1:])
+			if err != nil {
+				return nil, err
 			}
-			spec.Assign = func(columns []string, values []any) error {
-				outValue := int(values[0].(*sql.NullInt64).Int64)
-				inValue := int(values[1].(*sql.NullInt64).Int64)
-				if nids[inValue] == nil {
-					nids[inValue] = map[*User]struct{}{byID[outValue]: {}}
-					return assign(columns[1:], values[1:])
-				}
-				nids[inValue][byID[outValue]] = struct{}{}
-				return nil
+			return append([]any{new(*int)}, values...), nil
+		}
+		spec.Assign = func(columns []string, values []any) error {
+			var outValue int
+
+			if value, ok := values[0].(**int); !ok {
+				return fmt.Errorf("unexpected type %T for edge id", values[0])
+			} else if value != nil && *value != nil {
+				outValue = **value
 			}
-		})
+			var inValue int
+
+			if value, ok := values[1].(**int); !ok {
+				return fmt.Errorf("unexpected type %T for edge id", values[1])
+			} else if value != nil && *value != nil {
+				inValue = **value
+			}
+			orderedIDs[outValue] = append(orderedIDs[outValue], inValue)
+			if !nids[inValue] {
+				nids[inValue] = true
+				return assign(columns[1:], values[1:])
+			}
+			return nil
+		}
 	})
-	neighbors, err := withInterceptors[[]*User](ctx, query, qr, query.inters)
 	if err != nil {
 		return err
 	}
-	for _, n := range neighbors {
-		nodes, ok := nids[n.ID]
-		if !ok {
-			return fmt.Errorf(`unexpected "following" node returned %v`, n.ID)
-		}
-		for kn := range nodes {
-			assign(kn, n)
+	byNeighborID := make(map[int]*User, len(neighbors))
+	for _, neighbor := range neighbors {
+		byNeighborID[neighbor.ID] = neighbor
+	}
+	for parentID, ids := range orderedIDs {
+		for _, id := range ids {
+			assign(byID[parentID], byNeighborID[id])
 		}
 	}
 	return nil
 }
 func (_q *UserQuery) loadTeam(ctx context.Context, query *PetQuery, nodes []*User, init func(*User), assign func(*User, *Pet)) error {
+	query = query.Clone()
+
+	if query.ctx.Limit != nil || query.ctx.Offset != nil {
+		limit, offset := -1, 0
+		if query.ctx.Limit != nil {
+			limit = *query.ctx.Limit
+		}
+		if query.ctx.Offset != nil {
+			offset = *query.ctx.Offset
+		}
+		query.ctx.Limit, query.ctx.Offset = nil, nil
+		query.modifiers = append(query.modifiers, func(selector *sql.Selector) {
+
+			partition := selector.C(user.TeamColumn)
+
+			(&sqlgraph.NeighborsLimit{RowNumber: "ent_row_number", DefaultOrderField: pet.FieldID, Offset: offset}).Modifier(partition, limit)(selector)
+		})
+	}
+
 	fks := make([]driver.Value, 0, len(nodes))
 	nodeids := make(map[int]*User)
 	for i := range nodes {
@@ -1287,9 +1639,9 @@ func (_q *UserQuery) loadTeam(ctx context.Context, query *PetQuery, nodes []*Use
 		nodeids[nodes[i].ID] = nodes[i]
 	}
 	query.withFKs = true
-	query.Where(predicate.Pet(func(s *sql.Selector) {
+	query.Where(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(user.TeamColumn), fks...))
-	}))
+	})
 	neighbors, err := query.All(ctx)
 	if err != nil {
 		return err
@@ -1308,6 +1660,10 @@ func (_q *UserQuery) loadTeam(ctx context.Context, query *PetQuery, nodes []*Use
 	return nil
 }
 func (_q *UserQuery) loadSpouse(ctx context.Context, query *UserQuery, nodes []*User, init func(*User), assign func(*User, *User)) error {
+	query = query.Clone()
+
+	query.ctx.Limit, query.ctx.Offset = nil, nil
+
 	ids := make([]int, 0, len(nodes))
 	nodeids := make(map[int][]*User)
 	for i := range nodes {
@@ -1323,7 +1679,7 @@ func (_q *UserQuery) loadSpouse(ctx context.Context, query *UserQuery, nodes []*
 	if len(ids) == 0 {
 		return nil
 	}
-	query.Where(user.IDIn(ids...))
+	query.Where(user.ID.In(ids...))
 	neighbors, err := query.All(ctx)
 	if err != nil {
 		return err
@@ -1340,6 +1696,25 @@ func (_q *UserQuery) loadSpouse(ctx context.Context, query *UserQuery, nodes []*
 	return nil
 }
 func (_q *UserQuery) loadChildren(ctx context.Context, query *UserQuery, nodes []*User, init func(*User), assign func(*User, *User)) error {
+	query = query.Clone()
+
+	if query.ctx.Limit != nil || query.ctx.Offset != nil {
+		limit, offset := -1, 0
+		if query.ctx.Limit != nil {
+			limit = *query.ctx.Limit
+		}
+		if query.ctx.Offset != nil {
+			offset = *query.ctx.Offset
+		}
+		query.ctx.Limit, query.ctx.Offset = nil, nil
+		query.modifiers = append(query.modifiers, func(selector *sql.Selector) {
+
+			partition := selector.C(user.ChildrenColumn)
+
+			(&sqlgraph.NeighborsLimit{RowNumber: "ent_row_number", DefaultOrderField: user.FieldID, Offset: offset}).Modifier(partition, limit)(selector)
+		})
+	}
+
 	fks := make([]driver.Value, 0, len(nodes))
 	nodeids := make(map[int]*User)
 	for i := range nodes {
@@ -1350,9 +1725,9 @@ func (_q *UserQuery) loadChildren(ctx context.Context, query *UserQuery, nodes [
 		}
 	}
 	query.withFKs = true
-	query.Where(predicate.User(func(s *sql.Selector) {
+	query.Where(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(user.ChildrenColumn), fks...))
-	}))
+	})
 	neighbors, err := query.All(ctx)
 	if err != nil {
 		return err
@@ -1371,6 +1746,10 @@ func (_q *UserQuery) loadChildren(ctx context.Context, query *UserQuery, nodes [
 	return nil
 }
 func (_q *UserQuery) loadParent(ctx context.Context, query *UserQuery, nodes []*User, init func(*User), assign func(*User, *User)) error {
+	query = query.Clone()
+
+	query.ctx.Limit, query.ctx.Offset = nil, nil
+
 	ids := make([]int, 0, len(nodes))
 	nodeids := make(map[int][]*User)
 	for i := range nodes {
@@ -1386,7 +1765,7 @@ func (_q *UserQuery) loadParent(ctx context.Context, query *UserQuery, nodes []*
 	if len(ids) == 0 {
 		return nil
 	}
-	query.Where(user.IDIn(ids...))
+	query.Where(user.ID.In(ids...))
 	neighbors, err := query.All(ctx)
 	if err != nil {
 		return err
@@ -1408,6 +1787,7 @@ func (_q *UserQuery) sqlCount(ctx context.Context) (int, error) {
 	if len(_q.modifiers) > 0 {
 		_spec.Modifiers = _q.modifiers
 	}
+
 	_spec.Node.Columns = _q.ctx.Fields
 	if len(_q.ctx.Fields) > 0 {
 		_spec.Unique = _q.ctx.Unique != nil && *_q.ctx.Unique
@@ -1432,10 +1812,13 @@ func (_q *UserQuery) querySpec() *sqlgraph.QuerySpec {
 			}
 		}
 	}
-	if ps := _q.predicates; len(ps) > 0 {
+	if predicates := _q.predicates; len(predicates) > 0 || len(_q.joins) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
-			for i := range ps {
-				ps[i](selector)
+			for _, join := range _q.joins {
+				join(selector)
+			}
+			for i := range predicates {
+				predicates[i](selector)
 			}
 		}
 	}
@@ -1470,8 +1853,8 @@ func (_q *UserQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	if _q.ctx.Unique != nil && *_q.ctx.Unique {
 		selector.Distinct()
 	}
-	for _, m := range _q.modifiers {
-		m(selector)
+	for _, join := range _q.joins {
+		join(selector)
 	}
 	for _, p := range _q.predicates {
 		p(selector)
@@ -1486,6 +1869,9 @@ func (_q *UserQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	}
 	if limit := _q.ctx.Limit; limit != nil {
 		selector.Limit(*limit)
+	}
+	for _, modifier := range _q.modifiers {
+		modifier(selector)
 	}
 	return selector
 }
@@ -1622,96 +2008,148 @@ func (_q *UserQuery) WithNamedChildren(name string, opts ...func(*UserQuery)) *U
 
 // UserGroupBy is the group-by builder for User entities.
 type UserGroupBy struct {
-	selector
-	build *UserQuery
+	query      *UserQuery
+	columns    []ent.EntityColumn[entity.User]
+	aggregates []ent.Selection
 }
 
-// Aggregate adds the given aggregation functions to the group-by query.
-func (_g *UserGroupBy) Aggregate(fns ...AggregateFunc) *UserGroupBy {
-	_g.fns = append(_g.fns, fns...)
+func (_g *UserGroupBy) Aggregate(selections ...ent.Selection) *UserGroupBy {
+	_g.aggregates = append(_g.aggregates, selections...)
 	return _g
 }
 
-// Scan applies the selector query and scans the result into the given value.
 func (_g *UserGroupBy) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, _g.build.ctx, ent.OpQueryGroupBy)
-	if err := _g.build.prepareQuery(ctx); err != nil {
-		return err
-	}
-	return scanWithInterceptors[*UserQuery, *UserGroupBy](ctx, _g.build, _g, _g.build.inters, v)
+	return _g.selectQuery().Scan(ctx, v)
 }
 
-func (_g *UserGroupBy) sqlScan(ctx context.Context, root *UserQuery, v any) error {
-	selector := root.sqlQuery(ctx).Select()
-	aggregation := make([]string, 0, len(_g.fns))
-	for _, fn := range _g.fns {
-		aggregation = append(aggregation, fn(selector))
+func (_g *UserGroupBy) Rows(ctx context.Context) ([]*ent.Row, error) {
+	return _g.selectQuery().Rows(ctx)
+}
+
+func (_g *UserGroupBy) selectQuery() *UserSelect {
+	selections := make([]ent.Selection, 0, len(_g.columns)+len(_g.aggregates))
+	for _, column := range _g.columns {
+		selections = append(selections, column)
 	}
-	if len(selector.SelectedColumns()) == 0 {
-		columns := make([]string, 0, len(*_g.flds)+len(_g.fns))
-		for _, f := range *_g.flds {
-			columns = append(columns, selector.C(f))
-		}
-		columns = append(columns, aggregation...)
-		selector.Select(columns...)
-	}
-	selector.GroupBy(selector.Columns(*_g.flds...)...)
-	if err := selector.Err(); err != nil {
-		return err
-	}
-	rows := &sql.Rows{}
-	query, args := selector.Query()
-	if err := _g.build.driver.Query(ctx, query, args, rows); err != nil {
-		return err
-	}
-	defer rows.Close()
-	return sql.ScanSlice(rows, v)
+	selected := _g.query.Select(append(selections, _g.aggregates...)...)
+	selected.groups = _g.columns
+	return selected
 }
 
 // UserSelect is the builder for selecting fields of User entities.
 type UserSelect struct {
-	*UserQuery
-	selector
+	query      *UserQuery
+	selections []ent.Selection
+	groups     []ent.EntityColumn[entity.User]
 }
 
-// Aggregate adds the given aggregation functions to the selector query.
-func (_s *UserSelect) Aggregate(fns ...AggregateFunc) *UserSelect {
-	_s.fns = append(_s.fns, fns...)
+func (_s *UserSelect) Aggregate(selections ...ent.Selection) *UserSelect {
+	_s.selections = append(_s.selections, selections...)
 	return _s
 }
 
-// Scan applies the selector query and scans the result into the given value.
-func (_s *UserSelect) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, _s.ctx, ent.OpQuerySelect)
-	if err := _s.prepareQuery(ctx); err != nil {
-		return err
+func (_s *UserSelect) Row(ctx context.Context) (*ent.Row, error) {
+	rows, err := _s.Rows(ctx)
+	if err != nil {
+		return nil, err
 	}
-	return scanWithInterceptors[*UserQuery, *UserSelect](ctx, _s.UserQuery, _s, _s.inters, v)
+	switch len(rows) {
+	case 0:
+		return nil, &NotFoundError{user.Label}
+	case 1:
+		return rows[0], nil
+	default:
+		return nil, &NotSingularError{user.Label}
+	}
 }
 
-func (_s *UserSelect) sqlScan(ctx context.Context, root *UserQuery, v any) error {
+func (_s *UserSelect) sqlQuery(ctx context.Context) (*sql.Selector, error) {
+	root := _s.query.Clone()
+	root.ctx.Fields = nil
+	for _, selection := range _s.selections {
+		if column := selection.Ref(); column.Name != "" && (column.Table == "" || column.Table == user.Table) {
+			root.ctx.AppendFieldOnce(column.Name)
+		}
+	}
+	if err := root.prepareQuery(ctx); err != nil {
+		return nil, err
+	}
+	root.modifiers = nil
 	selector := root.sqlQuery(ctx)
-	aggregation := make([]string, 0, len(_s.fns))
-	for _, fn := range _s.fns {
-		aggregation = append(aggregation, fn(selector))
+	if len(_s.selections) > 0 {
+		ent.SelectColumns(selector, _s.selections...)
 	}
-	switch n := len(*_s.selector.flds); {
-	case n == 0 && len(aggregation) > 0:
-		selector.Select(aggregation...)
-	case n != 0 && len(aggregation) > 0:
-		selector.AppendSelect(aggregation...)
+	for _, column := range _s.groups {
+		reference := column.Ref()
+		if reference.Table == "" || reference.Table == selector.TableName() {
+			selector.GroupBy(selector.C(reference.Name))
+		} else {
+			selector.GroupBy(sql.Dialect(selector.Dialect()).Table(reference.Table).C(reference.Name))
+		}
 	}
-	rows := &sql.Rows{}
-	query, args := selector.Query()
-	if err := _s.driver.Query(ctx, query, args, rows); err != nil {
+	for _, modifier := range _s.query.modifiers {
+		modifier(selector)
+	}
+	return selector, selector.Err()
+}
+
+func (_s *UserSelect) Scan(ctx context.Context, value any) error {
+	selector, err := _s.sqlQuery(ctx)
+	if err != nil {
+		return err
+	}
+	query, arguments := selector.Query()
+	if err := selector.Err(); err != nil {
+		return err
+	}
+	rows, err := _s.query.driver.Query(ctx, query, arguments)
+	if err != nil {
 		return err
 	}
 	defer rows.Close()
-	return sql.ScanSlice(rows, v)
+	return sql.ScanSlice(rows, value)
+}
+
+func (_s *UserSelect) Rows(ctx context.Context) ([]*ent.Row, error) {
+	if len(_s.selections) == 0 {
+		return nil, errors.New("ent: Rows requires explicit selections")
+	}
+	selector, err := _s.sqlQuery(ctx)
+	if err != nil {
+		return nil, err
+	}
+	query, arguments := selector.Query()
+	if err := selector.Err(); err != nil {
+		return nil, err
+	}
+	rows, err := _s.query.driver.Query(ctx, query, arguments)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	columns, err := rows.Columns()
+	if err != nil {
+		return nil, err
+	}
+	if len(columns) != len(_s.selections) {
+		return nil, fmt.Errorf("ent: projection column count %d differs from selection count %d", len(columns), len(_s.selections))
+	}
+	result := make([]*ent.Row, 0)
+	for rows.Next() {
+		row, destinations := ent.NewRow(_s.selections)
+		if err := rows.Scan(destinations...); err != nil {
+			return nil, err
+		}
+		result = append(result, row)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 // Modify adds a query modifier for attaching custom logic to queries.
 func (_s *UserSelect) Modify(modifiers ...func(s *sql.Selector)) *UserSelect {
-	_s.modifiers = append(_s.modifiers, modifiers...)
+	_s.query.modifiers = append(_s.query.modifiers, modifiers...)
 	return _s
 }

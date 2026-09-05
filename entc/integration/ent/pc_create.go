@@ -10,54 +10,120 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/ent/pc"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// PCCreate is the builder for creating a PC entity.
 type PCCreate struct {
 	config
-	mutation *PCMutation
-	hooks    []Hook
+	mutation    *PCMutation
+	err         error
+	fromBuilder bool
+	present     map[string]struct{}
+
 	conflict []sql.ConflictOption
 }
 
-// Mutation returns the PCMutation object of the builder.
-func (_c *PCCreate) Mutation() *PCMutation {
-	return _c.mutation
+func (b *PCCreate) Set[T any](column ent.ColumnOf[entity.PC, T], value T) *PCCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.set(column.Ref().Name, value)
+	}
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+}
+func (b *PCCreate) SetOptional[T any](column ent.ColumnOf[entity.PC, T], value ent.Option[T]) *PCCreate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.insert.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *PCCreate) SetExpr[T any](column ent.ColumnOf[entity.PC, T], value ent.Expr[T]) *PCCreate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of PC is not settable", column.Ref().Name)}
+		return b
+	}
+
+}
+func (b *PCCreate) SetEdge[N, K any](edge ent.UniqueRelation[entity.PC, N, K], id K) *PCCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.setEdge(edge.Ref().Name, id)
+	}
+
+	switch edge.Ref().Name {
+
+	}
+
+	return b
+}
+func (b *PCCreate) AddIDs[N, K any](edge ent.Relation[entity.PC, N, K], ids ...K) *PCCreate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.insert.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *PCCreate) Mutation() *PCMutation { return b.mutation }
+
+func (b *PCCreate) Insert() *PCInsert { return b.mutation.insert }
+
+func (b *PCCreate) Save(ctx context.Context) (*PC, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Save creates the PC in the database.
-func (_c *PCCreate) Save(ctx context.Context) (*PC, error) {
-	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
-}
-
-// SaveX calls Save and panics if Save returns an error.
-func (_c *PCCreate) SaveX(ctx context.Context) *PC {
-	v, err := _c.Save(ctx)
+func (b *PCCreate) SaveX(ctx context.Context) *PC {
+	node, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return node
 }
 
-// Exec executes the query.
-func (_c *PCCreate) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *PCCreate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *PCCreate) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *PCCreate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_c *PCCreate) check() error {
+func (b *PCCreate) defaults() error {
+
+	return nil
+}
+
+func (b *PCCreate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
 	return nil
 }
 
@@ -65,137 +131,156 @@ func (_c *PCCreate) sqlSave(ctx context.Context) (*PC, error) {
 	if err := _c.check(); err != nil {
 		return nil, err
 	}
-	_node, _spec := _c.createSpec()
-	if err := sqlgraph.CreateNode(ctx, _c.driver, _spec); err != nil {
+	node, spec, err := _c.createSpec()
+	if err != nil {
+		return nil, err
+	}
+	if err := sqlgraph.CreateNode(ctx, _c.driver, spec); err != nil {
 		if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
 		return nil, err
 	}
-	id := _spec.ID.Value.(int64)
-	_node.ID = int(id)
-	_c.mutation.id = &_node.ID
-	_c.mutation.done = true
-	return _node, nil
+	_c.mutation.id = &node.ID
+	return node, nil
 }
 
-func (_c *PCCreate) createSpec() (*PC, *sqlgraph.CreateSpec) {
-	var (
-		_node = &PC{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(pc.Table, sqlgraph.NewFieldSpec(pc.FieldID, field.TypeInt))
-	)
+func (_c *PCCreate) createSpec() (*PC, *sqlgraph.CreateSpec, error) {
+	_node := &PC{config: _c.config}
+	_spec := sqlgraph.NewCreateSpec(pc.Table, sqlgraph.NewFieldSpec(pc.FieldID, field.TypeInt))
+
 	_spec.OnConflict = _c.conflict
-	return _node, _spec
+
+	_spec.Expressions = _c.mutation.insert.expressions
+
+	_spec.Returning = &sqlgraph.Returning{Columns: pc.Columns, Scan: func(rows dialect.Rows) error {
+		values, err := _node.scanValues(pc.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(pc.Columns, values); err != nil {
+			return err
+		}
+
+		_spec.ID.Value = _node.ID
+
+		return nil
+	}}
+	return _node, _spec, nil
 }
 
-// OnConflict allows configuring the `ON CONFLICT` clause of the `INSERT`
-// statement. For example:
-//
-//	client.PC.Create().
-//		OnConflict(
-//			// Update the row with the new values
-//			// the was proposed for insertion.
-//			sql.ResolveWithNewValues(),
-//		).
-//		Exec(ctx)
-func (_c *PCCreate) OnConflict(opts ...sql.ConflictOption) *PCUpsertOne {
-	_c.conflict = opts
-	return &PCUpsertOne{
-		create: _c,
+type PCUpsertOne struct{ create *PCCreate }
+
+func (b *PCCreate) OnConflict(columns ...ent.EntityColumn[entity.PC]) *PCUpsertOne {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
 	}
-}
-
-// OnConflictColumns calls `OnConflict` and configures the columns
-// as conflict target. Using this option is equivalent to using:
-//
-//	client.PC.Create().
-//		OnConflict(sql.ConflictColumns(columns...)).
-//		Exec(ctx)
-func (_c *PCCreate) OnConflictColumns(columns ...string) *PCUpsertOne {
-	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
-	return &PCUpsertOne{
-		create: _c,
+	if len(names) == 0 {
+		return b.OnConflictOptions()
 	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
 }
 
-type (
-	// PCUpsertOne is the builder for "upsert"-ing
-	//  one PC node.
-	PCUpsertOne struct {
-		create *PCCreate
-	}
-
-	// PCUpsert is the "OnConflict" setter.
-	PCUpsert struct {
-		*sql.UpdateSet
-	}
-)
-
-// UpdateNewValues updates the mutable fields using the new values that were set on create.
-// Using this option is equivalent to using:
-//
-//	client.PC.Create().
-//		OnConflict(
-//			sql.ResolveWithNewValues(),
-//		).
-//		Exec(ctx)
-func (u *PCUpsertOne) UpdateNewValues() *PCUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
-	return u
+func (b *PCCreate) OnConflictConstraint(name string) *PCUpsertOne {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
 }
 
-// Ignore sets each column to itself in case of conflict.
-// Using this option is equivalent to using:
-//
-//	client.PC.Create().
-//	    OnConflict(sql.ResolveWithIgnore()).
-//	    Exec(ctx)
-func (u *PCUpsertOne) Ignore() *PCUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
-	return u
+func (b *PCCreate) OnConflictOptions(options ...sql.ConflictOption) *PCUpsertOne {
+	b.conflict = options
+	return &PCUpsertOne{create: b}
 }
 
-// DoNothing configures the conflict_action to `DO NOTHING`.
-// Supported only by SQLite and PostgreSQL.
 func (u *PCUpsertOne) DoNothing() *PCUpsertOne {
 	u.create.conflict = append(u.create.conflict, sql.DoNothing())
 	return u
 }
 
-// Update allows overriding fields `UPDATE` values. See the PCCreate.OnConflict
-// documentation for more info.
-func (u *PCUpsertOne) Update(set func(*PCUpsert)) *PCUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
-		set(&PCUpsert{UpdateSet: update})
+func (u *PCUpsertOne) DoSelect() *PCUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *PCUpsertOne) Ignore() *PCUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *PCUpsertOne) DoUpdate(set func(*PCUpsert)) *PCUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&PCUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *PCUpsertOne) UpdateNewValues() *PCUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case pc.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
 	}))
 	return u
 }
 
-// Exec executes the query.
-func (u *PCUpsertOne) Exec(ctx context.Context) error {
-	if len(u.create.conflict) == 0 {
-		return errors.New("ent: missing options for PCCreate.OnConflict")
-	}
-	return u.create.Exec(ctx)
+func (u *PCUpsertOne) Where(predicates ...ent.Predicate[entity.PC]) *PCUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(pc.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// ExecX is like Exec, but panics if an error occurs.
+func (u *PCUpsertOne) UpdateWhere(predicates ...ent.Predicate[entity.PC]) *PCUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(pc.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *PCUpsertOne) Save(ctx context.Context) (*PC, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for PCCreate.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *PCUpsertOne) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
 func (u *PCUpsertOne) ExecX(ctx context.Context) {
-	if err := u.create.Exec(ctx); err != nil {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// Exec executes the UPSERT query and returns the inserted/updated ID.
 func (u *PCUpsertOne) ID(ctx context.Context) (id int, err error) {
-	node, err := u.create.Save(ctx)
+	node, err := u.Save(ctx)
 	if err != nil {
 		return id, err
 	}
 	return node.ID, nil
 }
 
-// IDX is like ID, but panics if an error occurs.
 func (u *PCUpsertOne) IDX(ctx context.Context) int {
 	id, err := u.ID(ctx)
 	if err != nil {
@@ -204,190 +289,220 @@ func (u *PCUpsertOne) IDX(ctx context.Context) int {
 	return id
 }
 
-// PCCreateBulk is the builder for creating many PC entities in bulk.
+type PCUpsert struct{ *sql.UpdateSet }
+
+func (u *PCUpsert) Set[T any](column ent.ColumnOf[entity.PC, T], value T) *PCUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of PC is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *PCUpsert) SetExpr[T any](column ent.ColumnOf[entity.PC, T], value ent.Expr[T]) *PCUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of PC is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *PCUpsert) UpdateNewValue[T any](column ent.ColumnOf[entity.PC, T]) *PCUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of PC is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *PCUpsert) Add[T ent.Number](column ent.ColumnOf[entity.PC, T], delta T) *PCUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of PC does not support addition", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *PCUpsert) Clear[T any](column ent.ColumnOf[entity.PC, T]) *PCUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of PC is not nullable", column.Ref().Name)})
+	}
+	return u
+}
+
 type PCCreateBulk struct {
 	config
 	err      error
 	builders []*PCCreate
+
 	conflict []sql.ConflictOption
 }
 
-// Save creates the PC entities in the database.
 func (_c *PCCreateBulk) Save(ctx context.Context) ([]*PC, error) {
 	if _c.err != nil {
 		return nil, _c.err
 	}
-	specs := make([]*sqlgraph.CreateSpec, len(_c.builders))
 	nodes := make([]*PC, len(_c.builders))
-	mutators := make([]Mutator, len(_c.builders))
-	for i := range _c.builders {
-		func(i int, root context.Context) {
-			builder := _c.builders[i]
-			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*PCMutation)
-				if !ok {
-					return nil, fmt.Errorf("unexpected mutation type %T", m)
-				}
-				if err := builder.check(); err != nil {
-					return nil, err
-				}
-				builder.mutation = mutation
-				var err error
-				nodes[i], specs[i] = builder.createSpec()
-				if i < len(mutators)-1 {
-					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
-				} else {
-					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
-					spec.OnConflict = _c.conflict
-					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
-						if sqlgraph.IsConstraintError(err) {
-							err = &ConstraintError{msg: err.Error(), wrap: err}
-						}
-					}
-				}
-				if err != nil {
-					return nil, err
-				}
-				mutation.id = &nodes[i].ID
-				if specs[i].ID.Value != nil {
-					id := specs[i].ID.Value.(int64)
-					nodes[i].ID = int(id)
-				}
-				mutation.done = true
-				return nodes[i], nil
-			})
-			for i := len(builder.hooks) - 1; i >= 0; i-- {
-				mut = builder.hooks[i](mut)
-			}
-			mutators[i] = mut
-		}(i, ctx)
-	}
-	if len(mutators) > 0 {
-		if _, err := mutators[0].Mutate(ctx, _c.builders[0].mutation); err != nil {
+	specs := make([]*sqlgraph.CreateSpec, len(nodes))
+	for index, builder := range _c.builders {
+		if builder.err != nil {
+			return nil, builder.err
+		}
+		if err := builder.defaults(); err != nil {
+			return nil, err
+		}
+		if err := builder.check(); err != nil {
+			return nil, err
+		}
+		var err error
+		nodes[index], specs[index], err = builder.createSpec()
+		if err != nil {
 			return nil, err
 		}
 	}
-	return nodes, nil
+	if len(specs) == 0 {
+		return nodes, nil
+	}
+	spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+
+	spec.OnConflict = _c.conflict
+
+	if err := sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
+		if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{msg: err.Error(), wrap: err}
+		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
+		return nil, err
+	}
+	result := nodes[:0]
+	for index, builder := range _c.builders {
+		if specs[index].Skipped {
+			continue
+		}
+		builder.mutation.id = &nodes[index].ID
+		result = append(result, nodes[index])
+	}
+	return result, nil
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_c *PCCreateBulk) SaveX(ctx context.Context) []*PC {
-	v, err := _c.Save(ctx)
+func (b *PCCreateBulk) SaveX(ctx context.Context) []*PC {
+	nodes, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return nodes
 }
 
-// Exec executes the query.
-func (_c *PCCreateBulk) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *PCCreateBulk) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *PCCreateBulk) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *PCCreateBulk) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// OnConflict allows configuring the `ON CONFLICT` clause of the `INSERT`
-// statement. For example:
-//
-//	client.PC.CreateBulk(builders...).
-//		OnConflict(
-//			// Update the row with the new values
-//			// the was proposed for insertion.
-//			sql.ResolveWithNewValues(),
-//		).
-//		Exec(ctx)
-func (_c *PCCreateBulk) OnConflict(opts ...sql.ConflictOption) *PCUpsertBulk {
-	_c.conflict = opts
-	return &PCUpsertBulk{
-		create: _c,
+type PCUpsertBulk struct{ create *PCCreateBulk }
+
+func (b *PCCreateBulk) OnConflict(columns ...ent.EntityColumn[entity.PC]) *PCUpsertBulk {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
 	}
-}
-
-// OnConflictColumns calls `OnConflict` and configures the columns
-// as conflict target. Using this option is equivalent to using:
-//
-//	client.PC.Create().
-//		OnConflict(sql.ConflictColumns(columns...)).
-//		Exec(ctx)
-func (_c *PCCreateBulk) OnConflictColumns(columns ...string) *PCUpsertBulk {
-	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
-	return &PCUpsertBulk{
-		create: _c,
+	if len(names) == 0 {
+		return b.OnConflictOptions()
 	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
 }
 
-// PCUpsertBulk is the builder for "upsert"-ing
-// a bulk of PC nodes.
-type PCUpsertBulk struct {
-	create *PCCreateBulk
+func (b *PCCreateBulk) OnConflictConstraint(name string) *PCUpsertBulk {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
 }
 
-// UpdateNewValues updates the mutable fields using the new values that
-// were set on create. Using this option is equivalent to using:
-//
-//	client.PC.Create().
-//		OnConflict(
-//			sql.ResolveWithNewValues(),
-//		).
-//		Exec(ctx)
-func (u *PCUpsertBulk) UpdateNewValues() *PCUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
-	return u
+func (b *PCCreateBulk) OnConflictOptions(options ...sql.ConflictOption) *PCUpsertBulk {
+	b.conflict = options
+	return &PCUpsertBulk{create: b}
 }
 
-// Ignore sets each column to itself in case of conflict.
-// Using this option is equivalent to using:
-//
-//	client.PC.Create().
-//		OnConflict(sql.ResolveWithIgnore()).
-//		Exec(ctx)
-func (u *PCUpsertBulk) Ignore() *PCUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
-	return u
-}
-
-// DoNothing configures the conflict_action to `DO NOTHING`.
-// Supported only by SQLite and PostgreSQL.
 func (u *PCUpsertBulk) DoNothing() *PCUpsertBulk {
 	u.create.conflict = append(u.create.conflict, sql.DoNothing())
 	return u
 }
 
-// Update allows overriding fields `UPDATE` values. See the PCCreateBulk.OnConflict
-// documentation for more info.
-func (u *PCUpsertBulk) Update(set func(*PCUpsert)) *PCUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
-		set(&PCUpsert{UpdateSet: update})
+func (u *PCUpsertBulk) DoSelect() *PCUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *PCUpsertBulk) Ignore() *PCUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *PCUpsertBulk) DoUpdate(set func(*PCUpsert)) *PCUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&PCUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *PCUpsertBulk) UpdateNewValues() *PCUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case pc.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
 	}))
 	return u
 }
 
-// Exec executes the query.
-func (u *PCUpsertBulk) Exec(ctx context.Context) error {
-	if u.create.err != nil {
-		return u.create.err
-	}
-	for i, b := range u.create.builders {
-		if len(b.conflict) != 0 {
-			return fmt.Errorf("ent: OnConflict was set for builder %d. Set it on the PCCreateBulk instead", i)
+func (u *PCUpsertBulk) Where(predicates ...ent.Predicate[entity.PC]) *PCUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(pc.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
 		}
-	}
-	if len(u.create.conflict) == 0 {
-		return errors.New("ent: missing options for PCCreateBulk.OnConflict")
-	}
-	return u.create.Exec(ctx)
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// ExecX is like Exec, but panics if an error occurs.
+func (u *PCUpsertBulk) UpdateWhere(predicates ...ent.Predicate[entity.PC]) *PCUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(pc.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *PCUpsertBulk) Save(ctx context.Context) ([]*PC, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for PCCreateBulk.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *PCUpsertBulk) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
 func (u *PCUpsertBulk) ExecX(ctx context.Context) {
-	if err := u.create.Exec(ctx); err != nil {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

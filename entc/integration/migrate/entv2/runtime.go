@@ -6,14 +6,14 @@
 package entv2
 
 import (
-	"time"
+	time2 "time"
 
 	"github.com/neko-sc/ent/entc/integration/migrate/entv2/schema"
 	"github.com/neko-sc/ent/entc/integration/migrate/entv2/user"
 )
 
 // The init function reads all schema descriptors with runtime code
-// (default values, validators, hooks and policies) and stitches it
+// (default values and validators) and stitches it
 // to their package variables.
 func init() {
 	userMixin := schema.User{}.Mixin()
@@ -68,7 +68,7 @@ func init() {
 	// userDescCreatedAt is the schema descriptor for created_at field.
 	userDescCreatedAt := userFields[18].Descriptor()
 	// user.DefaultCreatedAt holds the default value on creation for the created_at field.
-	user.DefaultCreatedAt = userDescCreatedAt.Default.(func() time.Time)
+	user.DefaultCreatedAt = userDescCreatedAt.Default.(func() time2.Time)
 	// userDescDropOptional is the schema descriptor for drop_optional field.
 	userDescDropOptional := userFields[19].Descriptor()
 	// user.DefaultDropOptional holds the default value on creation for the drop_optional field.

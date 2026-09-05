@@ -10,9 +10,11 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	time2 "time"
 
 	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/entc/integration/migrate/entv2/entity"
 	"github.com/neko-sc/ent/entc/integration/migrate/entv2/pet"
 	"github.com/neko-sc/ent/entc/integration/migrate/entv2/user"
 )
@@ -25,7 +27,7 @@ type User struct {
 	// MixedString holds the value of the "mixed_string" field.
 	MixedString string `json:"mixed_string,omitempty"`
 	// MixedEnum holds the value of the "mixed_enum" field.
-	MixedEnum user.MixedEnum `json:"mixed_enum,omitempty"`
+	MixedEnum user.MixedEnumValue `json:"mixed_enum,omitempty"`
 	// Active holds the value of the "active" field.
 	Active bool `json:"active,omitempty"`
 	// Age holds the value of the "age" field.
@@ -49,9 +51,9 @@ type User struct {
 	// Blob holds the value of the "blob" field.
 	Blob []byte `json:"blob,omitempty"`
 	// State holds the value of the "state" field.
-	State user.State `json:"state,omitempty"`
+	State user.StateValue `json:"state,omitempty"`
 	// Status holds the value of the "status" field.
-	Status user.Status `json:"status,omitempty"`
+	Status user.StatusValue `json:"status,omitempty"`
 	// Workplace holds the value of the "workplace" field.
 	Workplace string `json:"workplace,omitempty"`
 	// Roles holds the value of the "roles" field.
@@ -61,14 +63,13 @@ type User struct {
 	// DefaultExprs holds the value of the "default_exprs" field.
 	DefaultExprs string `json:"default_exprs,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
-	CreatedAt time.Time `json:"created_at,omitempty"`
+	CreatedAt time2.Time `json:"created_at,omitempty"`
 	// DropOptional holds the value of the "drop_optional" field.
 	DropOptional string `json:"drop_optional,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the UserQuery when eager-loading is set.
-	Edges        UserEdges `json:"edges"`
-	blog_admins  *int
-	selectValues sql.SelectValues
+	Edges       UserEdges `json:"edges"`
+	blog_admins *int
 }
 
 // UserEdges holds the relations/edges for other nodes in the graph.
@@ -82,6 +83,38 @@ type UserEdges struct {
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes [3]bool
+	counts      map[string]int
+}
+
+func (e UserEdges) Loaded[N, K any](edge ent.RelationOf[entity.User, N, K]) bool {
+	switch edge.Ref().Name {
+	case "car":
+		return e.loadedTypes[0]
+	case "pets":
+		return e.loadedTypes[1]
+	case "friends":
+		return e.loadedTypes[2]
+
+	default:
+		return false
+	}
+}
+
+func (e *UserEdges) SetLoaded[N, K any](edge ent.RelationOf[entity.User, N, K], loaded bool) {
+	switch edge.Ref().Name {
+	case "car":
+		e.loadedTypes[0] = loaded
+	case "pets":
+		e.loadedTypes[1] = loaded
+	case "friends":
+		e.loadedTypes[2] = loaded
+
+	}
+}
+
+func (e UserEdges) Count[N, K any](edge ent.Relation[entity.User, N, K]) (int, bool) {
+	count, loaded := e.counts[edge.Ref().Name]
+	return count, loaded
 }
 
 // CarOrErr returns the Car value or an error if the edge
@@ -118,18 +151,26 @@ func (*User) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case user.FieldBuffer, user.FieldBlob, user.FieldRoles:
-			values[i] = new([]byte)
+		case user.FieldBuffer, user.FieldBlob:
+			values[i] = new(*[]byte)
 		case user.FieldActive:
-			values[i] = new(sql.NullBool)
+			values[i] = new(*bool)
 		case user.FieldID, user.FieldAge:
-			values[i] = new(sql.NullInt64)
-		case user.FieldMixedString, user.FieldMixedEnum, user.FieldName, user.FieldDescription, user.FieldNickname, user.FieldPhone, user.FieldTitle, user.FieldNewName, user.FieldNewToken, user.FieldState, user.FieldStatus, user.FieldWorkplace, user.FieldDefaultExpr, user.FieldDefaultExprs, user.FieldDropOptional:
-			values[i] = new(sql.NullString)
+			values[i] = new(*int)
+		case user.FieldMixedString, user.FieldName, user.FieldDescription, user.FieldNickname, user.FieldPhone, user.FieldTitle, user.FieldNewName, user.FieldNewToken, user.FieldWorkplace, user.FieldDefaultExpr, user.FieldDefaultExprs, user.FieldDropOptional:
+			values[i] = new(*string)
 		case user.FieldCreatedAt:
-			values[i] = new(sql.NullTime)
+			values[i] = new(*time2.Time)
+		case user.FieldMixedEnum:
+			values[i] = new(*user.MixedEnumValue)
+		case user.FieldState:
+			values[i] = new(*user.StateValue)
+		case user.FieldStatus:
+			values[i] = new(*user.StatusValue)
+		case user.FieldRoles:
+			values[i] = new([]byte)
 		case user.ForeignKeys[0]: // blog_admins
-			values[i] = new(sql.NullInt64)
+			values[i] = new(*int)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -146,106 +187,123 @@ func (_m *User) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case user.FieldID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field id", values[i])
-			} else if value.Valid {
-				_m.ID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.ID = **value
 			}
 		case user.FieldMixedString:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field mixed_string", values[i])
-			} else if value.Valid {
-				_m.MixedString = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.MixedString = **value
 			}
 		case user.FieldMixedEnum:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**user.MixedEnumValue); !ok {
 				return fmt.Errorf("unexpected type %T for field mixed_enum", values[i])
-			} else if value.Valid {
-				_m.MixedEnum = user.MixedEnum(value.String)
+			} else if value != nil && *value != nil {
+				_m.MixedEnum = **value
 			}
 		case user.FieldActive:
-			if value, ok := values[i].(*sql.NullBool); !ok {
+
+			if value, ok := values[i].(**bool); !ok {
 				return fmt.Errorf("unexpected type %T for field active", values[i])
-			} else if value.Valid {
-				_m.Active = bool(value.Bool)
+			} else if value != nil && *value != nil {
+				_m.Active = **value
 			}
 		case user.FieldAge:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field age", values[i])
-			} else if value.Valid {
-				_m.Age = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.Age = **value
 			}
 		case user.FieldName:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field name", values[i])
-			} else if value.Valid {
-				_m.Name = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.Name = **value
 			}
 		case user.FieldDescription:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field description", values[i])
-			} else if value.Valid {
-				_m.Description = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.Description = **value
 			}
 		case user.FieldNickname:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field nickname", values[i])
-			} else if value.Valid {
-				_m.Nickname = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.Nickname = **value
 			}
 		case user.FieldPhone:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field phone", values[i])
-			} else if value.Valid {
-				_m.Phone = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.Phone = **value
 			}
 		case user.FieldBuffer:
-			if value, ok := values[i].(*[]byte); !ok {
+
+			if value, ok := values[i].(**[]byte); !ok {
 				return fmt.Errorf("unexpected type %T for field buffer", values[i])
-			} else if value != nil {
-				_m.Buffer = *value
+			} else if value != nil && *value != nil {
+				_m.Buffer = **value
 			}
 		case user.FieldTitle:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field title", values[i])
-			} else if value.Valid {
-				_m.Title = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.Title = **value
 			}
 		case user.FieldNewName:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field new_name", values[i])
-			} else if value.Valid {
-				_m.NewName = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.NewName = **value
 			}
 		case user.FieldNewToken:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field new_token", values[i])
-			} else if value.Valid {
-				_m.NewToken = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.NewToken = **value
 			}
 		case user.FieldBlob:
-			if value, ok := values[i].(*[]byte); !ok {
+
+			if value, ok := values[i].(**[]byte); !ok {
 				return fmt.Errorf("unexpected type %T for field blob", values[i])
-			} else if value != nil {
-				_m.Blob = *value
+			} else if value != nil && *value != nil {
+				_m.Blob = **value
 			}
 		case user.FieldState:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**user.StateValue); !ok {
 				return fmt.Errorf("unexpected type %T for field state", values[i])
-			} else if value.Valid {
-				_m.State = user.State(value.String)
+			} else if value != nil && *value != nil {
+				_m.State = **value
 			}
 		case user.FieldStatus:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**user.StatusValue); !ok {
 				return fmt.Errorf("unexpected type %T for field status", values[i])
-			} else if value.Valid {
-				_m.Status = user.Status(value.String)
+			} else if value != nil && *value != nil {
+				_m.Status = **value
 			}
 		case user.FieldWorkplace:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field workplace", values[i])
-			} else if value.Valid {
-				_m.Workplace = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.Workplace = **value
 			}
 		case user.FieldRoles:
 			if value, ok := values[i].(*[]byte); !ok {
@@ -256,47 +314,43 @@ func (_m *User) assignValues(columns []string, values []any) error {
 				}
 			}
 		case user.FieldDefaultExpr:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field default_expr", values[i])
-			} else if value.Valid {
-				_m.DefaultExpr = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.DefaultExpr = **value
 			}
 		case user.FieldDefaultExprs:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field default_exprs", values[i])
-			} else if value.Valid {
-				_m.DefaultExprs = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.DefaultExprs = **value
 			}
 		case user.FieldCreatedAt:
-			if value, ok := values[i].(*sql.NullTime); !ok {
+
+			if value, ok := values[i].(**time2.Time); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
-			} else if value.Valid {
-				_m.CreatedAt = time.Time(value.Time)
+			} else if value != nil && *value != nil {
+				_m.CreatedAt = **value
 			}
 		case user.FieldDropOptional:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field drop_optional", values[i])
-			} else if value.Valid {
-				_m.DropOptional = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.DropOptional = **value
 			}
 		case user.ForeignKeys[0]:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field blog_admins", values[i])
-			} else if value.Valid {
-				_m.blog_admins = new(int)
-				*_m.blog_admins = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.blog_admins = *value
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the User.
-// This includes values selected through modifiers, order, etc.
-func (_m *User) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // QueryCar queries the "car" edge of the User entity.

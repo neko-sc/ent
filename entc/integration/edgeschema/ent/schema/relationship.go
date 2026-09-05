@@ -5,7 +5,6 @@ package schema
 
 import (
 	"github.com/neko-sc/ent"
-	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/privacy"
 	"github.com/neko-sc/ent/schema"
 	"github.com/neko-sc/ent/schema/edge"
 	"github.com/neko-sc/ent/schema/field"
@@ -70,17 +69,5 @@ func (Relationship) Indexes() []ent.Index {
 		// than one relationship object (and edge schema).
 		index.Edges("info").
 			Unique(),
-	}
-}
-
-// Policy defines the privacy policy of the Relationship.
-func (Relationship) Policy() ent.Policy {
-	return privacy.Policy{
-		Mutation: privacy.MutationPolicy{
-			privacy.AlwaysAllowRule(),
-		},
-		Query: privacy.QueryPolicy{
-			privacy.AlwaysAllowRule(),
-		},
 	}
 }

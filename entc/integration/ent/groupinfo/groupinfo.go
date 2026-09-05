@@ -6,8 +6,9 @@
 package groupinfo
 
 import (
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/ent/entity"
 )
 
 const (
@@ -32,6 +33,46 @@ const (
 	GroupsColumn = "group_info"
 )
 
+var (
+	ID       = ent.OrderedColumn[entity.GroupInfo, int]{Table: Table, Name: FieldID}
+	Desc     = ent.StringColumn[entity.GroupInfo, string]{Table: Table, Name: FieldDesc}
+	MaxUsers = ent.OrderedColumn[entity.GroupInfo, int]{Table: Table, Name: FieldMaxUsers}
+	Groups   = ent.NewRelation[entity.GroupInfo, entity.Group, int](EdgeGroups, newGroupsStep)
+)
+
+// Alias returns the columns of the group_infos table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.GroupInfo, int]{Table: name, Name: FieldID},
+		Desc:       ent.StringColumn[entity.GroupInfo, string]{Table: name, Name: FieldDesc},
+		MaxUsers:   ent.OrderedColumn[entity.GroupInfo, int]{Table: name, Name: FieldMaxUsers},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.GroupInfo, int]
+	Desc       ent.StringColumn[entity.GroupInfo, string]
+	MaxUsers   ent.OrderedColumn[entity.GroupInfo, int]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.GroupInfo]) ent.Predicate[entity.GroupInfo] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.GroupInfo]) ent.Predicate[entity.GroupInfo] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.GroupInfo]) ent.Predicate[entity.GroupInfo] {
+	return ent.Not(predicate)
+}
+
 // Columns holds all SQL columns for groupinfo fields.
 var Columns = []string{
 	FieldID,
@@ -54,37 +95,6 @@ var (
 	DefaultMaxUsers int
 )
 
-// OrderOption defines the ordering options for the GroupInfo queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByDesc orders the results by the desc field.
-func ByDesc(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldDesc, opts...).ToFunc()
-}
-
-// ByMaxUsers orders the results by the max_users field.
-func ByMaxUsers(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldMaxUsers, opts...).ToFunc()
-}
-
-// ByGroupsCount orders the results by groups count.
-func ByGroupsCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newGroupsStep(), opts...)
-	}
-}
-
-// ByGroups orders the results by groups terms.
-func ByGroups(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newGroupsStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
 func newGroupsStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),

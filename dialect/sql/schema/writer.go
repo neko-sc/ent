@@ -85,31 +85,24 @@ func NewWriteDriver(dialect string, w io.Writer) *WriteDriver {
 }
 
 // Exec implements the dialect.Driver.Exec method.
-func (w *WriteDriver) Exec(_ context.Context, query string, args, res any) error {
-	if rr, ok := res.(*sql.Result); ok {
-		*rr = noResult{}
-	}
+func (w *WriteDriver) Exec(_ context.Context, query string, args []any) (dialect.Result, error) {
 	if !strings.HasSuffix(query, ";") {
 		query += ";"
 	}
 	if args != nil {
-		args, ok := args.([]any)
-		if !ok {
-			return fmt.Errorf("unexpected args type: %T", args)
-		}
 		query = w.expandArgs(query, args)
 	}
 	_, err := io.WriteString(w, query+"\n")
-	return err
+	return noResult{}, err
 }
 
 // Query implements the dialect.Driver.Query method.
-func (w *WriteDriver) Query(ctx context.Context, query string, args, res any) error {
+func (w *WriteDriver) Query(ctx context.Context, query string, args []any) (dialect.Rows, error) {
 	if strings.HasPrefix(query, "INSERT") || strings.HasPrefix(query, "UPDATE") {
-		if err := w.Exec(ctx, query, args, nil); err != nil {
-			return err
+		if _, err := w.Exec(ctx, query, args); err != nil {
+			return nil, err
 		}
-		if rr, ok := res.(*sql.Rows); ok {
+		{
 			cols := func() []string {
 				// If the query has a RETURNING clause, mock the result.
 				var clause string
@@ -149,15 +142,14 @@ func (w *WriteDriver) Query(ctx context.Context, query string, args, res any) er
 				}
 				return cols
 			}()
-			*rr = sql.Rows{ColumnScanner: &noRows{cols: cols}}
+			return &noRows{cols: cols}, nil
 		}
-		return nil
 	}
 	switch w.Driver.(type) {
 	case nil, nopDriver:
-		return errors.New("query is not supported by the WriteDriver")
+		return nil, errors.New("query is not supported by the WriteDriver")
 	default:
-		return w.Driver.Query(ctx, query, args, res)
+		return w.Driver.Query(ctx, query, args)
 	}
 }
 
@@ -357,8 +349,12 @@ type nopDriver struct {
 	dialect string
 }
 
-func (d nopDriver) Dialect() string { return d.dialect }
+func (d nopDriver) Dialect() dialect.Dialect { return dialect.Dialect(d.dialect) }
 
-func (nopDriver) Query(context.Context, string, any, any) error {
-	return nil
+func (nopDriver) Query(context.Context, string, []any) (dialect.Rows, error) { return &noRows{}, nil }
+
+func (nopDriver) Capabilities() dialect.Capabilities { return dialect.Capabilities{} }
+
+func (w *WriteDriver) BeginTx(ctx context.Context, _ *dialect.TxOptions) (dialect.Tx, error) {
+	return w.Tx(ctx)
 }

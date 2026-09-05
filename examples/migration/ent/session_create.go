@@ -7,170 +7,179 @@ package ent
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/google/uuid"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
+	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/examples/migration/ent/entity"
 	"github.com/neko-sc/ent/examples/migration/ent/session"
 	"github.com/neko-sc/ent/examples/migration/ent/sessiondevice"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// SessionCreate is the builder for creating a Session entity.
 type SessionCreate struct {
 	config
-	mutation *SessionMutation
-	hooks    []Hook
+	mutation    *SessionMutation
+	err         error
+	fromBuilder bool
+	present     map[string]struct{}
+
+	conflict []sql.ConflictOption
 }
 
-// SetActive sets the "active" field.
-func (_c *SessionCreate) SetActive(v bool) *SessionCreate {
-	_c.mutation.SetActive(v)
-	return _c
-}
-
-// SetNillableActive sets the "active" field if the given value is not nil.
-func (_c *SessionCreate) SetNillableActive(v *bool) *SessionCreate {
-	if v != nil {
-		_c.SetActive(*v)
+func (b *SessionCreate) Set[T any](column ent.ColumnOf[entity.Session, T], value T) *SessionCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.set(column.Ref().Name, value)
 	}
-	return _c
-}
-
-// SetIssuedAt sets the "issued_at" field.
-func (_c *SessionCreate) SetIssuedAt(v time.Time) *SessionCreate {
-	_c.mutation.SetIssuedAt(v)
-	return _c
-}
-
-// SetExpiresAt sets the "expires_at" field.
-func (_c *SessionCreate) SetExpiresAt(v time.Time) *SessionCreate {
-	_c.mutation.SetExpiresAt(v)
-	return _c
-}
-
-// SetNillableExpiresAt sets the "expires_at" field if the given value is not nil.
-func (_c *SessionCreate) SetNillableExpiresAt(v *time.Time) *SessionCreate {
-	if v != nil {
-		_c.SetExpiresAt(*v)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
 	}
-	return _c
+	b.present[column.Ref().Name] = struct{}{}
+	return b
 }
-
-// SetToken sets the "token" field.
-func (_c *SessionCreate) SetToken(v string) *SessionCreate {
-	_c.mutation.SetToken(v)
-	return _c
-}
-
-// SetNillableToken sets the "token" field if the given value is not nil.
-func (_c *SessionCreate) SetNillableToken(v *string) *SessionCreate {
-	if v != nil {
-		_c.SetToken(*v)
+func (b *SessionCreate) SetOptional[T any](column ent.ColumnOf[entity.Session, T], value ent.Option[T]) *SessionCreate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.insert.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _c
-}
-
-// SetMethod sets the "method" field.
-func (_c *SessionCreate) SetMethod(v map[string]any) *SessionCreate {
-	_c.mutation.SetMethod(v)
-	return _c
-}
-
-// SetDeviceID sets the "device_id" field.
-func (_c *SessionCreate) SetDeviceID(v uuid.UUID) *SessionCreate {
-	_c.mutation.SetDeviceID(v)
-	return _c
-}
-
-// SetNillableDeviceID sets the "device_id" field if the given value is not nil.
-func (_c *SessionCreate) SetNillableDeviceID(v *uuid.UUID) *SessionCreate {
-	if v != nil {
-		_c.SetDeviceID(*v)
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
 	}
-	return _c
+	return b
 }
-
-// SetID sets the "id" field.
-func (_c *SessionCreate) SetID(v uuid.UUID) *SessionCreate {
-	_c.mutation.SetID(v)
-	return _c
-}
-
-// SetNillableID sets the "id" field if the given value is not nil.
-func (_c *SessionCreate) SetNillableID(v *uuid.UUID) *SessionCreate {
-	if v != nil {
-		_c.SetID(*v)
+func (b *SessionCreate) SetExpr[T any](column ent.ColumnOf[entity.Session, T], value ent.Expr[T]) *SessionCreate {
+	if b.err != nil {
+		return b
 	}
-	return _c
-}
+	switch column.Ref().Name {
 
-// SetDevice sets the "device" edge to the SessionDevice entity.
-func (_c *SessionCreate) SetDevice(v *SessionDevice) *SessionCreate {
-	return _c.SetDeviceID(v.ID)
-}
+	case session.FieldID:
 
-// Mutation returns the SessionMutation object of the builder.
-func (_c *SessionCreate) Mutation() *SessionMutation {
-	return _c.mutation
-}
+	case session.FieldActive:
 
-// Save creates the Session in the database.
-func (_c *SessionCreate) Save(ctx context.Context) (*Session, error) {
-	if err := _c.defaults(); err != nil {
+	case session.FieldIssuedAt:
+
+	case session.FieldExpiresAt:
+
+	case session.FieldToken:
+
+	case session.FieldMethod:
+
+	case session.FieldDeviceID:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Session is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.insert.setExpr(column.Ref().Name, value.Render)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+
+}
+func (b *SessionCreate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Session, N, K], id K) *SessionCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.setEdge(edge.Ref().Name, id)
+	}
+
+	switch edge.Ref().Name {
+	case session.EdgeDevice:
+		if b.present == nil {
+			b.present = make(map[string]struct{})
+		}
+		b.present[session.FieldDeviceID] = struct{}{}
+
+	}
+
+	return b
+}
+func (b *SessionCreate) AddIDs[N, K any](edge ent.Relation[entity.Session, N, K], ids ...K) *SessionCreate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.insert.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *SessionCreate) Mutation() *SessionMutation { return b.mutation }
+
+func (b *SessionCreate) Insert() *SessionInsert { return b.mutation.insert }
+
+func (b *SessionCreate) Save(ctx context.Context) (*Session, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
 		return nil, err
 	}
-	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
+	return b.sqlSave(ctx)
 }
 
-// SaveX calls Save and panics if Save returns an error.
-func (_c *SessionCreate) SaveX(ctx context.Context) *Session {
-	v, err := _c.Save(ctx)
+func (b *SessionCreate) SaveX(ctx context.Context) *Session {
+	node, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return node
 }
 
-// Exec executes the query.
-func (_c *SessionCreate) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *SessionCreate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *SessionCreate) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *SessionCreate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// defaults sets the default values of the builder before save.
-func (_c *SessionCreate) defaults() error {
-	if _, ok := _c.mutation.Active(); !ok {
-		v := session.DefaultActive
-		_c.mutation.SetActive(v)
-	}
-	if _, ok := _c.mutation.ID(); !ok {
+func (b *SessionCreate) defaults() error {
+
+	if b.mutation.insert.ID.IsUnset() && b.mutation.insert.expressions[session.FieldID] == nil {
 		if session.DefaultID == nil {
-			return fmt.Errorf("ent: uninitialized session.DefaultID (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized session.DefaultID")
 		}
-		v := session.DefaultID()
-		_c.mutation.SetID(v)
+		b.mutation.insert.ID = ent.Some(session.DefaultID())
 	}
+
+	if b.mutation.insert.Active.IsUnset() && b.mutation.insert.expressions[session.FieldActive] == nil {
+
+		b.mutation.insert.Active = ent.Some(session.DefaultActive)
+	}
+
 	return nil
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_c *SessionCreate) check() error {
-	if _, ok := _c.mutation.Active(); !ok {
-		return &ValidationError{Name: "active", err: errors.New(`ent: missing required field "Session.active"`)}
+func (b *SessionCreate) check() error {
+	if b.err != nil {
+		return b.err
 	}
-	if _, ok := _c.mutation.IssuedAt(); !ok {
-		return &ValidationError{Name: "issued_at", err: errors.New(`ent: missing required field "Session.issued_at"`)}
+
+	if b.mutation.insert.ID.IsNull() {
+		return &ValidationError{Name: "id", err: errors.New(`ent: field "Session.id" is not nullable`)}
 	}
+
+	if b.mutation.insert.Active.IsNull() {
+		return &ValidationError{Name: "active", err: errors.New(`ent: field "Session.active" is not nullable`)}
+	}
+
+	switch b.driver.Dialect() {
+	case dialect.Postgres, dialect.SQLite:
+		if _, present := b.present[session.FieldIssuedAt]; b.fromBuilder && !present {
+			return &ValidationError{Name: "issued_at", err: errors.New(`ent: missing required field "Session.issued_at"`)}
+		}
+	}
+
 	return nil
 }
 
@@ -178,55 +187,69 @@ func (_c *SessionCreate) sqlSave(ctx context.Context) (*Session, error) {
 	if err := _c.check(); err != nil {
 		return nil, err
 	}
-	_node, _spec := _c.createSpec()
-	if err := sqlgraph.CreateNode(ctx, _c.driver, _spec); err != nil {
+	node, spec, err := _c.createSpec()
+	if err != nil {
+		return nil, err
+	}
+	if err := sqlgraph.CreateNode(ctx, _c.driver, spec); err != nil {
 		if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
 		return nil, err
 	}
-	if _spec.ID.Value != nil {
-		if id, ok := _spec.ID.Value.(*uuid.UUID); ok {
-			_node.ID = *id
-		} else if err := _node.ID.Scan(_spec.ID.Value); err != nil {
-			return nil, err
-		}
-	}
-	_c.mutation.id = &_node.ID
-	_c.mutation.done = true
-	return _node, nil
+	_c.mutation.id = &node.ID
+	return node, nil
 }
 
-func (_c *SessionCreate) createSpec() (*Session, *sqlgraph.CreateSpec) {
-	var (
-		_node = &Session{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(session.Table, sqlgraph.NewFieldSpec(session.FieldID, field.TypeUUID))
-	)
-	if id, ok := _c.mutation.ID(); ok {
-		_node.ID = id
-		_spec.ID.Value = &id
+func (_c *SessionCreate) createSpec() (*Session, *sqlgraph.CreateSpec, error) {
+	_node := &Session{config: _c.config}
+	_spec := sqlgraph.NewCreateSpec(session.Table, sqlgraph.NewFieldSpec(session.FieldID, field.TypeUUID))
+
+	_spec.OnConflict = _c.conflict
+
+	if value, ok := _c.mutation.insert.ID.Get(); ok {
+		_spec.ID.Value = &value
 	}
-	if value, ok := _c.mutation.Active(); ok {
+
+	if value, ok := _c.mutation.insert.Active.Get(); ok {
 		_spec.SetField(session.FieldActive, field.TypeBool, value)
-		_node.Active = value
 	}
-	if value, ok := _c.mutation.IssuedAt(); ok {
+	if _c.mutation.insert.Active.IsNull() {
+		_spec.SetField(session.FieldActive, field.TypeBool, nil)
+	}
+
+	if _, present := _c.present[session.FieldIssuedAt]; !_c.fromBuilder || present {
+		value := _c.mutation.insert.IssuedAt
 		_spec.SetField(session.FieldIssuedAt, field.TypeTime, value)
-		_node.IssuedAt = value
 	}
-	if value, ok := _c.mutation.ExpiresAt(); ok {
+
+	if value, ok := _c.mutation.insert.ExpiresAt.Get(); ok {
 		_spec.SetField(session.FieldExpiresAt, field.TypeTime, value)
-		_node.ExpiresAt = value
 	}
-	if value, ok := _c.mutation.Token(); ok {
+	if _c.mutation.insert.ExpiresAt.IsNull() {
+		_spec.SetField(session.FieldExpiresAt, field.TypeTime, nil)
+	}
+
+	if value, ok := _c.mutation.insert.Token.Get(); ok {
 		_spec.SetField(session.FieldToken, field.TypeString, value)
-		_node.Token = value
 	}
-	if value, ok := _c.mutation.Method(); ok {
+	if _c.mutation.insert.Token.IsNull() {
+		_spec.SetField(session.FieldToken, field.TypeString, nil)
+	}
+
+	if value, ok := _c.mutation.insert.Method.Get(); ok {
 		_spec.SetField(session.FieldMethod, field.TypeJSON, value)
-		_node.Method = value
 	}
-	if nodes := _c.mutation.DeviceIDs(); len(nodes) > 0 {
+	if _c.mutation.insert.Method.IsNull() {
+		_spec.SetField(session.FieldMethod, field.TypeJSON, nil)
+	}
+
+	_spec.Expressions = _c.mutation.insert.expressions
+
+	if nodes := _c.mutation.insert.deviceIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -237,95 +260,436 @@ func (_c *SessionCreate) createSpec() (*Session, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(sessiondevice.FieldID, field.TypeUUID),
 			},
 		}
+		seen := make(map[uuid.UUID]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
-		_node.DeviceID = nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	return _node, _spec
+
+	_spec.Returning = &sqlgraph.Returning{Columns: session.Columns, Scan: func(rows dialect.Rows) error {
+		values, err := _node.scanValues(session.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(session.Columns, values); err != nil {
+			return err
+		}
+
+		_spec.ID.Value = _node.ID
+
+		return nil
+	}}
+	return _node, _spec, nil
 }
 
-// SessionCreateBulk is the builder for creating many Session entities in bulk.
+type SessionUpsertOne struct{ create *SessionCreate }
+
+func (b *SessionCreate) OnConflict(columns ...ent.EntityColumn[entity.Session]) *SessionUpsertOne {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
+	}
+	if len(names) == 0 {
+		return b.OnConflictOptions()
+	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
+}
+
+func (b *SessionCreate) OnConflictConstraint(name string) *SessionUpsertOne {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
+}
+
+func (b *SessionCreate) OnConflictOptions(options ...sql.ConflictOption) *SessionUpsertOne {
+	b.conflict = options
+	return &SessionUpsertOne{create: b}
+}
+
+func (u *SessionUpsertOne) DoNothing() *SessionUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+func (u *SessionUpsertOne) DoSelect() *SessionUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *SessionUpsertOne) Ignore() *SessionUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *SessionUpsertOne) DoUpdate(set func(*SessionUpsert)) *SessionUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&SessionUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *SessionUpsertOne) UpdateNewValues() *SessionUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case session.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
+	}))
+	return u
+}
+
+func (u *SessionUpsertOne) Where(predicates ...ent.Predicate[entity.Session]) *SessionUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(session.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *SessionUpsertOne) UpdateWhere(predicates ...ent.Predicate[entity.Session]) *SessionUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(session.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *SessionUpsertOne) Save(ctx context.Context) (*Session, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for SessionCreate.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *SessionUpsertOne) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
+func (u *SessionUpsertOne) ExecX(ctx context.Context) {
+	if err := u.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+func (u *SessionUpsertOne) ID(ctx context.Context) (id uuid.UUID, err error) {
+	node, err := u.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+func (u *SessionUpsertOne) IDX(ctx context.Context) uuid.UUID {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
+type SessionUpsert struct{ *sql.UpdateSet }
+
+func (u *SessionUpsert) Set[T any](column ent.ColumnOf[entity.Session, T], value T) *SessionUpsert {
+	switch column.Ref().Name {
+
+	case session.FieldActive:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case session.FieldIssuedAt:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case session.FieldExpiresAt:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case session.FieldToken:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case session.FieldMethod:
+
+		encoded, err := json.Marshal(value)
+		if err != nil {
+			u.UpdateSet.AddError(err)
+			return u
+		}
+		u.UpdateSet.Set(column.Ref().Name, json.RawMessage(encoded))
+
+	case session.FieldDeviceID:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Session is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *SessionUpsert) SetExpr[T any](column ent.ColumnOf[entity.Session, T], value ent.Expr[T]) *SessionUpsert {
+	switch column.Ref().Name {
+
+	case session.FieldActive:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case session.FieldIssuedAt:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case session.FieldExpiresAt:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case session.FieldToken:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case session.FieldMethod:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case session.FieldDeviceID:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Session is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *SessionUpsert) UpdateNewValue[T any](column ent.ColumnOf[entity.Session, T]) *SessionUpsert {
+	switch column.Ref().Name {
+
+	case session.FieldActive:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case session.FieldIssuedAt:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case session.FieldExpiresAt:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case session.FieldToken:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case session.FieldMethod:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case session.FieldDeviceID:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Session is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *SessionUpsert) Add[T ent.Number](column ent.ColumnOf[entity.Session, T], delta T) *SessionUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Session does not support addition", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *SessionUpsert) Clear[T any](column ent.ColumnOf[entity.Session, T]) *SessionUpsert {
+	switch column.Ref().Name {
+
+	case session.FieldExpiresAt:
+		u.UpdateSet.SetNull(column.Ref().Name)
+
+	case session.FieldToken:
+		u.UpdateSet.SetNull(column.Ref().Name)
+
+	case session.FieldMethod:
+		u.UpdateSet.SetNull(column.Ref().Name)
+
+	case session.FieldDeviceID:
+		u.UpdateSet.SetNull(column.Ref().Name)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Session is not nullable", column.Ref().Name)})
+	}
+	return u
+}
+
 type SessionCreateBulk struct {
 	config
 	err      error
 	builders []*SessionCreate
+
+	conflict []sql.ConflictOption
 }
 
-// Save creates the Session entities in the database.
 func (_c *SessionCreateBulk) Save(ctx context.Context) ([]*Session, error) {
 	if _c.err != nil {
 		return nil, _c.err
 	}
-	specs := make([]*sqlgraph.CreateSpec, len(_c.builders))
 	nodes := make([]*Session, len(_c.builders))
-	mutators := make([]Mutator, len(_c.builders))
-	for i := range _c.builders {
-		func(i int, root context.Context) {
-			builder := _c.builders[i]
-			builder.defaults()
-			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*SessionMutation)
-				if !ok {
-					return nil, fmt.Errorf("unexpected mutation type %T", m)
-				}
-				if err := builder.check(); err != nil {
-					return nil, err
-				}
-				builder.mutation = mutation
-				var err error
-				nodes[i], specs[i] = builder.createSpec()
-				if i < len(mutators)-1 {
-					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
-				} else {
-					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
-					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
-						if sqlgraph.IsConstraintError(err) {
-							err = &ConstraintError{msg: err.Error(), wrap: err}
-						}
-					}
-				}
-				if err != nil {
-					return nil, err
-				}
-				mutation.id = &nodes[i].ID
-				mutation.done = true
-				return nodes[i], nil
-			})
-			for i := len(builder.hooks) - 1; i >= 0; i-- {
-				mut = builder.hooks[i](mut)
-			}
-			mutators[i] = mut
-		}(i, ctx)
-	}
-	if len(mutators) > 0 {
-		if _, err := mutators[0].Mutate(ctx, _c.builders[0].mutation); err != nil {
+	specs := make([]*sqlgraph.CreateSpec, len(nodes))
+	for index, builder := range _c.builders {
+		if builder.err != nil {
+			return nil, builder.err
+		}
+		if err := builder.defaults(); err != nil {
+			return nil, err
+		}
+		if err := builder.check(); err != nil {
+			return nil, err
+		}
+		var err error
+		nodes[index], specs[index], err = builder.createSpec()
+		if err != nil {
 			return nil, err
 		}
 	}
-	return nodes, nil
+	if len(specs) == 0 {
+		return nodes, nil
+	}
+	spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+
+	spec.OnConflict = _c.conflict
+
+	if err := sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
+		if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{msg: err.Error(), wrap: err}
+		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
+		return nil, err
+	}
+	result := nodes[:0]
+	for index, builder := range _c.builders {
+		if specs[index].Skipped {
+			continue
+		}
+		builder.mutation.id = &nodes[index].ID
+		result = append(result, nodes[index])
+	}
+	return result, nil
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_c *SessionCreateBulk) SaveX(ctx context.Context) []*Session {
-	v, err := _c.Save(ctx)
+func (b *SessionCreateBulk) SaveX(ctx context.Context) []*Session {
+	nodes, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return nodes
 }
 
-// Exec executes the query.
-func (_c *SessionCreateBulk) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
+func (b *SessionCreateBulk) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
+
+func (b *SessionCreateBulk) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+type SessionUpsertBulk struct{ create *SessionCreateBulk }
+
+func (b *SessionCreateBulk) OnConflict(columns ...ent.EntityColumn[entity.Session]) *SessionUpsertBulk {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
+	}
+	if len(names) == 0 {
+		return b.OnConflictOptions()
+	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
+}
+
+func (b *SessionCreateBulk) OnConflictConstraint(name string) *SessionUpsertBulk {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
+}
+
+func (b *SessionCreateBulk) OnConflictOptions(options ...sql.ConflictOption) *SessionUpsertBulk {
+	b.conflict = options
+	return &SessionUpsertBulk{create: b}
+}
+
+func (u *SessionUpsertBulk) DoNothing() *SessionUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+func (u *SessionUpsertBulk) DoSelect() *SessionUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *SessionUpsertBulk) Ignore() *SessionUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *SessionUpsertBulk) DoUpdate(set func(*SessionUpsert)) *SessionUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&SessionUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *SessionUpsertBulk) UpdateNewValues() *SessionUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case session.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
+	}))
+	return u
+}
+
+func (u *SessionUpsertBulk) Where(predicates ...ent.Predicate[entity.Session]) *SessionUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(session.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *SessionUpsertBulk) UpdateWhere(predicates ...ent.Predicate[entity.Session]) *SessionUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(session.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *SessionUpsertBulk) Save(ctx context.Context) ([]*Session, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for SessionCreateBulk.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *SessionUpsertBulk) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
 	return err
 }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *SessionCreateBulk) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (u *SessionUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

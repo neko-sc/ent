@@ -7,8 +7,8 @@ package relationship
 
 import (
 	"github.com/neko-sc/ent"
-	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/entity"
 )
 
 const (
@@ -57,6 +57,51 @@ const (
 	InfoColumn = "info_id"
 )
 
+var (
+	Weight     = ent.OrderedColumn[entity.Relationship, int]{Table: Table, Name: FieldWeight}
+	UserID     = ent.OrderedColumn[entity.Relationship, int]{Table: Table, Name: FieldUserID}
+	RelativeID = ent.OrderedColumn[entity.Relationship, int]{Table: Table, Name: FieldRelativeID}
+	InfoID     = ent.OrderedColumn[entity.Relationship, int]{Table: Table, Name: FieldInfoID}
+	User       = ent.NewUniqueRelation[entity.Relationship, entity.User, int](EdgeUser, newUserStep)
+	Relative   = ent.NewUniqueRelation[entity.Relationship, entity.User, int](EdgeRelative, newRelativeStep)
+	Info       = ent.NewUniqueRelation[entity.Relationship, entity.RelationshipInfo, int](EdgeInfo, newInfoStep)
+)
+
+// Alias returns the columns of the relationships table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		Weight:     ent.OrderedColumn[entity.Relationship, int]{Table: name, Name: FieldWeight},
+		UserID:     ent.OrderedColumn[entity.Relationship, int]{Table: name, Name: FieldUserID},
+		RelativeID: ent.OrderedColumn[entity.Relationship, int]{Table: name, Name: FieldRelativeID},
+		InfoID:     ent.OrderedColumn[entity.Relationship, int]{Table: name, Name: FieldInfoID},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	Weight     ent.OrderedColumn[entity.Relationship, int]
+	UserID     ent.OrderedColumn[entity.Relationship, int]
+	RelativeID ent.OrderedColumn[entity.Relationship, int]
+	InfoID     ent.OrderedColumn[entity.Relationship, int]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.Relationship]) ent.Predicate[entity.Relationship] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.Relationship]) ent.Predicate[entity.Relationship] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.Relationship]) ent.Predicate[entity.Relationship] {
+	return ent.Not(predicate)
+}
+
 // Columns holds all SQL columns for relationship fields.
 var Columns = []string{
 	FieldWeight,
@@ -75,61 +120,11 @@ func ValidColumn(column string) bool {
 	return false
 }
 
-// Note that the variables below are initialized by the runtime
-// package on the initialization of the application. Therefore,
-// it should be imported in the main as follows:
-//
-//	import _ "github.com/neko-sc/ent/entc/integration/edgeschema/ent/runtime"
 var (
-	Hooks  [1]ent.Hook
-	Policy ent.Policy
 	// DefaultWeight holds the default value on creation for the "weight" field.
 	DefaultWeight int
 )
 
-// OrderOption defines the ordering options for the Relationship queries.
-type OrderOption func(*sql.Selector)
-
-// ByWeight orders the results by the weight field.
-func ByWeight(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldWeight, opts...).ToFunc()
-}
-
-// ByUserID orders the results by the user_id field.
-func ByUserID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldUserID, opts...).ToFunc()
-}
-
-// ByRelativeID orders the results by the relative_id field.
-func ByRelativeID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldRelativeID, opts...).ToFunc()
-}
-
-// ByInfoID orders the results by the info_id field.
-func ByInfoID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldInfoID, opts...).ToFunc()
-}
-
-// ByUserField orders the results by user field.
-func ByUserField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newUserStep(), sql.OrderByField(field, opts...))
-	}
-}
-
-// ByRelativeField orders the results by relative field.
-func ByRelativeField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newRelativeStep(), sql.OrderByField(field, opts...))
-	}
-}
-
-// ByInfoField orders the results by info field.
-func ByInfoField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newInfoStep(), sql.OrderByField(field, opts...))
-	}
-}
 func newUserStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, UserColumn),

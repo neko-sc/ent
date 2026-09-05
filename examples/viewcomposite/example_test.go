@@ -11,7 +11,9 @@ import (
 
 	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/examples/viewcomposite/ent"
+	pet "github.com/neko-sc/ent/examples/viewcomposite/ent/pet"
 	"github.com/neko-sc/ent/examples/viewcomposite/ent/petusername"
+	user "github.com/neko-sc/ent/examples/viewcomposite/ent/user"
 
 	"ariga.io/atlas-go-sdk/atlasexec"
 	_ "github.com/lib/pq"
@@ -45,14 +47,14 @@ func TestViews(t *testing.T) {
 		client.User.Delete().ExecX(ctx)
 		client.Pet.Delete().ExecX(ctx)
 	})
-	u1 := client.User.Create().SetName("a8m").SetPrivateInfo("secret").SetPublicInfo("public").SaveX(ctx)
+	u1 := client.User.Create().Set(user.Name, "a8m").Set(user.PrivateInfo, "secret").Set(user.PublicInfo, "public").SaveX(ctx)
 	v1 := client.CleanUser.Query().OnlyX(ctx)
 	require.Equal(t, u1.ID, v1.ID)
 	require.Equal(t, u1.Name, v1.Name)
 	require.Equal(t, u1.PublicInfo, v1.PublicInfo)
 
-	p1 := client.Pet.Create().SetName("pedro").SaveX(ctx)
-	names := client.PetUserName.Query().Order(petusername.ByName()).AllX(ctx)
+	p1 := client.Pet.Create().Set(pet.Name, "pedro").SaveX(ctx)
+	names := client.PetUserName.Query().Order(petusername.Name.Asc()).AllX(ctx)
 	require.Len(t, names, 2)
 	require.Equal(t, names[0].Name, u1.Name)
 	require.Equal(t, names[1].Name, p1.Name)

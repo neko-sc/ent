@@ -9,9 +9,11 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	time2 "time"
 
 	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/role"
 	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/roleuser"
 	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/user"
@@ -21,15 +23,14 @@ import (
 type RoleUser struct {
 	config `json:"-"`
 	// CreatedAt holds the value of the "created_at" field.
-	CreatedAt time.Time `json:"created_at,omitempty"`
+	CreatedAt time2.Time `json:"created_at,omitempty"`
 	// RoleID holds the value of the "role_id" field.
 	RoleID int `json:"role_id,omitempty"`
 	// UserID holds the value of the "user_id" field.
 	UserID int `json:"user_id,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the RoleUserQuery when eager-loading is set.
-	Edges        RoleUserEdges `json:"edges"`
-	selectValues sql.SelectValues
+	Edges RoleUserEdges `json:"edges"`
 }
 
 // RoleUserEdges holds the relations/edges for other nodes in the graph.
@@ -41,6 +42,34 @@ type RoleUserEdges struct {
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes [2]bool
+	counts      map[string]int
+}
+
+func (e RoleUserEdges) Loaded[N, K any](edge ent.RelationOf[entity.RoleUser, N, K]) bool {
+	switch edge.Ref().Name {
+	case "role":
+		return e.loadedTypes[0]
+	case "user":
+		return e.loadedTypes[1]
+
+	default:
+		return false
+	}
+}
+
+func (e *RoleUserEdges) SetLoaded[N, K any](edge ent.RelationOf[entity.RoleUser, N, K], loaded bool) {
+	switch edge.Ref().Name {
+	case "role":
+		e.loadedTypes[0] = loaded
+	case "user":
+		e.loadedTypes[1] = loaded
+
+	}
+}
+
+func (e RoleUserEdges) Count[N, K any](edge ent.Relation[entity.RoleUser, N, K]) (int, bool) {
+	count, loaded := e.counts[edge.Ref().Name]
+	return count, loaded
 }
 
 // RoleOrErr returns the Role value or an error if the edge
@@ -71,9 +100,9 @@ func (*RoleUser) scanValues(columns []string) ([]any, error) {
 	for i := range columns {
 		switch columns[i] {
 		case roleuser.FieldRoleID, roleuser.FieldUserID:
-			values[i] = new(sql.NullInt64)
+			values[i] = new(*int)
 		case roleuser.FieldCreatedAt:
-			values[i] = new(sql.NullTime)
+			values[i] = new(*time2.Time)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -90,34 +119,29 @@ func (_m *RoleUser) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case roleuser.FieldCreatedAt:
-			if value, ok := values[i].(*sql.NullTime); !ok {
+
+			if value, ok := values[i].(**time2.Time); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
-			} else if value.Valid {
-				_m.CreatedAt = time.Time(value.Time)
+			} else if value != nil && *value != nil {
+				_m.CreatedAt = **value
 			}
 		case roleuser.FieldRoleID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field role_id", values[i])
-			} else if value.Valid {
-				_m.RoleID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.RoleID = **value
 			}
 		case roleuser.FieldUserID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field user_id", values[i])
-			} else if value.Valid {
-				_m.UserID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.UserID = **value
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the RoleUser.
-// This includes values selected through modifiers, order, etc.
-func (_m *RoleUser) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // QueryRole queries the "role" edge of the RoleUser entity.

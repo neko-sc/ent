@@ -8,9 +8,11 @@ package ent
 import (
 	"context"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
-	"github.com/neko-sc/ent/examples/migration/ent/predicate"
+	"github.com/neko-sc/ent/examples/migration/ent/entity"
 	"github.com/neko-sc/ent/examples/migration/ent/sessiondevice"
 	"github.com/neko-sc/ent/schema/field"
 )
@@ -18,19 +20,44 @@ import (
 // SessionDeviceDelete is the builder for deleting a SessionDevice entity.
 type SessionDeviceDelete struct {
 	config
-	hooks    []Hook
-	mutation *SessionDeviceMutation
+
+	mutation  *SessionDeviceMutation
+	returning *sqlgraph.Returning
 }
 
 // Where appends a list predicates to the SessionDeviceDelete builder.
-func (_d *SessionDeviceDelete) Where(ps ...predicate.SessionDevice) *SessionDeviceDelete {
-	_d.mutation.Where(ps...)
+func (_d *SessionDeviceDelete) Where(predicates ...ent.Predicate[entity.SessionDevice]) *SessionDeviceDelete {
+	_d.mutation.Where(predicates...)
 	return _d
 }
 
 // Exec executes the deletion query and returns how many vertices were deleted.
 func (_d *SessionDeviceDelete) Exec(ctx context.Context) (int, error) {
-	return withHooks(ctx, _d.sqlExec, _d.mutation, _d.hooks)
+	return _d.sqlExec(ctx)
+}
+
+func (b *SessionDeviceDelete) Returning(ctx context.Context) ([]*SessionDevice, error) {
+	nodes := make([]*SessionDevice, 0)
+	b.returning = &sqlgraph.Returning{Columns: sessiondevice.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &SessionDevice{config: b.config}
+		values, err := _node.scanValues(sessiondevice.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(sessiondevice.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Exec(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
 }
 
 // ExecX is like Exec, but panics if an error occurs.
@@ -51,11 +78,11 @@ func (_d *SessionDeviceDelete) sqlExec(ctx context.Context) (int, error) {
 			}
 		}
 	}
+	_spec.Returning = _d.returning
 	affected, err := sqlgraph.DeleteNodes(ctx, _d.driver, _spec)
 	if err != nil && sqlgraph.IsConstraintError(err) {
 		err = &ConstraintError{msg: err.Error(), wrap: err}
 	}
-	_d.mutation.done = true
 	return affected, err
 }
 
@@ -65,8 +92,8 @@ type SessionDeviceDeleteOne struct {
 }
 
 // Where appends a list predicates to the SessionDeviceDelete builder.
-func (_d *SessionDeviceDeleteOne) Where(ps ...predicate.SessionDevice) *SessionDeviceDeleteOne {
-	_d._d.mutation.Where(ps...)
+func (_d *SessionDeviceDeleteOne) Where(predicates ...ent.Predicate[entity.SessionDevice]) *SessionDeviceDeleteOne {
+	_d._d.mutation.Where(predicates...)
 	return _d
 }
 

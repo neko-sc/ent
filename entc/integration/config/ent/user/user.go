@@ -6,7 +6,8 @@
 package user
 
 import (
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/entc/integration/config/ent/entity"
 )
 
 const (
@@ -16,17 +17,54 @@ const (
 	FieldID = "user_id"
 	// FieldName holds the string denoting the name field in the database.
 	FieldName = "name"
-	// FieldLabel holds the string denoting the label field in the database.
-	FieldLabel = "label"
+	// FieldDisplayLabel holds the string denoting the display_label field in the database.
+	FieldDisplayLabel = "label"
 	// Table holds the table name of the user in the database.
 	Table = "Users"
 )
+
+var (
+	ID           = ent.OrderedColumn[entity.User, int]{Table: Table, Name: FieldID}
+	Name         = ent.StringColumn[entity.User, string]{Table: Table, Name: FieldName}
+	DisplayLabel = ent.StringColumn[entity.User, string]{Table: Table, Name: FieldDisplayLabel}
+)
+
+// Alias returns the columns of the Users table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias:   name,
+		ID:           ent.OrderedColumn[entity.User, int]{Table: name, Name: FieldID},
+		Name:         ent.StringColumn[entity.User, string]{Table: name, Name: FieldName},
+		DisplayLabel: ent.StringColumn[entity.User, string]{Table: name, Name: FieldDisplayLabel},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias   string
+	ID           ent.OrderedColumn[entity.User, int]
+	Name         ent.StringColumn[entity.User, string]
+	DisplayLabel ent.StringColumn[entity.User, string]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.User]) ent.Predicate[entity.User] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.User]) ent.Predicate[entity.User] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.User]) ent.Predicate[entity.User] { return ent.Not(predicate) }
 
 // Columns holds all SQL columns for user fields.
 var Columns = []string{
 	FieldID,
 	FieldName,
-	FieldLabel,
+	FieldDisplayLabel,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -37,22 +75,4 @@ func ValidColumn(column string) bool {
 		}
 	}
 	return false
-}
-
-// OrderOption defines the ordering options for the User queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByName orders the results by the name field.
-func ByName(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldName, opts...).ToFunc()
-}
-
-// ByLabel orders the results by the label field.
-func ByLabel(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldLabel, opts...).ToFunc()
 }

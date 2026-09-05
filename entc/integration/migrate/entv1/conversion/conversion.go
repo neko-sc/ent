@@ -6,7 +6,8 @@
 package conversion
 
 import (
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/entc/integration/migrate/entv1/entity"
 )
 
 const (
@@ -36,6 +37,66 @@ const (
 	Table = "conversions"
 )
 
+var (
+	ID             = ent.OrderedColumn[entity.Conversion, int]{Table: Table, Name: FieldID}
+	Name           = ent.StringColumn[entity.Conversion, string]{Table: Table, Name: FieldName}
+	Int8ToString   = ent.OrderedColumn[entity.Conversion, int8]{Table: Table, Name: FieldInt8ToString}
+	Uint8ToString  = ent.OrderedColumn[entity.Conversion, uint8]{Table: Table, Name: FieldUint8ToString}
+	Int16ToString  = ent.OrderedColumn[entity.Conversion, int16]{Table: Table, Name: FieldInt16ToString}
+	Uint16ToString = ent.OrderedColumn[entity.Conversion, uint16]{Table: Table, Name: FieldUint16ToString}
+	Int32ToString  = ent.OrderedColumn[entity.Conversion, int32]{Table: Table, Name: FieldInt32ToString}
+	Uint32ToString = ent.OrderedColumn[entity.Conversion, uint32]{Table: Table, Name: FieldUint32ToString}
+	Int64ToString  = ent.OrderedColumn[entity.Conversion, int64]{Table: Table, Name: FieldInt64ToString}
+	Uint64ToString = ent.OrderedColumn[entity.Conversion, uint64]{Table: Table, Name: FieldUint64ToString}
+)
+
+// Alias returns the columns of the conversions table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias:     name,
+		ID:             ent.OrderedColumn[entity.Conversion, int]{Table: name, Name: FieldID},
+		Name:           ent.StringColumn[entity.Conversion, string]{Table: name, Name: FieldName},
+		Int8ToString:   ent.OrderedColumn[entity.Conversion, int8]{Table: name, Name: FieldInt8ToString},
+		Uint8ToString:  ent.OrderedColumn[entity.Conversion, uint8]{Table: name, Name: FieldUint8ToString},
+		Int16ToString:  ent.OrderedColumn[entity.Conversion, int16]{Table: name, Name: FieldInt16ToString},
+		Uint16ToString: ent.OrderedColumn[entity.Conversion, uint16]{Table: name, Name: FieldUint16ToString},
+		Int32ToString:  ent.OrderedColumn[entity.Conversion, int32]{Table: name, Name: FieldInt32ToString},
+		Uint32ToString: ent.OrderedColumn[entity.Conversion, uint32]{Table: name, Name: FieldUint32ToString},
+		Int64ToString:  ent.OrderedColumn[entity.Conversion, int64]{Table: name, Name: FieldInt64ToString},
+		Uint64ToString: ent.OrderedColumn[entity.Conversion, uint64]{Table: name, Name: FieldUint64ToString},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias     string
+	ID             ent.OrderedColumn[entity.Conversion, int]
+	Name           ent.StringColumn[entity.Conversion, string]
+	Int8ToString   ent.OrderedColumn[entity.Conversion, int8]
+	Uint8ToString  ent.OrderedColumn[entity.Conversion, uint8]
+	Int16ToString  ent.OrderedColumn[entity.Conversion, int16]
+	Uint16ToString ent.OrderedColumn[entity.Conversion, uint16]
+	Int32ToString  ent.OrderedColumn[entity.Conversion, int32]
+	Uint32ToString ent.OrderedColumn[entity.Conversion, uint32]
+	Int64ToString  ent.OrderedColumn[entity.Conversion, int64]
+	Uint64ToString ent.OrderedColumn[entity.Conversion, uint64]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.Conversion]) ent.Predicate[entity.Conversion] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.Conversion]) ent.Predicate[entity.Conversion] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.Conversion]) ent.Predicate[entity.Conversion] {
+	return ent.Not(predicate)
+}
+
 // Columns holds all SQL columns for conversion fields.
 var Columns = []string{
 	FieldID,
@@ -58,57 +119,4 @@ func ValidColumn(column string) bool {
 		}
 	}
 	return false
-}
-
-// OrderOption defines the ordering options for the Conversion queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByName orders the results by the name field.
-func ByName(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldName, opts...).ToFunc()
-}
-
-// ByInt8ToString orders the results by the int8_to_string field.
-func ByInt8ToString(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldInt8ToString, opts...).ToFunc()
-}
-
-// ByUint8ToString orders the results by the uint8_to_string field.
-func ByUint8ToString(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldUint8ToString, opts...).ToFunc()
-}
-
-// ByInt16ToString orders the results by the int16_to_string field.
-func ByInt16ToString(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldInt16ToString, opts...).ToFunc()
-}
-
-// ByUint16ToString orders the results by the uint16_to_string field.
-func ByUint16ToString(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldUint16ToString, opts...).ToFunc()
-}
-
-// ByInt32ToString orders the results by the int32_to_string field.
-func ByInt32ToString(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldInt32ToString, opts...).ToFunc()
-}
-
-// ByUint32ToString orders the results by the uint32_to_string field.
-func ByUint32ToString(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldUint32ToString, opts...).ToFunc()
-}
-
-// ByInt64ToString orders the results by the int64_to_string field.
-func ByInt64ToString(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldInt64ToString, opts...).ToFunc()
-}
-
-// ByUint64ToString orders the results by the uint64_to_string field.
-func ByUint64ToString(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldUint64ToString, opts...).ToFunc()
 }

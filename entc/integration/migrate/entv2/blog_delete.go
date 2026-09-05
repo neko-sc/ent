@@ -8,29 +8,56 @@ package entv2
 import (
 	"context"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/entc/integration/migrate/entv2/blog"
-	"github.com/neko-sc/ent/entc/integration/migrate/entv2/predicate"
+	"github.com/neko-sc/ent/entc/integration/migrate/entv2/entity"
 	"github.com/neko-sc/ent/schema/field"
 )
 
 // BlogDelete is the builder for deleting a Blog entity.
 type BlogDelete struct {
 	config
-	hooks    []Hook
-	mutation *BlogMutation
+
+	mutation  *BlogMutation
+	returning *sqlgraph.Returning
 }
 
 // Where appends a list predicates to the BlogDelete builder.
-func (_d *BlogDelete) Where(ps ...predicate.Blog) *BlogDelete {
-	_d.mutation.Where(ps...)
+func (_d *BlogDelete) Where(predicates ...ent.Predicate[entity.Blog]) *BlogDelete {
+	_d.mutation.Where(predicates...)
 	return _d
 }
 
 // Exec executes the deletion query and returns how many vertices were deleted.
 func (_d *BlogDelete) Exec(ctx context.Context) (int, error) {
-	return withHooks(ctx, _d.sqlExec, _d.mutation, _d.hooks)
+	return _d.sqlExec(ctx)
+}
+
+func (b *BlogDelete) Returning(ctx context.Context) ([]*Blog, error) {
+	nodes := make([]*Blog, 0)
+	b.returning = &sqlgraph.Returning{Columns: blog.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Blog{config: b.config}
+		values, err := _node.scanValues(blog.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(blog.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Exec(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
 }
 
 // ExecX is like Exec, but panics if an error occurs.
@@ -51,11 +78,11 @@ func (_d *BlogDelete) sqlExec(ctx context.Context) (int, error) {
 			}
 		}
 	}
+	_spec.Returning = _d.returning
 	affected, err := sqlgraph.DeleteNodes(ctx, _d.driver, _spec)
 	if err != nil && sqlgraph.IsConstraintError(err) {
 		err = &ConstraintError{msg: err.Error(), wrap: err}
 	}
-	_d.mutation.done = true
 	return affected, err
 }
 
@@ -65,8 +92,8 @@ type BlogDeleteOne struct {
 }
 
 // Where appends a list predicates to the BlogDelete builder.
-func (_d *BlogDeleteOne) Where(ps ...predicate.Blog) *BlogDeleteOne {
-	_d._d.mutation.Where(ps...)
+func (_d *BlogDeleteOne) Where(predicates ...ent.Predicate[entity.Blog]) *BlogDeleteOne {
+	_d._d.mutation.Where(predicates...)
 	return _d
 }
 

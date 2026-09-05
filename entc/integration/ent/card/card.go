@@ -6,10 +6,11 @@
 package card
 
 import (
-	"time"
+	time2 "time"
 
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/ent/entity"
 )
 
 const (
@@ -46,6 +47,54 @@ const (
 	// It exists in this package in order to avoid circular dependency with the "spec" package.
 	SpecInverseTable = "specs"
 )
+
+var (
+	ID         = ent.OrderedColumn[entity.Card, int]{Table: Table, Name: FieldID}
+	CreateTime = ent.OrderedColumn[entity.Card, time2.Time]{Table: Table, Name: FieldCreateTime}
+	UpdateTime = ent.OrderedColumn[entity.Card, time2.Time]{Table: Table, Name: FieldUpdateTime}
+	Balance    = ent.OrderedColumn[entity.Card, float64]{Table: Table, Name: FieldBalance}
+	Number     = ent.StringColumn[entity.Card, string]{Table: Table, Name: FieldNumber}
+	Name       = ent.StringColumn[entity.Card, string]{Table: Table, Name: FieldName}
+	Owner      = ent.NewUniqueRelation[entity.Card, entity.User, int](EdgeOwner, newOwnerStep)
+	Spec       = ent.NewRelation[entity.Card, entity.Spec, int](EdgeSpec, newSpecStep)
+)
+
+// Alias returns the columns of the cards table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.Card, int]{Table: name, Name: FieldID},
+		CreateTime: ent.OrderedColumn[entity.Card, time2.Time]{Table: name, Name: FieldCreateTime},
+		UpdateTime: ent.OrderedColumn[entity.Card, time2.Time]{Table: name, Name: FieldUpdateTime},
+		Balance:    ent.OrderedColumn[entity.Card, float64]{Table: name, Name: FieldBalance},
+		Number:     ent.StringColumn[entity.Card, string]{Table: name, Name: FieldNumber},
+		Name:       ent.StringColumn[entity.Card, string]{Table: name, Name: FieldName},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.Card, int]
+	CreateTime ent.OrderedColumn[entity.Card, time2.Time]
+	UpdateTime ent.OrderedColumn[entity.Card, time2.Time]
+	Balance    ent.OrderedColumn[entity.Card, float64]
+	Number     ent.StringColumn[entity.Card, string]
+	Name       ent.StringColumn[entity.Card, string]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.Card]) ent.Predicate[entity.Card] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.Card]) ent.Predicate[entity.Card] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.Card]) ent.Predicate[entity.Card] { return ent.Not(predicate) }
 
 // Columns holds all SQL columns for card fields.
 var Columns = []string{
@@ -86,11 +135,11 @@ func ValidColumn(column string) bool {
 
 var (
 	// DefaultCreateTime holds the default value on creation for the "create_time" field.
-	DefaultCreateTime func() time.Time
+	DefaultCreateTime func() time2.Time
 	// DefaultUpdateTime holds the default value on creation for the "update_time" field.
-	DefaultUpdateTime func() time.Time
+	DefaultUpdateTime func() time2.Time
 	// UpdateDefaultUpdateTime holds the default value on update for the "update_time" field.
-	UpdateDefaultUpdateTime func() time.Time
+	UpdateDefaultUpdateTime func() time2.Time
 	// DefaultBalance holds the default value on creation for the "balance" field.
 	DefaultBalance float64
 	// NumberValidator is a validator for the "number" field. It is called by the builders before save.
@@ -99,59 +148,6 @@ var (
 	NameValidator func(string) error
 )
 
-// OrderOption defines the ordering options for the Card queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByCreateTime orders the results by the create_time field.
-func ByCreateTime(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldCreateTime, opts...).ToFunc()
-}
-
-// ByUpdateTime orders the results by the update_time field.
-func ByUpdateTime(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldUpdateTime, opts...).ToFunc()
-}
-
-// ByBalance orders the results by the balance field.
-func ByBalance(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldBalance, opts...).ToFunc()
-}
-
-// ByNumber orders the results by the number field.
-func ByNumber(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldNumber, opts...).ToFunc()
-}
-
-// ByName orders the results by the name field.
-func ByName(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldName, opts...).ToFunc()
-}
-
-// ByOwnerField orders the results by owner field.
-func ByOwnerField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newOwnerStep(), sql.OrderByField(field, opts...))
-	}
-}
-
-// BySpecCount orders the results by spec count.
-func BySpecCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newSpecStep(), opts...)
-	}
-}
-
-// BySpec orders the results by spec terms.
-func BySpec(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newSpecStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
 func newOwnerStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),

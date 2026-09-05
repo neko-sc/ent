@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/entc/integration/migrate/entv2/group"
 )
@@ -18,8 +17,7 @@ import (
 type Group struct {
 	config
 	// ID of the ent.
-	ID           int `json:"id,omitempty"`
-	selectValues sql.SelectValues
+	ID int `json:"id,omitempty"`
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -28,7 +26,7 @@ func (*Group) scanValues(columns []string) ([]any, error) {
 	for i := range columns {
 		switch columns[i] {
 		case group.FieldID:
-			values[i] = new(sql.NullInt64)
+			values[i] = new(*int)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -45,22 +43,15 @@ func (_m *Group) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case group.FieldID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field id", values[i])
-			} else if value.Valid {
-				_m.ID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.ID = **value
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the Group.
-// This includes values selected through modifiers, order, etc.
-func (_m *Group) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // Update returns a builder for updating this Group.

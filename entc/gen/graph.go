@@ -176,6 +176,66 @@ func NewGraph(c *Config, schemas ...*load.Schema) (g *Graph, err error) {
 		g.addIndexes(schemas[i])
 	}
 	check(g.edgeSchemas(), "resolving edges")
+	for _, node := range g.Nodes {
+		names := map[string]bool{}
+		for _, name := range []string{"Label", "Table", "Columns", "ForeignKeys", "ValidColumn", "OrderOption", "Alias", "ID", "Entity", "AliasedTable", "TableAlias", "And", "Or", "Not", "Mutation", "NewMutation", "ValueScanner"} {
+			names[name] = true
+		}
+		if node.HasOneFieldID() {
+			names[node.ID.Constant()] = true
+		}
+		for _, field := range node.Fields {
+			names[field.Constant()] = true
+		}
+		for _, edge := range node.Edges {
+			names[edge.Constant()] = true
+			names[edge.TableConstant()] = true
+			names[edge.ColumnConstant()] = true
+			names[edge.InverseTableConstant()] = true
+			names[edge.PKConstant()] = true
+		}
+		if !node.HasOneFieldID() {
+			delete(names, "ID")
+		}
+		for _, field := range node.Fields {
+			expect(!names[field.StructField()], "%s field %q conflicts with generated descriptor name %q", node.Name, field.Name, field.StructField())
+			names[field.StructField()] = true
+		}
+		for index, fields := range [][]*Field{node.InsertFields(), node.MutableFields()} {
+			slots := map[string]bool{"expressions": true, "clearedEdges": true}
+			for _, field := range fields {
+				expect(!slots[field.StructField()], "%s write slot %q conflicts with a generated slot", node.Name, field.StructField())
+				slots[field.StructField()] = true
+			}
+			if index == 1 {
+				for _, field := range fields {
+					if field.SupportsMutationAdd() {
+						expect(!slots[field.StructField()+"Add"], "%s write slot %q conflicts with an addition slot", node.Name, field.StructField()+"Add")
+						slots[field.StructField()+"Add"] = true
+					}
+					if field.SupportsMutationAppend() {
+						expect(!slots[field.StructField()+"Append"], "%s write slot %q conflicts with an append slot", node.Name, field.StructField()+"Append")
+						slots[field.StructField()+"Append"] = true
+					}
+				}
+			}
+			for _, edge := range node.EdgesWithID() {
+				if edge.Field() != nil || index == 1 && edge.Immutable {
+					continue
+				}
+				slot := edge.InsertSlot()
+				if index == 1 {
+					slot = edge.PatchSlot()
+				}
+				expect(!slots[slot], "%s edge %q conflicts with write slot %q", node.Name, edge.Name, slot)
+				slots[slot] = true
+			}
+		}
+		for _, edge := range node.Edges {
+			expect(!names[edge.StructField()], "%s edge %q conflicts with field or generated descriptor name %q", node.Name, edge.Name, edge.StructField())
+			names[edge.StructField()] = true
+		}
+	}
 	aliases(g)
 	g.defaults()
 	if c.Storage != nil && c.Storage.Init != nil {
@@ -287,7 +347,11 @@ func generate(g *Graph) error {
 	// Cleanup nodes' assets and old template
 	// files that are not needed anymore.
 	cleanOldNodes(assets, g.Target)
-	for _, n := range deletedTemplates {
+	deleted := append([]string(nil), deletedTemplates...)
+	for _, node := range g.Nodes {
+		deleted = append(deleted, filepath.Join(node.PackageDir(), "where.go"), filepath.Join(node.PackageDir(), "mutation.go"))
+	}
+	for _, n := range deleted {
 		if err := os.Remove(filepath.Join(g.Target, n)); err != nil && !os.IsNotExist(err) {
 			log.Printf("remove old file %s: %s\n", filepath.Join(g.Target, n), err)
 		}

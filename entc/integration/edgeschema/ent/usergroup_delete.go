@@ -8,9 +8,11 @@ package ent
 import (
 	"context"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
-	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/predicate"
+	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/usergroup"
 	"github.com/neko-sc/ent/schema/field"
 )
@@ -18,19 +20,44 @@ import (
 // UserGroupDelete is the builder for deleting a UserGroup entity.
 type UserGroupDelete struct {
 	config
-	hooks    []Hook
-	mutation *UserGroupMutation
+
+	mutation  *UserGroupMutation
+	returning *sqlgraph.Returning
 }
 
 // Where appends a list predicates to the UserGroupDelete builder.
-func (_d *UserGroupDelete) Where(ps ...predicate.UserGroup) *UserGroupDelete {
-	_d.mutation.Where(ps...)
+func (_d *UserGroupDelete) Where(predicates ...ent.Predicate[entity.UserGroup]) *UserGroupDelete {
+	_d.mutation.Where(predicates...)
 	return _d
 }
 
 // Exec executes the deletion query and returns how many vertices were deleted.
 func (_d *UserGroupDelete) Exec(ctx context.Context) (int, error) {
-	return withHooks(ctx, _d.sqlExec, _d.mutation, _d.hooks)
+	return _d.sqlExec(ctx)
+}
+
+func (b *UserGroupDelete) Returning(ctx context.Context) ([]*UserGroup, error) {
+	nodes := make([]*UserGroup, 0)
+	b.returning = &sqlgraph.Returning{Columns: usergroup.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &UserGroup{config: b.config}
+		values, err := _node.scanValues(usergroup.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(usergroup.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Exec(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
 }
 
 // ExecX is like Exec, but panics if an error occurs.
@@ -51,11 +78,11 @@ func (_d *UserGroupDelete) sqlExec(ctx context.Context) (int, error) {
 			}
 		}
 	}
+	_spec.Returning = _d.returning
 	affected, err := sqlgraph.DeleteNodes(ctx, _d.driver, _spec)
 	if err != nil && sqlgraph.IsConstraintError(err) {
 		err = &ConstraintError{msg: err.Error(), wrap: err}
 	}
-	_d.mutation.done = true
 	return affected, err
 }
 
@@ -65,8 +92,8 @@ type UserGroupDeleteOne struct {
 }
 
 // Where appends a list predicates to the UserGroupDelete builder.
-func (_d *UserGroupDeleteOne) Where(ps ...predicate.UserGroup) *UserGroupDeleteOne {
-	_d._d.mutation.Where(ps...)
+func (_d *UserGroupDeleteOne) Where(predicates ...ent.Predicate[entity.UserGroup]) *UserGroupDeleteOne {
+	_d._d.mutation.Where(predicates...)
 	return _d
 }
 

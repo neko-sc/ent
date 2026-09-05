@@ -15,6 +15,7 @@ import (
 	"database/sql/driver"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -138,13 +139,15 @@ func (v *ViewBuilder) Query() (string, []any) {
 // InsertBuilder is a builder for `INSERT INTO` statement.
 type InsertBuilder struct {
 	Builder
-	table     string
-	schema    string
-	columns   []string
-	defaults  bool
-	returning []string
-	values    [][]any
-	conflict  *conflict
+	table        string
+	schema       string
+	columns      []string
+	defaults     bool
+	returning    []string
+	returningOld []string
+	returningNew []string
+	values       [][]any
+	conflict     *conflict
 }
 
 // Insert creates a builder for the `INSERT INTO` statement.
@@ -209,9 +212,10 @@ type (
 			where      *Predicate
 		}
 		action struct {
-			nothing bool
-			where   *Predicate
-			update  []func(*UpdateSet)
+			selectRow bool
+			nothing   bool
+			where     *Predicate
+			update    []func(*UpdateSet)
 		}
 	}
 
@@ -279,6 +283,20 @@ func UpdateWhere(p *Predicate) ConflictOption {
 //			sql.ConflictColumns("id"),
 //			sql.DoNothing()
 //		)
+func DoSelect() ConflictOption {
+	return func(c *conflict) { c.action.selectRow = true }
+}
+
+// ConflictDoSelect reports whether the insert uses the DO SELECT action.
+func (i *InsertBuilder) ConflictDoSelect() bool {
+	return i.conflict != nil && i.conflict.action.selectRow
+}
+
+// Default is a per-cell PostgreSQL INSERT default value.
+const Default defaultValue = 0
+
+type defaultValue uint8
+
 func DoNothing() ConflictOption {
 	return func(c *conflict) {
 		c.action.nothing = true
@@ -432,25 +450,44 @@ func (i *InsertBuilder) Query() (string, []any) {
 // statement and any error occurred in building the statement.
 func (i *InsertBuilder) QueryErr() (string, []any, error) {
 	b := i.clone()
+	b.AddError(i.Err())
 	b.WriteString("INSERT INTO ")
 	b.writeSchema(i.schema)
 	b.Ident(i.table).Pad()
 	if i.defaults && len(i.columns) == 0 {
 		i.writeDefault(&b)
 	} else {
-		b.WriteByte('(').IdentComma(i.columns...).WriteByte(')')
+		b.Byte('(').IdentComma(i.columns...).Byte(')')
 		b.WriteString(" VALUES ")
 		for j, v := range i.values {
 			if j > 0 {
 				b.Comma()
 			}
-			b.WriteByte('(').Args(v...).WriteByte(')')
+			b.Byte('(')
+			for column, value := range v {
+				if column > 0 {
+					b.Comma()
+				}
+				if _, ok := value.(defaultValue); ok {
+					if !b.postgres() {
+						b.AddError(&dialect.UnsupportedError{Feature: "DEFAULT cell", Dialect: dialect.Dialect(b.dialect)})
+					}
+					b.WriteString("DEFAULT")
+				} else {
+					b.Arg(value)
+				}
+			}
+			b.Byte(')')
 		}
 	}
 	if i.conflict != nil {
 		i.writeConflict(&b)
 	}
-	joinReturning(i.returning, &b)
+	if len(i.returningOld)+len(i.returningNew) > 0 {
+		joinReturningOldNew(i.returningOld, i.returningNew, &b)
+	} else {
+		joinReturning(i.returning, &b)
+	}
 	return b.String(), b.args, b.Err()
 }
 
@@ -466,10 +503,17 @@ func (i *InsertBuilder) writeConflict(b *Builder) {
 	case t.constraint != "":
 		b.WriteString(" ON CONSTRAINT ").Ident(t.constraint)
 	case len(t.columns) != 0:
-		b.WriteString(" (").IdentComma(t.columns...).WriteByte(')')
+		b.WriteString(" (").IdentComma(t.columns...).Byte(')')
 	}
 	if p := i.conflict.target.where; p != nil {
 		b.WriteString(" WHERE ").Join(p)
+	}
+	if i.conflict.action.selectRow {
+		if !b.postgres() {
+			b.AddError(&dialect.UnsupportedError{Feature: "ON CONFLICT DO SELECT", Dialect: dialect.Dialect(b.dialect)})
+		}
+		b.WriteString(" DO SELECT")
+		return
 	}
 	if i.conflict.action.nothing {
 		b.WriteString(" DO NOTHING")
@@ -484,6 +528,7 @@ func (i *InsertBuilder) writeConflict(b *Builder) {
 	for _, f := range i.conflict.action.update {
 		f(u)
 	}
+	b.AddError(u.Err())
 	u.writeSetter(b)
 	if p := i.conflict.action.where; p != nil {
 		p.qualifier = i.table
@@ -494,16 +539,18 @@ func (i *InsertBuilder) writeConflict(b *Builder) {
 // UpdateBuilder is a builder for `UPDATE` statement.
 type UpdateBuilder struct {
 	Builder
-	table     string
-	schema    string
-	where     *Predicate
-	nulls     []string
-	columns   []string
-	returning []string
-	values    []any
-	order     []any
-	limit     *int
-	prefix    Queries
+	table        string
+	schema       string
+	where        *Predicate
+	nulls        []string
+	columns      []string
+	returning    []string
+	returningOld []string
+	returningNew []string
+	values       []any
+	order        []any
+	limit        *int
+	prefix       Queries
 }
 
 // Update creates a builder for the `UPDATE` statement.
@@ -520,6 +567,7 @@ func (u *UpdateBuilder) Schema(name string) *UpdateBuilder {
 // Set sets a column to a given value. If `Set` was called before with
 // the same column name, it overrides the value of the previous call.
 func (u *UpdateBuilder) Set(column string, v any) *UpdateBuilder {
+	u.nulls = slices.DeleteFunc(u.nulls, func(name string) bool { return name == column })
 	for i := range u.columns {
 		if column == u.columns[i] {
 			u.values[i] = v
@@ -534,21 +582,41 @@ func (u *UpdateBuilder) Set(column string, v any) *UpdateBuilder {
 // Add adds a numeric value to the given column. Note that, calling Set(c)
 // after Add(c) will erase previous calls with c from the builder.
 func (u *UpdateBuilder) Add(column string, v any) *UpdateBuilder {
-	u.columns = append(u.columns, column)
-	u.values = append(u.values, ExprFunc(func(b *Builder) {
+	var previous any
+	exists := false
+	for index, name := range u.columns {
+		if name == column {
+			previous, exists = u.values[index], true
+			break
+		}
+	}
+	return u.Set(column, ExprFunc(func(b *Builder) {
 		b.WriteString("COALESCE")
 		b.Wrap(func(b *Builder) {
-			b.Ident(Table(u.table).C(column)).Comma().WriteByte('0')
+			if exists {
+				b.Arg(previous)
+			} else {
+				b.Ident(Table(u.table).C(column))
+			}
+			b.Comma().Byte('0')
 		})
 		b.WriteString(" + ")
 		b.Arg(v)
 	}))
-	return u
 }
 
 // SetNull sets a column as null value.
 func (u *UpdateBuilder) SetNull(column string) *UpdateBuilder {
-	u.nulls = append(u.nulls, column)
+	for index, name := range u.columns {
+		if name == column {
+			u.columns = slices.Delete(u.columns, index, index+1)
+			u.values = slices.Delete(u.values, index, index+1)
+			break
+		}
+	}
+	if !slices.Contains(u.nulls, column) {
+		u.nulls = append(u.nulls, column)
+	}
 	return u
 }
 
@@ -615,7 +683,13 @@ func (u *UpdateBuilder) Returning(columns ...string) *UpdateBuilder {
 
 // Query returns query representation of an `UPDATE` statement.
 func (u *UpdateBuilder) Query() (string, []any) {
+	query, args, _ := u.QueryErr()
+	return query, args
+}
+
+func (u *UpdateBuilder) QueryErr() (string, []any, error) {
 	b := u.clone()
+	b.AddError(u.Err())
 	if len(u.prefix) > 0 {
 		b.join(u.prefix, " ")
 		b.Pad()
@@ -628,13 +702,17 @@ func (u *UpdateBuilder) Query() (string, []any) {
 		b.WriteString(" WHERE ")
 		b.Join(u.where)
 	}
-	joinReturning(u.returning, &b)
+	if len(u.returningOld)+len(u.returningNew) > 0 {
+		joinReturningOldNew(u.returningOld, u.returningNew, &b)
+	} else {
+		joinReturning(u.returning, &b)
+	}
 	joinOrder(u.order, &b)
 	if u.limit != nil {
 		b.WriteString(" LIMIT ")
 		b.WriteString(strconv.Itoa(*u.limit))
 	}
-	return b.String(), b.args
+	return b.String(), b.args, b.Err()
 }
 
 // writeSetter writes the "SET" clause for the UPDATE statement.
@@ -665,9 +743,55 @@ func (u *UpdateBuilder) writeSetter(b *Builder) {
 // DeleteBuilder is a builder for `DELETE` statement.
 type DeleteBuilder struct {
 	Builder
-	table  string
-	schema string
-	where  *Predicate
+	table        string
+	schema       string
+	where        *Predicate
+	returning    []string
+	returningOld []string
+	returningNew []string
+}
+
+func (d *DeleteBuilder) Returning(columns ...string) *DeleteBuilder {
+	d.returning = columns
+	return d
+}
+
+func (i *InsertBuilder) ReturningOldNew(old, new []string) *InsertBuilder {
+	i.returningOld, i.returningNew = old, new
+	return i
+}
+
+func (u *UpdateBuilder) ReturningOldNew(old, new []string) *UpdateBuilder {
+	u.returningOld, u.returningNew = old, new
+	return u
+}
+
+func (d *DeleteBuilder) ReturningOldNew(old, new []string) *DeleteBuilder {
+	d.returningOld, d.returningNew = old, new
+	return d
+}
+
+func joinReturningOldNew(old, new []string, b *Builder) {
+	if len(old)+len(new) == 0 {
+		return
+	}
+	if !b.postgres() {
+		b.AddError(&dialect.UnsupportedError{Feature: "RETURNING OLD/NEW", Dialect: dialect.Dialect(b.dialect)})
+		return
+	}
+	b.WriteString(" RETURNING WITH (OLD AS old, NEW AS new) ")
+	for i, column := range old {
+		if i > 0 {
+			b.Comma()
+		}
+		b.WriteString("old.").Ident(column)
+	}
+	for i, column := range new {
+		if i > 0 || len(old) > 0 {
+			b.Comma()
+		}
+		b.WriteString("new.").Ident(column)
+	}
 }
 
 // Delete creates a builder for the `DELETE` statement.
@@ -712,14 +836,25 @@ func (d *DeleteBuilder) FromSelect(s *Selector) *DeleteBuilder {
 
 // Query returns query representation of a `DELETE` statement.
 func (d *DeleteBuilder) Query() (string, []any) {
-	d.WriteString("DELETE FROM ")
-	d.writeSchema(d.schema)
-	d.Ident(d.table)
+	query, args, _ := d.QueryErr()
+	return query, args
+}
+
+func (d *DeleteBuilder) QueryErr() (string, []any, error) {
+	b := d.clone()
+	b.AddError(d.Err())
+	b.WriteString("DELETE FROM ")
+	b.writeSchema(d.schema)
+	b.Ident(d.table)
 	if d.where != nil {
-		d.WriteString(" WHERE ")
-		d.Join(d.where)
+		b.WriteString(" WHERE ").Join(d.where)
 	}
-	return d.String(), d.args
+	if len(d.returningOld)+len(d.returningNew) > 0 {
+		joinReturningOldNew(d.returningOld, d.returningNew, &b)
+	} else {
+		joinReturning(d.returning, &b)
+	}
+	return b.String(), b.args, b.Err()
 }
 
 // Predicate is a where predicate.
@@ -1372,15 +1507,15 @@ func (p *Predicate) mayWrap(preds []*Predicate, b *Builder, op string) {
 		b.Join(preds[0])
 		return
 	case n > 1 && p.depth != 0:
-		b.WriteByte('(')
-		defer b.WriteByte(')')
+		b.Byte('(')
+		defer b.Byte(')')
 	}
 	for i := range preds {
 		preds[i].depth = p.depth + 1
 		if i > 0 {
-			b.WriteByte(' ')
+			b.Byte(' ')
 			b.WriteString(op)
-			b.WriteByte(' ')
+			b.Byte(' ')
 		}
 		if len(preds[i].fns) > 1 {
 			b.Wrap(func(b *Builder) {
@@ -1576,7 +1711,7 @@ func (s *SelectTable) C(column string) string {
 	if s.as == "" {
 		b.writeSchema(s.schema)
 	}
-	b.Ident(name).WriteByte('.').Ident(column)
+	b.Ident(name).Byte('.').Ident(column)
 	return b.String()
 }
 
@@ -2283,7 +2418,7 @@ func (s *Selector) C(column string) string {
 	if s.as != "" {
 		b := &Builder{dialect: s.dialect}
 		b.Ident(s.as)
-		b.WriteByte('.')
+		b.Byte('.')
 		b.Ident(column)
 		return b.String()
 	}
@@ -2519,6 +2654,20 @@ func (s *Selector) OrderExprFunc(f func(*Builder)) *Selector {
 	)
 }
 
+// OrderTerms returns all ordering terms, including bound expressions.
+func (s *Selector) OrderTerms() []Querier {
+	terms := make([]Querier, len(s.order))
+	for index, term := range s.order {
+		switch term := term.(type) {
+		case string:
+			terms[index] = ExprFunc(func(builder *Builder) { builder.Ident(term) })
+		case Querier:
+			terms[index] = term
+		}
+	}
+	return terms
+}
+
 // ClearOrder clears the ORDER BY clause to be empty.
 func (s *Selector) ClearOrder() *Selector {
 	s.order = nil
@@ -2694,7 +2843,7 @@ func joinOrder(order []any, b *Builder) {
 }
 
 func joinReturning(columns []string, b *Builder) {
-	if len(columns) == 0 || (!b.postgres() && !b.sqlite()) {
+	if len(columns) == 0 {
 		return
 	}
 	b.WriteString(" RETURNING ")
@@ -2786,7 +2935,7 @@ func (w *WithBuilder) With(name string, columns ...string) *WithBuilder {
 // C returns a formatted string for the WITH column.
 func (w *WithBuilder) C(column string) string {
 	b := &Builder{dialect: w.dialect}
-	b.Ident(w.Name()).WriteByte('.').Ident(column)
+	b.Ident(w.Name()).Byte('.').Ident(column)
 	return b.String()
 }
 
@@ -2802,9 +2951,9 @@ func (w *WithBuilder) Query() (string, []any) {
 		}
 		w.Ident(cte.name)
 		if len(cte.columns) > 0 {
-			w.WriteByte('(')
+			w.Byte('(')
 			w.IdentComma(cte.columns...)
-			w.WriteByte(')')
+			w.Byte(')')
 		}
 		w.WriteString(" AS ")
 		w.Wrap(func(b *Builder) {
@@ -2976,6 +3125,7 @@ type exprFunc struct {
 func (e *exprFunc) Query() (string, []any) {
 	b := e.clone()
 	e.fn(&b)
+	e.AddError(b.Err())
 	return b.Query()
 }
 
@@ -3031,7 +3181,7 @@ func (b *Builder) Ident(s string) *Builder {
 	case len(s) == 0:
 	case !strings.HasSuffix(s, "*") && !b.isIdent(s) && !isFunc(s) && !isModifier(s) && !isAlias(s):
 		if b.qualifier != "" {
-			b.WriteString(b.Quote(b.qualifier)).WriteByte('.')
+			b.WriteString(b.Quote(b.qualifier)).Byte('.')
 		}
 		b.WriteString(b.Quote(s))
 	case (isFunc(s) || isModifier(s) || isAlias(s)) && b.postgres():
@@ -3063,8 +3213,8 @@ func (b *Builder) String() string {
 	return b.sb.String()
 }
 
-// WriteByte wraps the Buffer.WriteByte to make it chainable with other methods.
-func (b *Builder) WriteByte(c byte) *Builder {
+// Byte wraps the Buffer.Byte to make it chainable with other methods.
+func (b *Builder) Byte(c byte) *Builder {
 	if b.sb == nil {
 		b.sb = &strings.Builder{}
 	}
@@ -3113,24 +3263,22 @@ func (b *Builder) AddError(err error) *Builder {
 
 func (b *Builder) writeSchema(schema string) {
 	if schema != "" && b.dialect != dialect.SQLite {
-		b.Ident(schema).WriteByte('.')
+		b.Ident(schema).Byte('.')
 	}
 }
 
 // Err returns a concatenated error of all errors encountered during
 // the query-building, or were added manually by calling AddError.
 func (b *Builder) Err() error {
-	if len(b.errs) == 0 {
-		return nil
-	}
-	br := strings.Builder{}
-	for i := range b.errs {
-		if i > 0 {
-			br.WriteString("; ")
+	var err error
+	for _, next := range b.errs {
+		if err == nil {
+			err = next
+		} else {
+			err = fmt.Errorf("%w; %w", err, next)
 		}
-		br.WriteString(b.errs[i].Error())
 	}
-	return errors.New(br.String())
+	return err
 }
 
 // An Op represents an operator.
@@ -3274,7 +3422,7 @@ func (b *Builder) Comma() *Builder {
 
 // Pad adds a space to the query.
 func (b *Builder) Pad() *Builder {
-	return b.WriteByte(' ')
+	return b.Byte(' ')
 }
 
 // Join joins a list of Queries to the builder.
@@ -3314,9 +3462,9 @@ func (b *Builder) join(qs []Querier, sep string) *Builder {
 // Wrap gets a callback, and wraps its result with parentheses.
 func (b *Builder) Wrap(f func(*Builder)) *Builder {
 	nb := &Builder{dialect: b.dialect, total: b.total, sb: &strings.Builder{}}
-	nb.WriteByte('(')
+	nb.Byte('(')
 	f(nb)
-	nb.WriteByte(')')
+	nb.Byte(')')
 	b.WriteString(nb.String())
 	b.args = append(b.args, nb.args...)
 	b.total = nb.total
@@ -3431,8 +3579,8 @@ type DialectBuilder struct {
 }
 
 // Dialect creates a new DialectBuilder with the given dialect name.
-func Dialect(name string) *DialectBuilder {
-	return &DialectBuilder{name}
+func Dialect[T ~string](name T) *DialectBuilder {
+	return &DialectBuilder{string(name)}
 }
 
 // String builds a dialect-aware expression string from the given callback.

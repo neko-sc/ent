@@ -10,57 +10,177 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/ent/pc"
-	"github.com/neko-sc/ent/entc/integration/ent/predicate"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// PCUpdate is the builder for updating PC entities.
 type PCUpdate struct {
 	config
-	hooks     []Hook
 	mutation  *PCMutation
+	err       error
+	returning *sqlgraph.Returning
+
 	modifiers []func(*sql.UpdateBuilder)
 }
 
-// Where appends a list predicates to the PCUpdate builder.
-func (_u *PCUpdate) Where(ps ...predicate.PC) *PCUpdate {
-	_u.mutation.Where(ps...)
-	return _u
+func (b *PCUpdate) Set[T any](column ent.ColumnOf[entity.PC, T], value T) *PCUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
+	}
+
+	return b
+}
+func (b *PCUpdate) SetOptional[T any](column ent.ColumnOf[entity.PC, T], value ent.Option[T]) *PCUpdate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *PCUpdate) SetExpr[T any](column ent.ColumnOf[entity.PC, T], value ent.Expr[T]) *PCUpdate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of PC is not settable", column.Ref().Name)}
+		return b
+	}
+
+}
+func (b *PCUpdate) SetEdge[N, K any](edge ent.UniqueRelation[entity.PC, N, K], id K) *PCUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *PCUpdate) AddIDs[N, K any](edge ent.Relation[entity.PC, N, K], ids ...K) *PCUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *PCUpdate) Mutation() *PCMutation { return b.mutation }
+
+func (b *PCUpdate) Patch() *PCPatch           { return b.mutation.patch }
+func (b *PCUpdate) Apply(p PCPatch) *PCUpdate { b.mutation.patch.apply(p); return b }
+func (b *PCUpdate) Add[T ent.Number](column ent.ColumnOf[entity.PC, T], delta T) *PCUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *PCUpdate) Append[T any](column ent.ColumnOf[entity.PC, T], values T) *PCUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *PCUpdate) Clear[T any](column ent.ColumnOf[entity.PC, T]) *PCUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *PCUpdate) RemoveIDs[N, K any](edge ent.Relation[entity.PC, N, K], ids ...K) *PCUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *PCUpdate) ClearEdge[N, K any](edge ent.RelationOf[entity.PC, N, K]) *PCUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// Mutation returns the PCMutation object of the builder.
-func (_u *PCUpdate) Mutation() *PCMutation {
-	return _u.mutation
+func (b *PCUpdate) Where(predicates ...ent.Predicate[entity.PC]) *PCUpdate {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Save executes the query and returns the number of nodes affected by the update operation.
-func (_u *PCUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
+func (b *PCUpdate) Save(ctx context.Context) (int, error) {
+	if b.err != nil {
+		return 0, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return 0, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_u *PCUpdate) SaveX(ctx context.Context) int {
-	affected, err := _u.Save(ctx)
+func (b *PCUpdate) SaveX(ctx context.Context) int {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return affected
+	return result
 }
 
-// Exec executes the query.
-func (_u *PCUpdate) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *PCUpdate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *PCUpdate) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *PCUpdate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
+}
+
+func (b *PCUpdate) Returning(ctx context.Context) ([]*PC, error) {
+	nodes := make([]*PC, 0)
+	b.returning = &sqlgraph.Returning{Columns: pc.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &PC{config: b.config}
+		values, err := _node.scanValues(pc.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(pc.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Save(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
+}
+
+func (b *PCUpdate) defaults() error {
+
+	return nil
+}
+
+func (b *PCUpdate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	return nil
 }
 
 // Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
@@ -70,6 +190,9 @@ func (_u *PCUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *PCUpdate {
 }
 
 func (_u *PCUpdate) sqlSave(ctx context.Context) (_node int, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(pc.Table, pc.Columns, sqlgraph.NewFieldSpec(pc.FieldID, field.TypeInt))
 	if ps := _u.mutation.Predicates(); len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -78,7 +201,12 @@ func (_u *PCUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			}
 		}
 	}
+	_spec.Returning = _u.returning
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
 	_spec.AddModifiers(_u.modifiers...)
+
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{pc.Label}
@@ -87,62 +215,173 @@ func (_u *PCUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		return 0, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }
 
-// PCUpdateOne is the builder for updating a single PC entity.
 type PCUpdateOne struct {
 	config
-	fields    []string
-	hooks     []Hook
-	mutation  *PCMutation
+	mutation *PCMutation
+	err      error
+
+	fields []string
+	old    *PC
+
 	modifiers []func(*sql.UpdateBuilder)
 }
 
-// Mutation returns the PCMutation object of the builder.
-func (_u *PCUpdateOne) Mutation() *PCMutation {
-	return _u.mutation
+func (b *PCUpdateOne) Set[T any](column ent.ColumnOf[entity.PC, T], value T) *PCUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
+	}
+
+	return b
+}
+func (b *PCUpdateOne) SetOptional[T any](column ent.ColumnOf[entity.PC, T], value ent.Option[T]) *PCUpdateOne {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *PCUpdateOne) SetExpr[T any](column ent.ColumnOf[entity.PC, T], value ent.Expr[T]) *PCUpdateOne {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of PC is not settable", column.Ref().Name)}
+		return b
+	}
+
+}
+func (b *PCUpdateOne) SetEdge[N, K any](edge ent.UniqueRelation[entity.PC, N, K], id K) *PCUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *PCUpdateOne) AddIDs[N, K any](edge ent.Relation[entity.PC, N, K], ids ...K) *PCUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *PCUpdateOne) Mutation() *PCMutation { return b.mutation }
+
+func (b *PCUpdateOne) Patch() *PCPatch              { return b.mutation.patch }
+func (b *PCUpdateOne) Apply(p PCPatch) *PCUpdateOne { b.mutation.patch.apply(p); return b }
+func (b *PCUpdateOne) Add[T ent.Number](column ent.ColumnOf[entity.PC, T], delta T) *PCUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *PCUpdateOne) Append[T any](column ent.ColumnOf[entity.PC, T], values T) *PCUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *PCUpdateOne) Clear[T any](column ent.ColumnOf[entity.PC, T]) *PCUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *PCUpdateOne) RemoveIDs[N, K any](edge ent.Relation[entity.PC, N, K], ids ...K) *PCUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *PCUpdateOne) ClearEdge[N, K any](edge ent.RelationOf[entity.PC, N, K]) *PCUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// Where appends a list predicates to the PCUpdate builder.
-func (_u *PCUpdateOne) Where(ps ...predicate.PC) *PCUpdateOne {
-	_u.mutation.Where(ps...)
-	return _u
+func (b *PCUpdateOne) Where(predicates ...ent.Predicate[entity.PC]) *PCUpdateOne {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Select allows selecting one or more fields (columns) of the returned entity.
-// The default is selecting all fields defined in the entity schema.
-func (_u *PCUpdateOne) Select(field string, fields ...string) *PCUpdateOne {
-	_u.fields = append([]string{field}, fields...)
-	return _u
+func (b *PCUpdateOne) Save(ctx context.Context) (*PC, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Save executes the query and returns the updated PC entity.
-func (_u *PCUpdateOne) Save(ctx context.Context) (*PC, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *PCUpdateOne) SaveX(ctx context.Context) *PC {
-	node, err := _u.Save(ctx)
+func (b *PCUpdateOne) SaveX(ctx context.Context) *PC {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return node
+	return result
 }
 
-// Exec executes the query on the entity.
-func (_u *PCUpdateOne) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *PCUpdateOne) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *PCUpdateOne) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *PCUpdateOne) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
+}
+
+func (b *PCUpdateOne) Select(columns ...ent.EntityColumn[entity.PC]) *PCUpdateOne {
+	if len(columns) == 0 {
+		panic("ent: Select requires at least one column")
+	}
+	b.fields = make([]string, len(columns))
+	for index, column := range columns {
+		b.fields[index] = column.Ref().Name
+	}
+	return b
+}
+
+func (b *PCUpdateOne) SaveOld(ctx context.Context) (old *PC, updated *PC, err error) {
+	if !b.driver.Capabilities().ReturningOld {
+		return nil, nil, &dialect.UnsupportedError{Feature: "RETURNING OLD", Dialect: dialect.Dialect(b.driver.Dialect())}
+	}
+	b.old = &PC{config: b.config}
+	defer func() { b.old = nil }()
+	updated, err = b.Save(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return b.old, updated, nil
+}
+
+func (b *PCUpdateOne) defaults() error {
+
+	return nil
+}
+
+func (b *PCUpdateOne) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	return nil
 }
 
 // Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
@@ -152,6 +391,9 @@ func (_u *PCUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *PCUpdate
 }
 
 func (_u *PCUpdateOne) sqlSave(ctx context.Context) (_node *PC, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(pc.Table, pc.Columns, sqlgraph.NewFieldSpec(pc.FieldID, field.TypeInt))
 	id, ok := _u.mutation.ID()
 	if !ok {
@@ -177,10 +419,18 @@ func (_u *PCUpdateOne) sqlSave(ctx context.Context) (_node *PC, err error) {
 			}
 		}
 	}
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
 	_spec.AddModifiers(_u.modifiers...)
+
 	_node = &PC{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
+	if _u.old != nil {
+		_spec.OldScanValues = _u.old.scanValues
+		_spec.OldAssign = _u.old.assignValues
+	}
 	if err = sqlgraph.UpdateNode(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{pc.Label}
@@ -189,6 +439,5 @@ func (_u *PCUpdateOne) sqlSave(ctx context.Context) (_node *PC, err error) {
 		}
 		return nil, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }

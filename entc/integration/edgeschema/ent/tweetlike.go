@@ -9,9 +9,11 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	time2 "time"
 
 	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/tweet"
 	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/tweetlike"
 	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/user"
@@ -21,15 +23,14 @@ import (
 type TweetLike struct {
 	config `json:"-"`
 	// LikedAt holds the value of the "liked_at" field.
-	LikedAt time.Time `json:"liked_at,omitempty"`
+	LikedAt time2.Time `json:"liked_at,omitempty"`
 	// UserID holds the value of the "user_id" field.
 	UserID int `json:"user_id,omitempty"`
 	// TweetID holds the value of the "tweet_id" field.
 	TweetID int `json:"tweet_id,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the TweetLikeQuery when eager-loading is set.
-	Edges        TweetLikeEdges `json:"edges"`
-	selectValues sql.SelectValues
+	Edges TweetLikeEdges `json:"edges"`
 }
 
 // TweetLikeEdges holds the relations/edges for other nodes in the graph.
@@ -41,6 +42,34 @@ type TweetLikeEdges struct {
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes [2]bool
+	counts      map[string]int
+}
+
+func (e TweetLikeEdges) Loaded[N, K any](edge ent.RelationOf[entity.TweetLike, N, K]) bool {
+	switch edge.Ref().Name {
+	case "tweet":
+		return e.loadedTypes[0]
+	case "user":
+		return e.loadedTypes[1]
+
+	default:
+		return false
+	}
+}
+
+func (e *TweetLikeEdges) SetLoaded[N, K any](edge ent.RelationOf[entity.TweetLike, N, K], loaded bool) {
+	switch edge.Ref().Name {
+	case "tweet":
+		e.loadedTypes[0] = loaded
+	case "user":
+		e.loadedTypes[1] = loaded
+
+	}
+}
+
+func (e TweetLikeEdges) Count[N, K any](edge ent.Relation[entity.TweetLike, N, K]) (int, bool) {
+	count, loaded := e.counts[edge.Ref().Name]
+	return count, loaded
 }
 
 // TweetOrErr returns the Tweet value or an error if the edge
@@ -71,9 +100,9 @@ func (*TweetLike) scanValues(columns []string) ([]any, error) {
 	for i := range columns {
 		switch columns[i] {
 		case tweetlike.FieldUserID, tweetlike.FieldTweetID:
-			values[i] = new(sql.NullInt64)
+			values[i] = new(*int)
 		case tweetlike.FieldLikedAt:
-			values[i] = new(sql.NullTime)
+			values[i] = new(*time2.Time)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -90,34 +119,29 @@ func (_m *TweetLike) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case tweetlike.FieldLikedAt:
-			if value, ok := values[i].(*sql.NullTime); !ok {
+
+			if value, ok := values[i].(**time2.Time); !ok {
 				return fmt.Errorf("unexpected type %T for field liked_at", values[i])
-			} else if value.Valid {
-				_m.LikedAt = time.Time(value.Time)
+			} else if value != nil && *value != nil {
+				_m.LikedAt = **value
 			}
 		case tweetlike.FieldUserID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field user_id", values[i])
-			} else if value.Valid {
-				_m.UserID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.UserID = **value
 			}
 		case tweetlike.FieldTweetID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field tweet_id", values[i])
-			} else if value.Valid {
-				_m.TweetID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.TweetID = **value
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the TweetLike.
-// This includes values selected through modifiers, order, etc.
-func (_m *TweetLike) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // QueryTweet queries the "tweet" edge of the TweetLike entity.

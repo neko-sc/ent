@@ -8,29 +8,56 @@ package ent
 import (
 	"context"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/ent/groupinfo"
-	"github.com/neko-sc/ent/entc/integration/ent/predicate"
 	"github.com/neko-sc/ent/schema/field"
 )
 
 // GroupInfoDelete is the builder for deleting a GroupInfo entity.
 type GroupInfoDelete struct {
 	config
-	hooks    []Hook
-	mutation *GroupInfoMutation
+
+	mutation  *GroupInfoMutation
+	returning *sqlgraph.Returning
 }
 
 // Where appends a list predicates to the GroupInfoDelete builder.
-func (_d *GroupInfoDelete) Where(ps ...predicate.GroupInfo) *GroupInfoDelete {
-	_d.mutation.Where(ps...)
+func (_d *GroupInfoDelete) Where(predicates ...ent.Predicate[entity.GroupInfo]) *GroupInfoDelete {
+	_d.mutation.Where(predicates...)
 	return _d
 }
 
 // Exec executes the deletion query and returns how many vertices were deleted.
 func (_d *GroupInfoDelete) Exec(ctx context.Context) (int, error) {
-	return withHooks(ctx, _d.sqlExec, _d.mutation, _d.hooks)
+	return _d.sqlExec(ctx)
+}
+
+func (b *GroupInfoDelete) Returning(ctx context.Context) ([]*GroupInfo, error) {
+	nodes := make([]*GroupInfo, 0)
+	b.returning = &sqlgraph.Returning{Columns: groupinfo.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &GroupInfo{config: b.config}
+		values, err := _node.scanValues(groupinfo.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(groupinfo.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Exec(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
 }
 
 // ExecX is like Exec, but panics if an error occurs.
@@ -51,11 +78,11 @@ func (_d *GroupInfoDelete) sqlExec(ctx context.Context) (int, error) {
 			}
 		}
 	}
+	_spec.Returning = _d.returning
 	affected, err := sqlgraph.DeleteNodes(ctx, _d.driver, _spec)
 	if err != nil && sqlgraph.IsConstraintError(err) {
 		err = &ConstraintError{msg: err.Error(), wrap: err}
 	}
-	_d.mutation.done = true
 	return affected, err
 }
 
@@ -65,8 +92,8 @@ type GroupInfoDeleteOne struct {
 }
 
 // Where appends a list predicates to the GroupInfoDelete builder.
-func (_d *GroupInfoDeleteOne) Where(ps ...predicate.GroupInfo) *GroupInfoDeleteOne {
-	_d._d.mutation.Where(ps...)
+func (_d *GroupInfoDeleteOne) Where(predicates ...ent.Predicate[entity.GroupInfo]) *GroupInfoDeleteOne {
+	_d._d.mutation.Where(predicates...)
 	return _d
 }
 

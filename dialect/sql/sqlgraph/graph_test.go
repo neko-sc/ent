@@ -20,6 +20,266 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestCreateExpressionCells(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+	spec := NewCreateSpec("users", NewFieldSpec("id", field.TypeInt))
+	spec.SetField("name", field.TypeString, "ignored")
+	spec.Expressions = map[string]func(*sql.Builder){"name": func(builder *sql.Builder) { builder.WriteString("LOWER(").Arg("ALICE").WriteString(")") }}
+	mock.ExpectQuery(escape(`INSERT INTO "users" ("name") VALUES (LOWER($1)) RETURNING "id"`)).WithArgs("ALICE").WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
+	require.NoError(t, CreateNode(context.Background(), sql.OpenDB(dialect.Postgres, db), spec))
+	require.EqualValues(t, 1, spec.ID.Value)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestBatchCreateExpressionCells(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+	first := NewCreateSpec("users", NewFieldSpec("id", field.TypeInt))
+	first.Expressions = map[string]func(*sql.Builder){"age": func(builder *sql.Builder) { builder.Arg(20).WriteString(" + ").Arg(1) }}
+	second := NewCreateSpec("users", NewFieldSpec("id", field.TypeInt))
+	second.SetField("name", field.TypeString, "Bob")
+	mock.ExpectQuery(escape(`INSERT INTO "users" ("age", "name") VALUES ($1 + $2, NULL), (NULL, $3) RETURNING "id"`)).WithArgs(20, 1, "Bob").WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1).AddRow(2))
+	require.NoError(t, BatchCreate(context.Background(), sql.OpenDB(dialect.Postgres, db), &BatchCreateSpec{Nodes: []*CreateSpec{first, second}}))
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestBatchCreateReturning(t *testing.T) {
+	for _, name := range []dialect.Dialect{dialect.Postgres, dialect.SQLite} {
+		t.Run(string(name), func(t *testing.T) {
+			db, mock, err := sqlmock.New()
+			require.NoError(t, err)
+			defer db.Close()
+			nodes := []*CreateSpec{NewCreateSpec("users", NewFieldSpec("id", field.TypeInt)), NewCreateSpec("users", NewFieldSpec("id", field.TypeInt))}
+			var names []string
+			for index, node := range nodes {
+				node.SetField("name", field.TypeString, fmt.Sprintf("user%d", index))
+				node.Returning = &Returning{Columns: []string{"id", "name"}, Scan: func(rows dialect.Rows) error {
+					var id int
+					var name string
+					if err := rows.Scan(&id, &name); err != nil {
+						return err
+					}
+					node.ID.Value = id
+					names = append(names, name)
+					return nil
+				}}
+			}
+			if name == dialect.Postgres {
+				mock.ExpectQuery(escape(`INSERT INTO "users" ("name") VALUES ($1), ($2) RETURNING "id", "name"`)).WithArgs("user0", "user1").WillReturnRows(sqlmock.NewRows([]string{"id", "name"}).AddRow(10, "user0").AddRow(11, "user1"))
+			} else {
+				mock.ExpectBegin()
+				for index := range nodes {
+					mock.ExpectQuery(escape("INSERT INTO `users` (`name`) VALUES (?) RETURNING `id`, `name`")).WithArgs(fmt.Sprintf("user%d", index)).WillReturnRows(sqlmock.NewRows([]string{"id", "name"}).AddRow(10+index, fmt.Sprintf("user%d", index)))
+				}
+				mock.ExpectCommit()
+			}
+			require.NoError(t, BatchCreate(t.Context(), sql.OpenDB(name, db), &BatchCreateSpec{Nodes: nodes}))
+			require.Equal(t, []string{"user0", "user1"}, names)
+			require.Equal(t, 10, nodes[0].ID.Value)
+			require.Equal(t, 11, nodes[1].ID.Value)
+			require.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
+}
+
+func TestBatchCreateReturningLayouts(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+	nodes := make([]*CreateSpec, 4)
+	for index := range nodes {
+		node := NewCreateSpec("users", NewFieldSpec("id", field.TypeInt))
+		node.SetField("age", field.TypeInt, 20+index)
+		columns := []string{"id"}
+		if index%2 == 1 {
+			columns = append(columns, "age")
+		}
+		node.Returning = &Returning{Columns: columns, Scan: func(rows dialect.Rows) error {
+			var id, age int
+			destinations := []any{&id}
+			if index%2 == 1 {
+				destinations = append(destinations, &age)
+			}
+			if err := rows.Scan(destinations...); err != nil {
+				return err
+			}
+			node.ID.Value = id
+			return nil
+		}}
+		nodes[index] = node
+	}
+	mock.ExpectBegin()
+	mock.ExpectQuery(escape(`INSERT INTO "users" ("age") VALUES ($1), ($2) RETURNING "id"`)).WithArgs(20, 22).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1).AddRow(3))
+	mock.ExpectQuery(escape(`INSERT INTO "users" ("age") VALUES ($1), ($2) RETURNING "id", "age"`)).WithArgs(21, 23).WillReturnRows(sqlmock.NewRows([]string{"id", "age"}).AddRow(2, 21).AddRow(4, 23))
+	mock.ExpectCommit()
+	require.NoError(t, BatchCreate(t.Context(), sql.OpenDB(dialect.Postgres, db), &BatchCreateSpec{Nodes: nodes}))
+	for index, node := range nodes {
+		require.Equal(t, index+1, node.ID.Value)
+	}
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestBatchCreateReturningConflict(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+	nodes := []*CreateSpec{NewCreateSpec("users", NewFieldSpec("id", field.TypeInt)), NewCreateSpec("users", NewFieldSpec("id", field.TypeInt))}
+	for index, node := range nodes {
+		node.SetField("age", field.TypeInt, 20+index)
+		node.Returning = &Returning{Columns: []string{"id"}, Scan: func(rows dialect.Rows) error {
+			var id int
+			if err := rows.Scan(&id); err != nil {
+				return err
+			}
+			node.ID.Value = id
+			return nil
+		}}
+	}
+	mock.ExpectBegin()
+	mock.ExpectQuery(escape(`INSERT INTO "users" ("age") VALUES ($1) ON CONFLICT DO NOTHING RETURNING "id"`)).WithArgs(20).WillReturnRows(sqlmock.NewRows([]string{"id"}))
+	mock.ExpectQuery(escape(`INSERT INTO "users" ("age") VALUES ($1) ON CONFLICT DO NOTHING RETURNING "id"`)).WithArgs(21).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(2))
+	mock.ExpectCommit()
+	require.NoError(t, BatchCreate(t.Context(), sql.OpenDB(dialect.Postgres, db), &BatchCreateSpec{Nodes: nodes, OnConflict: []sql.ConflictOption{sql.DoNothing()}}))
+	require.True(t, nodes[0].Skipped)
+	require.False(t, nodes[1].Skipped)
+	require.Equal(t, 2, nodes[1].ID.Value)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestBatchCreateReturningErrors(t *testing.T) {
+	for _, scenario := range []string{"missing row", "extra row", "missing ID", "scan error", "iteration error"} {
+		t.Run(scenario, func(t *testing.T) {
+			db, mock, err := sqlmock.New()
+			require.NoError(t, err)
+			defer db.Close()
+			failure := errors.New("scan failed")
+			nodes := []*CreateSpec{NewCreateSpec("users", NewFieldSpec("id", field.TypeInt)), NewCreateSpec("users", NewFieldSpec("id", field.TypeInt))}
+			for _, node := range nodes {
+				node.SetField("age", field.TypeInt, 20)
+				node.Returning = &Returning{Columns: []string{"id"}, Scan: func(rows dialect.Rows) error {
+					if scenario == "scan error" {
+						return failure
+					}
+					var id int
+					if err := rows.Scan(&id); err != nil {
+						return err
+					}
+					if scenario != "missing ID" {
+						node.ID.Value = id
+					}
+					return nil
+				}}
+			}
+			result := sqlmock.NewRows([]string{"id"}).AddRow(1)
+			if scenario != "missing row" {
+				result.AddRow(2)
+			}
+			if scenario == "extra row" {
+				result.AddRow(3)
+			}
+			if scenario == "iteration error" {
+				result.RowError(1, failure)
+			}
+			mock.ExpectQuery(escape(`INSERT INTO "users" ("age") VALUES ($1), ($2) RETURNING "id"`)).WithArgs(20, 20).WillReturnRows(result).RowsWillBeClosed()
+			err = BatchCreate(t.Context(), sql.OpenDB(dialect.Postgres, db), &BatchCreateSpec{Nodes: nodes})
+			require.Error(t, err)
+			if scenario == "scan error" || scenario == "iteration error" {
+				require.ErrorIs(t, err, failure)
+			}
+			require.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
+}
+
+func TestCreateCompositeWithoutReturning(t *testing.T) {
+	for _, batch := range []bool{false, true} {
+		t.Run(fmt.Sprint(batch), func(t *testing.T) {
+			db, mock, err := sqlmock.New()
+			require.NoError(t, err)
+			defer db.Close()
+			node := NewCreateSpec("friendships", nil)
+			node.SetField("user_id", field.TypeInt, 1)
+			node.SetField("friend_id", field.TypeInt, 2)
+			if batch {
+				mock.ExpectExec(escape(`INSERT INTO "friendships" ("friend_id", "user_id") VALUES ($1, $2), ($3, $4)`)).WithArgs(2, 1, 2, 1).WillReturnResult(sqlmock.NewResult(0, 2))
+				err = BatchCreate(t.Context(), sql.OpenDB(dialect.Postgres, db), &BatchCreateSpec{Nodes: []*CreateSpec{node, node}})
+			} else {
+				mock.ExpectExec(escape(`INSERT INTO "friendships" ("user_id", "friend_id") VALUES ($1, $2)`)).WithArgs(1, 2).WillReturnResult(sqlmock.NewResult(0, 1))
+				err = CreateNode(t.Context(), sql.OpenDB(dialect.Postgres, db), node)
+			}
+			require.NoError(t, err)
+			require.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
+}
+
+func TestUpdateEmptyReturning(t *testing.T) {
+	for _, exists := range []bool{false, true} {
+		t.Run(fmt.Sprint(exists), func(t *testing.T) {
+			db, mock, err := sqlmock.New()
+			require.NoError(t, err)
+			defer db.Close()
+			spec := NewUpdateSpec("users", []string{"id", "age"}, &FieldSpec{Column: "id", Type: field.TypeInt, Value: 1})
+			spec.Predicate = func(selector *sql.Selector) { selector.Where(sql.GT("age", 18)) }
+			spec.ScanValues = func([]string) ([]any, error) { return []any{new(int), new(int)}, nil }
+			assigned := false
+			spec.Assign = func(columns []string, values []any) error {
+				assigned = true
+				require.Equal(t, []string{"id", "age"}, columns)
+				require.Equal(t, 21, *values[1].(*int))
+				return nil
+			}
+			result := sqlmock.NewRows([]string{"id", "age"})
+			if exists {
+				result.AddRow(1, 21)
+			}
+			mock.ExpectBegin()
+			mock.ExpectQuery(escape(`SELECT "id", "age" FROM "users" WHERE "id" = $1 AND "age" > $2`)).WithArgs(1, 18).WillReturnRows(result)
+			if exists {
+				mock.ExpectCommit()
+			} else {
+				mock.ExpectRollback()
+			}
+			err = UpdateNode(t.Context(), sql.OpenDB(dialect.Postgres, db), spec)
+			if exists {
+				require.NoError(t, err)
+			} else {
+				require.ErrorAs(t, err, new(*NotFoundError))
+			}
+			require.Equal(t, exists, assigned)
+			require.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
+}
+
+func TestUpdateReturningOldNew(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+	spec := NewUpdateSpec("users", []string{"id", "age"}, NewFieldSpec("id", field.TypeInt))
+	spec.Node.ID.Value = 1
+	spec.SetField("age", field.TypeInt, 21)
+	spec.ScanValues = func([]string) ([]any, error) { return []any{new(int), new(int)}, nil }
+	spec.OldScanValues = spec.ScanValues
+	var old, updated []int
+	spec.Assign = func(_ []string, values []any) error {
+		updated = []int{*values[0].(*int), *values[1].(*int)}
+		return nil
+	}
+	spec.OldAssign = func(_ []string, values []any) error { old = []int{*values[0].(*int), *values[1].(*int)}; return nil }
+	mock.ExpectBegin()
+	mock.ExpectQuery(escape(`UPDATE "users" SET "age" = $1 WHERE "id" = $2 RETURNING WITH (OLD AS old, NEW AS new) old."id", old."age", new."id", new."age"`)).WithArgs(21, 1).WillReturnRows(sqlmock.NewRows([]string{"id", "age", "id", "age"}).AddRow(1, 20, 1, 21))
+	mock.ExpectCommit()
+	require.NoError(t, UpdateNode(context.Background(), sql.OpenDB(dialect.Postgres, db, sql.WithCapabilities(dialect.Capabilities{ReturningOld: true})), spec))
+	require.Equal(t, []int{1, 20}, old)
+	require.Equal(t, []int{1, 21}, updated)
+	require.NoError(t, mock.ExpectationsWereMet())
+	require.ErrorAs(t, UpdateNode(context.Background(), sql.OpenDB(dialect.SQLite, db), spec), new(*dialect.UnsupportedError))
+}
+
 func TestNeighbors(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -1146,9 +1406,9 @@ func TestCreateNode(t *testing.T) {
 				},
 			},
 			expect: func(m sqlmock.Sqlmock) {
-				m.ExpectExec(escape("INSERT INTO `users` (`age`, `name`, `id`) VALUES (?, ?, ?)")).
+				m.ExpectQuery(escape("INSERT INTO `users` (`age`, `name`, `id`) VALUES (?, ?, ?) RETURNING `id`")).
 					WithArgs(30, "a8m", 1).
-					WillReturnResult(sqlmock.NewResult(1, 1))
+					WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
 			},
 		},
 		{
@@ -1478,8 +1738,7 @@ func TestBatchCreate(t *testing.T) {
 			name: "empty",
 			spec: &BatchCreateSpec{},
 			expect: func(m sqlmock.Sqlmock) {
-				m.ExpectBegin()
-				m.ExpectCommit()
+
 			},
 		},
 		{
@@ -1510,9 +1769,14 @@ func TestBatchCreate(t *testing.T) {
 				},
 			},
 			expect: func(m sqlmock.Sqlmock) {
-				m.ExpectQuery(escape("INSERT INTO `users` (`active`, `age`, `name`) VALUES (?, ?, ?), (?, ?, ?) ON CONFLICT DO UPDATE SET `active` = `users`.`active`, `age` = `users`.`age`, `name` = `users`.`name` RETURNING `id`")).
-					WithArgs(false, 32, "a8m", true, 30, "nati").
-					WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(10).AddRow(11))
+				m.ExpectBegin()
+				m.ExpectQuery(escape(`INSERT INTO "users" ("active", "age", "name") VALUES ($1, $2, $3) ON CONFLICT DO UPDATE SET "active" = "users"."active", "age" = "users"."age", "name" = "users"."name" RETURNING "id"`)).
+					WithArgs(false, 32, "a8m").
+					WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(10))
+				m.ExpectQuery(escape(`INSERT INTO "users" ("active", "age", "name") VALUES ($1, $2, $3) ON CONFLICT DO UPDATE SET "active" = "users"."active", "age" = "users"."age", "name" = "users"."name" RETURNING "id"`)).
+					WithArgs(true, 30, "nati").
+					WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(11))
+				m.ExpectCommit()
 			},
 		},
 		{
@@ -1548,7 +1812,7 @@ func TestBatchCreate(t *testing.T) {
 			},
 			expect: func(m sqlmock.Sqlmock) {
 				// Insert nodes with FKs.
-				m.ExpectQuery(escape("INSERT INTO `users` (`active`, `age`, `best_friend_id`, `name`, `workplace_id`) VALUES (?, ?, ?, ?, ?), (NULL, ?, ?, ?, ?) RETURNING `id`")).
+				m.ExpectQuery(escape(`INSERT INTO "users" ("active", "age", "best_friend_id", "name", "workplace_id") VALUES ($1, $2, $3, $4, $5), (NULL, $6, $7, $8, $9) RETURNING "id"`)).
 					WithArgs(false, 32, 3, "a8m", 2, 30, 4, "nati", 2).
 					WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(10).AddRow(11))
 			},
@@ -1581,13 +1845,13 @@ func TestBatchCreate(t *testing.T) {
 			},
 			expect: func(m sqlmock.Sqlmock) {
 				m.ExpectBegin()
-				m.ExpectQuery(escape("INSERT INTO `users` (`name`) VALUES (?), (?) RETURNING `id`")).
+				m.ExpectQuery(escape(`INSERT INTO "users" ("name") VALUES ($1), ($2) RETURNING "id"`)).
 					WithArgs("a8m", "nati").
 					WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(10).AddRow(11))
-				m.ExpectExec(escape("UPDATE `cards` SET `owner_id` = ? WHERE `id` = ? AND `owner_id` IS NULL")).
+				m.ExpectExec(escape(`UPDATE "cards" SET "owner_id" = $1 WHERE "id" = $2 AND "owner_id" IS NULL`)).
 					WithArgs(10 /* LAST_INSERT_ID() */, 3).
 					WillReturnResult(sqlmock.NewResult(1, 1))
-				m.ExpectExec(escape("UPDATE `cards` SET `owner_id` = ? WHERE `id` = ? AND `owner_id` IS NULL")).
+				m.ExpectExec(escape(`UPDATE "cards" SET "owner_id" = $1 WHERE "id" = $2 AND "owner_id" IS NULL`)).
 					WithArgs(11 /* LAST_INSERT_ID() + 1 */, 4).
 					WillReturnResult(sqlmock.NewResult(1, 1))
 				m.ExpectCommit()
@@ -1632,26 +1896,26 @@ func TestBatchCreate(t *testing.T) {
 			expect: func(m sqlmock.Sqlmock) {
 				m.ExpectBegin()
 				// Insert nodes with FKs.
-				m.ExpectQuery(escape("INSERT INTO `users` (`active`, `age`, `name`, `workplace_id`) VALUES (?, ?, ?, ?), (NULL, ?, ?, NULL) RETURNING `id`")).
+				m.ExpectQuery(escape(`INSERT INTO "users" ("active", "age", "name", "workplace_id") VALUES ($1, $2, $3, $4), (NULL, $5, $6, NULL) RETURNING "id"`)).
 					WithArgs(false, 32, "a8m", 2, 30, "nati").
 					WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(10).AddRow(11))
 				// Insert M2M inverse-edges.
-				m.ExpectExec(escape("INSERT INTO `group_users` (`group_id`, `user_id`) VALUES (?, ?), (?, ?) ON CONFLICT DO NOTHING")).
+				m.ExpectExec(escape(`INSERT INTO "group_users" ("group_id", "user_id") VALUES ($1, $2), ($3, $4) ON CONFLICT DO NOTHING`)).
 					WithArgs(2, 10, 2, 11).
 					WillReturnResult(sqlmock.NewResult(2, 2))
 				// Insert M2M bidirectional edges.
-				m.ExpectExec(escape("INSERT INTO `user_friends` (`user_id`, `friend_id`) VALUES (?, ?), (?, ?), (?, ?), (?, ?) ON CONFLICT DO NOTHING")).
+				m.ExpectExec(escape(`INSERT INTO "user_friends" ("user_id", "friend_id") VALUES ($1, $2), ($3, $4), ($5, $6), ($7, $8) ON CONFLICT DO NOTHING`)).
 					WithArgs(10, 2, 2, 10, 11, 2, 2, 11).
 					WillReturnResult(sqlmock.NewResult(2, 2))
 				// Insert M2M edges.
-				m.ExpectExec(escape("INSERT INTO `user_products` (`user_id`, `product_id`) VALUES (?, ?), (?, ?) ON CONFLICT DO NOTHING")).
+				m.ExpectExec(escape(`INSERT INTO "user_products" ("user_id", "product_id") VALUES ($1, $2), ($3, $4) ON CONFLICT DO NOTHING`)).
 					WithArgs(10, 2, 11, 2).
 					WillReturnResult(sqlmock.NewResult(2, 2))
 				// Update FKs exist in different tables.
-				m.ExpectExec(escape("UPDATE `pets` SET `owner_id` = ? WHERE `id` = ? AND `owner_id` IS NULL")).
+				m.ExpectExec(escape(`UPDATE "pets" SET "owner_id" = $1 WHERE "id" = $2 AND "owner_id" IS NULL`)).
 					WithArgs(10 /* id of the 1st new node */, 2 /* pet id */).
 					WillReturnResult(sqlmock.NewResult(2, 2))
-				m.ExpectExec(escape("UPDATE `pets` SET `owner_id` = ? WHERE `id` = ? AND `owner_id` IS NULL")).
+				m.ExpectExec(escape(`UPDATE "pets" SET "owner_id" = $1 WHERE "id" = $2 AND "owner_id" IS NULL`)).
 					WithArgs(11 /* id of the 2nd new node */, 3 /* pet id */).
 					WillReturnResult(sqlmock.NewResult(2, 2))
 				m.ExpectCommit()
@@ -1663,8 +1927,9 @@ func TestBatchCreate(t *testing.T) {
 			db, mock, err := sqlmock.New()
 			require.NoError(t, err)
 			tt.expect(mock)
-			err = BatchCreate(context.Background(), sql.OpenDB(dialect.SQLite, db), tt.spec)
+			err = BatchCreate(context.Background(), sql.OpenDB(dialect.Postgres, db), tt.spec)
 			require.Equal(t, tt.wantErr, err != nil, err)
+			require.NoError(t, mock.ExpectationsWereMet())
 		})
 	}
 }
@@ -1745,13 +2010,9 @@ func TestUpdateNode(t *testing.T) {
 			},
 			prepare: func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				mock.ExpectExec(escape("UPDATE `users` SET `age` = ?, `name` = ? WHERE `id` = ?")).
-					WithArgs(30, "Ariel", 1).
-					WillReturnResult(sqlmock.NewResult(1, 1))
-				mock.ExpectQuery(escape("SELECT `id`, `name`, `age` FROM `users` WHERE `id` = ?")).
-					WithArgs(1).
-					WillReturnRows(sqlmock.NewRows([]string{"id", "age", "name"}).
-						AddRow(1, 30, "Ariel"))
+				mock.ExpectQuery(escape("UPDATE `users` SET `age` = ?, `name` = ? WHERE `id` = ? RETURNING `id`, `name`, `age`")).WithArgs(30, "Ariel", 1).WillReturnRows(sqlmock.NewRows([]string{"id", "age", "name"}).
+					AddRow(1, 30, "Ariel"))
+
 				mock.ExpectCommit()
 			},
 			wantUser: &user{name: "Ariel", age: 30, id: 1},
@@ -1772,13 +2033,9 @@ func TestUpdateNode(t *testing.T) {
 			},
 			prepare: func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				mock.ExpectExec(escape("UPDATE `users` SET `name` = LOWER(`name`) WHERE `id` = ?")).
-					WithArgs(1).
-					WillReturnResult(sqlmock.NewResult(1, 1))
-				mock.ExpectQuery(escape("SELECT `id`, `name`, `age` FROM `users` WHERE `id` = ?")).
-					WithArgs(1).
-					WillReturnRows(sqlmock.NewRows([]string{"id", "age", "name"}).
-						AddRow(1, 30, "Ariel"))
+				mock.ExpectQuery(escape("UPDATE `users` SET `name` = LOWER(`name`) WHERE `id` = ? RETURNING `id`, `name`, `age`")).WithArgs(1).WillReturnRows(sqlmock.NewRows([]string{"id", "age", "name"}).
+					AddRow(1, 30, "Ariel"))
+
 				mock.ExpectCommit()
 			},
 			wantUser: &user{name: "Ariel", age: 30, id: 1},
@@ -1808,13 +2065,9 @@ func TestUpdateNode(t *testing.T) {
 			},
 			prepare: func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				mock.ExpectExec(escape("UPDATE `users` SET `name` = NULL, `deleted` = ?, `age` = COALESCE(`users`.`age`, 0) + ? WHERE `id` = ? AND NOT `deleted`")).
-					WithArgs(true, 1, 1).
-					WillReturnResult(sqlmock.NewResult(0, 1))
-				mock.ExpectQuery(escape("SELECT `id`, `name`, `age` FROM `users` WHERE `id` = ?")).
-					WithArgs(1).
-					WillReturnRows(sqlmock.NewRows([]string{"id", "age", "name"}).
-						AddRow(1, 31, nil))
+				mock.ExpectQuery(escape("UPDATE `users` SET `name` = NULL, `deleted` = ?, `age` = COALESCE(`users`.`age`, 0) + ? WHERE `id` = ? AND NOT `deleted` RETURNING `id`, `name`, `age`")).WithArgs(true, 1, 1).WillReturnRows(sqlmock.NewRows([]string{"id", "age", "name"}).
+					AddRow(1, 31, nil))
+
 				mock.ExpectCommit()
 			},
 			wantUser: &user{age: 31, id: 1},
@@ -1844,13 +2097,7 @@ func TestUpdateNode(t *testing.T) {
 			},
 			prepare: func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				mock.ExpectExec(escape("UPDATE `users` SET `name` = NULL, `deleted` = ?, `age` = COALESCE(`users`.`age`, 0) + ? WHERE `id` = ? AND NOT `deleted`")).
-					WithArgs(true, 1, 1).
-					WillReturnResult(sqlmock.NewResult(0, 0))
-				mock.ExpectQuery(escape("SELECT EXISTS (SELECT * FROM `users` WHERE `id` = ? AND NOT `deleted`)")).
-					WithArgs(1).
-					WillReturnRows(sqlmock.NewRows([]string{"exists"}).
-						AddRow(false))
+				mock.ExpectQuery(escape("UPDATE `users` SET `name` = NULL, `deleted` = ?, `age` = COALESCE(`users`.`age`, 0) + ? WHERE `id` = ? AND NOT `deleted` RETURNING `id`, `name`, `age`")).WithArgs(true, 1, 1).WillReturnRows(sqlmock.NewRows([]string{"id", "name", "age"}))
 				mock.ExpectRollback()
 			},
 			wantErr:  true,
@@ -1877,13 +2124,9 @@ func TestUpdateNode(t *testing.T) {
 			},
 			prepare: func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				mock.ExpectExec(escape("UPDATE `users` SET `workplace_id` = NULL, `car_id` = NULL, `parent_id` = ?, `card_id` = ? WHERE `id` = ?")).
-					WithArgs(2, 2, 1).
-					WillReturnResult(sqlmock.NewResult(1, 1))
-				mock.ExpectQuery(escape("SELECT `id`, `name`, `age` FROM `users` WHERE `id` = ?")).
-					WithArgs(1).
-					WillReturnRows(sqlmock.NewRows([]string{"id", "age", "name"}).
-						AddRow(1, 31, nil))
+				mock.ExpectQuery(escape("UPDATE `users` SET `workplace_id` = NULL, `car_id` = NULL, `parent_id` = ?, `card_id` = ? WHERE `id` = ? RETURNING `id`, `name`, `age`")).WithArgs(2, 2, 1).WillReturnRows(sqlmock.NewRows([]string{"id", "age", "name"}).
+					AddRow(1, 31, nil))
+
 				mock.ExpectCommit()
 			},
 			wantUser: &user{age: 31, id: 1},
@@ -1910,9 +2153,8 @@ func TestUpdateNode(t *testing.T) {
 				mock.ExpectBegin()
 				// Clear the "partner" from 1's column, and set "spouse 3".
 				// "spouse 2" is implicitly removed when setting a different foreign-key.
-				mock.ExpectExec(escape("UPDATE `users` SET `partner_id` = NULL, `spouse_id` = ? WHERE `id` = ?")).
-					WithArgs(3, 1).
-					WillReturnResult(sqlmock.NewResult(1, 1))
+				mock.ExpectQuery(escape("UPDATE `users` SET `partner_id` = NULL, `spouse_id` = ? WHERE `id` = ? RETURNING `id`, `name`, `age`")).WithArgs(3, 1).WillReturnRows(sqlmock.NewRows([]string{"id", "age", "name"}).
+					AddRow(1, 31, nil))
 				// Clear the "partner_id" column from previous 1's partner.
 				mock.ExpectExec(escape("UPDATE `users` SET `partner_id` = NULL WHERE `partner_id` = ?")).
 					WithArgs(1).
@@ -1925,10 +2167,7 @@ func TestUpdateNode(t *testing.T) {
 				mock.ExpectExec(escape("UPDATE `users` SET `spouse_id` = ? WHERE `id` = ? AND `spouse_id` IS NULL")).
 					WithArgs(1, 3).
 					WillReturnResult(sqlmock.NewResult(1, 1))
-				mock.ExpectQuery(escape("SELECT `id`, `name`, `age` FROM `users` WHERE `id` = ?")).
-					WithArgs(1).
-					WillReturnRows(sqlmock.NewRows([]string{"id", "age", "name"}).
-						AddRow(1, 31, nil))
+
 				mock.ExpectCommit()
 			},
 			wantUser: &user{age: 31, id: 1},
@@ -1961,6 +2200,8 @@ func TestUpdateNode(t *testing.T) {
 			},
 			prepare: func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
+				mock.ExpectQuery(escape("SELECT `id`, `name`, `age` FROM `users` WHERE `id` = ?")).WithArgs(1).WillReturnRows(sqlmock.NewRows([]string{"id", "age", "name"}).
+					AddRow(1, 31, nil))
 				// Clear comment responders.
 				mock.ExpectExec(escape("DELETE FROM `comment_responders` WHERE `responder_id` = ?")).
 					WithArgs(1).
@@ -1989,10 +2230,7 @@ func TestUpdateNode(t *testing.T) {
 				mock.ExpectExec(escape("INSERT INTO `user_friends` (`user_id`, `friend_id`) VALUES (?, ?), (?, ?) ON CONFLICT DO NOTHING")).
 					WithArgs(1, 4, 4, 1).
 					WillReturnResult(sqlmock.NewResult(1, 1))
-				mock.ExpectQuery(escape("SELECT `id`, `name`, `age` FROM `users` WHERE `id` = ?")).
-					WithArgs(1).
-					WillReturnRows(sqlmock.NewRows([]string{"id", "age", "name"}).
-						AddRow(1, 31, nil))
+
 				mock.ExpectCommit()
 			},
 			wantUser: &user{age: 31, id: 1},
@@ -2015,13 +2253,9 @@ func TestUpdateNode(t *testing.T) {
 			},
 			prepare: func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				mock.ExpectExec(escape("UPDATE `mydb`.`users` SET `age` = ?, `name` = ? WHERE `id` = ?")).
-					WithArgs(30, "Ariel", 1).
-					WillReturnResult(sqlmock.NewResult(1, 1))
-				mock.ExpectQuery(escape("SELECT `id`, `name`, `age` FROM `mydb`.`users` WHERE `id` = ?")).
-					WithArgs(1).
-					WillReturnRows(sqlmock.NewRows([]string{"id", "age", "name"}).
-						AddRow(1, 30, "Ariel"))
+				mock.ExpectQuery(escape("UPDATE `mydb`.`users` SET `age` = ?, `name` = ? WHERE `id` = ? RETURNING `id`, `name`, `age`")).WithArgs(30, "Ariel", 1).WillReturnRows(sqlmock.NewRows([]string{"id", "age", "name"}).
+					AddRow(1, 30, "Ariel"))
+
 				mock.ExpectCommit()
 			},
 			wantUser: &user{name: "Ariel", age: 30, id: 1},
@@ -2045,16 +2279,12 @@ func TestUpdateNode(t *testing.T) {
 			prepare: func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
 				// Clear best friend.
-				mock.ExpectExec(escape("UPDATE `mydb`.`users` SET `best_friend_id` = NULL WHERE `id` = ?")).
-					WithArgs(1).
-					WillReturnResult(sqlmock.NewResult(1, 1))
+				mock.ExpectQuery(escape("UPDATE `mydb`.`users` SET `best_friend_id` = NULL WHERE `id` = ? RETURNING `id`, `name`, `age`, `best_friend_id`")).WithArgs(1).WillReturnRows(sqlmock.NewRows([]string{"id", "age", "name", "best_friend_id"}).
+					AddRow(1, 31, nil, nil))
 				mock.ExpectExec(escape("UPDATE `mydb`.`users` SET `best_friend_id` = NULL WHERE `best_friend_id` = ?")).
 					WithArgs(1).
 					WillReturnResult(sqlmock.NewResult(1, 1))
-				mock.ExpectQuery(escape("SELECT `id`, `name`, `age`, `best_friend_id` FROM `mydb`.`users` WHERE `id` = ?")).
-					WithArgs(1).
-					WillReturnRows(sqlmock.NewRows([]string{"id", "age", "name", "best_friend_id"}).
-						AddRow(1, 31, nil, nil))
+
 				mock.ExpectCommit()
 			},
 			wantUser: &user{age: 31, id: 1},
@@ -2071,6 +2301,7 @@ func TestUpdateNode(t *testing.T) {
 			err = UpdateNode(context.Background(), sql.OpenDB("", db), tt.spec)
 			require.Equal(t, tt.wantErr, err != nil, err)
 			require.Equal(t, tt.wantUser, usr)
+			require.NoError(t, mock.ExpectationsWereMet())
 		})
 	}
 }
@@ -2598,88 +2829,25 @@ func TestQueryEdgesSchema(t *testing.T) {
 }
 
 func TestIsConstraintError(t *testing.T) {
-	tests := []struct {
-		name               string
-		errMessage         string
-		expectedConstraint bool
-		expectedFK         bool
-		expectedUnique     bool
-		expectedCheck      bool
-	}{
-		{
-			name:               "SQLite FK",
-			errMessage:         `insert node to table "pets": FOREIGN KEY constraint failed`,
-			expectedConstraint: true,
-			expectedFK:         true,
-			expectedUnique:     false,
-			expectedCheck:      false,
-		},
-		{
-			name:               "Postgres FK",
-			errMessage:         `insert node to table "pets": pq: insert or update on table "pets" violates foreign key constraint "pets_users_pets"`,
-			expectedConstraint: true,
-			expectedFK:         true,
-			expectedUnique:     false,
-			expectedCheck:      false,
-		},
-		{
-			name:               "SQLite FK",
-			errMessage:         `FOREIGN KEY constraint failed`,
-			expectedConstraint: true,
-			expectedFK:         true,
-			expectedUnique:     false,
-			expectedCheck:      false,
-		},
-		{
-			name:               "Postgres FK",
-			errMessage:         `pq: update or delete on table "group_infos" violates foreign key constraint "groups_group_infos_info" on table "groups"`,
-			expectedConstraint: true,
-			expectedFK:         true,
-			expectedUnique:     false,
-			expectedCheck:      false,
-		},
-		{
-			name:               "SQLite Unique",
-			errMessage:         `insert node to table "file_types": UNIQUE constraint failed: file_types.name ent: constraint failed: insert node to table "file_types": UNIQUE constraint failed: file_types.name`,
-			expectedConstraint: true,
-			expectedFK:         false,
-			expectedUnique:     true,
-			expectedCheck:      false,
-		},
-		{
-			name:               "Postgres Unique",
-			errMessage:         `insert node to table "file_types": pq: duplicate key value violates unique constraint "file_types_name_key" ent: constraint failed: insert node to table "file_types": pq: duplicate key value violates unique constraint "file_types_name_key"`,
-			expectedConstraint: true,
-			expectedFK:         false,
-			expectedUnique:     true,
-			expectedCheck:      false,
-		},
-		{
-			name:               "SQLite Check",
-			errMessage:         `insert node to table "users": CHECK constraint failed: age >= 18`,
-			expectedConstraint: true,
-			expectedFK:         false,
-			expectedUnique:     false,
-			expectedCheck:      true,
-		},
-		{
-			name:               "Postgres Check",
-			errMessage:         `insert node to table "users": pq: new row for relation "users" violates check constraint "users_age_check"`,
-			expectedConstraint: true,
-			expectedFK:         false,
-			expectedUnique:     false,
-			expectedCheck:      true,
-		},
+	for _, kind := range []dialect.ConstraintKind{dialect.Unique, dialect.ForeignKey, dialect.Check, dialect.NotNull, dialect.Exclusion} {
+		original := &dialect.ConstraintError{Kind: kind, Err: errors.New("constraint violation")}
+		err := fmt.Errorf("query: %w", &ConstraintError{Err: original})
+		require.True(t, IsConstraintError(err))
+		require.Equal(t, kind == dialect.ForeignKey, IsForeignKeyConstraintError(err))
+		require.Equal(t, kind == dialect.Unique, IsUniqueConstraintError(err))
+		require.Equal(t, kind == dialect.Check, IsCheckConstraintError(err))
+		require.ErrorIs(t, err, original)
+		cleanup := errors.New("rollback failed")
+		wrapped := errors.Join(fmt.Errorf("add edge: %w", original), cleanup)
+		classified := constraintError(wrapped)
+		require.EqualError(t, classified, wrapped.Error())
+		require.ErrorIs(t, classified, cleanup)
+		require.ErrorIs(t, classified, original)
+		require.Same(t, classified, constraintError(classified))
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := errors.New(tt.errMessage)
-			require.Equal(t, tt.expectedConstraint, IsConstraintError(err))
-			require.Equal(t, tt.expectedFK, IsForeignKeyConstraintError(err))
-			require.Equal(t, tt.expectedUnique, IsUniqueConstraintError(err))
-			require.Equal(t, tt.expectedCheck, IsCheckConstraintError(err))
-		})
-	}
+	require.False(t, IsConstraintError(errors.New("UNIQUE constraint failed")))
+	require.False(t, IsConstraintError(nil))
+	require.True(t, IsConstraintError(&ConstraintError{msg: "edge already connected"}))
 }
 
 func TestLimitNeighbors(t *testing.T) {
@@ -2690,7 +2858,7 @@ func TestLimitNeighbors(t *testing.T) {
 		LimitNeighbors(fk, 2)(s)
 		query, args := s.Query()
 		require.Equal(t,
-			"WITH `src_query` AS (SELECT `author_id`, `id` FROM `posts`), `limited_query` AS (SELECT *, (ROW_NUMBER() OVER (PARTITION BY `author_id` ORDER BY `id`)) AS `row_number` FROM `src_query`) SELECT `author_id`, `id` FROM `limited_query` AS `posts` WHERE `posts`.`row_number` <= ?",
+			"SELECT `limited_neighbors`.`author_id`, `limited_neighbors`.`id` FROM (SELECT `author_id`, `id`, (ROW_NUMBER() OVER (PARTITION BY `author_id` ORDER BY `posts`.`id` ASC)) AS `row_number` FROM `posts`) AS `limited_neighbors` WHERE `limited_neighbors`.`row_number` <= ? ORDER BY `limited_neighbors`.`row_number`",
 			query,
 		)
 		require.Equal(t, []any{2}, args)
@@ -2702,7 +2870,7 @@ func TestLimitNeighbors(t *testing.T) {
 		LimitNeighbors(fk, 1, sql.ExprFunc(func(b *sql.Builder) { b.Ident("updated_at") }))(s)
 		query, args := s.Query()
 		require.Equal(t,
-			"WITH `src_query` AS (SELECT `user_id`, `id`, `name` FROM `groups` JOIN `user_groups` AS `t1` ON `groups`.`id` = `t1`.`group_id`), `limited_query` AS (SELECT *, (ROW_NUMBER() OVER (PARTITION BY `user_id` ORDER BY `updated_at`)) AS `row_number` FROM `src_query`) SELECT `user_id`, `id`, `name` FROM `limited_query` AS `groups` WHERE `groups`.`row_number` <= ?",
+			"SELECT `limited_neighbors`.`user_id`, `limited_neighbors`.`id`, `limited_neighbors`.`name` FROM (SELECT `user_id`, `id`, `name`, (ROW_NUMBER() OVER (PARTITION BY `user_id` ORDER BY `updated_at`)) AS `row_number` FROM `groups` JOIN `user_groups` AS `t1` ON `groups`.`id` = `t1`.`group_id`) AS `limited_neighbors` WHERE `limited_neighbors`.`row_number` <= ? ORDER BY `limited_neighbors`.`row_number`",
 			query,
 		)
 		require.Equal(t, []any{1}, args)

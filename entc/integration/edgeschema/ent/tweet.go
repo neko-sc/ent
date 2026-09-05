@@ -11,6 +11,7 @@ import (
 
 	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/tweet"
 )
 
@@ -23,8 +24,7 @@ type Tweet struct {
 	Text string `json:"text,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the TweetQuery when eager-loading is set.
-	Edges        TweetEdges `json:"edges"`
-	selectValues sql.SelectValues
+	Edges TweetEdges `json:"edges"`
 }
 
 // TweetEdges holds the relations/edges for other nodes in the graph.
@@ -44,6 +44,50 @@ type TweetEdges struct {
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes [6]bool
+	counts      map[string]int
+}
+
+func (e TweetEdges) Loaded[N, K any](edge ent.RelationOf[entity.Tweet, N, K]) bool {
+	switch edge.Ref().Name {
+	case "liked_users":
+		return e.loadedTypes[0]
+	case "user":
+		return e.loadedTypes[1]
+	case "tags":
+		return e.loadedTypes[2]
+	case "likes":
+		return e.loadedTypes[3]
+	case "tweet_user":
+		return e.loadedTypes[4]
+	case "tweet_tags":
+		return e.loadedTypes[5]
+
+	default:
+		return false
+	}
+}
+
+func (e *TweetEdges) SetLoaded[N, K any](edge ent.RelationOf[entity.Tweet, N, K], loaded bool) {
+	switch edge.Ref().Name {
+	case "liked_users":
+		e.loadedTypes[0] = loaded
+	case "user":
+		e.loadedTypes[1] = loaded
+	case "tags":
+		e.loadedTypes[2] = loaded
+	case "likes":
+		e.loadedTypes[3] = loaded
+	case "tweet_user":
+		e.loadedTypes[4] = loaded
+	case "tweet_tags":
+		e.loadedTypes[5] = loaded
+
+	}
+}
+
+func (e TweetEdges) Count[N, K any](edge ent.Relation[entity.Tweet, N, K]) (int, bool) {
+	count, loaded := e.counts[edge.Ref().Name]
+	return count, loaded
 }
 
 // LikedUsersOrErr returns the LikedUsers value or an error if the edge
@@ -106,9 +150,9 @@ func (*Tweet) scanValues(columns []string) ([]any, error) {
 	for i := range columns {
 		switch columns[i] {
 		case tweet.FieldID:
-			values[i] = new(sql.NullInt64)
+			values[i] = new(*int)
 		case tweet.FieldText:
-			values[i] = new(sql.NullString)
+			values[i] = new(*string)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -125,28 +169,22 @@ func (_m *Tweet) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case tweet.FieldID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field id", values[i])
-			} else if value.Valid {
-				_m.ID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.ID = **value
 			}
 		case tweet.FieldText:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field text", values[i])
-			} else if value.Valid {
-				_m.Text = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.Text = **value
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the Tweet.
-// This includes values selected through modifiers, order, etc.
-func (_m *Tweet) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // QueryLikedUsers queries the "liked_users" edge of the Tweet entity.

@@ -6,8 +6,11 @@
 package parent
 
 import (
+	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/multischema/ent/entity"
+	"github.com/neko-sc/ent/entc/integration/multischema/ent/internal"
 )
 
 const (
@@ -43,6 +46,63 @@ const (
 	ParentColumn = "parent_id"
 )
 
+var (
+	ID         = ent.OrderedColumn[entity.Parent, int]{Table: Table, Name: FieldID}
+	ByAdoption = ent.Column[entity.Parent, bool]{Table: Table, Name: FieldByAdoption}
+	UserID     = ent.OrderedColumn[entity.Parent, int]{Table: Table, Name: FieldUserID}
+	ParentID   = ent.OrderedColumn[entity.Parent, int]{Table: Table, Name: FieldParentID}
+	Child      = ent.NewUniqueRelation[entity.Parent, entity.User, int](EdgeChild, newChildStep)
+	Parent     = ent.NewUniqueRelation[entity.Parent, entity.User, int](EdgeParent, newParentStep)
+)
+
+func init() {
+	Child.Configure = func(s *sql.Selector, step *sqlgraph.Step) {
+		schemaConfig := internal.SchemaConfigFromContext(s.Context())
+		step.To.Schema = schemaConfig.User
+		step.Edge.Schema = schemaConfig.Parent
+	}
+	Parent.Configure = func(s *sql.Selector, step *sqlgraph.Step) {
+		schemaConfig := internal.SchemaConfigFromContext(s.Context())
+		step.To.Schema = schemaConfig.User
+		step.Edge.Schema = schemaConfig.Parent
+	}
+}
+
+// Alias returns the columns of the parents table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.Parent, int]{Table: name, Name: FieldID},
+		ByAdoption: ent.Column[entity.Parent, bool]{Table: name, Name: FieldByAdoption},
+		UserID:     ent.OrderedColumn[entity.Parent, int]{Table: name, Name: FieldUserID},
+		ParentID:   ent.OrderedColumn[entity.Parent, int]{Table: name, Name: FieldParentID},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.Parent, int]
+	ByAdoption ent.Column[entity.Parent, bool]
+	UserID     ent.OrderedColumn[entity.Parent, int]
+	ParentID   ent.OrderedColumn[entity.Parent, int]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.Parent]) ent.Predicate[entity.Parent] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.Parent]) ent.Predicate[entity.Parent] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.Parent]) ent.Predicate[entity.Parent] {
+	return ent.Not(predicate)
+}
+
 // Columns holds all SQL columns for parent fields.
 var Columns = []string{
 	FieldID,
@@ -66,42 +126,6 @@ var (
 	DefaultByAdoption bool
 )
 
-// OrderOption defines the ordering options for the Parent queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByByAdoption orders the results by the by_adoption field.
-func ByByAdoption(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldByAdoption, opts...).ToFunc()
-}
-
-// ByUserID orders the results by the user_id field.
-func ByUserID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldUserID, opts...).ToFunc()
-}
-
-// ByParentID orders the results by the parent_id field.
-func ByParentID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldParentID, opts...).ToFunc()
-}
-
-// ByChildField orders the results by child field.
-func ByChildField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newChildStep(), sql.OrderByField(field, opts...))
-	}
-}
-
-// ByParentField orders the results by parent field.
-func ByParentField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newParentStep(), sql.OrderByField(field, opts...))
-	}
-}
 func newChildStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),

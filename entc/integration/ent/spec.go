@@ -11,6 +11,7 @@ import (
 
 	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/entc/integration/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/ent/spec"
 )
 
@@ -21,8 +22,7 @@ type Spec struct {
 	ID int `json:"id,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the SpecQuery when eager-loading is set.
-	Edges        SpecEdges `json:"edges"`
-	selectValues sql.SelectValues
+	Edges SpecEdges `json:"edges"`
 }
 
 // SpecEdges holds the relations/edges for other nodes in the graph.
@@ -32,7 +32,31 @@ type SpecEdges struct {
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes [1]bool
+	counts      map[string]int
 	namedCard   map[string][]*Card
+}
+
+func (e SpecEdges) Loaded[N, K any](edge ent.RelationOf[entity.Spec, N, K]) bool {
+	switch edge.Ref().Name {
+	case "card":
+		return e.loadedTypes[0]
+
+	default:
+		return false
+	}
+}
+
+func (e *SpecEdges) SetLoaded[N, K any](edge ent.RelationOf[entity.Spec, N, K], loaded bool) {
+	switch edge.Ref().Name {
+	case "card":
+		e.loadedTypes[0] = loaded
+
+	}
+}
+
+func (e SpecEdges) Count[N, K any](edge ent.Relation[entity.Spec, N, K]) (int, bool) {
+	count, loaded := e.counts[edge.Ref().Name]
+	return count, loaded
 }
 
 // CardOrErr returns the Card value or an error if the edge
@@ -50,7 +74,7 @@ func (*Spec) scanValues(columns []string) ([]any, error) {
 	for i := range columns {
 		switch columns[i] {
 		case spec.FieldID:
-			values[i] = new(sql.NullInt64)
+			values[i] = new(*int)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -67,22 +91,15 @@ func (_m *Spec) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case spec.FieldID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field id", values[i])
-			} else if value.Valid {
-				_m.ID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.ID = **value
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the Spec.
-// This includes values selected through modifiers, order, etc.
-func (_m *Spec) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // QueryCard queries the "card" edge of the Spec entity.

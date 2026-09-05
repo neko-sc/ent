@@ -6,8 +6,10 @@
 package intsid
 
 import (
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
+	"github.com/neko-sc/ent/entc/integration/customid/sid"
 )
 
 const (
@@ -30,6 +32,41 @@ const (
 	// ChildrenColumn is the table column denoting the children relation/edge.
 	ChildrenColumn = "int_sid_parent"
 )
+
+var (
+	ID       = ent.OrderedColumn[entity.IntSID, sid.ID]{Table: Table, Name: FieldID}
+	Parent   = ent.NewUniqueRelation[entity.IntSID, entity.IntSID, sid.ID](EdgeParent, newParentStep)
+	Children = ent.NewRelation[entity.IntSID, entity.IntSID, sid.ID](EdgeChildren, newChildrenStep)
+)
+
+// Alias returns the columns of the int_si_ds table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.IntSID, sid.ID]{Table: name, Name: FieldID},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.IntSID, sid.ID]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.IntSID]) ent.Predicate[entity.IntSID] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.IntSID]) ent.Predicate[entity.IntSID] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.IntSID]) ent.Predicate[entity.IntSID] {
+	return ent.Not(predicate)
+}
 
 // Columns holds all SQL columns for intsid fields.
 var Columns = []string{
@@ -57,34 +94,6 @@ func ValidColumn(column string) bool {
 	return false
 }
 
-// OrderOption defines the ordering options for the IntSID queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByParentField orders the results by parent field.
-func ByParentField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newParentStep(), sql.OrderByField(field, opts...))
-	}
-}
-
-// ByChildrenCount orders the results by children count.
-func ByChildrenCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newChildrenStep(), opts...)
-	}
-}
-
-// ByChildren orders the results by children terms.
-func ByChildren(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newChildrenStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
 func newParentStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),

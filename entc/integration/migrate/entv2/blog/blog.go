@@ -6,8 +6,9 @@
 package blog
 
 import (
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/migrate/entv2/entity"
 )
 
 const (
@@ -32,6 +33,41 @@ const (
 	AdminsColumn = "blog_admins"
 )
 
+var (
+	ID     = ent.OrderedColumn[entity.Blog, int]{Table: Table, Name: FieldID}
+	Oid    = ent.OrderedColumn[entity.Blog, int]{Table: Table, Name: FieldOid}
+	Admins = ent.NewRelation[entity.Blog, entity.User, int](EdgeAdmins, newAdminsStep)
+)
+
+// Alias returns the columns of the blogs table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.Blog, int]{Table: name, Name: FieldID},
+		Oid:        ent.OrderedColumn[entity.Blog, int]{Table: name, Name: FieldOid},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.Blog, int]
+	Oid        ent.OrderedColumn[entity.Blog, int]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.Blog]) ent.Predicate[entity.Blog] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.Blog]) ent.Predicate[entity.Blog] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.Blog]) ent.Predicate[entity.Blog] { return ent.Not(predicate) }
+
 // Columns holds all SQL columns for blog fields.
 var Columns = []string{
 	FieldID,
@@ -48,32 +84,6 @@ func ValidColumn(column string) bool {
 	return false
 }
 
-// OrderOption defines the ordering options for the Blog queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByOid orders the results by the oid field.
-func ByOid(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldOid, opts...).ToFunc()
-}
-
-// ByAdminsCount orders the results by admins count.
-func ByAdminsCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newAdminsStep(), opts...)
-	}
-}
-
-// ByAdmins orders the results by admins terms.
-func ByAdmins(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newAdminsStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
 func newAdminsStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),

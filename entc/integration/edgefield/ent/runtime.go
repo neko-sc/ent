@@ -6,7 +6,7 @@
 package ent
 
 import (
-	"time"
+	time2 "time"
 
 	"github.com/google/uuid"
 	"github.com/neko-sc/ent/entc/integration/edgefield/ent/car"
@@ -17,7 +17,7 @@ import (
 )
 
 // The init function reads all schema descriptors with runtime code
-// (default values, validators, hooks and policies) and stitches it
+// (default values and validators) and stitches it
 // to their package variables.
 func init() {
 	carFields := schema.Car{}.Fields()
@@ -43,5 +43,5 @@ func init() {
 	// rentalDescDate is the schema descriptor for date field.
 	rentalDescDate := rentalFields[0].Descriptor()
 	// rental.DefaultDate holds the default value on creation for the date field.
-	rental.DefaultDate = rentalDescDate.Default.(func() time.Time)
+	rental.DefaultDate = rentalDescDate.Default.(func() time2.Time)
 }

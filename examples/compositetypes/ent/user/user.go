@@ -3,8 +3,11 @@
 package user
 
 import (
-	"github.com/neko-sc/ent/dialect/sql"
-	"github.com/neko-sc/ent/examples/compositetypes/ent/schema"
+	"database/sql/driver"
+
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/examples/compositetypes/ent/entity"
+	schema2 "github.com/neko-sc/ent/examples/compositetypes/ent/schema"
 	"github.com/neko-sc/ent/schema/field"
 )
 
@@ -18,6 +21,40 @@ const (
 	// Table holds the table name of the user in the database.
 	Table = "users"
 )
+
+var (
+	ID      = ent.OrderedColumn[entity.User, int]{Table: Table, Name: FieldID}
+	Address = ent.StringColumn[entity.User, *schema2.Address]{Table: Table, Name: FieldAddress, Valuer: func(value *schema2.Address) (driver.Value, error) { return ValueScanner.Address.Value(value) }}
+)
+
+// Alias returns the columns of the users table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.User, int]{Table: name, Name: FieldID},
+		Address:    ent.StringColumn[entity.User, *schema2.Address]{Table: name, Name: FieldAddress, Valuer: func(value *schema2.Address) (driver.Value, error) { return ValueScanner.Address.Value(value) }},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.User, int]
+	Address    ent.StringColumn[entity.User, *schema2.Address]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.User]) ent.Predicate[entity.User] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.User]) ent.Predicate[entity.User] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.User]) ent.Predicate[entity.User] { return ent.Not(predicate) }
 
 // Columns holds all SQL columns for user fields.
 var Columns = []string{
@@ -38,19 +75,6 @@ func ValidColumn(column string) bool {
 var (
 	// ValueScanner of all User fields.
 	ValueScanner struct {
-		Address field.TypeValueScanner[*schema.Address]
+		Address field.TypeValueScanner[*schema2.Address]
 	}
 )
-
-// OrderOption defines the ordering options for the User queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByAddress orders the results by the address field.
-func ByAddress(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldAddress, opts...).ToFunc()
-}

@@ -9,126 +9,207 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
-	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/predicate"
+	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/role"
 	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/user"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// RoleUpdate is the builder for updating Role entities.
 type RoleUpdate struct {
 	config
-	hooks    []Hook
-	mutation *RoleMutation
+	mutation  *RoleMutation
+	err       error
+	returning *sqlgraph.Returning
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// Where appends a list predicates to the RoleUpdate builder.
-func (_u *RoleUpdate) Where(ps ...predicate.Role) *RoleUpdate {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// SetName sets the "name" field.
-func (_u *RoleUpdate) SetName(v string) *RoleUpdate {
-	_u.mutation.SetName(v)
-	return _u
-}
-
-// SetNillableName sets the "name" field if the given value is not nil.
-func (_u *RoleUpdate) SetNillableName(v *string) *RoleUpdate {
-	if v != nil {
-		_u.SetName(*v)
+func (b *RoleUpdate) Set[T any](column ent.ColumnOf[entity.Role, T], value T) *RoleUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// SetCreatedAt sets the "created_at" field.
-func (_u *RoleUpdate) SetCreatedAt(v time.Time) *RoleUpdate {
-	_u.mutation.SetCreatedAt(v)
-	return _u
+	return b
 }
-
-// SetNillableCreatedAt sets the "created_at" field if the given value is not nil.
-func (_u *RoleUpdate) SetNillableCreatedAt(v *time.Time) *RoleUpdate {
-	if v != nil {
-		_u.SetCreatedAt(*v)
+func (b *RoleUpdate) SetOptional[T any](column ent.ColumnOf[entity.Role, T], value ent.Option[T]) *RoleUpdate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u
-}
-
-// AddUserIDs adds the "user" edge to the User entity by IDs.
-func (_u *RoleUpdate) AddUserIDs(ids ...int) *RoleUpdate {
-	_u.mutation.AddUserIDs(ids...)
-	return _u
-}
-
-// AddUser adds the "user" edges to the User entity.
-func (_u *RoleUpdate) AddUser(v ...*User) *RoleUpdate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
 	}
-	return _u.AddUserIDs(ids...)
+	return b
 }
-
-// Mutation returns the RoleMutation object of the builder.
-func (_u *RoleUpdate) Mutation() *RoleMutation {
-	return _u.mutation
-}
-
-// ClearUser clears all "user" edges to the User entity.
-func (_u *RoleUpdate) ClearUser() *RoleUpdate {
-	_u.mutation.ClearUser()
-	return _u
-}
-
-// RemoveUserIDs removes the "user" edge to User entities by IDs.
-func (_u *RoleUpdate) RemoveUserIDs(ids ...int) *RoleUpdate {
-	_u.mutation.RemoveUserIDs(ids...)
-	return _u
-}
-
-// RemoveUser removes "user" edges to User entities.
-func (_u *RoleUpdate) RemoveUser(v ...*User) *RoleUpdate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+func (b *RoleUpdate) SetExpr[T any](column ent.ColumnOf[entity.Role, T], value ent.Expr[T]) *RoleUpdate {
+	if b.err != nil {
+		return b
 	}
-	return _u.RemoveUserIDs(ids...)
+	switch column.Ref().Name {
+
+	case role.FieldName:
+
+	case role.FieldCreatedAt:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Role is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *RoleUpdate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Role, N, K], id K) *RoleUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *RoleUpdate) AddIDs[N, K any](edge ent.Relation[entity.Role, N, K], ids ...K) *RoleUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *RoleUpdate) Mutation() *RoleMutation { return b.mutation }
+
+func (b *RoleUpdate) Patch() *RolePatch             { return b.mutation.patch }
+func (b *RoleUpdate) Apply(p RolePatch) *RoleUpdate { b.mutation.patch.apply(p); return b }
+func (b *RoleUpdate) Add[T ent.Number](column ent.ColumnOf[entity.Role, T], delta T) *RoleUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *RoleUpdate) Append[T any](column ent.ColumnOf[entity.Role, T], values T) *RoleUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *RoleUpdate) Clear[T any](column ent.ColumnOf[entity.Role, T]) *RoleUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *RoleUpdate) RemoveIDs[N, K any](edge ent.Relation[entity.Role, N, K], ids ...K) *RoleUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *RoleUpdate) ClearEdge[N, K any](edge ent.RelationOf[entity.Role, N, K]) *RoleUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// Save executes the query and returns the number of nodes affected by the update operation.
-func (_u *RoleUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
+func (b *RoleUpdate) Where(predicates ...ent.Predicate[entity.Role]) *RoleUpdate {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_u *RoleUpdate) SaveX(ctx context.Context) int {
-	affected, err := _u.Save(ctx)
+func (b *RoleUpdate) Save(ctx context.Context) (int, error) {
+	if b.err != nil {
+		return 0, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return 0, err
+	}
+	return b.sqlSave(ctx)
+}
+
+func (b *RoleUpdate) SaveX(ctx context.Context) int {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return affected
+	return result
 }
 
-// Exec executes the query.
-func (_u *RoleUpdate) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *RoleUpdate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *RoleUpdate) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *RoleUpdate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
+func (b *RoleUpdate) Returning(ctx context.Context) ([]*Role, error) {
+	nodes := make([]*Role, 0)
+	b.returning = &sqlgraph.Returning{Columns: role.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Role{config: b.config}
+		values, err := _node.scanValues(role.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(role.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Save(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
+}
+
+func (b *RoleUpdate) defaults() error {
+
+	return nil
+}
+
+func (b *RoleUpdate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.Name.IsNull() {
+		return &ValidationError{Name: "name", err: errors.New(`ent: field "Role.name" is not nullable`)}
+	}
+
+	if b.mutation.patch.CreatedAt.IsNull() {
+		return &ValidationError{Name: "created_at", err: errors.New(`ent: field "Role.created_at" is not nullable`)}
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *RoleUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *RoleUpdate {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *RoleUpdate) sqlSave(ctx context.Context) (_node int, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(role.Table, role.Columns, sqlgraph.NewFieldSpec(role.FieldID, field.TypeInt))
 	if ps := _u.mutation.Predicates(); len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -137,13 +218,13 @@ func (_u *RoleUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.Name(); ok {
+	if value, ok := _u.mutation.patch.Name.Get(); ok {
 		_spec.SetField(role.FieldName, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.CreatedAt(); ok {
+	if value, ok := _u.mutation.patch.CreatedAt.Get(); ok {
 		_spec.SetField(role.FieldCreatedAt, field.TypeTime, value)
 	}
-	if _u.mutation.UserCleared() {
+	if _u.mutation.patch.User.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: true,
@@ -155,12 +236,17 @@ func (_u *RoleUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			},
 		}
 		createE := &RoleUserCreate{config: _u.config, mutation: newRoleUserMutation(_u.config, OpCreate)}
-		createE.defaults()
-		_, specE := createE.createSpec()
+		if err := createE.defaults(); err != nil {
+			return 0, err
+		}
+		_, specE, err := createE.createSpec()
+		if err != nil {
+			return 0, err
+		}
 		edge.Target.Fields = specE.Fields
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.RemovedUserIDs(); len(nodes) > 0 && !_u.mutation.UserCleared() {
+	if nodes := _u.mutation.patch.User.Remove; len(nodes) > 0 && !_u.mutation.patch.User.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: true,
@@ -171,16 +257,26 @@ func (_u *RoleUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		createE := &RoleUserCreate{config: _u.config, mutation: newRoleUserMutation(_u.config, OpCreate)}
-		createE.defaults()
-		_, specE := createE.createSpec()
+		if err := createE.defaults(); err != nil {
+			return 0, err
+		}
+		_, specE, err := createE.createSpec()
+		if err != nil {
+			return 0, err
+		}
 		edge.Target.Fields = specE.Fields
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.UserIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.userIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: true,
@@ -191,15 +287,31 @@ func (_u *RoleUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		createE := &RoleUserCreate{config: _u.config, mutation: newRoleUserMutation(_u.config, OpCreate)}
-		createE.defaults()
-		_, specE := createE.createSpec()
+		if err := createE.defaults(); err != nil {
+			return 0, err
+		}
+		_, specE, err := createE.createSpec()
+		if err != nil {
+			return 0, err
+		}
 		edge.Target.Fields = specE.Fields
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	_spec.Returning = _u.returning
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{role.Label}
@@ -208,128 +320,201 @@ func (_u *RoleUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		return 0, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }
 
-// RoleUpdateOne is the builder for updating a single Role entity.
 type RoleUpdateOne struct {
 	config
-	fields   []string
-	hooks    []Hook
 	mutation *RoleMutation
+	err      error
+
+	fields []string
+	old    *Role
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// SetName sets the "name" field.
-func (_u *RoleUpdateOne) SetName(v string) *RoleUpdateOne {
-	_u.mutation.SetName(v)
-	return _u
-}
-
-// SetNillableName sets the "name" field if the given value is not nil.
-func (_u *RoleUpdateOne) SetNillableName(v *string) *RoleUpdateOne {
-	if v != nil {
-		_u.SetName(*v)
+func (b *RoleUpdateOne) Set[T any](column ent.ColumnOf[entity.Role, T], value T) *RoleUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// SetCreatedAt sets the "created_at" field.
-func (_u *RoleUpdateOne) SetCreatedAt(v time.Time) *RoleUpdateOne {
-	_u.mutation.SetCreatedAt(v)
-	return _u
+	return b
 }
-
-// SetNillableCreatedAt sets the "created_at" field if the given value is not nil.
-func (_u *RoleUpdateOne) SetNillableCreatedAt(v *time.Time) *RoleUpdateOne {
-	if v != nil {
-		_u.SetCreatedAt(*v)
+func (b *RoleUpdateOne) SetOptional[T any](column ent.ColumnOf[entity.Role, T], value ent.Option[T]) *RoleUpdateOne {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u
-}
-
-// AddUserIDs adds the "user" edge to the User entity by IDs.
-func (_u *RoleUpdateOne) AddUserIDs(ids ...int) *RoleUpdateOne {
-	_u.mutation.AddUserIDs(ids...)
-	return _u
-}
-
-// AddUser adds the "user" edges to the User entity.
-func (_u *RoleUpdateOne) AddUser(v ...*User) *RoleUpdateOne {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
 	}
-	return _u.AddUserIDs(ids...)
+	return b
 }
-
-// Mutation returns the RoleMutation object of the builder.
-func (_u *RoleUpdateOne) Mutation() *RoleMutation {
-	return _u.mutation
-}
-
-// ClearUser clears all "user" edges to the User entity.
-func (_u *RoleUpdateOne) ClearUser() *RoleUpdateOne {
-	_u.mutation.ClearUser()
-	return _u
-}
-
-// RemoveUserIDs removes the "user" edge to User entities by IDs.
-func (_u *RoleUpdateOne) RemoveUserIDs(ids ...int) *RoleUpdateOne {
-	_u.mutation.RemoveUserIDs(ids...)
-	return _u
-}
-
-// RemoveUser removes "user" edges to User entities.
-func (_u *RoleUpdateOne) RemoveUser(v ...*User) *RoleUpdateOne {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+func (b *RoleUpdateOne) SetExpr[T any](column ent.ColumnOf[entity.Role, T], value ent.Expr[T]) *RoleUpdateOne {
+	if b.err != nil {
+		return b
 	}
-	return _u.RemoveUserIDs(ids...)
+	switch column.Ref().Name {
+
+	case role.FieldName:
+
+	case role.FieldCreatedAt:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Role is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *RoleUpdateOne) SetEdge[N, K any](edge ent.UniqueRelation[entity.Role, N, K], id K) *RoleUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *RoleUpdateOne) AddIDs[N, K any](edge ent.Relation[entity.Role, N, K], ids ...K) *RoleUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *RoleUpdateOne) Mutation() *RoleMutation { return b.mutation }
+
+func (b *RoleUpdateOne) Patch() *RolePatch                { return b.mutation.patch }
+func (b *RoleUpdateOne) Apply(p RolePatch) *RoleUpdateOne { b.mutation.patch.apply(p); return b }
+func (b *RoleUpdateOne) Add[T ent.Number](column ent.ColumnOf[entity.Role, T], delta T) *RoleUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *RoleUpdateOne) Append[T any](column ent.ColumnOf[entity.Role, T], values T) *RoleUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *RoleUpdateOne) Clear[T any](column ent.ColumnOf[entity.Role, T]) *RoleUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *RoleUpdateOne) RemoveIDs[N, K any](edge ent.Relation[entity.Role, N, K], ids ...K) *RoleUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *RoleUpdateOne) ClearEdge[N, K any](edge ent.RelationOf[entity.Role, N, K]) *RoleUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// Where appends a list predicates to the RoleUpdate builder.
-func (_u *RoleUpdateOne) Where(ps ...predicate.Role) *RoleUpdateOne {
-	_u.mutation.Where(ps...)
-	return _u
+func (b *RoleUpdateOne) Where(predicates ...ent.Predicate[entity.Role]) *RoleUpdateOne {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Select allows selecting one or more fields (columns) of the returned entity.
-// The default is selecting all fields defined in the entity schema.
-func (_u *RoleUpdateOne) Select(field string, fields ...string) *RoleUpdateOne {
-	_u.fields = append([]string{field}, fields...)
-	return _u
+func (b *RoleUpdateOne) Save(ctx context.Context) (*Role, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Save executes the query and returns the updated Role entity.
-func (_u *RoleUpdateOne) Save(ctx context.Context) (*Role, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *RoleUpdateOne) SaveX(ctx context.Context) *Role {
-	node, err := _u.Save(ctx)
+func (b *RoleUpdateOne) SaveX(ctx context.Context) *Role {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return node
+	return result
 }
 
-// Exec executes the query on the entity.
-func (_u *RoleUpdateOne) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *RoleUpdateOne) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *RoleUpdateOne) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *RoleUpdateOne) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
+func (b *RoleUpdateOne) Select(columns ...ent.EntityColumn[entity.Role]) *RoleUpdateOne {
+	if len(columns) == 0 {
+		panic("ent: Select requires at least one column")
+	}
+	b.fields = make([]string, len(columns))
+	for index, column := range columns {
+		b.fields[index] = column.Ref().Name
+	}
+	return b
+}
+
+func (b *RoleUpdateOne) SaveOld(ctx context.Context) (old *Role, updated *Role, err error) {
+	if !b.driver.Capabilities().ReturningOld {
+		return nil, nil, &dialect.UnsupportedError{Feature: "RETURNING OLD", Dialect: dialect.Dialect(b.driver.Dialect())}
+	}
+	b.old = &Role{config: b.config}
+	defer func() { b.old = nil }()
+	updated, err = b.Save(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return b.old, updated, nil
+}
+
+func (b *RoleUpdateOne) defaults() error {
+
+	return nil
+}
+
+func (b *RoleUpdateOne) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.Name.IsNull() {
+		return &ValidationError{Name: "name", err: errors.New(`ent: field "Role.name" is not nullable`)}
+	}
+
+	if b.mutation.patch.CreatedAt.IsNull() {
+		return &ValidationError{Name: "created_at", err: errors.New(`ent: field "Role.created_at" is not nullable`)}
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *RoleUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *RoleUpdateOne {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *RoleUpdateOne) sqlSave(ctx context.Context) (_node *Role, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(role.Table, role.Columns, sqlgraph.NewFieldSpec(role.FieldID, field.TypeInt))
 	id, ok := _u.mutation.ID()
 	if !ok {
@@ -355,13 +540,13 @@ func (_u *RoleUpdateOne) sqlSave(ctx context.Context) (_node *Role, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.Name(); ok {
+	if value, ok := _u.mutation.patch.Name.Get(); ok {
 		_spec.SetField(role.FieldName, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.CreatedAt(); ok {
+	if value, ok := _u.mutation.patch.CreatedAt.Get(); ok {
 		_spec.SetField(role.FieldCreatedAt, field.TypeTime, value)
 	}
-	if _u.mutation.UserCleared() {
+	if _u.mutation.patch.User.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: true,
@@ -373,12 +558,17 @@ func (_u *RoleUpdateOne) sqlSave(ctx context.Context) (_node *Role, err error) {
 			},
 		}
 		createE := &RoleUserCreate{config: _u.config, mutation: newRoleUserMutation(_u.config, OpCreate)}
-		createE.defaults()
-		_, specE := createE.createSpec()
+		if err := createE.defaults(); err != nil {
+			return nil, err
+		}
+		_, specE, err := createE.createSpec()
+		if err != nil {
+			return nil, err
+		}
 		edge.Target.Fields = specE.Fields
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.RemovedUserIDs(); len(nodes) > 0 && !_u.mutation.UserCleared() {
+	if nodes := _u.mutation.patch.User.Remove; len(nodes) > 0 && !_u.mutation.patch.User.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: true,
@@ -389,16 +579,26 @@ func (_u *RoleUpdateOne) sqlSave(ctx context.Context) (_node *Role, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		createE := &RoleUserCreate{config: _u.config, mutation: newRoleUserMutation(_u.config, OpCreate)}
-		createE.defaults()
-		_, specE := createE.createSpec()
+		if err := createE.defaults(); err != nil {
+			return nil, err
+		}
+		_, specE, err := createE.createSpec()
+		if err != nil {
+			return nil, err
+		}
 		edge.Target.Fields = specE.Fields
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.UserIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.userIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: true,
@@ -409,18 +609,37 @@ func (_u *RoleUpdateOne) sqlSave(ctx context.Context) (_node *Role, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		createE := &RoleUserCreate{config: _u.config, mutation: newRoleUserMutation(_u.config, OpCreate)}
-		createE.defaults()
-		_, specE := createE.createSpec()
+		if err := createE.defaults(); err != nil {
+			return nil, err
+		}
+		_, specE, err := createE.createSpec()
+		if err != nil {
+			return nil, err
+		}
 		edge.Target.Fields = specE.Fields
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	_node = &Role{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
+	if _u.old != nil {
+		_spec.OldScanValues = _u.old.scanValues
+		_spec.OldAssign = _u.old.assignValues
+	}
 	if err = sqlgraph.UpdateNode(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{role.Label}
@@ -429,6 +648,5 @@ func (_u *RoleUpdateOne) sqlSave(ctx context.Context) (_node *Role, err error) {
 		}
 		return nil, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }

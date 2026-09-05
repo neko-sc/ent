@@ -10,94 +10,178 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/entc/integration/ent/card"
-	"github.com/neko-sc/ent/entc/integration/ent/predicate"
+	"github.com/neko-sc/ent/entc/integration/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/ent/spec"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// SpecUpdate is the builder for updating Spec entities.
 type SpecUpdate struct {
 	config
-	hooks     []Hook
 	mutation  *SpecMutation
+	err       error
+	returning *sqlgraph.Returning
+
 	modifiers []func(*sql.UpdateBuilder)
 }
 
-// Where appends a list predicates to the SpecUpdate builder.
-func (_u *SpecUpdate) Where(ps ...predicate.Spec) *SpecUpdate {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// AddCardIDs adds the "card" edge to the Card entity by IDs.
-func (_u *SpecUpdate) AddCardIDs(ids ...int) *SpecUpdate {
-	_u.mutation.AddCardIDs(ids...)
-	return _u
-}
-
-// AddCard adds the "card" edges to the Card entity.
-func (_u *SpecUpdate) AddCard(v ...*Card) *SpecUpdate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+func (b *SpecUpdate) Set[T any](column ent.ColumnOf[entity.Spec, T], value T) *SpecUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u.AddCardIDs(ids...)
-}
 
-// Mutation returns the SpecMutation object of the builder.
-func (_u *SpecUpdate) Mutation() *SpecMutation {
-	return _u.mutation
+	return b
 }
-
-// ClearCard clears all "card" edges to the Card entity.
-func (_u *SpecUpdate) ClearCard() *SpecUpdate {
-	_u.mutation.ClearCard()
-	return _u
-}
-
-// RemoveCardIDs removes the "card" edge to Card entities by IDs.
-func (_u *SpecUpdate) RemoveCardIDs(ids ...int) *SpecUpdate {
-	_u.mutation.RemoveCardIDs(ids...)
-	return _u
-}
-
-// RemoveCard removes "card" edges to Card entities.
-func (_u *SpecUpdate) RemoveCard(v ...*Card) *SpecUpdate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+func (b *SpecUpdate) SetOptional[T any](column ent.ColumnOf[entity.Spec, T], value ent.Option[T]) *SpecUpdate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u.RemoveCardIDs(ids...)
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *SpecUpdate) SetExpr[T any](column ent.ColumnOf[entity.Spec, T], value ent.Expr[T]) *SpecUpdate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Spec is not settable", column.Ref().Name)}
+		return b
+	}
+
+}
+func (b *SpecUpdate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Spec, N, K], id K) *SpecUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *SpecUpdate) AddIDs[N, K any](edge ent.Relation[entity.Spec, N, K], ids ...K) *SpecUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *SpecUpdate) Mutation() *SpecMutation { return b.mutation }
+
+func (b *SpecUpdate) Patch() *SpecPatch             { return b.mutation.patch }
+func (b *SpecUpdate) Apply(p SpecPatch) *SpecUpdate { b.mutation.patch.apply(p); return b }
+func (b *SpecUpdate) Add[T ent.Number](column ent.ColumnOf[entity.Spec, T], delta T) *SpecUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *SpecUpdate) Append[T any](column ent.ColumnOf[entity.Spec, T], values T) *SpecUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *SpecUpdate) Clear[T any](column ent.ColumnOf[entity.Spec, T]) *SpecUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *SpecUpdate) RemoveIDs[N, K any](edge ent.Relation[entity.Spec, N, K], ids ...K) *SpecUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *SpecUpdate) ClearEdge[N, K any](edge ent.RelationOf[entity.Spec, N, K]) *SpecUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// Save executes the query and returns the number of nodes affected by the update operation.
-func (_u *SpecUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
+func (b *SpecUpdate) Where(predicates ...ent.Predicate[entity.Spec]) *SpecUpdate {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_u *SpecUpdate) SaveX(ctx context.Context) int {
-	affected, err := _u.Save(ctx)
+func (b *SpecUpdate) Save(ctx context.Context) (int, error) {
+	if b.err != nil {
+		return 0, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return 0, err
+	}
+	return b.sqlSave(ctx)
+}
+
+func (b *SpecUpdate) SaveX(ctx context.Context) int {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return affected
+	return result
 }
 
-// Exec executes the query.
-func (_u *SpecUpdate) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *SpecUpdate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *SpecUpdate) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *SpecUpdate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
+}
+
+func (b *SpecUpdate) Returning(ctx context.Context) ([]*Spec, error) {
+	nodes := make([]*Spec, 0)
+	b.returning = &sqlgraph.Returning{Columns: spec.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Spec{config: b.config}
+		values, err := _node.scanValues(spec.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(spec.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Save(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
+}
+
+func (b *SpecUpdate) defaults() error {
+
+	return nil
+}
+
+func (b *SpecUpdate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	return nil
 }
 
 // Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
@@ -107,6 +191,9 @@ func (_u *SpecUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *SpecUpdat
 }
 
 func (_u *SpecUpdate) sqlSave(ctx context.Context) (_node int, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(spec.Table, spec.Columns, sqlgraph.NewFieldSpec(spec.FieldID, field.TypeInt))
 	if ps := _u.mutation.Predicates(); len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -115,7 +202,7 @@ func (_u *SpecUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			}
 		}
 	}
-	if _u.mutation.CardCleared() {
+	if _u.mutation.patch.Card.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: false,
@@ -128,7 +215,7 @@ func (_u *SpecUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.RemovedCardIDs(); len(nodes) > 0 && !_u.mutation.CardCleared() {
+	if nodes := _u.mutation.patch.Card.Remove; len(nodes) > 0 && !_u.mutation.patch.Card.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: false,
@@ -139,12 +226,17 @@ func (_u *SpecUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(card.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.CardIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.cardIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: false,
@@ -155,12 +247,22 @@ func (_u *SpecUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(card.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	_spec.Returning = _u.returning
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
 	_spec.AddModifiers(_u.modifiers...)
+
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{spec.Label}
@@ -169,98 +271,173 @@ func (_u *SpecUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		return 0, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }
 
-// SpecUpdateOne is the builder for updating a single Spec entity.
 type SpecUpdateOne struct {
 	config
-	fields    []string
-	hooks     []Hook
-	mutation  *SpecMutation
+	mutation *SpecMutation
+	err      error
+
+	fields []string
+	old    *Spec
+
 	modifiers []func(*sql.UpdateBuilder)
 }
 
-// AddCardIDs adds the "card" edge to the Card entity by IDs.
-func (_u *SpecUpdateOne) AddCardIDs(ids ...int) *SpecUpdateOne {
-	_u.mutation.AddCardIDs(ids...)
-	return _u
-}
-
-// AddCard adds the "card" edges to the Card entity.
-func (_u *SpecUpdateOne) AddCard(v ...*Card) *SpecUpdateOne {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+func (b *SpecUpdateOne) Set[T any](column ent.ColumnOf[entity.Spec, T], value T) *SpecUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u.AddCardIDs(ids...)
-}
 
-// Mutation returns the SpecMutation object of the builder.
-func (_u *SpecUpdateOne) Mutation() *SpecMutation {
-	return _u.mutation
+	return b
 }
-
-// ClearCard clears all "card" edges to the Card entity.
-func (_u *SpecUpdateOne) ClearCard() *SpecUpdateOne {
-	_u.mutation.ClearCard()
-	return _u
-}
-
-// RemoveCardIDs removes the "card" edge to Card entities by IDs.
-func (_u *SpecUpdateOne) RemoveCardIDs(ids ...int) *SpecUpdateOne {
-	_u.mutation.RemoveCardIDs(ids...)
-	return _u
-}
-
-// RemoveCard removes "card" edges to Card entities.
-func (_u *SpecUpdateOne) RemoveCard(v ...*Card) *SpecUpdateOne {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+func (b *SpecUpdateOne) SetOptional[T any](column ent.ColumnOf[entity.Spec, T], value ent.Option[T]) *SpecUpdateOne {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u.RemoveCardIDs(ids...)
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *SpecUpdateOne) SetExpr[T any](column ent.ColumnOf[entity.Spec, T], value ent.Expr[T]) *SpecUpdateOne {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Spec is not settable", column.Ref().Name)}
+		return b
+	}
+
+}
+func (b *SpecUpdateOne) SetEdge[N, K any](edge ent.UniqueRelation[entity.Spec, N, K], id K) *SpecUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *SpecUpdateOne) AddIDs[N, K any](edge ent.Relation[entity.Spec, N, K], ids ...K) *SpecUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *SpecUpdateOne) Mutation() *SpecMutation { return b.mutation }
+
+func (b *SpecUpdateOne) Patch() *SpecPatch                { return b.mutation.patch }
+func (b *SpecUpdateOne) Apply(p SpecPatch) *SpecUpdateOne { b.mutation.patch.apply(p); return b }
+func (b *SpecUpdateOne) Add[T ent.Number](column ent.ColumnOf[entity.Spec, T], delta T) *SpecUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *SpecUpdateOne) Append[T any](column ent.ColumnOf[entity.Spec, T], values T) *SpecUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *SpecUpdateOne) Clear[T any](column ent.ColumnOf[entity.Spec, T]) *SpecUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *SpecUpdateOne) RemoveIDs[N, K any](edge ent.Relation[entity.Spec, N, K], ids ...K) *SpecUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *SpecUpdateOne) ClearEdge[N, K any](edge ent.RelationOf[entity.Spec, N, K]) *SpecUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// Where appends a list predicates to the SpecUpdate builder.
-func (_u *SpecUpdateOne) Where(ps ...predicate.Spec) *SpecUpdateOne {
-	_u.mutation.Where(ps...)
-	return _u
+func (b *SpecUpdateOne) Where(predicates ...ent.Predicate[entity.Spec]) *SpecUpdateOne {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Select allows selecting one or more fields (columns) of the returned entity.
-// The default is selecting all fields defined in the entity schema.
-func (_u *SpecUpdateOne) Select(field string, fields ...string) *SpecUpdateOne {
-	_u.fields = append([]string{field}, fields...)
-	return _u
+func (b *SpecUpdateOne) Save(ctx context.Context) (*Spec, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Save executes the query and returns the updated Spec entity.
-func (_u *SpecUpdateOne) Save(ctx context.Context) (*Spec, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *SpecUpdateOne) SaveX(ctx context.Context) *Spec {
-	node, err := _u.Save(ctx)
+func (b *SpecUpdateOne) SaveX(ctx context.Context) *Spec {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return node
+	return result
 }
 
-// Exec executes the query on the entity.
-func (_u *SpecUpdateOne) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *SpecUpdateOne) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *SpecUpdateOne) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *SpecUpdateOne) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
+}
+
+func (b *SpecUpdateOne) Select(columns ...ent.EntityColumn[entity.Spec]) *SpecUpdateOne {
+	if len(columns) == 0 {
+		panic("ent: Select requires at least one column")
+	}
+	b.fields = make([]string, len(columns))
+	for index, column := range columns {
+		b.fields[index] = column.Ref().Name
+	}
+	return b
+}
+
+func (b *SpecUpdateOne) SaveOld(ctx context.Context) (old *Spec, updated *Spec, err error) {
+	if !b.driver.Capabilities().ReturningOld {
+		return nil, nil, &dialect.UnsupportedError{Feature: "RETURNING OLD", Dialect: dialect.Dialect(b.driver.Dialect())}
+	}
+	b.old = &Spec{config: b.config}
+	defer func() { b.old = nil }()
+	updated, err = b.Save(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return b.old, updated, nil
+}
+
+func (b *SpecUpdateOne) defaults() error {
+
+	return nil
+}
+
+func (b *SpecUpdateOne) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	return nil
 }
 
 // Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
@@ -270,6 +447,9 @@ func (_u *SpecUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *SpecUp
 }
 
 func (_u *SpecUpdateOne) sqlSave(ctx context.Context) (_node *Spec, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(spec.Table, spec.Columns, sqlgraph.NewFieldSpec(spec.FieldID, field.TypeInt))
 	id, ok := _u.mutation.ID()
 	if !ok {
@@ -295,7 +475,7 @@ func (_u *SpecUpdateOne) sqlSave(ctx context.Context) (_node *Spec, err error) {
 			}
 		}
 	}
-	if _u.mutation.CardCleared() {
+	if _u.mutation.patch.Card.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: false,
@@ -308,7 +488,7 @@ func (_u *SpecUpdateOne) sqlSave(ctx context.Context) (_node *Spec, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.RemovedCardIDs(); len(nodes) > 0 && !_u.mutation.CardCleared() {
+	if nodes := _u.mutation.patch.Card.Remove; len(nodes) > 0 && !_u.mutation.patch.Card.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: false,
@@ -319,12 +499,17 @@ func (_u *SpecUpdateOne) sqlSave(ctx context.Context) (_node *Spec, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(card.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.CardIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.cardIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: false,
@@ -335,15 +520,28 @@ func (_u *SpecUpdateOne) sqlSave(ctx context.Context) (_node *Spec, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(card.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
 	_spec.AddModifiers(_u.modifiers...)
+
 	_node = &Spec{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
+	if _u.old != nil {
+		_spec.OldScanValues = _u.old.scanValues
+		_spec.OldAssign = _u.old.assignValues
+	}
 	if err = sqlgraph.UpdateNode(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{spec.Label}
@@ -352,6 +550,5 @@ func (_u *SpecUpdateOne) sqlSave(ctx context.Context) (_node *Spec, err error) {
 		}
 		return nil, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }

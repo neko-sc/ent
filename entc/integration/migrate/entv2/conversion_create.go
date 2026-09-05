@@ -7,180 +7,148 @@ package entv2
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
+	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/entc/integration/migrate/entv2/conversion"
+	"github.com/neko-sc/ent/entc/integration/migrate/entv2/entity"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// ConversionCreate is the builder for creating a Conversion entity.
 type ConversionCreate struct {
 	config
-	mutation *ConversionMutation
-	hooks    []Hook
+	mutation    *ConversionMutation
+	err         error
+	fromBuilder bool
+	present     map[string]struct{}
+
+	conflict []sql.ConflictOption
 }
 
-// SetName sets the "name" field.
-func (_c *ConversionCreate) SetName(v string) *ConversionCreate {
-	_c.mutation.SetName(v)
-	return _c
-}
-
-// SetNillableName sets the "name" field if the given value is not nil.
-func (_c *ConversionCreate) SetNillableName(v *string) *ConversionCreate {
-	if v != nil {
-		_c.SetName(*v)
+func (b *ConversionCreate) Set[T any](column ent.ColumnOf[entity.Conversion, T], value T) *ConversionCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.set(column.Ref().Name, value)
 	}
-	return _c
-}
-
-// SetInt8ToString sets the "int8_to_string" field.
-func (_c *ConversionCreate) SetInt8ToString(v string) *ConversionCreate {
-	_c.mutation.SetInt8ToString(v)
-	return _c
-}
-
-// SetNillableInt8ToString sets the "int8_to_string" field if the given value is not nil.
-func (_c *ConversionCreate) SetNillableInt8ToString(v *string) *ConversionCreate {
-	if v != nil {
-		_c.SetInt8ToString(*v)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
 	}
-	return _c
+	b.present[column.Ref().Name] = struct{}{}
+	return b
 }
-
-// SetUint8ToString sets the "uint8_to_string" field.
-func (_c *ConversionCreate) SetUint8ToString(v string) *ConversionCreate {
-	_c.mutation.SetUint8ToString(v)
-	return _c
-}
-
-// SetNillableUint8ToString sets the "uint8_to_string" field if the given value is not nil.
-func (_c *ConversionCreate) SetNillableUint8ToString(v *string) *ConversionCreate {
-	if v != nil {
-		_c.SetUint8ToString(*v)
+func (b *ConversionCreate) SetOptional[T any](column ent.ColumnOf[entity.Conversion, T], value ent.Option[T]) *ConversionCreate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.insert.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _c
-}
-
-// SetInt16ToString sets the "int16_to_string" field.
-func (_c *ConversionCreate) SetInt16ToString(v string) *ConversionCreate {
-	_c.mutation.SetInt16ToString(v)
-	return _c
-}
-
-// SetNillableInt16ToString sets the "int16_to_string" field if the given value is not nil.
-func (_c *ConversionCreate) SetNillableInt16ToString(v *string) *ConversionCreate {
-	if v != nil {
-		_c.SetInt16ToString(*v)
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
 	}
-	return _c
+	return b
 }
-
-// SetUint16ToString sets the "uint16_to_string" field.
-func (_c *ConversionCreate) SetUint16ToString(v string) *ConversionCreate {
-	_c.mutation.SetUint16ToString(v)
-	return _c
-}
-
-// SetNillableUint16ToString sets the "uint16_to_string" field if the given value is not nil.
-func (_c *ConversionCreate) SetNillableUint16ToString(v *string) *ConversionCreate {
-	if v != nil {
-		_c.SetUint16ToString(*v)
+func (b *ConversionCreate) SetExpr[T any](column ent.ColumnOf[entity.Conversion, T], value ent.Expr[T]) *ConversionCreate {
+	if b.err != nil {
+		return b
 	}
-	return _c
-}
+	switch column.Ref().Name {
 
-// SetInt32ToString sets the "int32_to_string" field.
-func (_c *ConversionCreate) SetInt32ToString(v string) *ConversionCreate {
-	_c.mutation.SetInt32ToString(v)
-	return _c
-}
+	case conversion.FieldName:
 
-// SetNillableInt32ToString sets the "int32_to_string" field if the given value is not nil.
-func (_c *ConversionCreate) SetNillableInt32ToString(v *string) *ConversionCreate {
-	if v != nil {
-		_c.SetInt32ToString(*v)
+	case conversion.FieldInt8ToString:
+
+	case conversion.FieldUint8ToString:
+
+	case conversion.FieldInt16ToString:
+
+	case conversion.FieldUint16ToString:
+
+	case conversion.FieldInt32ToString:
+
+	case conversion.FieldUint32ToString:
+
+	case conversion.FieldInt64ToString:
+
+	case conversion.FieldUint64ToString:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Conversion is not settable", column.Ref().Name)}
+		return b
 	}
-	return _c
-}
 
-// SetUint32ToString sets the "uint32_to_string" field.
-func (_c *ConversionCreate) SetUint32ToString(v string) *ConversionCreate {
-	_c.mutation.SetUint32ToString(v)
-	return _c
-}
-
-// SetNillableUint32ToString sets the "uint32_to_string" field if the given value is not nil.
-func (_c *ConversionCreate) SetNillableUint32ToString(v *string) *ConversionCreate {
-	if v != nil {
-		_c.SetUint32ToString(*v)
+	b.mutation.insert.setExpr(column.Ref().Name, value.Render)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
 	}
-	return _c
-}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
 
-// SetInt64ToString sets the "int64_to_string" field.
-func (_c *ConversionCreate) SetInt64ToString(v string) *ConversionCreate {
-	_c.mutation.SetInt64ToString(v)
-	return _c
 }
-
-// SetNillableInt64ToString sets the "int64_to_string" field if the given value is not nil.
-func (_c *ConversionCreate) SetNillableInt64ToString(v *string) *ConversionCreate {
-	if v != nil {
-		_c.SetInt64ToString(*v)
+func (b *ConversionCreate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Conversion, N, K], id K) *ConversionCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.setEdge(edge.Ref().Name, id)
 	}
-	return _c
-}
 
-// SetUint64ToString sets the "uint64_to_string" field.
-func (_c *ConversionCreate) SetUint64ToString(v string) *ConversionCreate {
-	_c.mutation.SetUint64ToString(v)
-	return _c
-}
+	switch edge.Ref().Name {
 
-// SetNillableUint64ToString sets the "uint64_to_string" field if the given value is not nil.
-func (_c *ConversionCreate) SetNillableUint64ToString(v *string) *ConversionCreate {
-	if v != nil {
-		_c.SetUint64ToString(*v)
 	}
-	return _c
+
+	return b
+}
+func (b *ConversionCreate) AddIDs[N, K any](edge ent.Relation[entity.Conversion, N, K], ids ...K) *ConversionCreate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.insert.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *ConversionCreate) Mutation() *ConversionMutation { return b.mutation }
+
+func (b *ConversionCreate) Insert() *ConversionInsert { return b.mutation.insert }
+
+func (b *ConversionCreate) Save(ctx context.Context) (*Conversion, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Mutation returns the ConversionMutation object of the builder.
-func (_c *ConversionCreate) Mutation() *ConversionMutation {
-	return _c.mutation
-}
-
-// Save creates the Conversion in the database.
-func (_c *ConversionCreate) Save(ctx context.Context) (*Conversion, error) {
-	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
-}
-
-// SaveX calls Save and panics if Save returns an error.
-func (_c *ConversionCreate) SaveX(ctx context.Context) *Conversion {
-	v, err := _c.Save(ctx)
+func (b *ConversionCreate) SaveX(ctx context.Context) *Conversion {
+	node, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return node
 }
 
-// Exec executes the query.
-func (_c *ConversionCreate) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *ConversionCreate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *ConversionCreate) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *ConversionCreate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_c *ConversionCreate) check() error {
+func (b *ConversionCreate) defaults() error {
+
+	return nil
+}
+
+func (b *ConversionCreate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
 	return nil
 }
 
@@ -188,147 +156,549 @@ func (_c *ConversionCreate) sqlSave(ctx context.Context) (*Conversion, error) {
 	if err := _c.check(); err != nil {
 		return nil, err
 	}
-	_node, _spec := _c.createSpec()
-	if err := sqlgraph.CreateNode(ctx, _c.driver, _spec); err != nil {
+	node, spec, err := _c.createSpec()
+	if err != nil {
+		return nil, err
+	}
+	if err := sqlgraph.CreateNode(ctx, _c.driver, spec); err != nil {
 		if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
 		return nil, err
 	}
-	id := _spec.ID.Value.(int64)
-	_node.ID = int(id)
-	_c.mutation.id = &_node.ID
-	_c.mutation.done = true
-	return _node, nil
+	_c.mutation.id = &node.ID
+	return node, nil
 }
 
-func (_c *ConversionCreate) createSpec() (*Conversion, *sqlgraph.CreateSpec) {
-	var (
-		_node = &Conversion{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(conversion.Table, sqlgraph.NewFieldSpec(conversion.FieldID, field.TypeInt))
-	)
-	if value, ok := _c.mutation.Name(); ok {
+func (_c *ConversionCreate) createSpec() (*Conversion, *sqlgraph.CreateSpec, error) {
+	_node := &Conversion{config: _c.config}
+	_spec := sqlgraph.NewCreateSpec(conversion.Table, sqlgraph.NewFieldSpec(conversion.FieldID, field.TypeInt))
+
+	_spec.OnConflict = _c.conflict
+
+	if value, ok := _c.mutation.insert.Name.Get(); ok {
 		_spec.SetField(conversion.FieldName, field.TypeString, value)
-		_node.Name = value
 	}
-	if value, ok := _c.mutation.Int8ToString(); ok {
+	if _c.mutation.insert.Name.IsNull() {
+		_spec.SetField(conversion.FieldName, field.TypeString, nil)
+	}
+
+	if value, ok := _c.mutation.insert.Int8ToString.Get(); ok {
 		_spec.SetField(conversion.FieldInt8ToString, field.TypeString, value)
-		_node.Int8ToString = value
 	}
-	if value, ok := _c.mutation.Uint8ToString(); ok {
+	if _c.mutation.insert.Int8ToString.IsNull() {
+		_spec.SetField(conversion.FieldInt8ToString, field.TypeString, nil)
+	}
+
+	if value, ok := _c.mutation.insert.Uint8ToString.Get(); ok {
 		_spec.SetField(conversion.FieldUint8ToString, field.TypeString, value)
-		_node.Uint8ToString = value
 	}
-	if value, ok := _c.mutation.Int16ToString(); ok {
+	if _c.mutation.insert.Uint8ToString.IsNull() {
+		_spec.SetField(conversion.FieldUint8ToString, field.TypeString, nil)
+	}
+
+	if value, ok := _c.mutation.insert.Int16ToString.Get(); ok {
 		_spec.SetField(conversion.FieldInt16ToString, field.TypeString, value)
-		_node.Int16ToString = value
 	}
-	if value, ok := _c.mutation.Uint16ToString(); ok {
+	if _c.mutation.insert.Int16ToString.IsNull() {
+		_spec.SetField(conversion.FieldInt16ToString, field.TypeString, nil)
+	}
+
+	if value, ok := _c.mutation.insert.Uint16ToString.Get(); ok {
 		_spec.SetField(conversion.FieldUint16ToString, field.TypeString, value)
-		_node.Uint16ToString = value
 	}
-	if value, ok := _c.mutation.Int32ToString(); ok {
+	if _c.mutation.insert.Uint16ToString.IsNull() {
+		_spec.SetField(conversion.FieldUint16ToString, field.TypeString, nil)
+	}
+
+	if value, ok := _c.mutation.insert.Int32ToString.Get(); ok {
 		_spec.SetField(conversion.FieldInt32ToString, field.TypeString, value)
-		_node.Int32ToString = value
 	}
-	if value, ok := _c.mutation.Uint32ToString(); ok {
+	if _c.mutation.insert.Int32ToString.IsNull() {
+		_spec.SetField(conversion.FieldInt32ToString, field.TypeString, nil)
+	}
+
+	if value, ok := _c.mutation.insert.Uint32ToString.Get(); ok {
 		_spec.SetField(conversion.FieldUint32ToString, field.TypeString, value)
-		_node.Uint32ToString = value
 	}
-	if value, ok := _c.mutation.Int64ToString(); ok {
+	if _c.mutation.insert.Uint32ToString.IsNull() {
+		_spec.SetField(conversion.FieldUint32ToString, field.TypeString, nil)
+	}
+
+	if value, ok := _c.mutation.insert.Int64ToString.Get(); ok {
 		_spec.SetField(conversion.FieldInt64ToString, field.TypeString, value)
-		_node.Int64ToString = value
 	}
-	if value, ok := _c.mutation.Uint64ToString(); ok {
+	if _c.mutation.insert.Int64ToString.IsNull() {
+		_spec.SetField(conversion.FieldInt64ToString, field.TypeString, nil)
+	}
+
+	if value, ok := _c.mutation.insert.Uint64ToString.Get(); ok {
 		_spec.SetField(conversion.FieldUint64ToString, field.TypeString, value)
-		_node.Uint64ToString = value
 	}
-	return _node, _spec
+	if _c.mutation.insert.Uint64ToString.IsNull() {
+		_spec.SetField(conversion.FieldUint64ToString, field.TypeString, nil)
+	}
+
+	_spec.Expressions = _c.mutation.insert.expressions
+
+	_spec.Returning = &sqlgraph.Returning{Columns: conversion.Columns, Scan: func(rows dialect.Rows) error {
+		values, err := _node.scanValues(conversion.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(conversion.Columns, values); err != nil {
+			return err
+		}
+
+		_spec.ID.Value = _node.ID
+
+		return nil
+	}}
+	return _node, _spec, nil
 }
 
-// ConversionCreateBulk is the builder for creating many Conversion entities in bulk.
+type ConversionUpsertOne struct{ create *ConversionCreate }
+
+func (b *ConversionCreate) OnConflict(columns ...ent.EntityColumn[entity.Conversion]) *ConversionUpsertOne {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
+	}
+	if len(names) == 0 {
+		return b.OnConflictOptions()
+	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
+}
+
+func (b *ConversionCreate) OnConflictConstraint(name string) *ConversionUpsertOne {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
+}
+
+func (b *ConversionCreate) OnConflictOptions(options ...sql.ConflictOption) *ConversionUpsertOne {
+	b.conflict = options
+	return &ConversionUpsertOne{create: b}
+}
+
+func (u *ConversionUpsertOne) DoNothing() *ConversionUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+func (u *ConversionUpsertOne) DoSelect() *ConversionUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *ConversionUpsertOne) Ignore() *ConversionUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *ConversionUpsertOne) DoUpdate(set func(*ConversionUpsert)) *ConversionUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&ConversionUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *ConversionUpsertOne) UpdateNewValues() *ConversionUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case conversion.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
+	}))
+	return u
+}
+
+func (u *ConversionUpsertOne) Where(predicates ...ent.Predicate[entity.Conversion]) *ConversionUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(conversion.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *ConversionUpsertOne) UpdateWhere(predicates ...ent.Predicate[entity.Conversion]) *ConversionUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(conversion.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *ConversionUpsertOne) Save(ctx context.Context) (*Conversion, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for ConversionCreate.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *ConversionUpsertOne) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
+func (u *ConversionUpsertOne) ExecX(ctx context.Context) {
+	if err := u.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+func (u *ConversionUpsertOne) ID(ctx context.Context) (id int, err error) {
+	node, err := u.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+func (u *ConversionUpsertOne) IDX(ctx context.Context) int {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
+type ConversionUpsert struct{ *sql.UpdateSet }
+
+func (u *ConversionUpsert) Set[T any](column ent.ColumnOf[entity.Conversion, T], value T) *ConversionUpsert {
+	switch column.Ref().Name {
+
+	case conversion.FieldName:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case conversion.FieldInt8ToString:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case conversion.FieldUint8ToString:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case conversion.FieldInt16ToString:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case conversion.FieldUint16ToString:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case conversion.FieldInt32ToString:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case conversion.FieldUint32ToString:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case conversion.FieldInt64ToString:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case conversion.FieldUint64ToString:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Conversion is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *ConversionUpsert) SetExpr[T any](column ent.ColumnOf[entity.Conversion, T], value ent.Expr[T]) *ConversionUpsert {
+	switch column.Ref().Name {
+
+	case conversion.FieldName:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case conversion.FieldInt8ToString:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case conversion.FieldUint8ToString:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case conversion.FieldInt16ToString:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case conversion.FieldUint16ToString:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case conversion.FieldInt32ToString:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case conversion.FieldUint32ToString:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case conversion.FieldInt64ToString:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case conversion.FieldUint64ToString:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Conversion is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *ConversionUpsert) UpdateNewValue[T any](column ent.ColumnOf[entity.Conversion, T]) *ConversionUpsert {
+	switch column.Ref().Name {
+
+	case conversion.FieldName:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case conversion.FieldInt8ToString:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case conversion.FieldUint8ToString:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case conversion.FieldInt16ToString:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case conversion.FieldUint16ToString:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case conversion.FieldInt32ToString:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case conversion.FieldUint32ToString:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case conversion.FieldInt64ToString:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case conversion.FieldUint64ToString:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Conversion is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *ConversionUpsert) Add[T ent.Number](column ent.ColumnOf[entity.Conversion, T], delta T) *ConversionUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Conversion does not support addition", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *ConversionUpsert) Clear[T any](column ent.ColumnOf[entity.Conversion, T]) *ConversionUpsert {
+	switch column.Ref().Name {
+
+	case conversion.FieldName:
+		u.UpdateSet.SetNull(column.Ref().Name)
+
+	case conversion.FieldInt8ToString:
+		u.UpdateSet.SetNull(column.Ref().Name)
+
+	case conversion.FieldUint8ToString:
+		u.UpdateSet.SetNull(column.Ref().Name)
+
+	case conversion.FieldInt16ToString:
+		u.UpdateSet.SetNull(column.Ref().Name)
+
+	case conversion.FieldUint16ToString:
+		u.UpdateSet.SetNull(column.Ref().Name)
+
+	case conversion.FieldInt32ToString:
+		u.UpdateSet.SetNull(column.Ref().Name)
+
+	case conversion.FieldUint32ToString:
+		u.UpdateSet.SetNull(column.Ref().Name)
+
+	case conversion.FieldInt64ToString:
+		u.UpdateSet.SetNull(column.Ref().Name)
+
+	case conversion.FieldUint64ToString:
+		u.UpdateSet.SetNull(column.Ref().Name)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Conversion is not nullable", column.Ref().Name)})
+	}
+	return u
+}
+
 type ConversionCreateBulk struct {
 	config
 	err      error
 	builders []*ConversionCreate
+
+	conflict []sql.ConflictOption
 }
 
-// Save creates the Conversion entities in the database.
 func (_c *ConversionCreateBulk) Save(ctx context.Context) ([]*Conversion, error) {
 	if _c.err != nil {
 		return nil, _c.err
 	}
-	specs := make([]*sqlgraph.CreateSpec, len(_c.builders))
 	nodes := make([]*Conversion, len(_c.builders))
-	mutators := make([]Mutator, len(_c.builders))
-	for i := range _c.builders {
-		func(i int, root context.Context) {
-			builder := _c.builders[i]
-			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*ConversionMutation)
-				if !ok {
-					return nil, fmt.Errorf("unexpected mutation type %T", m)
-				}
-				if err := builder.check(); err != nil {
-					return nil, err
-				}
-				builder.mutation = mutation
-				var err error
-				nodes[i], specs[i] = builder.createSpec()
-				if i < len(mutators)-1 {
-					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
-				} else {
-					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
-					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
-						if sqlgraph.IsConstraintError(err) {
-							err = &ConstraintError{msg: err.Error(), wrap: err}
-						}
-					}
-				}
-				if err != nil {
-					return nil, err
-				}
-				mutation.id = &nodes[i].ID
-				if specs[i].ID.Value != nil {
-					id := specs[i].ID.Value.(int64)
-					nodes[i].ID = int(id)
-				}
-				mutation.done = true
-				return nodes[i], nil
-			})
-			for i := len(builder.hooks) - 1; i >= 0; i-- {
-				mut = builder.hooks[i](mut)
-			}
-			mutators[i] = mut
-		}(i, ctx)
-	}
-	if len(mutators) > 0 {
-		if _, err := mutators[0].Mutate(ctx, _c.builders[0].mutation); err != nil {
+	specs := make([]*sqlgraph.CreateSpec, len(nodes))
+	for index, builder := range _c.builders {
+		if builder.err != nil {
+			return nil, builder.err
+		}
+		if err := builder.defaults(); err != nil {
+			return nil, err
+		}
+		if err := builder.check(); err != nil {
+			return nil, err
+		}
+		var err error
+		nodes[index], specs[index], err = builder.createSpec()
+		if err != nil {
 			return nil, err
 		}
 	}
-	return nodes, nil
+	if len(specs) == 0 {
+		return nodes, nil
+	}
+	spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+
+	spec.OnConflict = _c.conflict
+
+	if err := sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
+		if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{msg: err.Error(), wrap: err}
+		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
+		return nil, err
+	}
+	result := nodes[:0]
+	for index, builder := range _c.builders {
+		if specs[index].Skipped {
+			continue
+		}
+		builder.mutation.id = &nodes[index].ID
+		result = append(result, nodes[index])
+	}
+	return result, nil
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_c *ConversionCreateBulk) SaveX(ctx context.Context) []*Conversion {
-	v, err := _c.Save(ctx)
+func (b *ConversionCreateBulk) SaveX(ctx context.Context) []*Conversion {
+	nodes, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return nodes
 }
 
-// Exec executes the query.
-func (_c *ConversionCreateBulk) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
+func (b *ConversionCreateBulk) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
+
+func (b *ConversionCreateBulk) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+type ConversionUpsertBulk struct{ create *ConversionCreateBulk }
+
+func (b *ConversionCreateBulk) OnConflict(columns ...ent.EntityColumn[entity.Conversion]) *ConversionUpsertBulk {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
+	}
+	if len(names) == 0 {
+		return b.OnConflictOptions()
+	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
+}
+
+func (b *ConversionCreateBulk) OnConflictConstraint(name string) *ConversionUpsertBulk {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
+}
+
+func (b *ConversionCreateBulk) OnConflictOptions(options ...sql.ConflictOption) *ConversionUpsertBulk {
+	b.conflict = options
+	return &ConversionUpsertBulk{create: b}
+}
+
+func (u *ConversionUpsertBulk) DoNothing() *ConversionUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+func (u *ConversionUpsertBulk) DoSelect() *ConversionUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *ConversionUpsertBulk) Ignore() *ConversionUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *ConversionUpsertBulk) DoUpdate(set func(*ConversionUpsert)) *ConversionUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&ConversionUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *ConversionUpsertBulk) UpdateNewValues() *ConversionUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case conversion.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
+	}))
+	return u
+}
+
+func (u *ConversionUpsertBulk) Where(predicates ...ent.Predicate[entity.Conversion]) *ConversionUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(conversion.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *ConversionUpsertBulk) UpdateWhere(predicates ...ent.Predicate[entity.Conversion]) *ConversionUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(conversion.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *ConversionUpsertBulk) Save(ctx context.Context) ([]*Conversion, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for ConversionCreateBulk.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *ConversionUpsertBulk) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
 	return err
 }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *ConversionCreateBulk) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (u *ConversionUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

@@ -9,9 +9,11 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	time2 "time"
 
 	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/entc/integration/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/ent/file"
 	"github.com/neko-sc/ent/entc/integration/ent/filetype"
 	"github.com/neko-sc/ent/entc/integration/ent/user"
@@ -34,17 +36,16 @@ type File struct {
 	Group string `json:"group,omitempty"`
 	// Op holds the value of the "op" field.
 	Op bool `json:"op,omitempty"`
-	// FieldID holds the value of the "field_id" field.
-	FieldID int `json:"field_id,omitempty"`
+	// ExternalFieldID holds the value of the "external_field_id" field.
+	ExternalFieldID int `json:"external_field_id,omitempty"`
 	// CreateTime holds the value of the "create_time" field.
-	CreateTime time.Time `json:"create_time,omitempty"`
+	CreateTime time2.Time `json:"create_time,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the FileQuery when eager-loading is set.
 	Edges           FileEdges `json:"file_edges"`
 	file_type_files *int
 	group_files     *int
 	user_files      *int
-	selectValues    sql.SelectValues
 }
 
 // FileEdges holds the relations/edges for other nodes in the graph.
@@ -58,7 +59,39 @@ type FileEdges struct {
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes [3]bool
+	counts      map[string]int
 	namedField  map[string][]*FieldType
+}
+
+func (e FileEdges) Loaded[N, K any](edge ent.RelationOf[entity.File, N, K]) bool {
+	switch edge.Ref().Name {
+	case "owner":
+		return e.loadedTypes[0]
+	case "type":
+		return e.loadedTypes[1]
+	case "field":
+		return e.loadedTypes[2]
+
+	default:
+		return false
+	}
+}
+
+func (e *FileEdges) SetLoaded[N, K any](edge ent.RelationOf[entity.File, N, K], loaded bool) {
+	switch edge.Ref().Name {
+	case "owner":
+		e.loadedTypes[0] = loaded
+	case "type":
+		e.loadedTypes[1] = loaded
+	case "field":
+		e.loadedTypes[2] = loaded
+
+	}
+}
+
+func (e FileEdges) Count[N, K any](edge ent.Relation[entity.File, N, K]) (int, bool) {
+	count, loaded := e.counts[edge.Ref().Name]
+	return count, loaded
 }
 
 // OwnerOrErr returns the Owner value or an error if the edge
@@ -98,19 +131,19 @@ func (*File) scanValues(columns []string) ([]any, error) {
 	for i := range columns {
 		switch columns[i] {
 		case file.FieldOp:
-			values[i] = new(sql.NullBool)
-		case file.FieldID, file.FieldSetID, file.FieldSize, file.FieldFieldID:
-			values[i] = new(sql.NullInt64)
+			values[i] = new(*bool)
+		case file.FieldID, file.FieldSetID, file.FieldSize, file.FieldExternalFieldID:
+			values[i] = new(*int)
 		case file.FieldName, file.FieldUser, file.FieldGroup:
-			values[i] = new(sql.NullString)
+			values[i] = new(*string)
 		case file.FieldCreateTime:
-			values[i] = new(sql.NullTime)
+			values[i] = new(*time2.Time)
 		case file.ForeignKeys[0]: // file_type_files
-			values[i] = new(sql.NullInt64)
+			values[i] = new(*int)
 		case file.ForeignKeys[1]: // group_files
-			values[i] = new(sql.NullInt64)
+			values[i] = new(*int)
 		case file.ForeignKeys[2]: // user_files
-			values[i] = new(sql.NullInt64)
+			values[i] = new(*int)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -127,92 +160,92 @@ func (_m *File) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case file.FieldID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field id", values[i])
-			} else if value.Valid {
-				_m.ID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.ID = **value
 			}
 		case file.FieldSetID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field set_id", values[i])
-			} else if value.Valid {
-				_m.SetID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.SetID = **value
 			}
 		case file.FieldSize:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field size", values[i])
-			} else if value.Valid {
-				_m.Size = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.Size = **value
 			}
 		case file.FieldName:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field name", values[i])
-			} else if value.Valid {
-				_m.Name = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.Name = **value
 			}
 		case file.FieldUser:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field user", values[i])
-			} else if value.Valid {
-				_m.User = new(string)
-				*_m.User = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.User = *value
 			}
 		case file.FieldGroup:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field group", values[i])
-			} else if value.Valid {
-				_m.Group = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.Group = **value
 			}
 		case file.FieldOp:
-			if value, ok := values[i].(*sql.NullBool); !ok {
+
+			if value, ok := values[i].(**bool); !ok {
 				return fmt.Errorf("unexpected type %T for field op", values[i])
-			} else if value.Valid {
-				_m.Op = bool(value.Bool)
+			} else if value != nil && *value != nil {
+				_m.Op = **value
 			}
-		case file.FieldFieldID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
-				return fmt.Errorf("unexpected type %T for field field_id", values[i])
-			} else if value.Valid {
-				_m.FieldID = int(value.Int64)
+		case file.FieldExternalFieldID:
+
+			if value, ok := values[i].(**int); !ok {
+				return fmt.Errorf("unexpected type %T for field external_field_id", values[i])
+			} else if value != nil && *value != nil {
+				_m.ExternalFieldID = **value
 			}
 		case file.FieldCreateTime:
-			if value, ok := values[i].(*sql.NullTime); !ok {
+
+			if value, ok := values[i].(**time2.Time); !ok {
 				return fmt.Errorf("unexpected type %T for field create_time", values[i])
-			} else if value.Valid {
-				_m.CreateTime = time.Time(value.Time)
+			} else if value != nil && *value != nil {
+				_m.CreateTime = **value
 			}
 		case file.ForeignKeys[0]:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field file_type_files", values[i])
-			} else if value.Valid {
-				_m.file_type_files = new(int)
-				*_m.file_type_files = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.file_type_files = *value
 			}
 		case file.ForeignKeys[1]:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field group_files", values[i])
-			} else if value.Valid {
-				_m.group_files = new(int)
-				*_m.group_files = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.group_files = *value
 			}
 		case file.ForeignKeys[2]:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field user_files", values[i])
-			} else if value.Valid {
-				_m.user_files = new(int)
-				*_m.user_files = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.user_files = *value
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the File.
-// This includes values selected through modifiers, order, etc.
-func (_m *File) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // QueryOwner queries the "owner" edge of the File entity.
@@ -273,8 +306,8 @@ func (_m *File) String() string {
 	builder.WriteString("op=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Op))
 	builder.WriteString(", ")
-	builder.WriteString("field_id=")
-	builder.WriteString(fmt.Sprintf("%v", _m.FieldID))
+	builder.WriteString("external_field_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ExternalFieldID))
 	builder.WriteString(", ")
 	builder.WriteString("create_time=")
 	builder.WriteString(_m.CreateTime.Format(time.ANSIC))

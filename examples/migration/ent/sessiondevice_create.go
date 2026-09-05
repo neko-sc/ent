@@ -9,165 +9,208 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/google/uuid"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
+	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/examples/migration/ent/entity"
 	"github.com/neko-sc/ent/examples/migration/ent/session"
 	"github.com/neko-sc/ent/examples/migration/ent/sessiondevice"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// SessionDeviceCreate is the builder for creating a SessionDevice entity.
 type SessionDeviceCreate struct {
 	config
-	mutation *SessionDeviceMutation
-	hooks    []Hook
+	mutation    *SessionDeviceMutation
+	err         error
+	fromBuilder bool
+	present     map[string]struct{}
+
+	conflict []sql.ConflictOption
 }
 
-// SetIPAddress sets the "ip_address" field.
-func (_c *SessionDeviceCreate) SetIPAddress(v string) *SessionDeviceCreate {
-	_c.mutation.SetIPAddress(v)
-	return _c
-}
-
-// SetUserAgent sets the "user_agent" field.
-func (_c *SessionDeviceCreate) SetUserAgent(v string) *SessionDeviceCreate {
-	_c.mutation.SetUserAgent(v)
-	return _c
-}
-
-// SetLocation sets the "location" field.
-func (_c *SessionDeviceCreate) SetLocation(v string) *SessionDeviceCreate {
-	_c.mutation.SetLocation(v)
-	return _c
-}
-
-// SetCreatedAt sets the "created_at" field.
-func (_c *SessionDeviceCreate) SetCreatedAt(v time.Time) *SessionDeviceCreate {
-	_c.mutation.SetCreatedAt(v)
-	return _c
-}
-
-// SetUpdatedAt sets the "updated_at" field.
-func (_c *SessionDeviceCreate) SetUpdatedAt(v time.Time) *SessionDeviceCreate {
-	_c.mutation.SetUpdatedAt(v)
-	return _c
-}
-
-// SetNillableUpdatedAt sets the "updated_at" field if the given value is not nil.
-func (_c *SessionDeviceCreate) SetNillableUpdatedAt(v *time.Time) *SessionDeviceCreate {
-	if v != nil {
-		_c.SetUpdatedAt(*v)
+func (b *SessionDeviceCreate) Set[T any](column ent.ColumnOf[entity.SessionDevice, T], value T) *SessionDeviceCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.set(column.Ref().Name, value)
 	}
-	return _c
-}
-
-// SetID sets the "id" field.
-func (_c *SessionDeviceCreate) SetID(v uuid.UUID) *SessionDeviceCreate {
-	_c.mutation.SetID(v)
-	return _c
-}
-
-// SetNillableID sets the "id" field if the given value is not nil.
-func (_c *SessionDeviceCreate) SetNillableID(v *uuid.UUID) *SessionDeviceCreate {
-	if v != nil {
-		_c.SetID(*v)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
 	}
-	return _c
+	b.present[column.Ref().Name] = struct{}{}
+	return b
 }
-
-// AddSessionIDs adds the "sessions" edge to the Session entity by IDs.
-func (_c *SessionDeviceCreate) AddSessionIDs(ids ...uuid.UUID) *SessionDeviceCreate {
-	_c.mutation.AddSessionIDs(ids...)
-	return _c
-}
-
-// AddSessions adds the "sessions" edges to the Session entity.
-func (_c *SessionDeviceCreate) AddSessions(v ...*Session) *SessionDeviceCreate {
-	ids := make([]uuid.UUID, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+func (b *SessionDeviceCreate) SetOptional[T any](column ent.ColumnOf[entity.SessionDevice, T], value ent.Option[T]) *SessionDeviceCreate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.insert.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _c.AddSessionIDs(ids...)
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
 }
+func (b *SessionDeviceCreate) SetExpr[T any](column ent.ColumnOf[entity.SessionDevice, T], value ent.Expr[T]) *SessionDeviceCreate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
 
-// Mutation returns the SessionDeviceMutation object of the builder.
-func (_c *SessionDeviceCreate) Mutation() *SessionDeviceMutation {
-	return _c.mutation
+	case sessiondevice.FieldID:
+
+	case sessiondevice.FieldIPAddress:
+
+	case sessiondevice.FieldUserAgent:
+
+	case sessiondevice.FieldLocation:
+
+	case sessiondevice.FieldCreatedAt:
+
+	case sessiondevice.FieldUpdatedAt:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of SessionDevice is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.insert.setExpr(column.Ref().Name, value.Render)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+
 }
+func (b *SessionDeviceCreate) SetEdge[N, K any](edge ent.UniqueRelation[entity.SessionDevice, N, K], id K) *SessionDeviceCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.setEdge(edge.Ref().Name, id)
+	}
 
-// Save creates the SessionDevice in the database.
-func (_c *SessionDeviceCreate) Save(ctx context.Context) (*SessionDevice, error) {
-	if err := _c.defaults(); err != nil {
+	switch edge.Ref().Name {
+
+	}
+
+	return b
+}
+func (b *SessionDeviceCreate) AddIDs[N, K any](edge ent.Relation[entity.SessionDevice, N, K], ids ...K) *SessionDeviceCreate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.insert.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *SessionDeviceCreate) Mutation() *SessionDeviceMutation { return b.mutation }
+
+func (b *SessionDeviceCreate) Insert() *SessionDeviceInsert { return b.mutation.insert }
+
+func (b *SessionDeviceCreate) Save(ctx context.Context) (*SessionDevice, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
 		return nil, err
 	}
-	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
+	return b.sqlSave(ctx)
 }
 
-// SaveX calls Save and panics if Save returns an error.
-func (_c *SessionDeviceCreate) SaveX(ctx context.Context) *SessionDevice {
-	v, err := _c.Save(ctx)
+func (b *SessionDeviceCreate) SaveX(ctx context.Context) *SessionDevice {
+	node, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return node
 }
 
-// Exec executes the query.
-func (_c *SessionDeviceCreate) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *SessionDeviceCreate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *SessionDeviceCreate) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *SessionDeviceCreate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// defaults sets the default values of the builder before save.
-func (_c *SessionDeviceCreate) defaults() error {
-	if _, ok := _c.mutation.ID(); !ok {
+func (b *SessionDeviceCreate) defaults() error {
+
+	if b.mutation.insert.ID.IsUnset() && b.mutation.insert.expressions[sessiondevice.FieldID] == nil {
 		if sessiondevice.DefaultID == nil {
-			return fmt.Errorf("ent: uninitialized sessiondevice.DefaultID (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized sessiondevice.DefaultID")
 		}
-		v := sessiondevice.DefaultID()
-		_c.mutation.SetID(v)
+		b.mutation.insert.ID = ent.Some(sessiondevice.DefaultID())
 	}
+
 	return nil
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_c *SessionDeviceCreate) check() error {
-	if _, ok := _c.mutation.IPAddress(); !ok {
-		return &ValidationError{Name: "ip_address", err: errors.New(`ent: missing required field "SessionDevice.ip_address"`)}
+func (b *SessionDeviceCreate) check() error {
+	if b.err != nil {
+		return b.err
 	}
-	if v, ok := _c.mutation.IPAddress(); ok {
+
+	if b.mutation.insert.ID.IsNull() {
+		return &ValidationError{Name: "id", err: errors.New(`ent: field "SessionDevice.id" is not nullable`)}
+	}
+
+	switch b.driver.Dialect() {
+	case dialect.Postgres, dialect.SQLite:
+		if _, present := b.present[sessiondevice.FieldIPAddress]; b.fromBuilder && !present {
+			return &ValidationError{Name: "ip_address", err: errors.New(`ent: missing required field "SessionDevice.ip_address"`)}
+		}
+	}
+
+	if b.mutation.insert.expressions[sessiondevice.FieldIPAddress] == nil {
+		v := b.mutation.insert.IPAddress
+
 		if err := sessiondevice.IPAddressValidator(v); err != nil {
 			return &ValidationError{Name: "ip_address", err: fmt.Errorf(`ent: validator failed for field "SessionDevice.ip_address": %w`, err)}
 		}
+
 	}
-	if _, ok := _c.mutation.UserAgent(); !ok {
-		return &ValidationError{Name: "user_agent", err: errors.New(`ent: missing required field "SessionDevice.user_agent"`)}
+
+	switch b.driver.Dialect() {
+	case dialect.Postgres, dialect.SQLite:
+		if _, present := b.present[sessiondevice.FieldUserAgent]; b.fromBuilder && !present {
+			return &ValidationError{Name: "user_agent", err: errors.New(`ent: missing required field "SessionDevice.user_agent"`)}
+		}
 	}
-	if v, ok := _c.mutation.UserAgent(); ok {
+
+	if b.mutation.insert.expressions[sessiondevice.FieldUserAgent] == nil {
+		v := b.mutation.insert.UserAgent
+
 		if err := sessiondevice.UserAgentValidator(v); err != nil {
 			return &ValidationError{Name: "user_agent", err: fmt.Errorf(`ent: validator failed for field "SessionDevice.user_agent": %w`, err)}
 		}
+
 	}
-	if _, ok := _c.mutation.Location(); !ok {
-		return &ValidationError{Name: "location", err: errors.New(`ent: missing required field "SessionDevice.location"`)}
+
+	switch b.driver.Dialect() {
+	case dialect.Postgres, dialect.SQLite:
+		if _, present := b.present[sessiondevice.FieldLocation]; b.fromBuilder && !present {
+			return &ValidationError{Name: "location", err: errors.New(`ent: missing required field "SessionDevice.location"`)}
+		}
 	}
-	if v, ok := _c.mutation.Location(); ok {
+
+	if b.mutation.insert.expressions[sessiondevice.FieldLocation] == nil {
+		v := b.mutation.insert.Location
+
 		if err := sessiondevice.LocationValidator(v); err != nil {
 			return &ValidationError{Name: "location", err: fmt.Errorf(`ent: validator failed for field "SessionDevice.location": %w`, err)}
 		}
+
 	}
-	if _, ok := _c.mutation.CreatedAt(); !ok {
-		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "SessionDevice.created_at"`)}
+
+	switch b.driver.Dialect() {
+	case dialect.Postgres, dialect.SQLite:
+		if _, present := b.present[sessiondevice.FieldCreatedAt]; b.fromBuilder && !present {
+			return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "SessionDevice.created_at"`)}
+		}
 	}
+
 	return nil
 }
 
@@ -175,55 +218,63 @@ func (_c *SessionDeviceCreate) sqlSave(ctx context.Context) (*SessionDevice, err
 	if err := _c.check(); err != nil {
 		return nil, err
 	}
-	_node, _spec := _c.createSpec()
-	if err := sqlgraph.CreateNode(ctx, _c.driver, _spec); err != nil {
+	node, spec, err := _c.createSpec()
+	if err != nil {
+		return nil, err
+	}
+	if err := sqlgraph.CreateNode(ctx, _c.driver, spec); err != nil {
 		if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
 		return nil, err
 	}
-	if _spec.ID.Value != nil {
-		if id, ok := _spec.ID.Value.(*uuid.UUID); ok {
-			_node.ID = *id
-		} else if err := _node.ID.Scan(_spec.ID.Value); err != nil {
-			return nil, err
-		}
-	}
-	_c.mutation.id = &_node.ID
-	_c.mutation.done = true
-	return _node, nil
+	_c.mutation.id = &node.ID
+	return node, nil
 }
 
-func (_c *SessionDeviceCreate) createSpec() (*SessionDevice, *sqlgraph.CreateSpec) {
-	var (
-		_node = &SessionDevice{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(sessiondevice.Table, sqlgraph.NewFieldSpec(sessiondevice.FieldID, field.TypeUUID))
-	)
-	if id, ok := _c.mutation.ID(); ok {
-		_node.ID = id
-		_spec.ID.Value = &id
+func (_c *SessionDeviceCreate) createSpec() (*SessionDevice, *sqlgraph.CreateSpec, error) {
+	_node := &SessionDevice{config: _c.config}
+	_spec := sqlgraph.NewCreateSpec(sessiondevice.Table, sqlgraph.NewFieldSpec(sessiondevice.FieldID, field.TypeUUID))
+
+	_spec.OnConflict = _c.conflict
+
+	if value, ok := _c.mutation.insert.ID.Get(); ok {
+		_spec.ID.Value = &value
 	}
-	if value, ok := _c.mutation.IPAddress(); ok {
+
+	if _, present := _c.present[sessiondevice.FieldIPAddress]; !_c.fromBuilder || present {
+		value := _c.mutation.insert.IPAddress
 		_spec.SetField(sessiondevice.FieldIPAddress, field.TypeString, value)
-		_node.IPAddress = value
 	}
-	if value, ok := _c.mutation.UserAgent(); ok {
+
+	if _, present := _c.present[sessiondevice.FieldUserAgent]; !_c.fromBuilder || present {
+		value := _c.mutation.insert.UserAgent
 		_spec.SetField(sessiondevice.FieldUserAgent, field.TypeString, value)
-		_node.UserAgent = value
 	}
-	if value, ok := _c.mutation.Location(); ok {
+
+	if _, present := _c.present[sessiondevice.FieldLocation]; !_c.fromBuilder || present {
+		value := _c.mutation.insert.Location
 		_spec.SetField(sessiondevice.FieldLocation, field.TypeString, value)
-		_node.Location = value
 	}
-	if value, ok := _c.mutation.CreatedAt(); ok {
+
+	if _, present := _c.present[sessiondevice.FieldCreatedAt]; !_c.fromBuilder || present {
+		value := _c.mutation.insert.CreatedAt
 		_spec.SetField(sessiondevice.FieldCreatedAt, field.TypeTime, value)
-		_node.CreatedAt = value
 	}
-	if value, ok := _c.mutation.UpdatedAt(); ok {
+
+	if value, ok := _c.mutation.insert.UpdatedAt.Get(); ok {
 		_spec.SetField(sessiondevice.FieldUpdatedAt, field.TypeTime, value)
-		_node.UpdatedAt = value
 	}
-	if nodes := _c.mutation.SessionsIDs(); len(nodes) > 0 {
+	if _c.mutation.insert.UpdatedAt.IsNull() {
+		_spec.SetField(sessiondevice.FieldUpdatedAt, field.TypeTime, nil)
+	}
+
+	_spec.Expressions = _c.mutation.insert.expressions
+
+	if nodes := _c.mutation.insert.sessionsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -234,94 +285,412 @@ func (_c *SessionDeviceCreate) createSpec() (*SessionDevice, *sqlgraph.CreateSpe
 				IDSpec: sqlgraph.NewFieldSpec(session.FieldID, field.TypeUUID),
 			},
 		}
+		seen := make(map[uuid.UUID]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	return _node, _spec
+
+	_spec.Returning = &sqlgraph.Returning{Columns: sessiondevice.Columns, Scan: func(rows dialect.Rows) error {
+		values, err := _node.scanValues(sessiondevice.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(sessiondevice.Columns, values); err != nil {
+			return err
+		}
+
+		_spec.ID.Value = _node.ID
+
+		return nil
+	}}
+	return _node, _spec, nil
 }
 
-// SessionDeviceCreateBulk is the builder for creating many SessionDevice entities in bulk.
+type SessionDeviceUpsertOne struct{ create *SessionDeviceCreate }
+
+func (b *SessionDeviceCreate) OnConflict(columns ...ent.EntityColumn[entity.SessionDevice]) *SessionDeviceUpsertOne {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
+	}
+	if len(names) == 0 {
+		return b.OnConflictOptions()
+	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
+}
+
+func (b *SessionDeviceCreate) OnConflictConstraint(name string) *SessionDeviceUpsertOne {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
+}
+
+func (b *SessionDeviceCreate) OnConflictOptions(options ...sql.ConflictOption) *SessionDeviceUpsertOne {
+	b.conflict = options
+	return &SessionDeviceUpsertOne{create: b}
+}
+
+func (u *SessionDeviceUpsertOne) DoNothing() *SessionDeviceUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+func (u *SessionDeviceUpsertOne) DoSelect() *SessionDeviceUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *SessionDeviceUpsertOne) Ignore() *SessionDeviceUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *SessionDeviceUpsertOne) DoUpdate(set func(*SessionDeviceUpsert)) *SessionDeviceUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&SessionDeviceUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *SessionDeviceUpsertOne) UpdateNewValues() *SessionDeviceUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case sessiondevice.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
+	}))
+	return u
+}
+
+func (u *SessionDeviceUpsertOne) Where(predicates ...ent.Predicate[entity.SessionDevice]) *SessionDeviceUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(sessiondevice.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *SessionDeviceUpsertOne) UpdateWhere(predicates ...ent.Predicate[entity.SessionDevice]) *SessionDeviceUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(sessiondevice.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *SessionDeviceUpsertOne) Save(ctx context.Context) (*SessionDevice, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for SessionDeviceCreate.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *SessionDeviceUpsertOne) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
+func (u *SessionDeviceUpsertOne) ExecX(ctx context.Context) {
+	if err := u.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+func (u *SessionDeviceUpsertOne) ID(ctx context.Context) (id uuid.UUID, err error) {
+	node, err := u.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+func (u *SessionDeviceUpsertOne) IDX(ctx context.Context) uuid.UUID {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
+type SessionDeviceUpsert struct{ *sql.UpdateSet }
+
+func (u *SessionDeviceUpsert) Set[T any](column ent.ColumnOf[entity.SessionDevice, T], value T) *SessionDeviceUpsert {
+	switch column.Ref().Name {
+
+	case sessiondevice.FieldIPAddress:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case sessiondevice.FieldUserAgent:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case sessiondevice.FieldLocation:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case sessiondevice.FieldCreatedAt:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case sessiondevice.FieldUpdatedAt:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of SessionDevice is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *SessionDeviceUpsert) SetExpr[T any](column ent.ColumnOf[entity.SessionDevice, T], value ent.Expr[T]) *SessionDeviceUpsert {
+	switch column.Ref().Name {
+
+	case sessiondevice.FieldIPAddress:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case sessiondevice.FieldUserAgent:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case sessiondevice.FieldLocation:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case sessiondevice.FieldCreatedAt:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case sessiondevice.FieldUpdatedAt:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of SessionDevice is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *SessionDeviceUpsert) UpdateNewValue[T any](column ent.ColumnOf[entity.SessionDevice, T]) *SessionDeviceUpsert {
+	switch column.Ref().Name {
+
+	case sessiondevice.FieldIPAddress:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case sessiondevice.FieldUserAgent:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case sessiondevice.FieldLocation:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case sessiondevice.FieldCreatedAt:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case sessiondevice.FieldUpdatedAt:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of SessionDevice is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *SessionDeviceUpsert) Add[T ent.Number](column ent.ColumnOf[entity.SessionDevice, T], delta T) *SessionDeviceUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of SessionDevice does not support addition", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *SessionDeviceUpsert) Clear[T any](column ent.ColumnOf[entity.SessionDevice, T]) *SessionDeviceUpsert {
+	switch column.Ref().Name {
+
+	case sessiondevice.FieldUpdatedAt:
+		u.UpdateSet.SetNull(column.Ref().Name)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of SessionDevice is not nullable", column.Ref().Name)})
+	}
+	return u
+}
+
 type SessionDeviceCreateBulk struct {
 	config
 	err      error
 	builders []*SessionDeviceCreate
+
+	conflict []sql.ConflictOption
 }
 
-// Save creates the SessionDevice entities in the database.
 func (_c *SessionDeviceCreateBulk) Save(ctx context.Context) ([]*SessionDevice, error) {
 	if _c.err != nil {
 		return nil, _c.err
 	}
-	specs := make([]*sqlgraph.CreateSpec, len(_c.builders))
 	nodes := make([]*SessionDevice, len(_c.builders))
-	mutators := make([]Mutator, len(_c.builders))
-	for i := range _c.builders {
-		func(i int, root context.Context) {
-			builder := _c.builders[i]
-			builder.defaults()
-			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*SessionDeviceMutation)
-				if !ok {
-					return nil, fmt.Errorf("unexpected mutation type %T", m)
-				}
-				if err := builder.check(); err != nil {
-					return nil, err
-				}
-				builder.mutation = mutation
-				var err error
-				nodes[i], specs[i] = builder.createSpec()
-				if i < len(mutators)-1 {
-					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
-				} else {
-					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
-					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
-						if sqlgraph.IsConstraintError(err) {
-							err = &ConstraintError{msg: err.Error(), wrap: err}
-						}
-					}
-				}
-				if err != nil {
-					return nil, err
-				}
-				mutation.id = &nodes[i].ID
-				mutation.done = true
-				return nodes[i], nil
-			})
-			for i := len(builder.hooks) - 1; i >= 0; i-- {
-				mut = builder.hooks[i](mut)
-			}
-			mutators[i] = mut
-		}(i, ctx)
-	}
-	if len(mutators) > 0 {
-		if _, err := mutators[0].Mutate(ctx, _c.builders[0].mutation); err != nil {
+	specs := make([]*sqlgraph.CreateSpec, len(nodes))
+	for index, builder := range _c.builders {
+		if builder.err != nil {
+			return nil, builder.err
+		}
+		if err := builder.defaults(); err != nil {
+			return nil, err
+		}
+		if err := builder.check(); err != nil {
+			return nil, err
+		}
+		var err error
+		nodes[index], specs[index], err = builder.createSpec()
+		if err != nil {
 			return nil, err
 		}
 	}
-	return nodes, nil
+	if len(specs) == 0 {
+		return nodes, nil
+	}
+	spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+
+	spec.OnConflict = _c.conflict
+
+	if err := sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
+		if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{msg: err.Error(), wrap: err}
+		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
+		return nil, err
+	}
+	result := nodes[:0]
+	for index, builder := range _c.builders {
+		if specs[index].Skipped {
+			continue
+		}
+		builder.mutation.id = &nodes[index].ID
+		result = append(result, nodes[index])
+	}
+	return result, nil
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_c *SessionDeviceCreateBulk) SaveX(ctx context.Context) []*SessionDevice {
-	v, err := _c.Save(ctx)
+func (b *SessionDeviceCreateBulk) SaveX(ctx context.Context) []*SessionDevice {
+	nodes, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return nodes
 }
 
-// Exec executes the query.
-func (_c *SessionDeviceCreateBulk) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
+func (b *SessionDeviceCreateBulk) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
+
+func (b *SessionDeviceCreateBulk) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+type SessionDeviceUpsertBulk struct{ create *SessionDeviceCreateBulk }
+
+func (b *SessionDeviceCreateBulk) OnConflict(columns ...ent.EntityColumn[entity.SessionDevice]) *SessionDeviceUpsertBulk {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
+	}
+	if len(names) == 0 {
+		return b.OnConflictOptions()
+	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
+}
+
+func (b *SessionDeviceCreateBulk) OnConflictConstraint(name string) *SessionDeviceUpsertBulk {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
+}
+
+func (b *SessionDeviceCreateBulk) OnConflictOptions(options ...sql.ConflictOption) *SessionDeviceUpsertBulk {
+	b.conflict = options
+	return &SessionDeviceUpsertBulk{create: b}
+}
+
+func (u *SessionDeviceUpsertBulk) DoNothing() *SessionDeviceUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+func (u *SessionDeviceUpsertBulk) DoSelect() *SessionDeviceUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *SessionDeviceUpsertBulk) Ignore() *SessionDeviceUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *SessionDeviceUpsertBulk) DoUpdate(set func(*SessionDeviceUpsert)) *SessionDeviceUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&SessionDeviceUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *SessionDeviceUpsertBulk) UpdateNewValues() *SessionDeviceUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case sessiondevice.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
+	}))
+	return u
+}
+
+func (u *SessionDeviceUpsertBulk) Where(predicates ...ent.Predicate[entity.SessionDevice]) *SessionDeviceUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(sessiondevice.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *SessionDeviceUpsertBulk) UpdateWhere(predicates ...ent.Predicate[entity.SessionDevice]) *SessionDeviceUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(sessiondevice.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *SessionDeviceUpsertBulk) Save(ctx context.Context) ([]*SessionDevice, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for SessionDeviceCreateBulk.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *SessionDeviceUpsertBulk) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
 	return err
 }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *SessionDeviceCreateBulk) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (u *SessionDeviceUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

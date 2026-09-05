@@ -9,10 +9,12 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	time2 "time"
 
 	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/attachedfile"
+	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/file"
 	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/process"
 )
@@ -23,15 +25,14 @@ type AttachedFile struct {
 	// ID of the ent.
 	ID int `json:"id,omitempty"`
 	// AttachTime holds the value of the "attach_time" field.
-	AttachTime time.Time `json:"attach_time,omitempty"`
+	AttachTime time2.Time `json:"attach_time,omitempty"`
 	// FID holds the value of the "f_id" field.
 	FID int `json:"f_id,omitempty"`
 	// ProcID holds the value of the "proc_id" field.
 	ProcID int `json:"proc_id,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the AttachedFileQuery when eager-loading is set.
-	Edges        AttachedFileEdges `json:"edges"`
-	selectValues sql.SelectValues
+	Edges AttachedFileEdges `json:"edges"`
 }
 
 // AttachedFileEdges holds the relations/edges for other nodes in the graph.
@@ -43,6 +44,34 @@ type AttachedFileEdges struct {
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes [2]bool
+	counts      map[string]int
+}
+
+func (e AttachedFileEdges) Loaded[N, K any](edge ent.RelationOf[entity.AttachedFile, N, K]) bool {
+	switch edge.Ref().Name {
+	case "fi":
+		return e.loadedTypes[0]
+	case "proc":
+		return e.loadedTypes[1]
+
+	default:
+		return false
+	}
+}
+
+func (e *AttachedFileEdges) SetLoaded[N, K any](edge ent.RelationOf[entity.AttachedFile, N, K], loaded bool) {
+	switch edge.Ref().Name {
+	case "fi":
+		e.loadedTypes[0] = loaded
+	case "proc":
+		e.loadedTypes[1] = loaded
+
+	}
+}
+
+func (e AttachedFileEdges) Count[N, K any](edge ent.Relation[entity.AttachedFile, N, K]) (int, bool) {
+	count, loaded := e.counts[edge.Ref().Name]
+	return count, loaded
 }
 
 // FiOrErr returns the Fi value or an error if the edge
@@ -73,9 +102,9 @@ func (*AttachedFile) scanValues(columns []string) ([]any, error) {
 	for i := range columns {
 		switch columns[i] {
 		case attachedfile.FieldID, attachedfile.FieldFID, attachedfile.FieldProcID:
-			values[i] = new(sql.NullInt64)
+			values[i] = new(*int)
 		case attachedfile.FieldAttachTime:
-			values[i] = new(sql.NullTime)
+			values[i] = new(*time2.Time)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -92,40 +121,36 @@ func (_m *AttachedFile) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case attachedfile.FieldID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field id", values[i])
-			} else if value.Valid {
-				_m.ID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.ID = **value
 			}
 		case attachedfile.FieldAttachTime:
-			if value, ok := values[i].(*sql.NullTime); !ok {
+
+			if value, ok := values[i].(**time2.Time); !ok {
 				return fmt.Errorf("unexpected type %T for field attach_time", values[i])
-			} else if value.Valid {
-				_m.AttachTime = time.Time(value.Time)
+			} else if value != nil && *value != nil {
+				_m.AttachTime = **value
 			}
 		case attachedfile.FieldFID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field f_id", values[i])
-			} else if value.Valid {
-				_m.FID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.FID = **value
 			}
 		case attachedfile.FieldProcID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field proc_id", values[i])
-			} else if value.Valid {
-				_m.ProcID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.ProcID = **value
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the AttachedFile.
-// This includes values selected through modifiers, order, etc.
-func (_m *AttachedFile) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // QueryFi queries the "fi" edge of the AttachedFile entity.

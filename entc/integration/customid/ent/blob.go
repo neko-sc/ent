@@ -13,6 +13,7 @@ import (
 	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/blob"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
 )
 
 // Blob is the model entity for the Blob schema.
@@ -26,9 +27,8 @@ type Blob struct {
 	Count int `json:"count,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the BlobQuery when eager-loading is set.
-	Edges        BlobEdges `json:"edges"`
-	blob_parent  *uuid.UUID
-	selectValues sql.SelectValues
+	Edges       BlobEdges `json:"edges"`
+	blob_parent *uuid.UUID
 }
 
 // BlobEdges holds the relations/edges for other nodes in the graph.
@@ -42,6 +42,38 @@ type BlobEdges struct {
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes [3]bool
+	counts      map[string]int
+}
+
+func (e BlobEdges) Loaded[N, K any](edge ent.RelationOf[entity.Blob, N, K]) bool {
+	switch edge.Ref().Name {
+	case "parent":
+		return e.loadedTypes[0]
+	case "links":
+		return e.loadedTypes[1]
+	case "blob_links":
+		return e.loadedTypes[2]
+
+	default:
+		return false
+	}
+}
+
+func (e *BlobEdges) SetLoaded[N, K any](edge ent.RelationOf[entity.Blob, N, K], loaded bool) {
+	switch edge.Ref().Name {
+	case "parent":
+		e.loadedTypes[0] = loaded
+	case "links":
+		e.loadedTypes[1] = loaded
+	case "blob_links":
+		e.loadedTypes[2] = loaded
+
+	}
+}
+
+func (e BlobEdges) Count[N, K any](edge ent.Relation[entity.Blob, N, K]) (int, bool) {
+	count, loaded := e.counts[edge.Ref().Name]
+	return count, loaded
 }
 
 // ParentOrErr returns the Parent value or an error if the edge
@@ -79,7 +111,7 @@ func (*Blob) scanValues(columns []string) ([]any, error) {
 	for i := range columns {
 		switch columns[i] {
 		case blob.FieldCount:
-			values[i] = new(sql.NullInt64)
+			values[i] = new(*int)
 		case blob.FieldID, blob.FieldUUID:
 			values[i] = new(uuid.UUID)
 		case blob.ForeignKeys[0]: // blob_parent
@@ -112,10 +144,11 @@ func (_m *Blob) assignValues(columns []string, values []any) error {
 				_m.UUID = *value
 			}
 		case blob.FieldCount:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field count", values[i])
-			} else if value.Valid {
-				_m.Count = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.Count = **value
 			}
 		case blob.ForeignKeys[0]:
 			if value, ok := values[i].(*sql.NullScanner); !ok {
@@ -124,17 +157,9 @@ func (_m *Blob) assignValues(columns []string, values []any) error {
 				_m.blob_parent = new(uuid.UUID)
 				*_m.blob_parent = *value.S.(*uuid.UUID)
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the Blob.
-// This includes values selected through modifiers, order, etc.
-func (_m *Blob) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // QueryParent queries the "parent" edge of the Blob entity.

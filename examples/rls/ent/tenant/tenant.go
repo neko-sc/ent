@@ -3,7 +3,8 @@
 package tenant
 
 import (
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/examples/rls/ent/entity"
 )
 
 const (
@@ -16,6 +17,42 @@ const (
 	// Table holds the table name of the tenant in the database.
 	Table = "tenants"
 )
+
+var (
+	ID   = ent.OrderedColumn[entity.Tenant, int]{Table: Table, Name: FieldID}
+	Name = ent.StringColumn[entity.Tenant, string]{Table: Table, Name: FieldName}
+)
+
+// Alias returns the columns of the tenants table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.Tenant, int]{Table: name, Name: FieldID},
+		Name:       ent.StringColumn[entity.Tenant, string]{Table: name, Name: FieldName},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.Tenant, int]
+	Name       ent.StringColumn[entity.Tenant, string]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.Tenant]) ent.Predicate[entity.Tenant] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.Tenant]) ent.Predicate[entity.Tenant] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.Tenant]) ent.Predicate[entity.Tenant] {
+	return ent.Not(predicate)
+}
 
 // Columns holds all SQL columns for tenant fields.
 var Columns = []string{
@@ -31,17 +68,4 @@ func ValidColumn(column string) bool {
 		}
 	}
 	return false
-}
-
-// OrderOption defines the ordering options for the Tenant queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByName orders the results by the name field.
-func ByName(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldName, opts...).ToFunc()
 }

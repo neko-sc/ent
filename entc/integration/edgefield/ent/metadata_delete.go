@@ -8,29 +8,56 @@ package ent
 import (
 	"context"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/edgefield/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/edgefield/ent/metadata"
-	"github.com/neko-sc/ent/entc/integration/edgefield/ent/predicate"
 	"github.com/neko-sc/ent/schema/field"
 )
 
 // MetadataDelete is the builder for deleting a Metadata entity.
 type MetadataDelete struct {
 	config
-	hooks    []Hook
-	mutation *MetadataMutation
+
+	mutation  *MetadataMutation
+	returning *sqlgraph.Returning
 }
 
 // Where appends a list predicates to the MetadataDelete builder.
-func (_d *MetadataDelete) Where(ps ...predicate.Metadata) *MetadataDelete {
-	_d.mutation.Where(ps...)
+func (_d *MetadataDelete) Where(predicates ...ent.Predicate[entity.Metadata]) *MetadataDelete {
+	_d.mutation.Where(predicates...)
 	return _d
 }
 
 // Exec executes the deletion query and returns how many vertices were deleted.
 func (_d *MetadataDelete) Exec(ctx context.Context) (int, error) {
-	return withHooks(ctx, _d.sqlExec, _d.mutation, _d.hooks)
+	return _d.sqlExec(ctx)
+}
+
+func (b *MetadataDelete) Returning(ctx context.Context) ([]*Metadata, error) {
+	nodes := make([]*Metadata, 0)
+	b.returning = &sqlgraph.Returning{Columns: metadata.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Metadata{config: b.config}
+		values, err := _node.scanValues(metadata.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(metadata.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Exec(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
 }
 
 // ExecX is like Exec, but panics if an error occurs.
@@ -51,11 +78,11 @@ func (_d *MetadataDelete) sqlExec(ctx context.Context) (int, error) {
 			}
 		}
 	}
+	_spec.Returning = _d.returning
 	affected, err := sqlgraph.DeleteNodes(ctx, _d.driver, _spec)
 	if err != nil && sqlgraph.IsConstraintError(err) {
 		err = &ConstraintError{msg: err.Error(), wrap: err}
 	}
-	_d.mutation.done = true
 	return affected, err
 }
 
@@ -65,8 +92,8 @@ type MetadataDeleteOne struct {
 }
 
 // Where appends a list predicates to the MetadataDelete builder.
-func (_d *MetadataDeleteOne) Where(ps ...predicate.Metadata) *MetadataDeleteOne {
-	_d._d.mutation.Where(ps...)
+func (_d *MetadataDeleteOne) Where(predicates ...ent.Predicate[entity.Metadata]) *MetadataDeleteOne {
+	_d._d.mutation.Where(predicates...)
 	return _d
 }
 

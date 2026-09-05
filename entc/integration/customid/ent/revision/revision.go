@@ -6,7 +6,8 @@
 package revision
 
 import (
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
 )
 
 const (
@@ -17,6 +18,39 @@ const (
 	// Table holds the table name of the revision in the database.
 	Table = "revisions"
 )
+
+var (
+	ID = ent.StringColumn[entity.Revision, string]{Table: Table, Name: FieldID}
+)
+
+// Alias returns the columns of the revisions table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.StringColumn[entity.Revision, string]{Table: name, Name: FieldID},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.StringColumn[entity.Revision, string]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.Revision]) ent.Predicate[entity.Revision] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.Revision]) ent.Predicate[entity.Revision] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.Revision]) ent.Predicate[entity.Revision] {
+	return ent.Not(predicate)
+}
 
 // Columns holds all SQL columns for revision fields.
 var Columns = []string{
@@ -31,12 +65,4 @@ func ValidColumn(column string) bool {
 		}
 	}
 	return false
-}
-
-// OrderOption defines the ordering options for the Revision queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
 }

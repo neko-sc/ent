@@ -19,22 +19,19 @@ import (
 
 // Schema represents an ent.Schema that was loaded from a complied user package.
 type Schema struct {
-	Name         string         `json:"name,omitempty"`
-	Pos          string         `json:"-"`
-	View         bool           `json:"view,omitempty"`
-	Config       ent.Config     `json:"config,omitempty"`
-	Edges        []*Edge        `json:"edges,omitempty"`
-	Fields       []*Field       `json:"fields,omitempty"`
-	Indexes      []*Index       `json:"indexes,omitempty"`
-	Hooks        []*Position    `json:"hooks,omitempty"`
-	Interceptors []*Position    `json:"interceptors,omitempty"`
-	Policy       []*Position    `json:"policy,omitempty"`
-	Annotations  map[string]any `json:"annotations,omitempty"`
+	Name        string         `json:"name,omitempty"`
+	Pos         string         `json:"-"`
+	View        bool           `json:"view,omitempty"`
+	Config      ent.Config     `json:"config,omitempty"`
+	Edges       []*Edge        `json:"edges,omitempty"`
+	Fields      []*Field       `json:"fields,omitempty"`
+	Indexes     []*Index       `json:"indexes,omitempty"`
+	Annotations map[string]any `json:"annotations,omitempty"`
 }
 
 // Position describes a position in the schema.
 type Position struct {
-	Index      int  // Index in the field/hook list.
+	Index      int  // Index in the field list.
 	MixedIn    bool // Indicates if the schema object was mixed-in.
 	MixinIndex int  // Mixin index in the mixin list.
 }
@@ -168,6 +165,42 @@ func NewField(fd *field.Descriptor, resolver TypeResolver) (*Field, error) {
 	if sf.Semantic == nil {
 		return nil, fmt.Errorf("field %q: resolver returned no semantic type", sf.Name)
 	}
+	if fd.Type == field.TypeArray {
+		if fd.RuntimeType.Kind() != reflect.Slice {
+			return nil, fmt.Errorf("field %q: array representation must be a slice", sf.Name)
+		}
+		element := fd.RuntimeType.Elem()
+		logical := LogicalTypeJSON
+		switch {
+		case element.PkgPath() == "time" && element.Name() == "Time":
+			logical = LogicalTypeTime
+		case element.Name() == "UUID" && element.Kind() == reflect.Array && element.Len() == 16 && element.Elem().Kind() == reflect.Uint8:
+			logical = LogicalTypeUUID
+		default:
+			switch element.Kind() {
+			case reflect.String:
+				logical = LogicalTypeString
+			case reflect.Bool:
+				logical = LogicalTypeBool
+			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+				logical = LogicalTypeInt
+			case reflect.Float32, reflect.Float64:
+				logical = LogicalTypeFloat
+			case reflect.Map, reflect.Struct, reflect.Slice, reflect.Array, reflect.Interface:
+			default:
+				return nil, fmt.Errorf("field %q: unsupported array element %s", sf.Name, element)
+			}
+		}
+		elementExpression, err := typeExpressionFor(element)
+		if err != nil {
+			return nil, err
+		}
+		elementExpression.Logical = logical
+		sf.Semantic.Base = &TypeExpression{Kind: TypeKindSlice, Element: elementExpression}
+		sf.Semantic.Capabilities.Comparable = false
+		sf.Semantic.Capabilities.Adder = false
+		sf.Semantic.Capabilities.Nillable = true
+	}
 	sf.Semantic.Storage.Dialects = sf.SchemaType
 	if len(sf.ValidatorKinds) != sf.Validators {
 		return nil, fmt.Errorf("field %q: validator metadata count does not match validators", sf.Name)
@@ -194,7 +227,7 @@ func NewField(fd *field.Descriptor, resolver TypeResolver) (*Field, error) {
 
 func validateFieldRepresentation(loadedField *Field) error {
 	capabilities := loadedField.Semantic.Capabilities
-	if loadedField.ValueScanner || loadedField.Type == field.TypeJSON {
+	if loadedField.ValueScanner || loadedField.Type == field.TypeJSON || loadedField.Type == field.TypeArray {
 		return nil
 	}
 	if capabilities.Scanner && capabilities.Valuer {
@@ -266,15 +299,6 @@ func MarshalSchema(schema ent.Interface, resolver TypeResolver) (b []byte, err e
 	for _, idx := range indexes {
 		s.Indexes = append(s.Indexes, NewIndex(idx.Descriptor()))
 	}
-	if err := s.loadHooks(schema); err != nil {
-		return nil, fmt.Errorf("schema %q: %w", s.Name, err)
-	}
-	if err := s.loadInterceptors(schema); err != nil {
-		return nil, fmt.Errorf("schema %q: %w", s.Name, err)
-	}
-	if err := s.loadPolicy(schema); err != nil {
-		return nil, fmt.Errorf("schema %q: %w", s.Name, err)
-	}
 	return json.Marshal(s)
 }
 
@@ -330,38 +354,6 @@ func (s *Schema) loadMixin(schema ent.Interface, resolver TypeResolver) error {
 		for _, idx := range indexes {
 			s.Indexes = append(s.Indexes, NewIndex(idx.Descriptor()))
 		}
-		hooks, err := safeHooks(mx)
-		if err != nil {
-			return fmt.Errorf("mixin %q: %w", name, err)
-		}
-		for j := range hooks {
-			s.Hooks = append(s.Hooks, &Position{
-				Index:      j,
-				MixedIn:    true,
-				MixinIndex: i,
-			})
-		}
-		inters, err := safeInterceptors(mx)
-		if err != nil {
-			return fmt.Errorf("mixin %q: %w", name, err)
-		}
-		for j := range inters {
-			s.Interceptors = append(s.Interceptors, &Position{
-				Index:      j,
-				MixedIn:    true,
-				MixinIndex: i,
-			})
-		}
-		policy, err := safePolicy(mx)
-		if err != nil {
-			return fmt.Errorf("mixin %q: %w", name, err)
-		}
-		if policy != nil {
-			s.Policy = append(s.Policy, &Position{
-				MixedIn:    true,
-				MixinIndex: i,
-			})
-		}
 		for _, at := range mx.Annotations() {
 			s.addAnnotation(at)
 		}
@@ -382,45 +374,6 @@ func (s *Schema) loadFields(schema ent.Interface, resolver TypeResolver) error {
 		}
 		sf.Position = &Position{Index: i}
 		s.Fields = append(s.Fields, sf)
-	}
-	return nil
-}
-
-func (s *Schema) loadHooks(schema ent.Interface) error {
-	hooks, err := safeHooks(schema)
-	if err != nil {
-		return err
-	}
-	for i := range hooks {
-		s.Hooks = append(s.Hooks, &Position{
-			Index:   i,
-			MixedIn: false,
-		})
-	}
-	return nil
-}
-
-func (s *Schema) loadInterceptors(schema ent.Interface) error {
-	inters, err := safeInterceptors(schema)
-	if err != nil {
-		return err
-	}
-	for i := range inters {
-		s.Interceptors = append(s.Interceptors, &Position{
-			Index:   i,
-			MixedIn: false,
-		})
-	}
-	return nil
-}
-
-func (s *Schema) loadPolicy(schema ent.Interface) error {
-	policy, err := safePolicy(schema)
-	if err != nil {
-		return err
-	}
-	if policy != nil {
-		s.Policy = append(s.Policy, &Position{})
 	}
 	return nil
 }
@@ -518,39 +471,6 @@ func safeMixin(schema ent.Interface) (mixin []ent.Mixin, err error) {
 		}
 	}()
 	return schema.Mixin(), nil
-}
-
-// safeHooks wraps the schema.Hooks method with recover to ensure no panics in marshaling.
-func safeHooks(schema interface{ Hooks() []ent.Hook }) (hooks []ent.Hook, err error) {
-	defer func() {
-		if v := recover(); v != nil {
-			err = fmt.Errorf("schema.Hooks panics: %v", v)
-			hooks = nil
-		}
-	}()
-	return schema.Hooks(), nil
-}
-
-// safeInterceptors wraps the schema.Interceptors method with recover to ensure no panics in marshaling.
-func safeInterceptors(schema interface{ Interceptors() []ent.Interceptor }) (inters []ent.Interceptor, err error) {
-	defer func() {
-		if v := recover(); v != nil {
-			err = fmt.Errorf("schema.Interceptors panics: %v", v)
-			inters = nil
-		}
-	}()
-	return schema.Interceptors(), nil
-}
-
-// safePolicy wraps the schema.Policy method with recover to ensure no panics in marshaling.
-func safePolicy(schema interface{ Policy() ent.Policy }) (policy ent.Policy, err error) {
-	defer func() {
-		if v := recover(); v != nil {
-			err = fmt.Errorf("schema.Policy panics: %v", v)
-			policy = nil
-		}
-	}()
-	return schema.Policy(), nil
 }
 
 func indirect(t reflect.Type) reflect.Type {

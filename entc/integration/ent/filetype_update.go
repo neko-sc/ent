@@ -10,150 +10,215 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/ent/file"
 	"github.com/neko-sc/ent/entc/integration/ent/filetype"
-	"github.com/neko-sc/ent/entc/integration/ent/predicate"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// FileTypeUpdate is the builder for updating FileType entities.
 type FileTypeUpdate struct {
 	config
-	hooks     []Hook
 	mutation  *FileTypeMutation
+	err       error
+	returning *sqlgraph.Returning
+
 	modifiers []func(*sql.UpdateBuilder)
 }
 
-// Where appends a list predicates to the FileTypeUpdate builder.
-func (_u *FileTypeUpdate) Where(ps ...predicate.FileType) *FileTypeUpdate {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// SetName sets the "name" field.
-func (_u *FileTypeUpdate) SetName(v string) *FileTypeUpdate {
-	_u.mutation.SetName(v)
-	return _u
-}
-
-// SetNillableName sets the "name" field if the given value is not nil.
-func (_u *FileTypeUpdate) SetNillableName(v *string) *FileTypeUpdate {
-	if v != nil {
-		_u.SetName(*v)
+func (b *FileTypeUpdate) Set[T any](column ent.ColumnOf[entity.FileType, T], value T) *FileTypeUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// SetType sets the "type" field.
-func (_u *FileTypeUpdate) SetType(v filetype.Type) *FileTypeUpdate {
-	_u.mutation.SetType(v)
-	return _u
+	return b
 }
-
-// SetNillableType sets the "type" field if the given value is not nil.
-func (_u *FileTypeUpdate) SetNillableType(v *filetype.Type) *FileTypeUpdate {
-	if v != nil {
-		_u.SetType(*v)
+func (b *FileTypeUpdate) SetOptional[T any](column ent.ColumnOf[entity.FileType, T], value ent.Option[T]) *FileTypeUpdate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u
-}
-
-// SetState sets the "state" field.
-func (_u *FileTypeUpdate) SetState(v filetype.State) *FileTypeUpdate {
-	_u.mutation.SetState(v)
-	return _u
-}
-
-// SetNillableState sets the "state" field if the given value is not nil.
-func (_u *FileTypeUpdate) SetNillableState(v *filetype.State) *FileTypeUpdate {
-	if v != nil {
-		_u.SetState(*v)
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
 	}
-	return _u
+	return b
 }
-
-// AddFileIDs adds the "files" edge to the File entity by IDs.
-func (_u *FileTypeUpdate) AddFileIDs(ids ...int) *FileTypeUpdate {
-	_u.mutation.AddFileIDs(ids...)
-	return _u
-}
-
-// AddFiles adds the "files" edges to the File entity.
-func (_u *FileTypeUpdate) AddFiles(v ...*File) *FileTypeUpdate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+func (b *FileTypeUpdate) SetExpr[T any](column ent.ColumnOf[entity.FileType, T], value ent.Expr[T]) *FileTypeUpdate {
+	if b.err != nil {
+		return b
 	}
-	return _u.AddFileIDs(ids...)
-}
+	switch column.Ref().Name {
 
-// Mutation returns the FileTypeMutation object of the builder.
-func (_u *FileTypeUpdate) Mutation() *FileTypeMutation {
-	return _u.mutation
-}
+	case filetype.FieldName:
 
-// ClearFiles clears all "files" edges to the File entity.
-func (_u *FileTypeUpdate) ClearFiles() *FileTypeUpdate {
-	_u.mutation.ClearFiles()
-	return _u
-}
+	case filetype.FieldType:
 
-// RemoveFileIDs removes the "files" edge to File entities by IDs.
-func (_u *FileTypeUpdate) RemoveFileIDs(ids ...int) *FileTypeUpdate {
-	_u.mutation.RemoveFileIDs(ids...)
-	return _u
-}
+	case filetype.FieldState:
 
-// RemoveFiles removes "files" edges to File entities.
-func (_u *FileTypeUpdate) RemoveFiles(v ...*File) *FileTypeUpdate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of FileType is not settable", column.Ref().Name)}
+		return b
 	}
-	return _u.RemoveFileIDs(ids...)
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *FileTypeUpdate) SetEdge[N, K any](edge ent.UniqueRelation[entity.FileType, N, K], id K) *FileTypeUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *FileTypeUpdate) AddIDs[N, K any](edge ent.Relation[entity.FileType, N, K], ids ...K) *FileTypeUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *FileTypeUpdate) Mutation() *FileTypeMutation { return b.mutation }
+
+func (b *FileTypeUpdate) Patch() *FileTypePatch                 { return b.mutation.patch }
+func (b *FileTypeUpdate) Apply(p FileTypePatch) *FileTypeUpdate { b.mutation.patch.apply(p); return b }
+func (b *FileTypeUpdate) Add[T ent.Number](column ent.ColumnOf[entity.FileType, T], delta T) *FileTypeUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *FileTypeUpdate) Append[T any](column ent.ColumnOf[entity.FileType, T], values T) *FileTypeUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *FileTypeUpdate) Clear[T any](column ent.ColumnOf[entity.FileType, T]) *FileTypeUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *FileTypeUpdate) RemoveIDs[N, K any](edge ent.Relation[entity.FileType, N, K], ids ...K) *FileTypeUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *FileTypeUpdate) ClearEdge[N, K any](edge ent.RelationOf[entity.FileType, N, K]) *FileTypeUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// Save executes the query and returns the number of nodes affected by the update operation.
-func (_u *FileTypeUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
+func (b *FileTypeUpdate) Where(predicates ...ent.Predicate[entity.FileType]) *FileTypeUpdate {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_u *FileTypeUpdate) SaveX(ctx context.Context) int {
-	affected, err := _u.Save(ctx)
+func (b *FileTypeUpdate) Save(ctx context.Context) (int, error) {
+	if b.err != nil {
+		return 0, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return 0, err
+	}
+	return b.sqlSave(ctx)
+}
+
+func (b *FileTypeUpdate) SaveX(ctx context.Context) int {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return affected
+	return result
 }
 
-// Exec executes the query.
-func (_u *FileTypeUpdate) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *FileTypeUpdate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *FileTypeUpdate) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *FileTypeUpdate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_u *FileTypeUpdate) check() error {
-	if v, ok := _u.mutation.GetType(); ok {
+func (b *FileTypeUpdate) Returning(ctx context.Context) ([]*FileType, error) {
+	nodes := make([]*FileType, 0)
+	b.returning = &sqlgraph.Returning{Columns: filetype.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &FileType{config: b.config}
+		values, err := _node.scanValues(filetype.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(filetype.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Save(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
+}
+
+func (b *FileTypeUpdate) defaults() error {
+
+	return nil
+}
+
+func (b *FileTypeUpdate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.Name.IsNull() {
+		return &ValidationError{Name: "name", err: errors.New(`ent: field "FileType.name" is not nullable`)}
+	}
+
+	if b.mutation.patch.Type.IsNull() {
+		return &ValidationError{Name: "type", err: errors.New(`ent: field "FileType.type" is not nullable`)}
+	}
+
+	if v, ok := b.mutation.patch.Type.Get(); ok && b.mutation.patch.expressions[filetype.FieldType] == nil {
+
 		if err := filetype.TypeValidator(v); err != nil {
 			return &ValidationError{Name: "type", err: fmt.Errorf(`ent: validator failed for field "FileType.type": %w`, err)}
 		}
+
 	}
-	if v, ok := _u.mutation.State(); ok {
+
+	if b.mutation.patch.State.IsNull() {
+		return &ValidationError{Name: "state", err: errors.New(`ent: field "FileType.state" is not nullable`)}
+	}
+
+	if v, ok := b.mutation.patch.State.Get(); ok && b.mutation.patch.expressions[filetype.FieldState] == nil {
+
 		if err := filetype.StateValidator(v); err != nil {
 			return &ValidationError{Name: "state", err: fmt.Errorf(`ent: validator failed for field "FileType.state": %w`, err)}
 		}
+
 	}
+
 	return nil
 }
 
@@ -175,16 +240,16 @@ func (_u *FileTypeUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.Name(); ok {
+	if value, ok := _u.mutation.patch.Name.Get(); ok {
 		_spec.SetField(filetype.FieldName, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.GetType(); ok {
+	if value, ok := _u.mutation.patch.Type.Get(); ok {
 		_spec.SetField(filetype.FieldType, field.TypeEnum, value)
 	}
-	if value, ok := _u.mutation.State(); ok {
+	if value, ok := _u.mutation.patch.State.Get(); ok {
 		_spec.SetField(filetype.FieldState, field.TypeEnum, value)
 	}
-	if _u.mutation.FilesCleared() {
+	if _u.mutation.patch.Files.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -197,7 +262,7 @@ func (_u *FileTypeUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.RemovedFilesIDs(); len(nodes) > 0 && !_u.mutation.FilesCleared() {
+	if nodes := _u.mutation.patch.Files.Remove; len(nodes) > 0 && !_u.mutation.patch.Files.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -208,12 +273,17 @@ func (_u *FileTypeUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(file.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.FilesIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.filesIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -224,12 +294,22 @@ func (_u *FileTypeUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(file.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	_spec.Returning = _u.returning
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
 	_spec.AddModifiers(_u.modifiers...)
+
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{filetype.Label}
@@ -238,154 +318,213 @@ func (_u *FileTypeUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		return 0, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }
 
-// FileTypeUpdateOne is the builder for updating a single FileType entity.
 type FileTypeUpdateOne struct {
 	config
-	fields    []string
-	hooks     []Hook
-	mutation  *FileTypeMutation
+	mutation *FileTypeMutation
+	err      error
+
+	fields []string
+	old    *FileType
+
 	modifiers []func(*sql.UpdateBuilder)
 }
 
-// SetName sets the "name" field.
-func (_u *FileTypeUpdateOne) SetName(v string) *FileTypeUpdateOne {
-	_u.mutation.SetName(v)
-	return _u
-}
-
-// SetNillableName sets the "name" field if the given value is not nil.
-func (_u *FileTypeUpdateOne) SetNillableName(v *string) *FileTypeUpdateOne {
-	if v != nil {
-		_u.SetName(*v)
+func (b *FileTypeUpdateOne) Set[T any](column ent.ColumnOf[entity.FileType, T], value T) *FileTypeUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// SetType sets the "type" field.
-func (_u *FileTypeUpdateOne) SetType(v filetype.Type) *FileTypeUpdateOne {
-	_u.mutation.SetType(v)
-	return _u
+	return b
 }
-
-// SetNillableType sets the "type" field if the given value is not nil.
-func (_u *FileTypeUpdateOne) SetNillableType(v *filetype.Type) *FileTypeUpdateOne {
-	if v != nil {
-		_u.SetType(*v)
+func (b *FileTypeUpdateOne) SetOptional[T any](column ent.ColumnOf[entity.FileType, T], value ent.Option[T]) *FileTypeUpdateOne {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u
-}
-
-// SetState sets the "state" field.
-func (_u *FileTypeUpdateOne) SetState(v filetype.State) *FileTypeUpdateOne {
-	_u.mutation.SetState(v)
-	return _u
-}
-
-// SetNillableState sets the "state" field if the given value is not nil.
-func (_u *FileTypeUpdateOne) SetNillableState(v *filetype.State) *FileTypeUpdateOne {
-	if v != nil {
-		_u.SetState(*v)
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
 	}
-	return _u
+	return b
 }
-
-// AddFileIDs adds the "files" edge to the File entity by IDs.
-func (_u *FileTypeUpdateOne) AddFileIDs(ids ...int) *FileTypeUpdateOne {
-	_u.mutation.AddFileIDs(ids...)
-	return _u
-}
-
-// AddFiles adds the "files" edges to the File entity.
-func (_u *FileTypeUpdateOne) AddFiles(v ...*File) *FileTypeUpdateOne {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+func (b *FileTypeUpdateOne) SetExpr[T any](column ent.ColumnOf[entity.FileType, T], value ent.Expr[T]) *FileTypeUpdateOne {
+	if b.err != nil {
+		return b
 	}
-	return _u.AddFileIDs(ids...)
-}
+	switch column.Ref().Name {
 
-// Mutation returns the FileTypeMutation object of the builder.
-func (_u *FileTypeUpdateOne) Mutation() *FileTypeMutation {
-	return _u.mutation
-}
+	case filetype.FieldName:
 
-// ClearFiles clears all "files" edges to the File entity.
-func (_u *FileTypeUpdateOne) ClearFiles() *FileTypeUpdateOne {
-	_u.mutation.ClearFiles()
-	return _u
-}
+	case filetype.FieldType:
 
-// RemoveFileIDs removes the "files" edge to File entities by IDs.
-func (_u *FileTypeUpdateOne) RemoveFileIDs(ids ...int) *FileTypeUpdateOne {
-	_u.mutation.RemoveFileIDs(ids...)
-	return _u
-}
+	case filetype.FieldState:
 
-// RemoveFiles removes "files" edges to File entities.
-func (_u *FileTypeUpdateOne) RemoveFiles(v ...*File) *FileTypeUpdateOne {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of FileType is not settable", column.Ref().Name)}
+		return b
 	}
-	return _u.RemoveFileIDs(ids...)
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *FileTypeUpdateOne) SetEdge[N, K any](edge ent.UniqueRelation[entity.FileType, N, K], id K) *FileTypeUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *FileTypeUpdateOne) AddIDs[N, K any](edge ent.Relation[entity.FileType, N, K], ids ...K) *FileTypeUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *FileTypeUpdateOne) Mutation() *FileTypeMutation { return b.mutation }
+
+func (b *FileTypeUpdateOne) Patch() *FileTypePatch { return b.mutation.patch }
+func (b *FileTypeUpdateOne) Apply(p FileTypePatch) *FileTypeUpdateOne {
+	b.mutation.patch.apply(p)
+	return b
+}
+func (b *FileTypeUpdateOne) Add[T ent.Number](column ent.ColumnOf[entity.FileType, T], delta T) *FileTypeUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *FileTypeUpdateOne) Append[T any](column ent.ColumnOf[entity.FileType, T], values T) *FileTypeUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *FileTypeUpdateOne) Clear[T any](column ent.ColumnOf[entity.FileType, T]) *FileTypeUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *FileTypeUpdateOne) RemoveIDs[N, K any](edge ent.Relation[entity.FileType, N, K], ids ...K) *FileTypeUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *FileTypeUpdateOne) ClearEdge[N, K any](edge ent.RelationOf[entity.FileType, N, K]) *FileTypeUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// Where appends a list predicates to the FileTypeUpdate builder.
-func (_u *FileTypeUpdateOne) Where(ps ...predicate.FileType) *FileTypeUpdateOne {
-	_u.mutation.Where(ps...)
-	return _u
+func (b *FileTypeUpdateOne) Where(predicates ...ent.Predicate[entity.FileType]) *FileTypeUpdateOne {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Select allows selecting one or more fields (columns) of the returned entity.
-// The default is selecting all fields defined in the entity schema.
-func (_u *FileTypeUpdateOne) Select(field string, fields ...string) *FileTypeUpdateOne {
-	_u.fields = append([]string{field}, fields...)
-	return _u
+func (b *FileTypeUpdateOne) Save(ctx context.Context) (*FileType, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Save executes the query and returns the updated FileType entity.
-func (_u *FileTypeUpdateOne) Save(ctx context.Context) (*FileType, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *FileTypeUpdateOne) SaveX(ctx context.Context) *FileType {
-	node, err := _u.Save(ctx)
+func (b *FileTypeUpdateOne) SaveX(ctx context.Context) *FileType {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return node
+	return result
 }
 
-// Exec executes the query on the entity.
-func (_u *FileTypeUpdateOne) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *FileTypeUpdateOne) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *FileTypeUpdateOne) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *FileTypeUpdateOne) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_u *FileTypeUpdateOne) check() error {
-	if v, ok := _u.mutation.GetType(); ok {
+func (b *FileTypeUpdateOne) Select(columns ...ent.EntityColumn[entity.FileType]) *FileTypeUpdateOne {
+	if len(columns) == 0 {
+		panic("ent: Select requires at least one column")
+	}
+	b.fields = make([]string, len(columns))
+	for index, column := range columns {
+		b.fields[index] = column.Ref().Name
+	}
+	return b
+}
+
+func (b *FileTypeUpdateOne) SaveOld(ctx context.Context) (old *FileType, updated *FileType, err error) {
+	if !b.driver.Capabilities().ReturningOld {
+		return nil, nil, &dialect.UnsupportedError{Feature: "RETURNING OLD", Dialect: dialect.Dialect(b.driver.Dialect())}
+	}
+	b.old = &FileType{config: b.config}
+	defer func() { b.old = nil }()
+	updated, err = b.Save(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return b.old, updated, nil
+}
+
+func (b *FileTypeUpdateOne) defaults() error {
+
+	return nil
+}
+
+func (b *FileTypeUpdateOne) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.Name.IsNull() {
+		return &ValidationError{Name: "name", err: errors.New(`ent: field "FileType.name" is not nullable`)}
+	}
+
+	if b.mutation.patch.Type.IsNull() {
+		return &ValidationError{Name: "type", err: errors.New(`ent: field "FileType.type" is not nullable`)}
+	}
+
+	if v, ok := b.mutation.patch.Type.Get(); ok && b.mutation.patch.expressions[filetype.FieldType] == nil {
+
 		if err := filetype.TypeValidator(v); err != nil {
 			return &ValidationError{Name: "type", err: fmt.Errorf(`ent: validator failed for field "FileType.type": %w`, err)}
 		}
+
 	}
-	if v, ok := _u.mutation.State(); ok {
+
+	if b.mutation.patch.State.IsNull() {
+		return &ValidationError{Name: "state", err: errors.New(`ent: field "FileType.state" is not nullable`)}
+	}
+
+	if v, ok := b.mutation.patch.State.Get(); ok && b.mutation.patch.expressions[filetype.FieldState] == nil {
+
 		if err := filetype.StateValidator(v); err != nil {
 			return &ValidationError{Name: "state", err: fmt.Errorf(`ent: validator failed for field "FileType.state": %w`, err)}
 		}
+
 	}
+
 	return nil
 }
 
@@ -424,16 +563,16 @@ func (_u *FileTypeUpdateOne) sqlSave(ctx context.Context) (_node *FileType, err 
 			}
 		}
 	}
-	if value, ok := _u.mutation.Name(); ok {
+	if value, ok := _u.mutation.patch.Name.Get(); ok {
 		_spec.SetField(filetype.FieldName, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.GetType(); ok {
+	if value, ok := _u.mutation.patch.Type.Get(); ok {
 		_spec.SetField(filetype.FieldType, field.TypeEnum, value)
 	}
-	if value, ok := _u.mutation.State(); ok {
+	if value, ok := _u.mutation.patch.State.Get(); ok {
 		_spec.SetField(filetype.FieldState, field.TypeEnum, value)
 	}
-	if _u.mutation.FilesCleared() {
+	if _u.mutation.patch.Files.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -446,7 +585,7 @@ func (_u *FileTypeUpdateOne) sqlSave(ctx context.Context) (_node *FileType, err 
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.RemovedFilesIDs(); len(nodes) > 0 && !_u.mutation.FilesCleared() {
+	if nodes := _u.mutation.patch.Files.Remove; len(nodes) > 0 && !_u.mutation.patch.Files.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -457,12 +596,17 @@ func (_u *FileTypeUpdateOne) sqlSave(ctx context.Context) (_node *FileType, err 
 				IDSpec: sqlgraph.NewFieldSpec(file.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.FilesIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.filesIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -473,15 +617,28 @@ func (_u *FileTypeUpdateOne) sqlSave(ctx context.Context) (_node *FileType, err 
 				IDSpec: sqlgraph.NewFieldSpec(file.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
 	_spec.AddModifiers(_u.modifiers...)
+
 	_node = &FileType{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
+	if _u.old != nil {
+		_spec.OldScanValues = _u.old.scanValues
+		_spec.OldAssign = _u.old.assignValues
+	}
 	if err = sqlgraph.UpdateNode(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{filetype.Label}
@@ -490,6 +647,5 @@ func (_u *FileTypeUpdateOne) sqlSave(ctx context.Context) (_node *FileType, err 
 		}
 		return nil, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }

@@ -9,123 +9,180 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/google/uuid"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
+	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/entc/integration/edgefield/ent/car"
+	"github.com/neko-sc/ent/entc/integration/edgefield/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/edgefield/ent/rental"
 	"github.com/neko-sc/ent/entc/integration/edgefield/ent/user"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// RentalCreate is the builder for creating a Rental entity.
 type RentalCreate struct {
 	config
-	mutation *RentalMutation
-	hooks    []Hook
+	mutation    *RentalMutation
+	err         error
+	fromBuilder bool
+	present     map[string]struct{}
+
+	conflict []sql.ConflictOption
 }
 
-// SetDate sets the "date" field.
-func (_c *RentalCreate) SetDate(v time.Time) *RentalCreate {
-	_c.mutation.SetDate(v)
-	return _c
-}
-
-// SetNillableDate sets the "date" field if the given value is not nil.
-func (_c *RentalCreate) SetNillableDate(v *time.Time) *RentalCreate {
-	if v != nil {
-		_c.SetDate(*v)
+func (b *RentalCreate) Set[T any](column ent.ColumnOf[entity.Rental, T], value T) *RentalCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.set(column.Ref().Name, value)
 	}
-	return _c
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
 }
-
-// SetUserID sets the "user_id" field.
-func (_c *RentalCreate) SetUserID(v int) *RentalCreate {
-	_c.mutation.SetUserID(v)
-	return _c
+func (b *RentalCreate) SetOptional[T any](column ent.ColumnOf[entity.Rental, T], value ent.Option[T]) *RentalCreate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.insert.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
 }
+func (b *RentalCreate) SetExpr[T any](column ent.ColumnOf[entity.Rental, T], value ent.Expr[T]) *RentalCreate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
 
-// SetCarID sets the "car_id" field.
-func (_c *RentalCreate) SetCarID(v uuid.UUID) *RentalCreate {
-	_c.mutation.SetCarID(v)
-	return _c
+	case rental.FieldDate:
+
+	case rental.FieldUserID:
+
+	case rental.FieldCarID:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Rental is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.insert.setExpr(column.Ref().Name, value.Render)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+
 }
+func (b *RentalCreate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Rental, N, K], id K) *RentalCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.setEdge(edge.Ref().Name, id)
+	}
 
-// SetUser sets the "user" edge to the User entity.
-func (_c *RentalCreate) SetUser(v *User) *RentalCreate {
-	return _c.SetUserID(v.ID)
+	switch edge.Ref().Name {
+	case rental.EdgeUser:
+		if b.present == nil {
+			b.present = make(map[string]struct{})
+		}
+		b.present[rental.FieldUserID] = struct{}{}
+	case rental.EdgeCar:
+		if b.present == nil {
+			b.present = make(map[string]struct{})
+		}
+		b.present[rental.FieldCarID] = struct{}{}
+
+	}
+
+	return b
 }
-
-// SetCar sets the "car" edge to the Car entity.
-func (_c *RentalCreate) SetCar(v *Car) *RentalCreate {
-	return _c.SetCarID(v.ID)
+func (b *RentalCreate) AddIDs[N, K any](edge ent.Relation[entity.Rental, N, K], ids ...K) *RentalCreate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.insert.addIDs(edge.Ref().Name, values...)
+	}
+	return b
 }
+func (b *RentalCreate) Mutation() *RentalMutation { return b.mutation }
 
-// Mutation returns the RentalMutation object of the builder.
-func (_c *RentalCreate) Mutation() *RentalMutation {
-	return _c.mutation
-}
+func (b *RentalCreate) Insert() *RentalInsert { return b.mutation.insert }
 
-// Save creates the Rental in the database.
-func (_c *RentalCreate) Save(ctx context.Context) (*Rental, error) {
-	if err := _c.defaults(); err != nil {
+func (b *RentalCreate) Save(ctx context.Context) (*Rental, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
 		return nil, err
 	}
-	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
+	return b.sqlSave(ctx)
 }
 
-// SaveX calls Save and panics if Save returns an error.
-func (_c *RentalCreate) SaveX(ctx context.Context) *Rental {
-	v, err := _c.Save(ctx)
+func (b *RentalCreate) SaveX(ctx context.Context) *Rental {
+	node, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return node
 }
 
-// Exec executes the query.
-func (_c *RentalCreate) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *RentalCreate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *RentalCreate) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *RentalCreate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// defaults sets the default values of the builder before save.
-func (_c *RentalCreate) defaults() error {
-	if _, ok := _c.mutation.Date(); !ok {
+func (b *RentalCreate) defaults() error {
+
+	if b.mutation.insert.Date.IsUnset() && b.mutation.insert.expressions[rental.FieldDate] == nil {
 		if rental.DefaultDate == nil {
-			return fmt.Errorf("ent: uninitialized rental.DefaultDate (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized rental.DefaultDate")
 		}
-		v := rental.DefaultDate()
-		_c.mutation.SetDate(v)
+		b.mutation.insert.Date = ent.Some(rental.DefaultDate())
 	}
+
 	return nil
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_c *RentalCreate) check() error {
-	if _, ok := _c.mutation.Date(); !ok {
-		return &ValidationError{Name: "date", err: errors.New(`ent: missing required field "Rental.date"`)}
+func (b *RentalCreate) check() error {
+	if b.err != nil {
+		return b.err
 	}
-	if _, ok := _c.mutation.UserID(); !ok {
-		return &ValidationError{Name: "user_id", err: errors.New(`ent: missing required field "Rental.user_id"`)}
+
+	if b.mutation.insert.Date.IsNull() {
+		return &ValidationError{Name: "date", err: errors.New(`ent: field "Rental.date" is not nullable`)}
 	}
-	if _, ok := _c.mutation.CarID(); !ok {
-		return &ValidationError{Name: "car_id", err: errors.New(`ent: missing required field "Rental.car_id"`)}
+
+	switch b.driver.Dialect() {
+	case dialect.Postgres, dialect.SQLite:
+		if _, present := b.present[rental.FieldUserID]; b.fromBuilder && !present {
+			return &ValidationError{Name: "user_id", err: errors.New(`ent: missing required field "Rental.user_id"`)}
+		}
 	}
-	if len(_c.mutation.UserIDs()) == 0 {
+
+	switch b.driver.Dialect() {
+	case dialect.Postgres, dialect.SQLite:
+		if _, present := b.present[rental.FieldCarID]; b.fromBuilder && !present {
+			return &ValidationError{Name: "car_id", err: errors.New(`ent: missing required field "Rental.car_id"`)}
+		}
+	}
+
+	if len(b.mutation.insert.userIDs()) == 0 {
 		return &ValidationError{Name: "user", err: errors.New(`ent: missing required edge "Rental.user"`)}
 	}
-	if len(_c.mutation.CarIDs()) == 0 {
+
+	if len(b.mutation.insert.carIDs()) == 0 {
 		return &ValidationError{Name: "car", err: errors.New(`ent: missing required edge "Rental.car"`)}
 	}
+
 	return nil
 }
 
@@ -133,30 +190,39 @@ func (_c *RentalCreate) sqlSave(ctx context.Context) (*Rental, error) {
 	if err := _c.check(); err != nil {
 		return nil, err
 	}
-	_node, _spec := _c.createSpec()
-	if err := sqlgraph.CreateNode(ctx, _c.driver, _spec); err != nil {
+	node, spec, err := _c.createSpec()
+	if err != nil {
+		return nil, err
+	}
+	if err := sqlgraph.CreateNode(ctx, _c.driver, spec); err != nil {
 		if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
 		return nil, err
 	}
-	id := _spec.ID.Value.(int64)
-	_node.ID = int(id)
-	_c.mutation.id = &_node.ID
-	_c.mutation.done = true
-	return _node, nil
+	_c.mutation.id = &node.ID
+	return node, nil
 }
 
-func (_c *RentalCreate) createSpec() (*Rental, *sqlgraph.CreateSpec) {
-	var (
-		_node = &Rental{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(rental.Table, sqlgraph.NewFieldSpec(rental.FieldID, field.TypeInt))
-	)
-	if value, ok := _c.mutation.Date(); ok {
+func (_c *RentalCreate) createSpec() (*Rental, *sqlgraph.CreateSpec, error) {
+	_node := &Rental{config: _c.config}
+	_spec := sqlgraph.NewCreateSpec(rental.Table, sqlgraph.NewFieldSpec(rental.FieldID, field.TypeInt))
+
+	_spec.OnConflict = _c.conflict
+
+	if value, ok := _c.mutation.insert.Date.Get(); ok {
 		_spec.SetField(rental.FieldDate, field.TypeTime, value)
-		_node.Date = value
 	}
-	if nodes := _c.mutation.UserIDs(); len(nodes) > 0 {
+	if _c.mutation.insert.Date.IsNull() {
+		_spec.SetField(rental.FieldDate, field.TypeTime, nil)
+	}
+
+	_spec.Expressions = _c.mutation.insert.expressions
+
+	if nodes := _c.mutation.insert.userIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -167,13 +233,18 @@ func (_c *RentalCreate) createSpec() (*Rental, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
-		_node.UserID = nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	if nodes := _c.mutation.CarIDs(); len(nodes) > 0 {
+
+	if nodes := _c.mutation.insert.carIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -184,99 +255,385 @@ func (_c *RentalCreate) createSpec() (*Rental, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(car.FieldID, field.TypeUUID),
 			},
 		}
+		seen := make(map[uuid.UUID]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
-		_node.CarID = nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	return _node, _spec
+
+	_spec.Returning = &sqlgraph.Returning{Columns: rental.Columns, Scan: func(rows dialect.Rows) error {
+		values, err := _node.scanValues(rental.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(rental.Columns, values); err != nil {
+			return err
+		}
+
+		_spec.ID.Value = _node.ID
+
+		return nil
+	}}
+	return _node, _spec, nil
 }
 
-// RentalCreateBulk is the builder for creating many Rental entities in bulk.
+type RentalUpsertOne struct{ create *RentalCreate }
+
+func (b *RentalCreate) OnConflict(columns ...ent.EntityColumn[entity.Rental]) *RentalUpsertOne {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
+	}
+	if len(names) == 0 {
+		return b.OnConflictOptions()
+	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
+}
+
+func (b *RentalCreate) OnConflictConstraint(name string) *RentalUpsertOne {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
+}
+
+func (b *RentalCreate) OnConflictOptions(options ...sql.ConflictOption) *RentalUpsertOne {
+	b.conflict = options
+	return &RentalUpsertOne{create: b}
+}
+
+func (u *RentalUpsertOne) DoNothing() *RentalUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+func (u *RentalUpsertOne) DoSelect() *RentalUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *RentalUpsertOne) Ignore() *RentalUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *RentalUpsertOne) DoUpdate(set func(*RentalUpsert)) *RentalUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&RentalUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *RentalUpsertOne) UpdateNewValues() *RentalUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case rental.FieldID:
+				update.SetIgnore(column)
+
+			case rental.FieldUserID:
+				update.SetIgnore(column)
+
+			case rental.FieldCarID:
+				update.SetIgnore(column)
+
+			}
+		}
+	}))
+	return u
+}
+
+func (u *RentalUpsertOne) Where(predicates ...ent.Predicate[entity.Rental]) *RentalUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(rental.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *RentalUpsertOne) UpdateWhere(predicates ...ent.Predicate[entity.Rental]) *RentalUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(rental.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *RentalUpsertOne) Save(ctx context.Context) (*Rental, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for RentalCreate.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *RentalUpsertOne) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
+func (u *RentalUpsertOne) ExecX(ctx context.Context) {
+	if err := u.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+func (u *RentalUpsertOne) ID(ctx context.Context) (id int, err error) {
+	node, err := u.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+func (u *RentalUpsertOne) IDX(ctx context.Context) int {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
+type RentalUpsert struct{ *sql.UpdateSet }
+
+func (u *RentalUpsert) Set[T any](column ent.ColumnOf[entity.Rental, T], value T) *RentalUpsert {
+	switch column.Ref().Name {
+
+	case rental.FieldDate:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Rental is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *RentalUpsert) SetExpr[T any](column ent.ColumnOf[entity.Rental, T], value ent.Expr[T]) *RentalUpsert {
+	switch column.Ref().Name {
+
+	case rental.FieldDate:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Rental is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *RentalUpsert) UpdateNewValue[T any](column ent.ColumnOf[entity.Rental, T]) *RentalUpsert {
+	switch column.Ref().Name {
+
+	case rental.FieldDate:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Rental is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *RentalUpsert) Add[T ent.Number](column ent.ColumnOf[entity.Rental, T], delta T) *RentalUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Rental does not support addition", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *RentalUpsert) Clear[T any](column ent.ColumnOf[entity.Rental, T]) *RentalUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Rental is not nullable", column.Ref().Name)})
+	}
+	return u
+}
+
 type RentalCreateBulk struct {
 	config
 	err      error
 	builders []*RentalCreate
+
+	conflict []sql.ConflictOption
 }
 
-// Save creates the Rental entities in the database.
 func (_c *RentalCreateBulk) Save(ctx context.Context) ([]*Rental, error) {
 	if _c.err != nil {
 		return nil, _c.err
 	}
-	specs := make([]*sqlgraph.CreateSpec, len(_c.builders))
 	nodes := make([]*Rental, len(_c.builders))
-	mutators := make([]Mutator, len(_c.builders))
-	for i := range _c.builders {
-		func(i int, root context.Context) {
-			builder := _c.builders[i]
-			builder.defaults()
-			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*RentalMutation)
-				if !ok {
-					return nil, fmt.Errorf("unexpected mutation type %T", m)
-				}
-				if err := builder.check(); err != nil {
-					return nil, err
-				}
-				builder.mutation = mutation
-				var err error
-				nodes[i], specs[i] = builder.createSpec()
-				if i < len(mutators)-1 {
-					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
-				} else {
-					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
-					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
-						if sqlgraph.IsConstraintError(err) {
-							err = &ConstraintError{msg: err.Error(), wrap: err}
-						}
-					}
-				}
-				if err != nil {
-					return nil, err
-				}
-				mutation.id = &nodes[i].ID
-				if specs[i].ID.Value != nil {
-					id := specs[i].ID.Value.(int64)
-					nodes[i].ID = int(id)
-				}
-				mutation.done = true
-				return nodes[i], nil
-			})
-			for i := len(builder.hooks) - 1; i >= 0; i-- {
-				mut = builder.hooks[i](mut)
-			}
-			mutators[i] = mut
-		}(i, ctx)
-	}
-	if len(mutators) > 0 {
-		if _, err := mutators[0].Mutate(ctx, _c.builders[0].mutation); err != nil {
+	specs := make([]*sqlgraph.CreateSpec, len(nodes))
+	for index, builder := range _c.builders {
+		if builder.err != nil {
+			return nil, builder.err
+		}
+		if err := builder.defaults(); err != nil {
+			return nil, err
+		}
+		if err := builder.check(); err != nil {
+			return nil, err
+		}
+		var err error
+		nodes[index], specs[index], err = builder.createSpec()
+		if err != nil {
 			return nil, err
 		}
 	}
-	return nodes, nil
+	if len(specs) == 0 {
+		return nodes, nil
+	}
+	spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+
+	spec.OnConflict = _c.conflict
+
+	if err := sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
+		if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{msg: err.Error(), wrap: err}
+		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
+		return nil, err
+	}
+	result := nodes[:0]
+	for index, builder := range _c.builders {
+		if specs[index].Skipped {
+			continue
+		}
+		builder.mutation.id = &nodes[index].ID
+		result = append(result, nodes[index])
+	}
+	return result, nil
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_c *RentalCreateBulk) SaveX(ctx context.Context) []*Rental {
-	v, err := _c.Save(ctx)
+func (b *RentalCreateBulk) SaveX(ctx context.Context) []*Rental {
+	nodes, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return nodes
 }
 
-// Exec executes the query.
-func (_c *RentalCreateBulk) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
+func (b *RentalCreateBulk) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
+
+func (b *RentalCreateBulk) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+type RentalUpsertBulk struct{ create *RentalCreateBulk }
+
+func (b *RentalCreateBulk) OnConflict(columns ...ent.EntityColumn[entity.Rental]) *RentalUpsertBulk {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
+	}
+	if len(names) == 0 {
+		return b.OnConflictOptions()
+	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
+}
+
+func (b *RentalCreateBulk) OnConflictConstraint(name string) *RentalUpsertBulk {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
+}
+
+func (b *RentalCreateBulk) OnConflictOptions(options ...sql.ConflictOption) *RentalUpsertBulk {
+	b.conflict = options
+	return &RentalUpsertBulk{create: b}
+}
+
+func (u *RentalUpsertBulk) DoNothing() *RentalUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+func (u *RentalUpsertBulk) DoSelect() *RentalUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *RentalUpsertBulk) Ignore() *RentalUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *RentalUpsertBulk) DoUpdate(set func(*RentalUpsert)) *RentalUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&RentalUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *RentalUpsertBulk) UpdateNewValues() *RentalUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case rental.FieldID:
+				update.SetIgnore(column)
+
+			case rental.FieldUserID:
+				update.SetIgnore(column)
+
+			case rental.FieldCarID:
+				update.SetIgnore(column)
+
+			}
+		}
+	}))
+	return u
+}
+
+func (u *RentalUpsertBulk) Where(predicates ...ent.Predicate[entity.Rental]) *RentalUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(rental.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *RentalUpsertBulk) UpdateWhere(predicates ...ent.Predicate[entity.Rental]) *RentalUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(rental.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *RentalUpsertBulk) Save(ctx context.Context) ([]*Rental, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for RentalCreateBulk.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *RentalUpsertBulk) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
 	return err
 }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *RentalCreateBulk) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (u *RentalUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

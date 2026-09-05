@@ -8,30 +8,57 @@ package ent
 import (
 	"context"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/multischema/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/multischema/ent/internal"
 	"github.com/neko-sc/ent/entc/integration/multischema/ent/parent"
-	"github.com/neko-sc/ent/entc/integration/multischema/ent/predicate"
 	"github.com/neko-sc/ent/schema/field"
 )
 
 // ParentDelete is the builder for deleting a Parent entity.
 type ParentDelete struct {
 	config
-	hooks    []Hook
-	mutation *ParentMutation
+
+	mutation  *ParentMutation
+	returning *sqlgraph.Returning
 }
 
 // Where appends a list predicates to the ParentDelete builder.
-func (_d *ParentDelete) Where(ps ...predicate.Parent) *ParentDelete {
-	_d.mutation.Where(ps...)
+func (_d *ParentDelete) Where(predicates ...ent.Predicate[entity.Parent]) *ParentDelete {
+	_d.mutation.Where(predicates...)
 	return _d
 }
 
 // Exec executes the deletion query and returns how many vertices were deleted.
 func (_d *ParentDelete) Exec(ctx context.Context) (int, error) {
-	return withHooks(ctx, _d.sqlExec, _d.mutation, _d.hooks)
+	return _d.sqlExec(ctx)
+}
+
+func (b *ParentDelete) Returning(ctx context.Context) ([]*Parent, error) {
+	nodes := make([]*Parent, 0)
+	b.returning = &sqlgraph.Returning{Columns: parent.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Parent{config: b.config}
+		values, err := _node.scanValues(parent.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(parent.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Exec(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
 }
 
 // ExecX is like Exec, but panics if an error occurs.
@@ -54,11 +81,11 @@ func (_d *ParentDelete) sqlExec(ctx context.Context) (int, error) {
 			}
 		}
 	}
+	_spec.Returning = _d.returning
 	affected, err := sqlgraph.DeleteNodes(ctx, _d.driver, _spec)
 	if err != nil && sqlgraph.IsConstraintError(err) {
 		err = &ConstraintError{msg: err.Error(), wrap: err}
 	}
-	_d.mutation.done = true
 	return affected, err
 }
 
@@ -68,8 +95,8 @@ type ParentDeleteOne struct {
 }
 
 // Where appends a list predicates to the ParentDelete builder.
-func (_d *ParentDeleteOne) Where(ps ...predicate.Parent) *ParentDeleteOne {
-	_d._d.mutation.Where(ps...)
+func (_d *ParentDeleteOne) Where(predicates ...ent.Predicate[entity.Parent]) *ParentDeleteOne {
+	_d._d.mutation.Where(predicates...)
 	return _d
 }
 

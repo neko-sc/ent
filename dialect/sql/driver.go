@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/neko-sc/ent/dialect"
 )
@@ -18,38 +20,60 @@ import (
 // Driver is a dialect.Driver implementation for SQL based databases.
 type Driver struct {
 	Conn
-	dialect string
+	capabilities *dialect.Capabilities
+}
+
+type Option func(*Driver)
+
+func WithCapabilities(capabilities dialect.Capabilities) Option {
+	return func(d *Driver) { d.capabilities = &capabilities }
+}
+
+func (d *Driver) Capabilities() dialect.Capabilities {
+	if d.capabilities != nil {
+		return *d.capabilities
+	}
+	if d.Dialect() == dialect.Postgres {
+		return dialect.Capabilities{NativeArray: true, MultiRowReturningOrdered: true}
+	}
+	return dialect.Capabilities{}
 }
 
 // NewDriver creates a new Driver with the given Conn and dialect.
-func NewDriver(dialect string, c Conn) *Driver {
-	return &Driver{dialect: dialect, Conn: c}
+func NewDriver(name dialect.Dialect, c Conn, opts ...Option) *Driver {
+	c.dialect = name
+	d := &Driver{Conn: c}
+	d.Conn.dialect = d.Dialect()
+	for _, opt := range opts {
+		opt(d)
+	}
+	return d
 }
 
 // Open wraps the database/sql.Open method and returns a dialect.Driver that implements the an ent/dialect.Driver interface.
-func Open(dialect, source string) (*Driver, error) {
-	db, err := sql.Open(dialect, source)
+func Open(name dialect.Dialect, source string, opts ...Option) (*Driver, error) {
+	db, err := sql.Open(string(name), source)
 	if err != nil {
 		return nil, err
 	}
-	return NewDriver(dialect, Conn{db, dialect}), nil
+	return NewDriver(name, Conn{db, name}, opts...), nil
 }
 
 // OpenDB wraps the given database/sql.DB method with a Driver.
-func OpenDB(dialect string, db *sql.DB) *Driver {
-	return NewDriver(dialect, Conn{db, dialect})
+func OpenDB(name dialect.Dialect, db *sql.DB, opts ...Option) *Driver {
+	return NewDriver(name, Conn{db, name}, opts...)
 }
 
 // DB returns the underlying *sql.DB instance.
 func (d Driver) DB() *sql.DB {
-	return d.ExecQuerier.(*sql.DB)
+	db, _ := d.ExecQuerier.(*sql.DB)
+	return db
 }
 
-// Dialect implements the dialect.Dialect method.
-func (d Driver) Dialect() string {
+func (d Driver) Dialect() dialect.Dialect {
 	// If the underlying driver is wrapped with a telemetry driver.
-	for _, name := range []string{dialect.SQLite, dialect.Postgres} {
-		if strings.HasPrefix(d.dialect, name) {
+	for _, name := range []dialect.Dialect{dialect.SQLite, dialect.Postgres} {
+		if strings.HasPrefix(string(d.dialect), string(name)) {
 			return name
 		}
 	}
@@ -82,6 +106,10 @@ type Tx struct {
 	driver.Tx
 }
 
+func (t *Tx) Commit() error { return mapError(t.Tx.Commit()) }
+
+func (t *Tx) Rollback() error { return mapError(t.Tx.Rollback()) }
+
 // ctyVarsKey is the key used for attaching and reading the context variables.
 type ctxVarsKey struct{}
 
@@ -93,7 +121,7 @@ type sessionVars struct {
 // WithVar returns a new context that holds the session variable to be executed before every query.
 func WithVar(ctx context.Context, name, value string) context.Context {
 	sv, _ := ctx.Value(ctxVarsKey{}).(sessionVars)
-	sv.vars = append(sv.vars, struct {
+	sv.vars = append(append(sv.vars[:0:0], sv.vars...), struct {
 		k, v string
 	}{
 		k: name,
@@ -113,6 +141,16 @@ func VarFromContext(ctx context.Context, name string) (string, bool) {
 	return "", false
 }
 
+// VarsFromContext returns session variables in their application order.
+func VarsFromContext(ctx context.Context) [][2]string {
+	sv, _ := ctx.Value(ctxVarsKey{}).(sessionVars)
+	values := make([][2]string, len(sv.vars))
+	for i, variable := range sv.vars {
+		values[i] = [2]string{variable.k, variable.v}
+	}
+	return values
+}
+
 // WithIntVar calls WithVar with the string representation of the value.
 func WithIntVar(ctx context.Context, name string, value int) context.Context {
 	return WithVar(ctx, name, strconv.Itoa(value))
@@ -127,123 +165,140 @@ type ExecQuerier interface {
 // Conn implements dialect.ExecQuerier given ExecQuerier.
 type Conn struct {
 	ExecQuerier
-	dialect string
+	dialect dialect.Dialect
 }
 
-// Exec implements the dialect.Exec method.
-func (c Conn) Exec(ctx context.Context, query string, args, v any) (rerr error) {
-	argv, ok := args.([]any)
-	if !ok {
-		return fmt.Errorf("dialect/sql: invalid type %T. expect []any for args", v)
+func (c Conn) Exec(ctx context.Context, query string, args []any) (result dialect.Result, rerr error) {
+	if c.dialect == dialect.SQLite {
+		converted, err := arrayArguments(args)
+		if err != nil {
+			return nil, err
+		}
+		args = converted
 	}
 	ex, cf, err := c.maySetVars(ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if cf != nil {
 		defer func() { rerr = errors.Join(rerr, cf()) }()
 	}
-	switch v := v.(type) {
-	case nil:
-		if _, err := ex.ExecContext(ctx, query, argv...); err != nil {
-			return err
-		}
-	case *sql.Result:
-		res, err := ex.ExecContext(ctx, query, argv...)
-		if err != nil {
-			return err
-		}
-		*v = res
-	default:
-		return fmt.Errorf("dialect/sql: invalid type %T. expect *sql.Result", v)
-	}
-	return nil
+	result, err = ex.ExecContext(ctx, query, args...)
+	return result, mapError(err)
 }
 
-// Query implements the dialect.Query method.
-func (c Conn) Query(ctx context.Context, query string, args, v any) error {
-	vr, ok := v.(*Rows)
-	if !ok {
-		return fmt.Errorf("dialect/sql: invalid type %T. expect *sql.Rows", v)
-	}
-	argv, ok := args.([]any)
-	if !ok {
-		return fmt.Errorf("dialect/sql: invalid type %T. expect []any for args", args)
+func (c Conn) Query(ctx context.Context, query string, args []any) (dialect.Rows, error) {
+	if c.dialect == dialect.SQLite {
+		converted, err := arrayArguments(args)
+		if err != nil {
+			return nil, err
+		}
+		args = converted
 	}
 	ex, cf, err := c.maySetVars(ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	rows, err := ex.QueryContext(ctx, query, argv...)
+	rows, err := ex.QueryContext(ctx, query, args...)
 	if err != nil {
 		if cf != nil {
 			err = errors.Join(err, cf())
 		}
-		return err
+		return nil, mapError(err)
 	}
-	*vr = Rows{rows}
+	result := &Rows{ColumnScanner: rows, dialect: c.dialect}
 	if cf != nil {
-		vr.ColumnScanner = rowsWithCloser{rows, cf}
+		result.ColumnScanner = &rowsWithCloser{ColumnScanner: rows, closer: cf}
 	}
-	return nil
+	return result, nil
 }
 
 // maySetVars sets the session variables before executing a query.
 func (c Conn) maySetVars(ctx context.Context) (ExecQuerier, func() error, error) {
-	sv, _ := ctx.Value(ctxVarsKey{}).(sessionVars)
-	if len(sv.vars) == 0 {
-		return c, nil, nil
+	variables := VarsFromContext(ctx)
+	if len(variables) == 0 {
+		return c.ExecQuerier, nil, nil
 	}
-	var (
-		ex    ExecQuerier  // Underlying ExecQuerier.
-		cf    func() error // Close function.
-		reset []string     // Reset variables.
-		seen  = make(map[string]struct{}, len(sv.vars))
-	)
-	switch e := c.ExecQuerier.(type) {
+	if c.dialect != dialect.Postgres {
+		return nil, nil, &dialect.UnsupportedError{Feature: "session variables", Dialect: c.dialect}
+	}
+	var executor ExecQuerier
+	var closeConnection func() error
+	local := false
+	switch connection := c.ExecQuerier.(type) {
 	case *sql.Tx:
-		ex = e
+		executor, local = connection, true
 	case *sql.DB:
-		conn, err := e.Conn(ctx)
+		acquired, err := connection.Conn(ctx)
 		if err != nil {
 			return nil, nil, err
 		}
-		ex, cf = conn, conn.Close
+		executor, closeConnection = acquired, acquired.Close
+	default:
+		return nil, nil, errors.New("dialect/sql: session variables require a database or transaction")
 	}
-	for _, s := range sv.vars {
-		if _, ok := seen[s.k]; !ok {
-			if c.dialect == dialect.Postgres {
-				reset = append(reset, fmt.Sprintf("RESET %s", s.k))
-			}
-			seen[s.k] = struct{}{}
+	reset := make([]string, 0, len(variables))
+	cleanup := func() error {
+		ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer cancel()
+		var err error
+		for _, query := range reset {
+			_, resetError := executor.ExecContext(ctx, query)
+			err = errors.Join(err, resetError)
 		}
-		if _, err := ex.ExecContext(ctx, fmt.Sprintf("SET %s = '%s'", s.k, s.v)); err != nil {
-			if cf != nil {
-				err = errors.Join(err, cf())
+		if err != nil {
+			if connection, ok := executor.(*sql.Conn); ok {
+				connection.Raw(func(any) error { return driver.ErrBadConn })
 			}
-			return nil, nil, err
 		}
+		return errors.Join(err, closeConnection())
 	}
-	// If there are variables to reset, and we need to return the
-	// connection to the pool, we need to clean up the variables.
-	if cls := cf; cf != nil && len(reset) > 0 {
-		cf = func() error {
-			for _, q := range reset {
-				if _, err := ex.ExecContext(ctx, q); err != nil {
-					return errors.Join(err, cls())
+	seen := make(map[string]bool, len(variables))
+	for _, variable := range variables {
+		name := variable[0]
+		for _, character := range name {
+			if character != '_' && character != '.' && !(character >= 'a' && character <= 'z' || character >= 'A' && character <= 'Z' || character >= '0' && character <= '9') {
+				if closeConnection != nil {
+					cleanup()
 				}
+				return nil, nil, fmt.Errorf("dialect/sql: invalid session variable %q", name)
 			}
-			return cls()
+		}
+		if name == "" {
+			if closeConnection != nil {
+				cleanup()
+			}
+			return nil, nil, errors.New("dialect/sql: empty session variable")
+		}
+		prefix := "SET "
+		if local {
+			prefix = "SET LOCAL "
+		}
+		if _, err := executor.ExecContext(ctx, prefix+name+" = '"+strings.ReplaceAll(variable[1], "'", "''")+"'"); err != nil {
+			if closeConnection != nil {
+				err = errors.Join(err, cleanup())
+			}
+			return nil, nil, mapError(err)
+		}
+		if !local && !seen[name] {
+			reset = append(reset, "RESET "+name)
+			seen[name] = true
 		}
 	}
-	return ex, cf, nil
+	if closeConnection != nil {
+		return executor, cleanup, nil
+	}
+	return executor, nil, nil
 }
 
 var _ dialect.Driver = (*Driver)(nil)
 
 type (
 	// Rows wraps the sql.Rows to avoid locks copy.
-	Rows struct{ ColumnScanner }
+	Rows struct {
+		ColumnScanner
+		dialect dialect.Dialect
+	}
 	// Result is an alias to sql.Result.
 	Result = sql.Result
 	// NullBool is an alias to sql.NullBool.
@@ -291,11 +346,23 @@ type ColumnScanner interface {
 // rowsWithCloser wraps the ColumnScanner interface with a custom Close hook.
 type rowsWithCloser struct {
 	ColumnScanner
-	closer func() error
+	closer     func() error
+	once       sync.Once
+	closeError error
 }
 
-// Close closes the underlying ColumnScanner and calls the custom closer.
-func (r rowsWithCloser) Close() error {
-	err := r.ColumnScanner.Close()
-	return errors.Join(err, r.closer())
+func (r *rowsWithCloser) Next() bool {
+	if r.ColumnScanner.Next() {
+		return true
+	}
+	r.Close()
+	return false
+}
+
+func (r *rowsWithCloser) Err() error { return errors.Join(r.ColumnScanner.Err(), r.closeError) }
+
+// Close releases session state and its connection exactly once.
+func (r *rowsWithCloser) Close() error {
+	r.once.Do(func() { r.closeError = errors.Join(r.ColumnScanner.Close(), r.closer()) })
+	return r.closeError
 }

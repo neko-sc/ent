@@ -30,11 +30,9 @@ SPDX-License-Identifier: Apache-2.0
 {{- end }}
 
 func ({{ $receiver }} *{{ $builder }}) sqlSave(ctx context.Context) (_node {{ if $one }}*{{ $.Name }}{{ else }}int{{ end }}, err error) {
-	{{- if $.HasUpdateCheckers }}
-		if err := {{ $receiver }}.check(); err != nil {
-			return _node, err
-		}
-	{{- end }}
+	if err := {{ $receiver }}.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec({{ $.Package }}.Table, {{ $.Package }}.Columns,
 		{{- if $.HasOneFieldID -}}
 			sqlgraph.NewFieldSpec({{ $.Package }}.{{ $.ID.Constant }}, field.{{ $.ID.TypeConst }})
@@ -45,7 +43,7 @@ func ({{ $receiver }} *{{ $builder }}) sqlSave(ctx context.Context) (_node {{ if
 		{{- end }})
 	{{- if $one }}
 		{{- if $.HasOneFieldID }}
-			id, ok := {{ $mutation }}.{{ $.ID.MutationGet }}()
+			id, ok := {{ $mutation }}.ID()
 			if !ok {
 				return {{ $zero }}, &ValidationError{Name: "{{ $.ID.Name }}", err: errors.New(`{{ $pkg }}: missing "{{ $.Name }}.{{ $.ID.Name }}" for update`)}
 			}
@@ -72,11 +70,7 @@ func ({{ $receiver }} *{{ $builder }}) sqlSave(ctx context.Context) (_node {{ if
 			}
 		{{- else }}{{/* Composite ID. */}}
 			{{- range $i, $id := $.EdgeSchema.ID }}
-				if id, ok := {{ $mutation }}.{{ $id.MutationGet }}(); !ok {
-					return {{ $zero }}, &ValidationError{Name: "{{ $id.Name }}", err: errors.New(`{{ $pkg }}: missing "{{ $.Name }}.{{ $id.Name }}" for update`)}
-				} else {
-					_spec.Node.CompositeID[{{ $i }}].Value = id
-				}
+				_spec.Node.CompositeID[{{ $i }}].Value = {{ $receiver }}.{{ camel $id.StructField }}
 			{{- end }}
 			if fields := {{ $receiver }}.fields; len(fields) > 0 {
 				_spec.Node.Columns = make([]string, len(fields))
@@ -97,8 +91,8 @@ func ({{ $receiver }} *{{ $builder }}) sqlSave(ctx context.Context) (_node {{ if
 		}
 	}
 	{{- range $f := $.MutationFields }}
-			{{- if or (not $f.Immutable) $f.UpdateDefault }}
-				if value, ok := {{ $mutation }}.{{ $f.MutationGet }}(); ok {
+			{{- if not $f.Immutable }}
+				if value, ok := {{ $mutation }}.patch.{{ $f.StructField }}.Get(); ok {
 					{{- if $f.HasValueScanner }}
 						vv, err := {{ $f.ValueFunc }}(value)
 						if err != nil {
@@ -110,7 +104,7 @@ func ({{ $receiver }} *{{ $builder }}) sqlSave(ctx context.Context) (_node {{ if
 					{{- end }}
 				}
 				{{- if $f.SupportsMutationAdd }}
-					if value, ok := {{ $mutation }}.{{ $f.MutationAdded }}(); ok {
+					if value, ok := {{ $mutation }}.patch.{{ $f.StructField }}Add.Get(); ok {
 						{{- if $f.HasValueScanner }}
 							vv, err := {{ $f.ValueFunc }}(value)
 							if err != nil {
@@ -123,15 +117,15 @@ func ({{ $receiver }} *{{ $builder }}) sqlSave(ctx context.Context) (_node {{ if
 					}
 				{{- end }}
 				{{- if $f.SupportsMutationAppend }}
-					if value, ok := {{ $mutation }}.{{ $f.MutationAppended }}(); ok {
+					if value := {{ $mutation }}.patch.{{ $f.StructField }}Append; len(value) > 0 {
 						_spec.AddModifier(func(u *sql.UpdateBuilder) {
 							sqljson.Append(u, {{ $.Package }}.{{ $f.Constant }}, value)
 						})
 					}
 				{{- end }}
 			{{- end }}
-			{{- if $f.Optional }}
-				if {{ $mutation }}.{{ $f.StructField }}Cleared() {
+			{{- if and $f.Optional (not $f.Immutable) }}
+				if {{ $mutation }}.patch.{{ $f.StructField }}.IsNull() {
 					_spec.ClearField({{ $.Package }}.{{ $f.Constant }}, field.{{ $f.TypeConst }})
 				}
 			{{- end }}
@@ -141,27 +135,33 @@ func ({{ $receiver }} *{{ $builder }}) sqlSave(ctx context.Context) (_node {{ if
 			{{- /* Skip to the next one as immutable edges cannot be updated. */}}
 			{{- continue }}
 		{{- end }}
-		if {{ $mutation }}.{{ $e.MutationCleared }}() {
+		if {{ $mutation }}.patch.{{ $e.PatchSlot }}{{ if $e.Unique }}.IsNull() || {{ $mutation }}.patch.clearedEdges[{{ $.Package }}.{{ $e.Constant }}]{{ else }}.Clear{{ end }} {
 			{{- with extend $ "Edge" $e }}
 				{{ template "dialect/sql/defedge" . }}
 			{{- end }}
 			_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 		}
 		{{- if not $e.Unique }}
-			if nodes := {{ $mutation }}.Removed{{ $e.StructField }}IDs(); len(nodes) > 0 && !{{ $mutation }}.{{ $e.MutationCleared }}() {
+			if nodes := {{ $mutation }}.patch.{{ $e.PatchSlot }}.Remove; len(nodes) > 0 && !{{ $mutation }}.patch.{{ $e.PatchSlot }}.Clear {
 				{{- with extend $ "Edge" $e "Nodes" true "Zero" $zero }}
 					{{ template "dialect/sql/defedge" . }}
 				{{- end }}
 				_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 			}
 		{{- end }}
-		if nodes := {{ $mutation }}.{{ $e.StructField }}IDs(); len(nodes) > 0 {
+		if nodes := {{ $mutation }}.patch.{{ camel $e.StructField }}IDs(); len(nodes) > 0 {
 			{{- with extend $ "Edge" $e "Nodes" true "Zero" $zero }}
 				{{ template "dialect/sql/defedge" . }}
 			{{- end }}
 			_spec.Edges.Add = append(_spec.Edges.Add, edge)
 		}
 	{{- end }}
+	{{- if not $one }}
+		_spec.Returning = {{ $receiver }}.returning
+	{{- end }}
+	for column, render := range {{ $mutation }}.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
 	{{- /* Allow mutating the sqlgraph.UpdateSpec by ent extensions or user templates.*/}}
 	{{- with $tmpls := matchTemplate "dialect/sql/update/spec/*" }}
 		{{- range $tmpl := $tmpls }}
@@ -172,6 +172,10 @@ func ({{ $receiver }} *{{ $builder }}) sqlSave(ctx context.Context) (_node {{ if
 		_node = &{{ $.Name }}{config: {{ $receiver }}.config}
 		_spec.Assign = _node.assignValues
 		_spec.ScanValues = _node.scanValues
+		if {{ $receiver }}.old != nil {
+			_spec.OldScanValues = {{ $receiver }}.old.scanValues
+			_spec.OldAssign = {{ $receiver }}.old.assignValues
+		}
 	{{- end }}
 	{{- if $one }}
 		if err = sqlgraph.UpdateNode(ctx, {{ $receiver }}.driver, _spec); err != nil {
@@ -185,7 +189,6 @@ func ({{ $receiver }} *{{ $builder }}) sqlSave(ctx context.Context) (_node {{ if
 		}
 		return {{ $zero }}, err
 	}
-	{{ $mutation }}.done = true
 	return _node, nil
 }
 {{ end }}
@@ -210,7 +213,10 @@ func ({{ $receiver }} *{{ $builder }}) sqlSave(ctx context.Context) (_node {{ if
 		{{- end }}
 	{{- end }}
 	{{- with $.Scope.Nodes }}
-		for _, k := range nodes {
+		seen := make(map[{{ $e.Type.ID.GoType }}]struct{}, len(nodes))
+        for _, k := range nodes {
+            if _, exists := seen[k]; exists { continue }
+            seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 	{{- end }}
@@ -218,8 +224,9 @@ func ({{ $receiver }} *{{ $builder }}) sqlSave(ctx context.Context) (_node {{ if
 		{{- if .HasDefault }}
 			createE := &{{ .CreateName }}{config: {{ $receiver }}.config, mutation: new{{ .MutationName }}({{ $receiver }}.config, OpCreate)}
 			{{- /* Skip error handling here as this check was already handled. */}}
-			{{ if or .NumHooks .NumPolicy }}_ = {{ end }}createE.defaults()
-			_, specE := createE.createSpec()
+			if err := createE.defaults(); err != nil { return {{ if eq $.Scope.Builder $.CreateName }}nil, nil,{{ else }}{{ if hasSuffix $.Scope.Builder "One" }}nil{{ else }}0{{ end }},{{ end }} err }
+			_, specE, err := createE.createSpec()
+                if err != nil { return {{ if eq $.Scope.Builder $.CreateName }}nil, nil,{{ else }}{{ if hasSuffix $.Scope.Builder "One" }}nil{{ else }}0{{ end }},{{ end }} err }
 			edge.Target.Fields = specE.Fields
 			{{- if and .HasOneFieldID .ID.Default }}
 				if specE.ID.Value != nil {

@@ -10,9 +10,9 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"time"
+	time2 "time"
 
-	"github.com/neko-sc/ent/dialect/sql"
+	sql2 "github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/entc/integration/ent/card"
 	"github.com/neko-sc/ent/entc/integration/ent/exvaluescan"
 	"github.com/neko-sc/ent/entc/integration/ent/fieldtype"
@@ -24,6 +24,7 @@ import (
 	"github.com/neko-sc/ent/entc/integration/ent/node"
 	"github.com/neko-sc/ent/entc/integration/ent/pet"
 	"github.com/neko-sc/ent/entc/integration/ent/schema"
+	schema2 "github.com/neko-sc/ent/entc/integration/ent/schema"
 	task2 "github.com/neko-sc/ent/entc/integration/ent/schema/task"
 	"github.com/neko-sc/ent/entc/integration/ent/task"
 	"github.com/neko-sc/ent/entc/integration/ent/user"
@@ -32,7 +33,7 @@ import (
 )
 
 // The init function reads all schema descriptors with runtime code
-// (default values, validators, hooks and policies) and stitches it
+// (default values and validators) and stitches it
 // to their package variables.
 func init() {
 	cardMixin := schema.Card{}.Mixin()
@@ -43,13 +44,13 @@ func init() {
 	// cardDescCreateTime is the schema descriptor for create_time field.
 	cardDescCreateTime := cardMixinFields0[0].Descriptor()
 	// card.DefaultCreateTime holds the default value on creation for the create_time field.
-	card.DefaultCreateTime = cardDescCreateTime.Default.(func() time.Time)
+	card.DefaultCreateTime = cardDescCreateTime.Default.(func() time2.Time)
 	// cardDescUpdateTime is the schema descriptor for update_time field.
 	cardDescUpdateTime := cardMixinFields0[1].Descriptor()
 	// card.DefaultUpdateTime holds the default value on creation for the update_time field.
-	card.DefaultUpdateTime = cardDescUpdateTime.Default.(func() time.Time)
+	card.DefaultUpdateTime = cardDescUpdateTime.Default.(func() time2.Time)
 	// card.UpdateDefaultUpdateTime holds the default value on update for the update_time field.
-	card.UpdateDefaultUpdateTime = cardDescUpdateTime.UpdateDefault.(func() time.Time)
+	card.UpdateDefaultUpdateTime = cardDescUpdateTime.UpdateDefault.(func() time2.Time)
 	// cardDescBalance is the schema descriptor for balance field.
 	cardDescBalance := cardFields[0].Descriptor()
 	// card.DefaultBalance holds the default value on creation for the balance field.
@@ -119,17 +120,17 @@ func init() {
 	// fieldtypeDescLinkOther is the schema descriptor for link_other field.
 	fieldtypeDescLinkOther := fieldtypeFields[27].Descriptor()
 	// fieldtype.DefaultLinkOther holds the default value on creation for the link_other field.
-	fieldtype.DefaultLinkOther = fieldtypeDescLinkOther.Default.(*schema.Link)
+	fieldtype.DefaultLinkOther = fieldtypeDescLinkOther.Default.(*schema2.Link)
 	// fieldtypeDescLinkOtherFunc is the schema descriptor for link_other_func field.
 	fieldtypeDescLinkOtherFunc := fieldtypeFields[28].Descriptor()
 	// fieldtype.DefaultLinkOtherFunc holds the default value on creation for the link_other_func field.
-	fieldtype.DefaultLinkOtherFunc = fieldtypeDescLinkOtherFunc.Default.(func() *schema.Link)
+	fieldtype.DefaultLinkOtherFunc = fieldtypeDescLinkOtherFunc.Default.(func() *schema2.Link)
 	// fieldtypeDescMAC is the schema descriptor for mac field.
 	fieldtypeDescMAC := fieldtypeFields[29].Descriptor()
 	// fieldtype.MACValidator is a validator for the "mac" field. It is called by the builders before save.
-	fieldtype.MACValidator = func(value schema.MAC) error {
+	fieldtype.MACValidator = func(value schema2.MAC) error {
 		validators := fieldtypeDescMAC.Validators
-		if err := validators[0].(func(schema.MAC) error)(value); err != nil {
+		if err := validators[0].(func(schema2.MAC) error)(value); err != nil {
 			return err
 		}
 		return nil
@@ -137,7 +138,7 @@ func init() {
 	// fieldtypeDescDuration is the schema descriptor for duration field.
 	fieldtypeDescDuration := fieldtypeFields[33].Descriptor()
 	// fieldtype.UpdateDefaultDuration holds the default value on update for the duration field.
-	fieldtype.UpdateDefaultDuration = fieldtypeDescDuration.UpdateDefault.(func() time.Duration)
+	fieldtype.UpdateDefaultDuration = fieldtypeDescDuration.UpdateDefault.(func() time2.Duration)
 	// fieldtypeDescDir is the schema descriptor for dir field.
 	fieldtypeDescDir := fieldtypeFields[34].Descriptor()
 	// fieldtype.DefaultDir holds the default value on creation for the dir field.
@@ -155,15 +156,15 @@ func init() {
 	// fieldtypeDescStr is the schema descriptor for str field.
 	fieldtypeDescStr := fieldtypeFields[36].Descriptor()
 	// fieldtype.DefaultStr holds the default value on creation for the str field.
-	fieldtype.DefaultStr = fieldtypeDescStr.Default.(func() sql.NullString)
+	fieldtype.DefaultStr = fieldtypeDescStr.Default.(func() sql2.NullString)
 	// fieldtypeDescNullStr is the schema descriptor for null_str field.
 	fieldtypeDescNullStr := fieldtypeFields[37].Descriptor()
 	// fieldtype.DefaultNullStr holds the default value on creation for the null_str field.
-	fieldtype.DefaultNullStr = fieldtypeDescNullStr.Default.(func() *sql.NullString)
+	fieldtype.DefaultNullStr = fieldtypeDescNullStr.Default.(func() *sql2.NullString)
 	// fieldtypeDescLink is the schema descriptor for link field.
 	fieldtypeDescLink := fieldtypeFields[38].Descriptor()
 	// fieldtype.LinkValidator is a validator for the "link" field. It is called by the builders before save.
-	fieldtype.LinkValidator = func(value schema.Link) error {
+	fieldtype.LinkValidator = func(value schema2.Link) error {
 		validators := fieldtypeDescLink.Validators
 		if err := validators[0].(func(string) error)(value.String()); err != nil {
 			return err
@@ -173,9 +174,9 @@ func init() {
 	// fieldtypeDescDeletedAt is the schema descriptor for deleted_at field.
 	fieldtypeDescDeletedAt := fieldtypeFields[43].Descriptor()
 	// fieldtype.DefaultDeletedAt holds the default value on creation for the deleted_at field.
-	fieldtype.DefaultDeletedAt = fieldtypeDescDeletedAt.Default.(func() *sql.NullTime)
+	fieldtype.DefaultDeletedAt = fieldtypeDescDeletedAt.Default.(func() *sql2.NullTime)
 	// fieldtype.UpdateDefaultDeletedAt holds the default value on update for the deleted_at field.
-	fieldtype.UpdateDefaultDeletedAt = fieldtypeDescDeletedAt.UpdateDefault.(func() *sql.NullTime)
+	fieldtype.UpdateDefaultDeletedAt = fieldtypeDescDeletedAt.UpdateDefault.(func() *sql2.NullTime)
 	// fieldtypeDescRawData is the schema descriptor for raw_data field.
 	fieldtypeDescRawData := fieldtypeFields[44].Descriptor()
 	// fieldtype.RawDataValidator is a validator for the "raw_data" field. It is called by the builders before save.
@@ -204,15 +205,15 @@ func init() {
 	// fieldtypeDescPair is the schema descriptor for pair field.
 	fieldtypeDescPair := fieldtypeFields[59].Descriptor()
 	// fieldtype.DefaultPair holds the default value on creation for the pair field.
-	fieldtype.DefaultPair = fieldtypeDescPair.Default.(func() schema.Pair)
+	fieldtype.DefaultPair = fieldtypeDescPair.Default.(func() schema2.Pair)
 	// fieldtypeDescVstring is the schema descriptor for vstring field.
 	fieldtypeDescVstring := fieldtypeFields[61].Descriptor()
 	// fieldtype.DefaultVstring holds the default value on creation for the vstring field.
-	fieldtype.DefaultVstring = fieldtypeDescVstring.Default.(func() schema.VString)
+	fieldtype.DefaultVstring = fieldtypeDescVstring.Default.(func() schema2.VString)
 	// fieldtypeDescTriple is the schema descriptor for triple field.
 	fieldtypeDescTriple := fieldtypeFields[62].Descriptor()
 	// fieldtype.DefaultTriple holds the default value on creation for the triple field.
-	fieldtype.DefaultTriple = fieldtypeDescTriple.Default.(func() schema.Triple)
+	fieldtype.DefaultTriple = fieldtypeDescTriple.Default.(func() schema2.Triple)
 	fileFields := schema.File{}.Fields()
 	_ = fileFields
 	// fileDescSetID is the schema descriptor for set_id field.
@@ -321,19 +322,19 @@ func init() {
 	// licenseDescCreateTime is the schema descriptor for create_time field.
 	licenseDescCreateTime := licenseMixinFields0[0].Descriptor()
 	// license.DefaultCreateTime holds the default value on creation for the create_time field.
-	license.DefaultCreateTime = licenseDescCreateTime.Default.(func() time.Time)
+	license.DefaultCreateTime = licenseDescCreateTime.Default.(func() time2.Time)
 	// licenseDescUpdateTime is the schema descriptor for update_time field.
 	licenseDescUpdateTime := licenseMixinFields0[1].Descriptor()
 	// license.DefaultUpdateTime holds the default value on creation for the update_time field.
-	license.DefaultUpdateTime = licenseDescUpdateTime.Default.(func() time.Time)
+	license.DefaultUpdateTime = licenseDescUpdateTime.Default.(func() time2.Time)
 	// license.UpdateDefaultUpdateTime holds the default value on update for the update_time field.
-	license.UpdateDefaultUpdateTime = licenseDescUpdateTime.UpdateDefault.(func() time.Time)
+	license.UpdateDefaultUpdateTime = licenseDescUpdateTime.UpdateDefault.(func() time2.Time)
 	nodeFields := schema.Node{}.Fields()
 	_ = nodeFields
 	// nodeDescUpdatedAt is the schema descriptor for updated_at field.
 	nodeDescUpdatedAt := nodeFields[1].Descriptor()
 	// node.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
-	node.UpdateDefaultUpdatedAt = nodeDescUpdatedAt.UpdateDefault.(func() time.Time)
+	node.UpdateDefaultUpdatedAt = nodeDescUpdatedAt.UpdateDefault.(func() time2.Time)
 	petFields := schema.Pet{}.Fields()
 	_ = petFields
 	// petDescAge is the schema descriptor for age field.
@@ -353,7 +354,7 @@ func init() {
 	// taskDescCreatedAt is the schema descriptor for created_at field.
 	taskDescCreatedAt := taskFields[2].Descriptor()
 	// task.DefaultCreatedAt holds the default value on creation for the created_at field.
-	task.DefaultCreatedAt = taskDescCreatedAt.Default.(func() time.Time)
+	task.DefaultCreatedAt = taskDescCreatedAt.Default.(func() time2.Time)
 	// taskDescOp is the schema descriptor for op field.
 	taskDescOp := taskFields[7].Descriptor()
 	// task.DefaultOp holds the default value on creation for the op field.
@@ -382,11 +383,11 @@ func init() {
 		return nil
 	}
 	// userDescLast is the schema descriptor for last field.
-	userDescLast := userFields[2].Descriptor()
+	userDescLast := userFields[4].Descriptor()
 	// user.DefaultLast holds the default value on creation for the last field.
 	user.DefaultLast = userDescLast.Default.(string)
 	// userDescAddress is the schema descriptor for address field.
-	userDescAddress := userFields[4].Descriptor()
+	userDescAddress := userFields[6].Descriptor()
 	// user.DefaultAddress holds the default value on creation for the address field.
 	user.DefaultAddress = userDescAddress.Default.(func() string)
 }

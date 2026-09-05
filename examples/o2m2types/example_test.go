@@ -9,6 +9,8 @@ import (
 	"log"
 
 	"github.com/neko-sc/ent/examples/o2m2types/ent"
+	pet "github.com/neko-sc/ent/examples/o2m2types/ent/pet"
+	user "github.com/neko-sc/ent/examples/o2m2types/ent/user"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -37,14 +39,14 @@ func Do(ctx context.Context, client *ent.Client) error {
 	// Create the 2 pets.
 	pedro, err := client.Pet.
 		Create().
-		SetName("pedro").
+		Set(pet.Name, "pedro").
 		Save(ctx)
 	if err != nil {
 		return fmt.Errorf("creating pet: %w", err)
 	}
 	lola, err := client.Pet.
 		Create().
-		SetName("lola").
+		Set(pet.Name, "lola").
 		Save(ctx)
 	if err != nil {
 		return fmt.Errorf("creating pet: %w", err)
@@ -52,9 +54,9 @@ func Do(ctx context.Context, client *ent.Client) error {
 	// Create the user, and add its pets on the creation.
 	a8m, err := client.User.
 		Create().
-		SetAge(30).
-		SetName("a8m").
-		AddPets(pedro, lola).
+		Set(user.Age, 30).
+		Set(user.Name, "a8m").
+		AddIDs(user.Pets, pedro.ID, lola.ID).
 		Save(ctx)
 	if err != nil {
 		return fmt.Errorf("creating user: %w", err)

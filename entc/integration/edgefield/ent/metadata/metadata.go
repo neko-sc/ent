@@ -6,8 +6,9 @@
 package metadata
 
 import (
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/edgefield/ent/entity"
 )
 
 const (
@@ -44,6 +45,48 @@ const (
 	ParentColumn = "parent_id"
 )
 
+var (
+	ID       = ent.OrderedColumn[entity.Metadata, int]{Table: Table, Name: FieldID}
+	Age      = ent.OrderedColumn[entity.Metadata, int]{Table: Table, Name: FieldAge}
+	ParentID = ent.OrderedColumn[entity.Metadata, int]{Table: Table, Name: FieldParentID}
+	User     = ent.NewUniqueRelation[entity.Metadata, entity.User, int](EdgeUser, newUserStep)
+	Children = ent.NewRelation[entity.Metadata, entity.Metadata, int](EdgeChildren, newChildrenStep)
+	Parent   = ent.NewUniqueRelation[entity.Metadata, entity.Metadata, int](EdgeParent, newParentStep)
+)
+
+// Alias returns the columns of the metadata table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.Metadata, int]{Table: name, Name: FieldID},
+		Age:        ent.OrderedColumn[entity.Metadata, int]{Table: name, Name: FieldAge},
+		ParentID:   ent.OrderedColumn[entity.Metadata, int]{Table: name, Name: FieldParentID},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.Metadata, int]
+	Age        ent.OrderedColumn[entity.Metadata, int]
+	ParentID   ent.OrderedColumn[entity.Metadata, int]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.Metadata]) ent.Predicate[entity.Metadata] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.Metadata]) ent.Predicate[entity.Metadata] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.Metadata]) ent.Predicate[entity.Metadata] {
+	return ent.Not(predicate)
+}
+
 // Columns holds all SQL columns for metadata fields.
 var Columns = []string{
 	FieldID,
@@ -66,51 +109,6 @@ var (
 	DefaultAge int
 )
 
-// OrderOption defines the ordering options for the Metadata queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByAge orders the results by the age field.
-func ByAge(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldAge, opts...).ToFunc()
-}
-
-// ByParentID orders the results by the parent_id field.
-func ByParentID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldParentID, opts...).ToFunc()
-}
-
-// ByUserField orders the results by user field.
-func ByUserField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newUserStep(), sql.OrderByField(field, opts...))
-	}
-}
-
-// ByChildrenCount orders the results by children count.
-func ByChildrenCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newChildrenStep(), opts...)
-	}
-}
-
-// ByChildren orders the results by children terms.
-func ByChildren(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newChildrenStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
-// ByParentField orders the results by parent field.
-func ByParentField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newParentStep(), sql.OrderByField(field, opts...))
-	}
-}
 func newUserStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),

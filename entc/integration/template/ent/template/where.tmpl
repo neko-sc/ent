@@ -2,13 +2,13 @@
 {{/* gotype: github.com/neko-sc/ent/entc/gen.Type */}}
 
 {{/* A template for adding additional where clauses to specific types. */}}
-{{ define "where/additional/strings" }}
+{{ define "meta/additional/strings" }}
 	{{ range $f := $.Fields }}
 		{{ if $f.IsString }}
 			{{ $func := print $f.StructField "Glob" }}
 			// {{ $func }} applies the Glob predicate on the {{ quote $f.Name }} field.
-			func {{ $func }}(pattern string) predicate.{{ $.Name }} {
-				return predicate.{{ $.Name }}(func(s *sql.Selector) {
+			func {{ $func }}(pattern string) ent.Predicate[entity.{{ $.Name }}] {
+				return ent.Predicate[entity.{{ $.Name }}](func(s *sql.Selector) {
 					s.Where(sql.P(func(b *sql.Builder) {
 						b.Ident(s.C({{ $f.Constant }}))
 						b.WriteString(" glob ")

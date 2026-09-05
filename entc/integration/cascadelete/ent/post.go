@@ -11,6 +11,7 @@ import (
 
 	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/entc/integration/cascadelete/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/cascadelete/ent/post"
 	"github.com/neko-sc/ent/entc/integration/cascadelete/ent/user"
 )
@@ -26,8 +27,7 @@ type Post struct {
 	AuthorID int `json:"author_id,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the PostQuery when eager-loading is set.
-	Edges        PostEdges `json:"edges"`
-	selectValues sql.SelectValues
+	Edges PostEdges `json:"edges"`
 }
 
 // PostEdges holds the relations/edges for other nodes in the graph.
@@ -39,6 +39,34 @@ type PostEdges struct {
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes [2]bool
+	counts      map[string]int
+}
+
+func (e PostEdges) Loaded[N, K any](edge ent.RelationOf[entity.Post, N, K]) bool {
+	switch edge.Ref().Name {
+	case "author":
+		return e.loadedTypes[0]
+	case "comments":
+		return e.loadedTypes[1]
+
+	default:
+		return false
+	}
+}
+
+func (e *PostEdges) SetLoaded[N, K any](edge ent.RelationOf[entity.Post, N, K], loaded bool) {
+	switch edge.Ref().Name {
+	case "author":
+		e.loadedTypes[0] = loaded
+	case "comments":
+		e.loadedTypes[1] = loaded
+
+	}
+}
+
+func (e PostEdges) Count[N, K any](edge ent.Relation[entity.Post, N, K]) (int, bool) {
+	count, loaded := e.counts[edge.Ref().Name]
+	return count, loaded
 }
 
 // AuthorOrErr returns the Author value or an error if the edge
@@ -67,9 +95,9 @@ func (*Post) scanValues(columns []string) ([]any, error) {
 	for i := range columns {
 		switch columns[i] {
 		case post.FieldID, post.FieldAuthorID:
-			values[i] = new(sql.NullInt64)
+			values[i] = new(*int)
 		case post.FieldText:
-			values[i] = new(sql.NullString)
+			values[i] = new(*string)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -86,34 +114,29 @@ func (_m *Post) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case post.FieldID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field id", values[i])
-			} else if value.Valid {
-				_m.ID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.ID = **value
 			}
 		case post.FieldText:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field text", values[i])
-			} else if value.Valid {
-				_m.Text = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.Text = **value
 			}
 		case post.FieldAuthorID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field author_id", values[i])
-			} else if value.Valid {
-				_m.AuthorID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.AuthorID = **value
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the Post.
-// This includes values selected through modifiers, order, etc.
-func (_m *Post) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // QueryAuthor queries the "author" edge of the Post entity.

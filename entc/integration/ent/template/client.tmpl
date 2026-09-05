@@ -1,17 +1,3 @@
-{{/*
-Copyright 2019-2026 Facebook Inc.
-SPDX-License-Identifier: Apache-2.0
-*/}}
-
 {{ define "client/additional/driver/dialect" }}
-    // Dialect returns the driver dialect.
-    func(c *Client) Dialect() string {
-        return c.driver.Dialect()
-    }
-
-    // Driver returns the underlying driver.
-    func(c *Client) Driver() dialect.Driver {
-        return c.driver
-    }
+func (c *Client) Dialect() string { return string(c.driver.Dialect()) }
 {{ end }}
-

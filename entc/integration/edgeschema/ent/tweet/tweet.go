@@ -6,8 +6,10 @@
 package tweet
 
 import (
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/google/uuid"
+	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/entity"
 )
 
 const (
@@ -69,6 +71,48 @@ const (
 	TweetTagsColumn = "tweet_id"
 )
 
+var (
+	ID         = ent.OrderedColumn[entity.Tweet, int]{Table: Table, Name: FieldID}
+	Text       = ent.StringColumn[entity.Tweet, string]{Table: Table, Name: FieldText}
+	LikedUsers = ent.NewRelation[entity.Tweet, entity.User, int](EdgeLikedUsers, newLikedUsersStep)
+	User       = ent.NewRelation[entity.Tweet, entity.User, int](EdgeUser, newUserStep)
+	Tags       = ent.NewRelation[entity.Tweet, entity.Tag, int](EdgeTags, newTagsStep)
+	Likes      = ent.NewRelation[entity.Tweet, entity.TweetLike, any](EdgeLikes, newLikesStep)
+	TweetUser  = ent.NewRelation[entity.Tweet, entity.UserTweet, int](EdgeTweetUser, newTweetUserStep)
+	TweetTags  = ent.NewRelation[entity.Tweet, entity.TweetTag, uuid.UUID](EdgeTweetTags, newTweetTagsStep)
+)
+
+// Alias returns the columns of the tweets table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.Tweet, int]{Table: name, Name: FieldID},
+		Text:       ent.StringColumn[entity.Tweet, string]{Table: name, Name: FieldText},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.Tweet, int]
+	Text       ent.StringColumn[entity.Tweet, string]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.Tweet]) ent.Predicate[entity.Tweet] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.Tweet]) ent.Predicate[entity.Tweet] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.Tweet]) ent.Predicate[entity.Tweet] {
+	return ent.Not(predicate)
+}
+
 // Columns holds all SQL columns for tweet fields.
 var Columns = []string{
 	FieldID,
@@ -97,102 +141,6 @@ func ValidColumn(column string) bool {
 	return false
 }
 
-// OrderOption defines the ordering options for the Tweet queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByText orders the results by the text field.
-func ByText(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldText, opts...).ToFunc()
-}
-
-// ByLikedUsersCount orders the results by liked_users count.
-func ByLikedUsersCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newLikedUsersStep(), opts...)
-	}
-}
-
-// ByLikedUsers orders the results by liked_users terms.
-func ByLikedUsers(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newLikedUsersStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
-// ByUserCount orders the results by user count.
-func ByUserCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newUserStep(), opts...)
-	}
-}
-
-// ByUser orders the results by user terms.
-func ByUser(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newUserStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
-// ByTagsCount orders the results by tags count.
-func ByTagsCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newTagsStep(), opts...)
-	}
-}
-
-// ByTags orders the results by tags terms.
-func ByTags(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newTagsStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
-// ByLikesCount orders the results by likes count.
-func ByLikesCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newLikesStep(), opts...)
-	}
-}
-
-// ByLikes orders the results by likes terms.
-func ByLikes(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newLikesStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
-// ByTweetUserCount orders the results by tweet_user count.
-func ByTweetUserCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newTweetUserStep(), opts...)
-	}
-}
-
-// ByTweetUser orders the results by tweet_user terms.
-func ByTweetUser(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newTweetUserStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
-// ByTweetTagsCount orders the results by tweet_tags count.
-func ByTweetTagsCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newTweetTagsStep(), opts...)
-	}
-}
-
-// ByTweetTags orders the results by tweet_tags terms.
-func ByTweetTags(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newTweetTagsStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
 func newLikedUsersStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),

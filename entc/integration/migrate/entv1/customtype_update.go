@@ -10,79 +10,198 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/entc/integration/migrate/entv1/customtype"
-	"github.com/neko-sc/ent/entc/integration/migrate/entv1/predicate"
+	"github.com/neko-sc/ent/entc/integration/migrate/entv1/entity"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// CustomTypeUpdate is the builder for updating CustomType entities.
 type CustomTypeUpdate struct {
 	config
-	hooks    []Hook
-	mutation *CustomTypeMutation
+	mutation  *CustomTypeMutation
+	err       error
+	returning *sqlgraph.Returning
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// Where appends a list predicates to the CustomTypeUpdate builder.
-func (_u *CustomTypeUpdate) Where(ps ...predicate.CustomType) *CustomTypeUpdate {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// SetCustom sets the "custom" field.
-func (_u *CustomTypeUpdate) SetCustom(v string) *CustomTypeUpdate {
-	_u.mutation.SetCustom(v)
-	return _u
-}
-
-// SetNillableCustom sets the "custom" field if the given value is not nil.
-func (_u *CustomTypeUpdate) SetNillableCustom(v *string) *CustomTypeUpdate {
-	if v != nil {
-		_u.SetCustom(*v)
+func (b *CustomTypeUpdate) Set[T any](column ent.ColumnOf[entity.CustomType, T], value T) *CustomTypeUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
+
+	return b
+}
+func (b *CustomTypeUpdate) SetOptional[T any](column ent.ColumnOf[entity.CustomType, T], value ent.Option[T]) *CustomTypeUpdate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *CustomTypeUpdate) SetExpr[T any](column ent.ColumnOf[entity.CustomType, T], value ent.Expr[T]) *CustomTypeUpdate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case customtype.FieldCustom:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of CustomType is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *CustomTypeUpdate) SetEdge[N, K any](edge ent.UniqueRelation[entity.CustomType, N, K], id K) *CustomTypeUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *CustomTypeUpdate) AddIDs[N, K any](edge ent.Relation[entity.CustomType, N, K], ids ...K) *CustomTypeUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *CustomTypeUpdate) Mutation() *CustomTypeMutation { return b.mutation }
+
+func (b *CustomTypeUpdate) Patch() *CustomTypePatch { return b.mutation.patch }
+func (b *CustomTypeUpdate) Apply(p CustomTypePatch) *CustomTypeUpdate {
+	b.mutation.patch.apply(p)
+	return b
+}
+func (b *CustomTypeUpdate) Add[T ent.Number](column ent.ColumnOf[entity.CustomType, T], delta T) *CustomTypeUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *CustomTypeUpdate) Append[T any](column ent.ColumnOf[entity.CustomType, T], values T) *CustomTypeUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *CustomTypeUpdate) Clear[T any](column ent.ColumnOf[entity.CustomType, T]) *CustomTypeUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *CustomTypeUpdate) RemoveIDs[N, K any](edge ent.Relation[entity.CustomType, N, K], ids ...K) *CustomTypeUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *CustomTypeUpdate) ClearEdge[N, K any](edge ent.RelationOf[entity.CustomType, N, K]) *CustomTypeUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// ClearCustom clears the value of the "custom" field.
-func (_u *CustomTypeUpdate) ClearCustom() *CustomTypeUpdate {
-	_u.mutation.ClearCustom()
-	return _u
+func (b *CustomTypeUpdate) Where(predicates ...ent.Predicate[entity.CustomType]) *CustomTypeUpdate {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Mutation returns the CustomTypeMutation object of the builder.
-func (_u *CustomTypeUpdate) Mutation() *CustomTypeMutation {
-	return _u.mutation
+func (b *CustomTypeUpdate) Save(ctx context.Context) (int, error) {
+	if b.err != nil {
+		return 0, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return 0, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Save executes the query and returns the number of nodes affected by the update operation.
-func (_u *CustomTypeUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *CustomTypeUpdate) SaveX(ctx context.Context) int {
-	affected, err := _u.Save(ctx)
+func (b *CustomTypeUpdate) SaveX(ctx context.Context) int {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return affected
+	return result
 }
 
-// Exec executes the query.
-func (_u *CustomTypeUpdate) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *CustomTypeUpdate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *CustomTypeUpdate) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *CustomTypeUpdate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
+func (b *CustomTypeUpdate) Returning(ctx context.Context) ([]*CustomType, error) {
+	nodes := make([]*CustomType, 0)
+	b.returning = &sqlgraph.Returning{Columns: customtype.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &CustomType{config: b.config}
+		values, err := _node.scanValues(customtype.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(customtype.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Save(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
+}
+
+func (b *CustomTypeUpdate) defaults() error {
+
+	return nil
+}
+
+func (b *CustomTypeUpdate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *CustomTypeUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *CustomTypeUpdate {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *CustomTypeUpdate) sqlSave(ctx context.Context) (_node int, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(customtype.Table, customtype.Columns, sqlgraph.NewFieldSpec(customtype.FieldID, field.TypeInt))
 	if ps := _u.mutation.Predicates(); len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -91,12 +210,18 @@ func (_u *CustomTypeUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 			}
 		}
 	}
-	if value, ok := _u.mutation.Custom(); ok {
+	if value, ok := _u.mutation.patch.Custom.Get(); ok {
 		_spec.SetField(customtype.FieldCustom, field.TypeString, value)
 	}
-	if _u.mutation.CustomCleared() {
+	if _u.mutation.patch.Custom.IsNull() {
 		_spec.ClearField(customtype.FieldCustom, field.TypeString)
 	}
+	_spec.Returning = _u.returning
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{customtype.Label}
@@ -105,84 +230,194 @@ func (_u *CustomTypeUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 		}
 		return 0, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }
 
-// CustomTypeUpdateOne is the builder for updating a single CustomType entity.
 type CustomTypeUpdateOne struct {
 	config
-	fields   []string
-	hooks    []Hook
 	mutation *CustomTypeMutation
+	err      error
+
+	fields []string
+	old    *CustomType
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// SetCustom sets the "custom" field.
-func (_u *CustomTypeUpdateOne) SetCustom(v string) *CustomTypeUpdateOne {
-	_u.mutation.SetCustom(v)
-	return _u
-}
-
-// SetNillableCustom sets the "custom" field if the given value is not nil.
-func (_u *CustomTypeUpdateOne) SetNillableCustom(v *string) *CustomTypeUpdateOne {
-	if v != nil {
-		_u.SetCustom(*v)
+func (b *CustomTypeUpdateOne) Set[T any](column ent.ColumnOf[entity.CustomType, T], value T) *CustomTypeUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
+
+	return b
+}
+func (b *CustomTypeUpdateOne) SetOptional[T any](column ent.ColumnOf[entity.CustomType, T], value ent.Option[T]) *CustomTypeUpdateOne {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *CustomTypeUpdateOne) SetExpr[T any](column ent.ColumnOf[entity.CustomType, T], value ent.Expr[T]) *CustomTypeUpdateOne {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case customtype.FieldCustom:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of CustomType is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *CustomTypeUpdateOne) SetEdge[N, K any](edge ent.UniqueRelation[entity.CustomType, N, K], id K) *CustomTypeUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *CustomTypeUpdateOne) AddIDs[N, K any](edge ent.Relation[entity.CustomType, N, K], ids ...K) *CustomTypeUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *CustomTypeUpdateOne) Mutation() *CustomTypeMutation { return b.mutation }
+
+func (b *CustomTypeUpdateOne) Patch() *CustomTypePatch { return b.mutation.patch }
+func (b *CustomTypeUpdateOne) Apply(p CustomTypePatch) *CustomTypeUpdateOne {
+	b.mutation.patch.apply(p)
+	return b
+}
+func (b *CustomTypeUpdateOne) Add[T ent.Number](column ent.ColumnOf[entity.CustomType, T], delta T) *CustomTypeUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *CustomTypeUpdateOne) Append[T any](column ent.ColumnOf[entity.CustomType, T], values T) *CustomTypeUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *CustomTypeUpdateOne) Clear[T any](column ent.ColumnOf[entity.CustomType, T]) *CustomTypeUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *CustomTypeUpdateOne) RemoveIDs[N, K any](edge ent.Relation[entity.CustomType, N, K], ids ...K) *CustomTypeUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *CustomTypeUpdateOne) ClearEdge[N, K any](edge ent.RelationOf[entity.CustomType, N, K]) *CustomTypeUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// ClearCustom clears the value of the "custom" field.
-func (_u *CustomTypeUpdateOne) ClearCustom() *CustomTypeUpdateOne {
-	_u.mutation.ClearCustom()
-	return _u
+func (b *CustomTypeUpdateOne) Where(predicates ...ent.Predicate[entity.CustomType]) *CustomTypeUpdateOne {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Mutation returns the CustomTypeMutation object of the builder.
-func (_u *CustomTypeUpdateOne) Mutation() *CustomTypeMutation {
-	return _u.mutation
+func (b *CustomTypeUpdateOne) Save(ctx context.Context) (*CustomType, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Where appends a list predicates to the CustomTypeUpdate builder.
-func (_u *CustomTypeUpdateOne) Where(ps ...predicate.CustomType) *CustomTypeUpdateOne {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// Select allows selecting one or more fields (columns) of the returned entity.
-// The default is selecting all fields defined in the entity schema.
-func (_u *CustomTypeUpdateOne) Select(field string, fields ...string) *CustomTypeUpdateOne {
-	_u.fields = append([]string{field}, fields...)
-	return _u
-}
-
-// Save executes the query and returns the updated CustomType entity.
-func (_u *CustomTypeUpdateOne) Save(ctx context.Context) (*CustomType, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *CustomTypeUpdateOne) SaveX(ctx context.Context) *CustomType {
-	node, err := _u.Save(ctx)
+func (b *CustomTypeUpdateOne) SaveX(ctx context.Context) *CustomType {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return node
+	return result
 }
 
-// Exec executes the query on the entity.
-func (_u *CustomTypeUpdateOne) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *CustomTypeUpdateOne) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *CustomTypeUpdateOne) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *CustomTypeUpdateOne) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
+func (b *CustomTypeUpdateOne) Select(columns ...ent.EntityColumn[entity.CustomType]) *CustomTypeUpdateOne {
+	if len(columns) == 0 {
+		panic("ent: Select requires at least one column")
+	}
+	b.fields = make([]string, len(columns))
+	for index, column := range columns {
+		b.fields[index] = column.Ref().Name
+	}
+	return b
+}
+
+func (b *CustomTypeUpdateOne) SaveOld(ctx context.Context) (old *CustomType, updated *CustomType, err error) {
+	if !b.driver.Capabilities().ReturningOld {
+		return nil, nil, &dialect.UnsupportedError{Feature: "RETURNING OLD", Dialect: dialect.Dialect(b.driver.Dialect())}
+	}
+	b.old = &CustomType{config: b.config}
+	defer func() { b.old = nil }()
+	updated, err = b.Save(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return b.old, updated, nil
+}
+
+func (b *CustomTypeUpdateOne) defaults() error {
+
+	return nil
+}
+
+func (b *CustomTypeUpdateOne) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *CustomTypeUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *CustomTypeUpdateOne {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *CustomTypeUpdateOne) sqlSave(ctx context.Context) (_node *CustomType, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(customtype.Table, customtype.Columns, sqlgraph.NewFieldSpec(customtype.FieldID, field.TypeInt))
 	id, ok := _u.mutation.ID()
 	if !ok {
@@ -208,15 +443,24 @@ func (_u *CustomTypeUpdateOne) sqlSave(ctx context.Context) (_node *CustomType, 
 			}
 		}
 	}
-	if value, ok := _u.mutation.Custom(); ok {
+	if value, ok := _u.mutation.patch.Custom.Get(); ok {
 		_spec.SetField(customtype.FieldCustom, field.TypeString, value)
 	}
-	if _u.mutation.CustomCleared() {
+	if _u.mutation.patch.Custom.IsNull() {
 		_spec.ClearField(customtype.FieldCustom, field.TypeString)
 	}
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	_node = &CustomType{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
+	if _u.old != nil {
+		_spec.OldScanValues = _u.old.scanValues
+		_spec.OldAssign = _u.old.assignValues
+	}
 	if err = sqlgraph.UpdateNode(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{customtype.Label}
@@ -225,6 +469,5 @@ func (_u *CustomTypeUpdateOne) sqlSave(ctx context.Context) (_node *CustomType, 
 		}
 		return nil, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }

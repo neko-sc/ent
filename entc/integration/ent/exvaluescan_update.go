@@ -9,150 +9,221 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math/big"
-	"net/url"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/ent/exvaluescan"
-	"github.com/neko-sc/ent/entc/integration/ent/predicate"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// ExValueScanUpdate is the builder for updating ExValueScan entities.
 type ExValueScanUpdate struct {
 	config
-	hooks     []Hook
 	mutation  *ExValueScanMutation
+	err       error
+	returning *sqlgraph.Returning
+
 	modifiers []func(*sql.UpdateBuilder)
 }
 
-// Where appends a list predicates to the ExValueScanUpdate builder.
-func (_u *ExValueScanUpdate) Where(ps ...predicate.ExValueScan) *ExValueScanUpdate {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// SetBinary sets the "binary" field.
-func (_u *ExValueScanUpdate) SetBinary(v *url.URL) *ExValueScanUpdate {
-	_u.mutation.SetBinary(v)
-	return _u
-}
-
-// SetBinaryBytes sets the "binary_bytes" field.
-func (_u *ExValueScanUpdate) SetBinaryBytes(v *url.URL) *ExValueScanUpdate {
-	_u.mutation.SetBinaryBytes(v)
-	return _u
-}
-
-// SetBinaryOptional sets the "binary_optional" field.
-func (_u *ExValueScanUpdate) SetBinaryOptional(v *url.URL) *ExValueScanUpdate {
-	_u.mutation.SetBinaryOptional(v)
-	return _u
-}
-
-// ClearBinaryOptional clears the value of the "binary_optional" field.
-func (_u *ExValueScanUpdate) ClearBinaryOptional() *ExValueScanUpdate {
-	_u.mutation.ClearBinaryOptional()
-	return _u
-}
-
-// SetText sets the "text" field.
-func (_u *ExValueScanUpdate) SetText(v *big.Int) *ExValueScanUpdate {
-	_u.mutation.SetText(v)
-	return _u
-}
-
-// SetTextOptional sets the "text_optional" field.
-func (_u *ExValueScanUpdate) SetTextOptional(v *big.Int) *ExValueScanUpdate {
-	_u.mutation.SetTextOptional(v)
-	return _u
-}
-
-// ClearTextOptional clears the value of the "text_optional" field.
-func (_u *ExValueScanUpdate) ClearTextOptional() *ExValueScanUpdate {
-	_u.mutation.ClearTextOptional()
-	return _u
-}
-
-// SetBase64 sets the "base64" field.
-func (_u *ExValueScanUpdate) SetBase64(v string) *ExValueScanUpdate {
-	_u.mutation.SetBase64(v)
-	return _u
-}
-
-// SetNillableBase64 sets the "base64" field if the given value is not nil.
-func (_u *ExValueScanUpdate) SetNillableBase64(v *string) *ExValueScanUpdate {
-	if v != nil {
-		_u.SetBase64(*v)
+func (b *ExValueScanUpdate) Set[T any](column ent.ColumnOf[entity.ExValueScan, T], value T) *ExValueScanUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// SetCustom sets the "custom" field.
-func (_u *ExValueScanUpdate) SetCustom(v string) *ExValueScanUpdate {
-	_u.mutation.SetCustom(v)
-	return _u
+	return b
 }
-
-// SetNillableCustom sets the "custom" field if the given value is not nil.
-func (_u *ExValueScanUpdate) SetNillableCustom(v *string) *ExValueScanUpdate {
-	if v != nil {
-		_u.SetCustom(*v)
+func (b *ExValueScanUpdate) SetOptional[T any](column ent.ColumnOf[entity.ExValueScan, T], value ent.Option[T]) *ExValueScanUpdate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u
-}
-
-// SetCustomOptional sets the "custom_optional" field.
-func (_u *ExValueScanUpdate) SetCustomOptional(v string) *ExValueScanUpdate {
-	_u.mutation.SetCustomOptional(v)
-	return _u
-}
-
-// SetNillableCustomOptional sets the "custom_optional" field if the given value is not nil.
-func (_u *ExValueScanUpdate) SetNillableCustomOptional(v *string) *ExValueScanUpdate {
-	if v != nil {
-		_u.SetCustomOptional(*v)
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
 	}
-	return _u
+	return b
+}
+func (b *ExValueScanUpdate) SetExpr[T any](column ent.ColumnOf[entity.ExValueScan, T], value ent.Expr[T]) *ExValueScanUpdate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case exvaluescan.FieldBinary:
+
+	case exvaluescan.FieldBinaryBytes:
+
+	case exvaluescan.FieldBinaryOptional:
+
+	case exvaluescan.FieldText:
+
+	case exvaluescan.FieldTextOptional:
+
+	case exvaluescan.FieldBase64:
+
+	case exvaluescan.FieldCustom:
+
+	case exvaluescan.FieldCustomOptional:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of ExValueScan is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *ExValueScanUpdate) SetEdge[N, K any](edge ent.UniqueRelation[entity.ExValueScan, N, K], id K) *ExValueScanUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *ExValueScanUpdate) AddIDs[N, K any](edge ent.Relation[entity.ExValueScan, N, K], ids ...K) *ExValueScanUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *ExValueScanUpdate) Mutation() *ExValueScanMutation { return b.mutation }
+
+func (b *ExValueScanUpdate) Patch() *ExValueScanPatch { return b.mutation.patch }
+func (b *ExValueScanUpdate) Apply(p ExValueScanPatch) *ExValueScanUpdate {
+	b.mutation.patch.apply(p)
+	return b
+}
+func (b *ExValueScanUpdate) Add[T ent.Number](column ent.ColumnOf[entity.ExValueScan, T], delta T) *ExValueScanUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *ExValueScanUpdate) Append[T any](column ent.ColumnOf[entity.ExValueScan, T], values T) *ExValueScanUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *ExValueScanUpdate) Clear[T any](column ent.ColumnOf[entity.ExValueScan, T]) *ExValueScanUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *ExValueScanUpdate) RemoveIDs[N, K any](edge ent.Relation[entity.ExValueScan, N, K], ids ...K) *ExValueScanUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *ExValueScanUpdate) ClearEdge[N, K any](edge ent.RelationOf[entity.ExValueScan, N, K]) *ExValueScanUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// ClearCustomOptional clears the value of the "custom_optional" field.
-func (_u *ExValueScanUpdate) ClearCustomOptional() *ExValueScanUpdate {
-	_u.mutation.ClearCustomOptional()
-	return _u
+func (b *ExValueScanUpdate) Where(predicates ...ent.Predicate[entity.ExValueScan]) *ExValueScanUpdate {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Mutation returns the ExValueScanMutation object of the builder.
-func (_u *ExValueScanUpdate) Mutation() *ExValueScanMutation {
-	return _u.mutation
+func (b *ExValueScanUpdate) Save(ctx context.Context) (int, error) {
+	if b.err != nil {
+		return 0, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return 0, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Save executes the query and returns the number of nodes affected by the update operation.
-func (_u *ExValueScanUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *ExValueScanUpdate) SaveX(ctx context.Context) int {
-	affected, err := _u.Save(ctx)
+func (b *ExValueScanUpdate) SaveX(ctx context.Context) int {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return affected
+	return result
 }
 
-// Exec executes the query.
-func (_u *ExValueScanUpdate) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *ExValueScanUpdate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *ExValueScanUpdate) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *ExValueScanUpdate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
+}
+
+func (b *ExValueScanUpdate) Returning(ctx context.Context) ([]*ExValueScan, error) {
+	nodes := make([]*ExValueScan, 0)
+	b.returning = &sqlgraph.Returning{Columns: exvaluescan.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &ExValueScan{config: b.config}
+		values, err := _node.scanValues(exvaluescan.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(exvaluescan.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Save(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
+}
+
+func (b *ExValueScanUpdate) defaults() error {
+
+	return nil
+}
+
+func (b *ExValueScanUpdate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.Binary.IsNull() {
+		return &ValidationError{Name: "binary", err: errors.New(`ent: field "ExValueScan.binary" is not nullable`)}
+	}
+
+	if b.mutation.patch.BinaryBytes.IsNull() {
+		return &ValidationError{Name: "binary_bytes", err: errors.New(`ent: field "ExValueScan.binary_bytes" is not nullable`)}
+	}
+
+	if b.mutation.patch.Text.IsNull() {
+		return &ValidationError{Name: "text", err: errors.New(`ent: field "ExValueScan.text" is not nullable`)}
+	}
+
+	if b.mutation.patch.Base64.IsNull() {
+		return &ValidationError{Name: "base64", err: errors.New(`ent: field "ExValueScan.base64" is not nullable`)}
+	}
+
+	if b.mutation.patch.Custom.IsNull() {
+		return &ValidationError{Name: "custom", err: errors.New(`ent: field "ExValueScan.custom" is not nullable`)}
+	}
+
+	return nil
 }
 
 // Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
@@ -162,6 +233,9 @@ func (_u *ExValueScanUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *Ex
 }
 
 func (_u *ExValueScanUpdate) sqlSave(ctx context.Context) (_node int, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(exvaluescan.Table, exvaluescan.Columns, sqlgraph.NewFieldSpec(exvaluescan.FieldID, field.TypeInt))
 	if ps := _u.mutation.Predicates(); len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -170,72 +244,77 @@ func (_u *ExValueScanUpdate) sqlSave(ctx context.Context) (_node int, err error)
 			}
 		}
 	}
-	if value, ok := _u.mutation.Binary(); ok {
+	if value, ok := _u.mutation.patch.Binary.Get(); ok {
 		vv, err := exvaluescan.ValueScanner.Binary.Value(value)
 		if err != nil {
 			return 0, err
 		}
 		_spec.SetField(exvaluescan.FieldBinary, field.TypeString, vv)
 	}
-	if value, ok := _u.mutation.BinaryBytes(); ok {
+	if value, ok := _u.mutation.patch.BinaryBytes.Get(); ok {
 		vv, err := exvaluescan.ValueScanner.BinaryBytes.Value(value)
 		if err != nil {
 			return 0, err
 		}
 		_spec.SetField(exvaluescan.FieldBinaryBytes, field.TypeBytes, vv)
 	}
-	if value, ok := _u.mutation.BinaryOptional(); ok {
+	if value, ok := _u.mutation.patch.BinaryOptional.Get(); ok {
 		vv, err := exvaluescan.ValueScanner.BinaryOptional.Value(value)
 		if err != nil {
 			return 0, err
 		}
 		_spec.SetField(exvaluescan.FieldBinaryOptional, field.TypeString, vv)
 	}
-	if _u.mutation.BinaryOptionalCleared() {
+	if _u.mutation.patch.BinaryOptional.IsNull() {
 		_spec.ClearField(exvaluescan.FieldBinaryOptional, field.TypeString)
 	}
-	if value, ok := _u.mutation.Text(); ok {
+	if value, ok := _u.mutation.patch.Text.Get(); ok {
 		vv, err := exvaluescan.ValueScanner.Text.Value(value)
 		if err != nil {
 			return 0, err
 		}
 		_spec.SetField(exvaluescan.FieldText, field.TypeString, vv)
 	}
-	if value, ok := _u.mutation.TextOptional(); ok {
+	if value, ok := _u.mutation.patch.TextOptional.Get(); ok {
 		vv, err := exvaluescan.ValueScanner.TextOptional.Value(value)
 		if err != nil {
 			return 0, err
 		}
 		_spec.SetField(exvaluescan.FieldTextOptional, field.TypeString, vv)
 	}
-	if _u.mutation.TextOptionalCleared() {
+	if _u.mutation.patch.TextOptional.IsNull() {
 		_spec.ClearField(exvaluescan.FieldTextOptional, field.TypeString)
 	}
-	if value, ok := _u.mutation.Base64(); ok {
+	if value, ok := _u.mutation.patch.Base64.Get(); ok {
 		vv, err := exvaluescan.ValueScanner.Base64.Value(value)
 		if err != nil {
 			return 0, err
 		}
 		_spec.SetField(exvaluescan.FieldBase64, field.TypeString, vv)
 	}
-	if value, ok := _u.mutation.Custom(); ok {
+	if value, ok := _u.mutation.patch.Custom.Get(); ok {
 		vv, err := exvaluescan.ValueScanner.Custom.Value(value)
 		if err != nil {
 			return 0, err
 		}
 		_spec.SetField(exvaluescan.FieldCustom, field.TypeString, vv)
 	}
-	if value, ok := _u.mutation.CustomOptional(); ok {
+	if value, ok := _u.mutation.patch.CustomOptional.Get(); ok {
 		vv, err := exvaluescan.ValueScanner.CustomOptional.Value(value)
 		if err != nil {
 			return 0, err
 		}
 		_spec.SetField(exvaluescan.FieldCustomOptional, field.TypeString, vv)
 	}
-	if _u.mutation.CustomOptionalCleared() {
+	if _u.mutation.patch.CustomOptional.IsNull() {
 		_spec.ClearField(exvaluescan.FieldCustomOptional, field.TypeString)
 	}
+	_spec.Returning = _u.returning
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
 	_spec.AddModifiers(_u.modifiers...)
+
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{exvaluescan.Label}
@@ -244,152 +323,216 @@ func (_u *ExValueScanUpdate) sqlSave(ctx context.Context) (_node int, err error)
 		}
 		return 0, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }
 
-// ExValueScanUpdateOne is the builder for updating a single ExValueScan entity.
 type ExValueScanUpdateOne struct {
 	config
-	fields    []string
-	hooks     []Hook
-	mutation  *ExValueScanMutation
+	mutation *ExValueScanMutation
+	err      error
+
+	fields []string
+	old    *ExValueScan
+
 	modifiers []func(*sql.UpdateBuilder)
 }
 
-// SetBinary sets the "binary" field.
-func (_u *ExValueScanUpdateOne) SetBinary(v *url.URL) *ExValueScanUpdateOne {
-	_u.mutation.SetBinary(v)
-	return _u
-}
-
-// SetBinaryBytes sets the "binary_bytes" field.
-func (_u *ExValueScanUpdateOne) SetBinaryBytes(v *url.URL) *ExValueScanUpdateOne {
-	_u.mutation.SetBinaryBytes(v)
-	return _u
-}
-
-// SetBinaryOptional sets the "binary_optional" field.
-func (_u *ExValueScanUpdateOne) SetBinaryOptional(v *url.URL) *ExValueScanUpdateOne {
-	_u.mutation.SetBinaryOptional(v)
-	return _u
-}
-
-// ClearBinaryOptional clears the value of the "binary_optional" field.
-func (_u *ExValueScanUpdateOne) ClearBinaryOptional() *ExValueScanUpdateOne {
-	_u.mutation.ClearBinaryOptional()
-	return _u
-}
-
-// SetText sets the "text" field.
-func (_u *ExValueScanUpdateOne) SetText(v *big.Int) *ExValueScanUpdateOne {
-	_u.mutation.SetText(v)
-	return _u
-}
-
-// SetTextOptional sets the "text_optional" field.
-func (_u *ExValueScanUpdateOne) SetTextOptional(v *big.Int) *ExValueScanUpdateOne {
-	_u.mutation.SetTextOptional(v)
-	return _u
-}
-
-// ClearTextOptional clears the value of the "text_optional" field.
-func (_u *ExValueScanUpdateOne) ClearTextOptional() *ExValueScanUpdateOne {
-	_u.mutation.ClearTextOptional()
-	return _u
-}
-
-// SetBase64 sets the "base64" field.
-func (_u *ExValueScanUpdateOne) SetBase64(v string) *ExValueScanUpdateOne {
-	_u.mutation.SetBase64(v)
-	return _u
-}
-
-// SetNillableBase64 sets the "base64" field if the given value is not nil.
-func (_u *ExValueScanUpdateOne) SetNillableBase64(v *string) *ExValueScanUpdateOne {
-	if v != nil {
-		_u.SetBase64(*v)
+func (b *ExValueScanUpdateOne) Set[T any](column ent.ColumnOf[entity.ExValueScan, T], value T) *ExValueScanUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// SetCustom sets the "custom" field.
-func (_u *ExValueScanUpdateOne) SetCustom(v string) *ExValueScanUpdateOne {
-	_u.mutation.SetCustom(v)
-	return _u
+	return b
 }
-
-// SetNillableCustom sets the "custom" field if the given value is not nil.
-func (_u *ExValueScanUpdateOne) SetNillableCustom(v *string) *ExValueScanUpdateOne {
-	if v != nil {
-		_u.SetCustom(*v)
+func (b *ExValueScanUpdateOne) SetOptional[T any](column ent.ColumnOf[entity.ExValueScan, T], value ent.Option[T]) *ExValueScanUpdateOne {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u
-}
-
-// SetCustomOptional sets the "custom_optional" field.
-func (_u *ExValueScanUpdateOne) SetCustomOptional(v string) *ExValueScanUpdateOne {
-	_u.mutation.SetCustomOptional(v)
-	return _u
-}
-
-// SetNillableCustomOptional sets the "custom_optional" field if the given value is not nil.
-func (_u *ExValueScanUpdateOne) SetNillableCustomOptional(v *string) *ExValueScanUpdateOne {
-	if v != nil {
-		_u.SetCustomOptional(*v)
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
 	}
-	return _u
+	return b
+}
+func (b *ExValueScanUpdateOne) SetExpr[T any](column ent.ColumnOf[entity.ExValueScan, T], value ent.Expr[T]) *ExValueScanUpdateOne {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case exvaluescan.FieldBinary:
+
+	case exvaluescan.FieldBinaryBytes:
+
+	case exvaluescan.FieldBinaryOptional:
+
+	case exvaluescan.FieldText:
+
+	case exvaluescan.FieldTextOptional:
+
+	case exvaluescan.FieldBase64:
+
+	case exvaluescan.FieldCustom:
+
+	case exvaluescan.FieldCustomOptional:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of ExValueScan is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *ExValueScanUpdateOne) SetEdge[N, K any](edge ent.UniqueRelation[entity.ExValueScan, N, K], id K) *ExValueScanUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *ExValueScanUpdateOne) AddIDs[N, K any](edge ent.Relation[entity.ExValueScan, N, K], ids ...K) *ExValueScanUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *ExValueScanUpdateOne) Mutation() *ExValueScanMutation { return b.mutation }
+
+func (b *ExValueScanUpdateOne) Patch() *ExValueScanPatch { return b.mutation.patch }
+func (b *ExValueScanUpdateOne) Apply(p ExValueScanPatch) *ExValueScanUpdateOne {
+	b.mutation.patch.apply(p)
+	return b
+}
+func (b *ExValueScanUpdateOne) Add[T ent.Number](column ent.ColumnOf[entity.ExValueScan, T], delta T) *ExValueScanUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *ExValueScanUpdateOne) Append[T any](column ent.ColumnOf[entity.ExValueScan, T], values T) *ExValueScanUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *ExValueScanUpdateOne) Clear[T any](column ent.ColumnOf[entity.ExValueScan, T]) *ExValueScanUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *ExValueScanUpdateOne) RemoveIDs[N, K any](edge ent.Relation[entity.ExValueScan, N, K], ids ...K) *ExValueScanUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *ExValueScanUpdateOne) ClearEdge[N, K any](edge ent.RelationOf[entity.ExValueScan, N, K]) *ExValueScanUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// ClearCustomOptional clears the value of the "custom_optional" field.
-func (_u *ExValueScanUpdateOne) ClearCustomOptional() *ExValueScanUpdateOne {
-	_u.mutation.ClearCustomOptional()
-	return _u
+func (b *ExValueScanUpdateOne) Where(predicates ...ent.Predicate[entity.ExValueScan]) *ExValueScanUpdateOne {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Mutation returns the ExValueScanMutation object of the builder.
-func (_u *ExValueScanUpdateOne) Mutation() *ExValueScanMutation {
-	return _u.mutation
+func (b *ExValueScanUpdateOne) Save(ctx context.Context) (*ExValueScan, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Where appends a list predicates to the ExValueScanUpdate builder.
-func (_u *ExValueScanUpdateOne) Where(ps ...predicate.ExValueScan) *ExValueScanUpdateOne {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// Select allows selecting one or more fields (columns) of the returned entity.
-// The default is selecting all fields defined in the entity schema.
-func (_u *ExValueScanUpdateOne) Select(field string, fields ...string) *ExValueScanUpdateOne {
-	_u.fields = append([]string{field}, fields...)
-	return _u
-}
-
-// Save executes the query and returns the updated ExValueScan entity.
-func (_u *ExValueScanUpdateOne) Save(ctx context.Context) (*ExValueScan, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *ExValueScanUpdateOne) SaveX(ctx context.Context) *ExValueScan {
-	node, err := _u.Save(ctx)
+func (b *ExValueScanUpdateOne) SaveX(ctx context.Context) *ExValueScan {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return node
+	return result
 }
 
-// Exec executes the query on the entity.
-func (_u *ExValueScanUpdateOne) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *ExValueScanUpdateOne) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *ExValueScanUpdateOne) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *ExValueScanUpdateOne) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
+}
+
+func (b *ExValueScanUpdateOne) Select(columns ...ent.EntityColumn[entity.ExValueScan]) *ExValueScanUpdateOne {
+	if len(columns) == 0 {
+		panic("ent: Select requires at least one column")
+	}
+	b.fields = make([]string, len(columns))
+	for index, column := range columns {
+		b.fields[index] = column.Ref().Name
+	}
+	return b
+}
+
+func (b *ExValueScanUpdateOne) SaveOld(ctx context.Context) (old *ExValueScan, updated *ExValueScan, err error) {
+	if !b.driver.Capabilities().ReturningOld {
+		return nil, nil, &dialect.UnsupportedError{Feature: "RETURNING OLD", Dialect: dialect.Dialect(b.driver.Dialect())}
+	}
+	b.old = &ExValueScan{config: b.config}
+	defer func() { b.old = nil }()
+	updated, err = b.Save(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return b.old, updated, nil
+}
+
+func (b *ExValueScanUpdateOne) defaults() error {
+
+	return nil
+}
+
+func (b *ExValueScanUpdateOne) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.Binary.IsNull() {
+		return &ValidationError{Name: "binary", err: errors.New(`ent: field "ExValueScan.binary" is not nullable`)}
+	}
+
+	if b.mutation.patch.BinaryBytes.IsNull() {
+		return &ValidationError{Name: "binary_bytes", err: errors.New(`ent: field "ExValueScan.binary_bytes" is not nullable`)}
+	}
+
+	if b.mutation.patch.Text.IsNull() {
+		return &ValidationError{Name: "text", err: errors.New(`ent: field "ExValueScan.text" is not nullable`)}
+	}
+
+	if b.mutation.patch.Base64.IsNull() {
+		return &ValidationError{Name: "base64", err: errors.New(`ent: field "ExValueScan.base64" is not nullable`)}
+	}
+
+	if b.mutation.patch.Custom.IsNull() {
+		return &ValidationError{Name: "custom", err: errors.New(`ent: field "ExValueScan.custom" is not nullable`)}
+	}
+
+	return nil
 }
 
 // Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
@@ -399,6 +542,9 @@ func (_u *ExValueScanUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) 
 }
 
 func (_u *ExValueScanUpdateOne) sqlSave(ctx context.Context) (_node *ExValueScan, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(exvaluescan.Table, exvaluescan.Columns, sqlgraph.NewFieldSpec(exvaluescan.FieldID, field.TypeInt))
 	id, ok := _u.mutation.ID()
 	if !ok {
@@ -424,75 +570,83 @@ func (_u *ExValueScanUpdateOne) sqlSave(ctx context.Context) (_node *ExValueScan
 			}
 		}
 	}
-	if value, ok := _u.mutation.Binary(); ok {
+	if value, ok := _u.mutation.patch.Binary.Get(); ok {
 		vv, err := exvaluescan.ValueScanner.Binary.Value(value)
 		if err != nil {
 			return nil, err
 		}
 		_spec.SetField(exvaluescan.FieldBinary, field.TypeString, vv)
 	}
-	if value, ok := _u.mutation.BinaryBytes(); ok {
+	if value, ok := _u.mutation.patch.BinaryBytes.Get(); ok {
 		vv, err := exvaluescan.ValueScanner.BinaryBytes.Value(value)
 		if err != nil {
 			return nil, err
 		}
 		_spec.SetField(exvaluescan.FieldBinaryBytes, field.TypeBytes, vv)
 	}
-	if value, ok := _u.mutation.BinaryOptional(); ok {
+	if value, ok := _u.mutation.patch.BinaryOptional.Get(); ok {
 		vv, err := exvaluescan.ValueScanner.BinaryOptional.Value(value)
 		if err != nil {
 			return nil, err
 		}
 		_spec.SetField(exvaluescan.FieldBinaryOptional, field.TypeString, vv)
 	}
-	if _u.mutation.BinaryOptionalCleared() {
+	if _u.mutation.patch.BinaryOptional.IsNull() {
 		_spec.ClearField(exvaluescan.FieldBinaryOptional, field.TypeString)
 	}
-	if value, ok := _u.mutation.Text(); ok {
+	if value, ok := _u.mutation.patch.Text.Get(); ok {
 		vv, err := exvaluescan.ValueScanner.Text.Value(value)
 		if err != nil {
 			return nil, err
 		}
 		_spec.SetField(exvaluescan.FieldText, field.TypeString, vv)
 	}
-	if value, ok := _u.mutation.TextOptional(); ok {
+	if value, ok := _u.mutation.patch.TextOptional.Get(); ok {
 		vv, err := exvaluescan.ValueScanner.TextOptional.Value(value)
 		if err != nil {
 			return nil, err
 		}
 		_spec.SetField(exvaluescan.FieldTextOptional, field.TypeString, vv)
 	}
-	if _u.mutation.TextOptionalCleared() {
+	if _u.mutation.patch.TextOptional.IsNull() {
 		_spec.ClearField(exvaluescan.FieldTextOptional, field.TypeString)
 	}
-	if value, ok := _u.mutation.Base64(); ok {
+	if value, ok := _u.mutation.patch.Base64.Get(); ok {
 		vv, err := exvaluescan.ValueScanner.Base64.Value(value)
 		if err != nil {
 			return nil, err
 		}
 		_spec.SetField(exvaluescan.FieldBase64, field.TypeString, vv)
 	}
-	if value, ok := _u.mutation.Custom(); ok {
+	if value, ok := _u.mutation.patch.Custom.Get(); ok {
 		vv, err := exvaluescan.ValueScanner.Custom.Value(value)
 		if err != nil {
 			return nil, err
 		}
 		_spec.SetField(exvaluescan.FieldCustom, field.TypeString, vv)
 	}
-	if value, ok := _u.mutation.CustomOptional(); ok {
+	if value, ok := _u.mutation.patch.CustomOptional.Get(); ok {
 		vv, err := exvaluescan.ValueScanner.CustomOptional.Value(value)
 		if err != nil {
 			return nil, err
 		}
 		_spec.SetField(exvaluescan.FieldCustomOptional, field.TypeString, vv)
 	}
-	if _u.mutation.CustomOptionalCleared() {
+	if _u.mutation.patch.CustomOptional.IsNull() {
 		_spec.ClearField(exvaluescan.FieldCustomOptional, field.TypeString)
 	}
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
 	_spec.AddModifiers(_u.modifiers...)
+
 	_node = &ExValueScan{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
+	if _u.old != nil {
+		_spec.OldScanValues = _u.old.scanValues
+		_spec.OldAssign = _u.old.assignValues
+	}
 	if err = sqlgraph.UpdateNode(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{exvaluescan.Label}
@@ -501,6 +655,5 @@ func (_u *ExValueScanUpdateOne) sqlSave(ctx context.Context) (_node *ExValueScan
 		}
 		return nil, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }

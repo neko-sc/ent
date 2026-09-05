@@ -6,8 +6,9 @@
 package process
 
 import (
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/entity"
 )
 
 const (
@@ -35,6 +36,41 @@ const (
 	AttachedFilesColumn = "proc_id"
 )
 
+var (
+	ID            = ent.OrderedColumn[entity.Process, int]{Table: Table, Name: FieldID}
+	Files         = ent.NewRelation[entity.Process, entity.File, int](EdgeFiles, newFilesStep)
+	AttachedFiles = ent.NewRelation[entity.Process, entity.AttachedFile, int](EdgeAttachedFiles, newAttachedFilesStep)
+)
+
+// Alias returns the columns of the processes table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.Process, int]{Table: name, Name: FieldID},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.Process, int]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.Process]) ent.Predicate[entity.Process] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.Process]) ent.Predicate[entity.Process] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.Process]) ent.Predicate[entity.Process] {
+	return ent.Not(predicate)
+}
+
 // Columns holds all SQL columns for process fields.
 var Columns = []string{
 	FieldID,
@@ -56,41 +92,6 @@ func ValidColumn(column string) bool {
 	return false
 }
 
-// OrderOption defines the ordering options for the Process queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByFilesCount orders the results by files count.
-func ByFilesCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newFilesStep(), opts...)
-	}
-}
-
-// ByFiles orders the results by files terms.
-func ByFiles(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newFilesStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
-// ByAttachedFilesCount orders the results by attached_files count.
-func ByAttachedFilesCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newAttachedFilesStep(), opts...)
-	}
-}
-
-// ByAttachedFiles orders the results by attached_files terms.
-func ByAttachedFiles(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newAttachedFilesStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
 func newFilesStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),

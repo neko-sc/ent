@@ -11,7 +11,6 @@ import (
 	"os"
 
 	"github.com/neko-sc/ent/examples/entcpkg/ent"
-	"github.com/neko-sc/ent/examples/entcpkg/ent/hook"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -27,14 +26,6 @@ func Example_entcPkg() {
 		log.Fatalf("failed opening connection to sqlite: %v", err)
 	}
 	defer client.Close()
-	// An example for using the injected dependencies in the generated builders.
-	client.User.Use(func(next ent.Mutator) ent.Mutator {
-		return hook.UserFunc(func(ctx context.Context, m *ent.UserMutation) (ent.Value, error) {
-			_ = m.HTTPClient
-			_ = m.Writer
-			return next.Mutate(ctx, m)
-		})
-	})
 	ctx := context.Background()
 	// Run the auto migration tool.
 	if err := client.Schema.Create(ctx); err != nil {

@@ -61,8 +61,8 @@ func main() {
 func CreateUser(ctx context.Context, client *ent.Client) (*ent.User, error) {
 	u, err := client.User.
 		Create().
-		SetAge(30).
-		SetName("a8m").
+		Set(user.Age, 30).
+		Set(user.Name, "a8m").
 		Save(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed creating user: %w", err)
@@ -74,7 +74,7 @@ func CreateUser(ctx context.Context, client *ent.Client) (*ent.User, error) {
 func QueryUser(ctx context.Context, client *ent.Client) (*ent.User, error) {
 	u, err := client.User.
 		Query().
-		Where(user.NameEQ("a8m")).
+		Where(user.Name.EQ("a8m")).
 		// `Only` fails if no user found,
 		// or more than 1 user returned.
 		Only(ctx)
@@ -89,8 +89,8 @@ func CreateCars(ctx context.Context, client *ent.Client) (*ent.User, error) {
 	// Create a new car with model "Tesla".
 	tesla, err := client.Car.
 		Create().
-		SetModel("Tesla").
-		SetRegisteredAt(time.Now()).
+		Set(car.Model, "Tesla").
+		Set(car.RegisteredAt, time.Now()).
 		Save(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed creating car: %w", err)
@@ -99,8 +99,8 @@ func CreateCars(ctx context.Context, client *ent.Client) (*ent.User, error) {
 	// Create a new car with model "Ford".
 	ford, err := client.Car.
 		Create().
-		SetModel("Ford").
-		SetRegisteredAt(time.Now()).
+		Set(car.Model, "Ford").
+		Set(car.RegisteredAt, time.Now()).
 		Save(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed creating car: %w", err)
@@ -110,9 +110,9 @@ func CreateCars(ctx context.Context, client *ent.Client) (*ent.User, error) {
 	// Create a new user, and add it the 2 cars.
 	a8m, err := client.User.
 		Create().
-		SetAge(30).
-		SetName("a8m").
-		AddCars(tesla, ford).
+		Set(user.Age, 30).
+		Set(user.Name, "a8m").
+		AddIDs(user.Cars, tesla.ID, ford.ID).
 		Save(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed creating user: %w", err)
@@ -130,7 +130,7 @@ func QueryCars(ctx context.Context, a8m *ent.User) error {
 
 	// What about filtering specific cars.
 	ford, err := a8m.QueryCars().
-		Where(car.ModelEQ("Ford")).
+		Where(car.Model.EQ("Ford")).
 		Only(ctx)
 	if err != nil {
 		return fmt.Errorf("failed querying user cars: %w", err)
@@ -160,16 +160,16 @@ func CreateGraph(ctx context.Context, client *ent.Client) error {
 	// First, create the users.
 	a8m, err := client.User.
 		Create().
-		SetAge(30).
-		SetName("Ariel").
+		Set(user.Age, 30).
+		Set(user.Name, "Ariel").
 		Save(ctx)
 	if err != nil {
 		return err
 	}
 	neta, err := client.User.
 		Create().
-		SetAge(28).
-		SetName("Neta").
+		Set(user.Age, 28).
+		Set(user.Name, "Neta").
 		Save(ctx)
 	if err != nil {
 		return err
@@ -177,30 +177,30 @@ func CreateGraph(ctx context.Context, client *ent.Client) error {
 	// Then, create the cars, and attach them to the users created above.
 	err = client.Car.
 		Create().
-		SetModel("Tesla").
-		SetRegisteredAt(time.Now()).
+		Set(car.Model, "Tesla").
+		Set(car.RegisteredAt, time.Now()).
 		// Attach this car to Ariel.
-		SetOwner(a8m).
+		SetEdge(car.Owner, a8m.ID).
 		Exec(ctx)
 	if err != nil {
 		return err
 	}
 	err = client.Car.
 		Create().
-		SetModel("Mazda").
-		SetRegisteredAt(time.Now()).
+		Set(car.Model, "Mazda").
+		Set(car.RegisteredAt, time.Now()).
 		// Attach this car to Ariel.
-		SetOwner(a8m).
+		SetEdge(car.Owner, a8m.ID).
 		Exec(ctx)
 	if err != nil {
 		return err
 	}
 	err = client.Car.
 		Create().
-		SetModel("Ford").
-		SetRegisteredAt(time.Now()).
+		Set(car.Model, "Ford").
+		Set(car.RegisteredAt, time.Now()).
 		// Attach this car to Neta.
-		SetOwner(neta).
+		SetEdge(car.Owner, neta.ID).
 		Exec(ctx)
 	if err != nil {
 		return err
@@ -208,16 +208,16 @@ func CreateGraph(ctx context.Context, client *ent.Client) error {
 	// Create the groups, and add their users in the creation.
 	err = client.Group.
 		Create().
-		SetName("GitLab").
-		AddUsers(neta, a8m).
+		Set(group.Name, "GitLab").
+		AddIDs(group.Users, neta.ID, a8m.ID).
 		Exec(ctx)
 	if err != nil {
 		return err
 	}
 	err = client.Group.
 		Create().
-		SetName("GitHub").
-		AddUsers(a8m).
+		Set(group.Name, "GitHub").
+		AddIDs(group.Users, a8m.ID).
 		Exec(ctx)
 	if err != nil {
 		return err
@@ -229,9 +229,9 @@ func CreateGraph(ctx context.Context, client *ent.Client) error {
 func QueryGithub(ctx context.Context, client *ent.Client) error {
 	cars, err := client.Group.
 		Query().
-		Where(group.Name("GitHub")). // (Group(Name=GitHub),)
-		QueryUsers().                // (User(Name=Ariel, Age=30),)
-		QueryCars().                 // (Car(Model=Tesla, RegisteredAt=<Time>), Car(Model=Mazda, RegisteredAt=<Time>),)
+		Where(group.Name.EQ("GitHub")). // (Group(Name=GitHub),)
+		QueryUsers().                   // (User(Name=Ariel, Age=30),)
+		QueryCars().                    // (Car(Model=Tesla, RegisteredAt=<Time>), Car(Model=Mazda, RegisteredAt=<Time>),)
 		All(ctx)
 	if err != nil {
 		return fmt.Errorf("failed getting cars: %w", err)
@@ -246,8 +246,8 @@ func QueryArielCars(ctx context.Context, client *ent.Client) error {
 	a8m := client.User.
 		Query().
 		Where(
-			user.HasCars(),
-			user.Name("Ariel"),
+			user.Cars.Has(),
+			user.Name.EQ("Ariel"),
 		).
 		OnlyX(ctx)
 	cars, err := a8m. // Get the groups, that a8m is connected to:
@@ -256,7 +256,7 @@ func QueryArielCars(ctx context.Context, client *ent.Client) error {
 				QueryCars().   //
 				Where(         //
 			car.Not( //	Get Neta and Ariel cars, but filter out
-				car.ModelEQ("Mazda"), //	those who named "Mazda"
+				car.Model.EQ("Mazda"), //	those who named "Mazda"
 			), //
 		). //
 		All(ctx)
@@ -270,7 +270,7 @@ func QueryArielCars(ctx context.Context, client *ent.Client) error {
 func QueryGroupWithUsers(ctx context.Context, client *ent.Client) error {
 	groups, err := client.Group.
 		Query().
-		Where(group.HasUsers()).
+		Where(group.Users.Has()).
 		All(ctx)
 	if err != nil {
 		return fmt.Errorf("failed getting groups: %w", err)

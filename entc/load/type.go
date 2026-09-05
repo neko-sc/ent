@@ -126,6 +126,7 @@ type UnionTerm struct {
 // TypeExpression is a recursive, JSON-safe semantic representation of a Go type.
 // Fields that do not apply to Kind are left empty.
 type TypeExpression struct {
+	Logical          LogicalType       `json:"logical,omitempty"`
 	Kind             TypeKind          `json:"kind"`
 	Basic            BasicKind         `json:"basic,omitempty"`
 	Named            *TypeName         `json:"named,omitempty"`
@@ -152,6 +153,10 @@ type TypeExpression struct {
 // enough metadata to represent it accurately.
 func TypeExpressionFor[T any]() (*TypeExpression, error) {
 	return typeExpressionFor(reflect.TypeFor[T]())
+}
+
+func TypeExpressionOfRuntime(goType reflect.Type) (*TypeExpression, error) {
+	return reflectTypeExpression(goType)
 }
 
 func typeExpressionFor(goType reflect.Type) (*TypeExpression, error) {
@@ -465,6 +470,7 @@ const (
 	LogicalTypeBool   LogicalType = "bool"
 	LogicalTypeTime   LogicalType = "time"
 	LogicalTypeJSON   LogicalType = "json"
+	LogicalTypeArray  LogicalType = "array"
 	LogicalTypeUUID   LogicalType = "uuid"
 	LogicalTypeBytes  LogicalType = "bytes"
 	LogicalTypeEnum   LogicalType = "enum"

@@ -1,294 +1,110 @@
-{{/*
-Copyright 2019-2026 Facebook Inc.
-SPDX-License-Identifier: Apache-2.0
-*/}}
-
-{{/* gotype: github.com/neko-sc/ent/entc/gen.Type */}}
-
 {{ define "dialect/sql/create" }}
-{{ $builder := pascal $.Scope.Builder }}
 {{ $receiver := $.Scope.Receiver }}
-{{ $mutation := print $receiver ".mutation"  }}
 
-func ({{ $receiver }} *{{ $builder }}) sqlSave(ctx context.Context) (*{{ $.Name }}, error) {
-	if err := {{ $receiver }}.check(); err != nil {
-		return nil, err
-	}
-	_node, _spec {{ if $.HasValueScanner }}, err {{ end }} := {{ $receiver }}.createSpec()
-	{{- if $.HasValueScanner }}
-		if err != nil {
-			return nil, err
-		}
-	{{- end }}
-	if err := sqlgraph.CreateNode(ctx, {{ $receiver }}.driver, _spec); err != nil {
-		if sqlgraph.IsConstraintError(err) {
-			err = &ConstraintError{msg: err.Error(), wrap: err}
-		}
-		return nil, err
-	}
-	{{- if $.HasCompositeID }}
-	{{- else if or $.ID.HasValueScanner $.ID.TypeValueScanner (not $.ID.TypeNumeric) }}
-		if _spec.ID.Value != nil {
-			{{- if $.ID.HasValueScanner }}
-				sv, ok := _spec.ID.Value.(field.ValueScanner)
-				if !ok {
-					sv = {{ $.ID.ScanValueFunc }}()
-					if err := sv.Scan(_spec.ID.Value); err != nil {
-						return nil, err
-					}
-				}
-				if value, err := {{ $.ID.FromValueFunc }}(sv); err != nil {
-					return nil, err
-				} else {
-					_node.ID = value
-				}
-			{{- else }}
-				{{- /* If the ID type is not a pointer, but implements the ValueScanner interface (e.g. UUID fields). */}}
-				{{- if and $.ID.TypeValueScanner (not $.ID.TypeNillable) }}
-					if id, ok := _spec.ID.Value.(*{{ $.ID.GoType }}); ok {
-						_node.ID = *id
-				{{- else }}
-					if id, ok := _spec.ID.Value.({{ $.ID.GoType }}); ok {
-						_node.ID = id
-				{{- end }}
-				{{- if $.ID.TypeValueScanner }}
-					} else if err := _node.ID.Scan(_spec.ID.Value); err != nil {
-						return nil, err
-				{{- else  }}
-					} else {
-						return nil, fmt.Errorf("unexpected {{ $.Name }}.ID type: %T", _spec.ID.Value)
-				{{- end }}
-				}
-			{{- end }}
-		}
-	{{- else }}
-		{{- if $.ID.UserDefined }}
-			if _spec.ID.Value != _node.ID {
-		{{- end }}
-				id := _spec.ID.Value.(int64)
-				_node.ID = {{ $.ID.GoType }}(id)
-		{{- if $.ID.UserDefined }}
-			}
-		{{- end }}
-	{{- end }}
-	{{- if $.HasOneFieldID }}
-		{{ $mutation }}.{{ $.ID.BuilderField }} = &_node.{{ $.ID.StructField }}
-		{{ $mutation }}.done = true
-	{{- end }}
-	return _node, nil
+func({{ $receiver }} *{{ $.CreateName }}) sqlSave(ctx context.Context) (*{{ $.Name }}, error) {
+    if err := {{ $receiver }}.check(); err != nil { return nil, err }
+    node, spec, err := {{ $receiver }}.createSpec()
+    if err != nil { return nil, err }
+    if err := sqlgraph.CreateNode(ctx, {{ $receiver }}.driver, spec); err != nil {
+        if sqlgraph.IsConstraintError(err) { err = &ConstraintError{msg: err.Error(), wrap: err} }
+        if errors.Is(err, dialect.ErrNoRows) { err = ErrConflict }
+        return nil, err
+    }
+    {{ if $.HasOneFieldID }}{{ $receiver }}.mutation.id = &node.ID{{ end }}
+    return node, nil
 }
 
-func ({{ $receiver }} *{{ $builder }}) createSpec() (*{{ $.Name }}, *sqlgraph.CreateSpec{{ if $.HasValueScanner }}, error{{ end }}) {
-	var (
-		_node = &{{ $.Name }}{config: {{ $receiver }}.config}
-		_spec = sqlgraph.NewCreateSpec({{ $.Package }}.Table, {{ if $.HasOneFieldID }}sqlgraph.NewFieldSpec({{ $.Package }}.{{ $.ID.Constant }}, field.{{ $.ID.TypeConst }}){{ else }}nil{{ end }})
-	)
-	{{- /* Allow mutating the sqlgraph.CreateSpec by ent extensions or user templates.*/}}
-	{{- with $tmpls := matchTemplate "dialect/sql/create/spec/*" }}
-		{{- range $tmpl := $tmpls }}
-			{{- xtemplate $tmpl $ }}
-		{{- end }}
-	{{- end }}
-	{{- if and (not $.HasCompositeID) $.ID.UserDefined }}
-		if id, ok := {{ $mutation }}.{{ $.ID.MutationGet }}(); ok {
-			_node.ID = id
-			{{- if $.ID.HasValueScanner }}
-				vv, err := {{ $.ID.ValueFunc }}(id)
-				if err != nil {
-					return nil, nil, err
-				}
-				_spec.ID.Value = vv
-			{{- else }}
-				_spec.ID.Value = {{ if and $.ID.TypeValueScanner (not $.ID.TypeNillable) }}&{{ end }}id
-			{{- end }}
-		}
-	{{- end }}
-	{{- range $f := $.MutationFields }}
-		if value, ok := {{ $mutation }}.{{ $f.MutationGet }}(); ok {
-			{{- if $f.HasValueScanner }}
-				vv, err := {{ $f.ValueFunc }}(value)
-				if err != nil {
-					return nil, nil, err
-				}
-				_spec.SetField({{ $.Package }}.{{ $f.Constant }}, field.{{ $f.TypeConst }}, vv)
-			{{- else }}
-				_spec.SetField({{ $.Package }}.{{ $f.Constant }}, field.{{ $f.TypeConst }}, value)
-			{{- end }}
-			_node.{{ $f.StructField }} = {{ if $f.NillableValue }}&{{ end }}value
-		}
-	{{- end }}
-	{{- range $e := $.EdgesWithID }}
-		if nodes := {{ $mutation }}.{{ $e.StructField }}IDs(); len(nodes) > 0 {
-			{{- with extend $ "Edge" $e "Nodes" true "Zero" "nil" }}
-				{{ template "dialect/sql/defedge" . }}{{/* defined in sql/update.tmpl */}}
-			{{- end }}
-			{{- if $e.OwnFK }}
-				{{- $fk := $e.ForeignKey }}
-				_node.{{ $fk.StructField }} = {{ if $fk.Field.NillableValue }}&{{ end }}nodes[0]
-			{{- end }}
-			_spec.Edges = append(_spec.Edges, edge)
-		}
-	{{- end }}
-	return _node, _spec{{ if $.HasValueScanner }}, nil{{ end }}
+func({{ $receiver }} *{{ $.CreateName }}) createSpec() (*{{ $.Name }}, *sqlgraph.CreateSpec, error) {
+    _node := &{{ $.Name }}{config: {{ $receiver }}.config}
+    _spec := sqlgraph.NewCreateSpec({{ $.Package }}.Table, {{ if $.HasOneFieldID }}sqlgraph.NewFieldSpec({{ $.Package }}.{{ $.ID.Constant }}, field.{{ $.ID.TypeConst }}){{ else }}nil{{ end }})
+    {{ range $tmpl := matchTemplate "dialect/sql/create/spec/*" }}{{ xtemplate $tmpl $ }}{{ end }}
+    {{ if $.HasOneFieldID }}{{ if $.ID.UserDefined }}
+    if value, ok := {{ $receiver }}.mutation.insert.ID.Get(); ok {
+        {{ if $.ID.HasValueScanner }}
+        converted, err := {{ $.ID.ValueFunc }}(value)
+        if err != nil { return nil, nil, err }
+        _spec.ID.Value = converted
+        {{ else }}_spec.ID.Value = {{ if and $.ID.TypeValueScanner (not $.ID.TypeNillable) }}&{{ end }}value{{ end }}
+    }
+    {{ end }}{{ end }}
+    {{ range $f := $.MutationFields }}
+    {{ if $f.InsertOptional }}if value, ok := {{ $receiver }}.mutation.insert.{{ $f.StructField }}.Get(); ok { {{ else }}if _, present := {{ $receiver }}.present[{{ $.Package }}.{{ $f.Constant }}]; !{{ $receiver }}.fromBuilder || present { value := {{ $receiver }}.mutation.insert.{{ $f.StructField }}{{ end }}
+        {{ if $f.HasValueScanner }}
+        converted, err := {{ $f.ValueFunc }}(value)
+        if err != nil { return nil, nil, err }
+        _spec.SetField({{ $.Package }}.{{ $f.Constant }}, field.{{ $f.TypeConst }}, converted)
+        {{ else }}_spec.SetField({{ $.Package }}.{{ $f.Constant }}, field.{{ $f.TypeConst }}, value){{ end }}
+    }
+    {{ if $f.InsertOptional }}if {{ $receiver }}.mutation.insert.{{ $f.StructField }}.IsNull() { _spec.SetField({{ $.Package }}.{{ $f.Constant }}, field.{{ $f.TypeConst }}, nil) }{{ end }}
+    {{ end }}
+    _spec.Expressions = {{ $receiver }}.mutation.insert.expressions
+    {{ range $e := $.EdgesWithID }}
+    if nodes := {{ $receiver }}.mutation.insert.{{ camel $e.StructField }}IDs(); len(nodes) > 0 {
+        {{ with extend $ "Edge" $e "Nodes" true "Zero" "nil" }}{{ template "dialect/sql/defedge" . }}{{ end }}
+        _spec.Edges = append(_spec.Edges, edge)
+    }
+    {{ end }}
+    _spec.Returning = &sqlgraph.Returning{Columns: {{ $.Package }}.Columns, Scan: func(rows dialect.Rows) error {
+        values, err := _node.scanValues({{ $.Package }}.Columns)
+        if err != nil { return err }
+        if err := rows.Scan(values...); err != nil { return err }
+        if err := _node.assignValues({{ $.Package }}.Columns, values); err != nil { return err }
+        {{ if $.HasOneFieldID }}
+        {{ if $.ID.HasValueScanner }}
+        _spec.ID.Value, err = {{ $.ID.ValueFunc }}(_node.ID)
+        if err != nil { return err }
+        {{ else }}_spec.ID.Value = _node.ID{{ end }}
+        {{ end }}
+        return nil
+    }}
+    return _node, _spec, nil
 }
-
-{{- /* Allow adding methods to the create-builder by ent extensions or user templates.*/}}
-{{- with $tmpls := matchTemplate "dialect/sql/create/additional/*" }}
-	{{- range $tmpl := $tmpls }}
-		{{- xtemplate $tmpl $ }}
-	{{- end }}
-{{- end }}
-
+{{ range $tmpl := matchTemplate "dialect/sql/create/additional/*" }}{{ xtemplate $tmpl $ }}{{ end }}
 {{ end }}
-
-{{/* Additional fields for the create builder. */}}
 {{ define "dialect/sql/create/fields" }}
-	{{- with $tmpls := matchTemplate "dialect/sql/create/fields/additional/*" }}
-		{{- range $tmpl := $tmpls }}
-			{{- xtemplate $tmpl $ }}
-		{{- end }}
-	{{- end }}
-{{- end }}
-
-{{/* Additional fields for the create_bulk builder. */}}
+{{ range $tmpl := matchTemplate "dialect/sql/create/fields/additional/*" }}{{ xtemplate $tmpl $ }}{{ end }}
+{{ end }}
 {{ define "dialect/sql/create_bulk/fields" }}
-	{{- with $tmpls := matchTemplate "dialect/sql/create_bulk/fields/additional/*" }}
-		{{- range $tmpl := $tmpls }}
-			{{- xtemplate $tmpl $ }}
-		{{- end }}
-	{{- end }}
-{{- end }}
-
+{{ range $tmpl := matchTemplate "dialect/sql/create_bulk/fields/additional/*" }}{{ xtemplate $tmpl $ }}{{ end }}
+{{ end }}
 {{ define "dialect/sql/create_bulk" }}
-{{ $builder := pascal $.Scope.Builder }}
 {{ $receiver := $.Scope.Receiver }}
 
-// Save creates the {{ $.Name }} entities in the database.
-func ({{ $receiver }} *{{ $builder }}) Save(ctx context.Context) ([]*{{ $.Name }}, error) {
-	{{- /* Initialization error was set by MapCreateBulk. */}}
-	if {{ $receiver }}.err != nil {
-		return nil, {{ $receiver }}.err
-	}
-	specs := make([]*sqlgraph.CreateSpec, len({{ $receiver }}.builders))
-	nodes := make([]*{{ $.Name }}, len({{ $receiver }}.builders))
-	mutators := make([]Mutator, len({{ $receiver }}.builders))
-	for i := range {{ $receiver }}.builders {
-		func(i int, root context.Context) {
-			builder := {{ $receiver }}.builders[i]
-			{{- if $.HasDefault }}
-				builder.defaults()
-			{{- end }}
-			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*{{ $.MutationName }})
-				if !ok {
-					return nil, fmt.Errorf("unexpected mutation type %T", m)
-				}
-				if err := builder.check(); err != nil {
-					return nil, err
-				}
-				builder.mutation = mutation
-				var err error
-				nodes[i], specs[i] {{ if $.HasValueScanner }}, err {{ end }}= builder.createSpec()
-				{{- if $.HasValueScanner }}
-					if err != nil {
-						return nil, err
-					}
-				{{- end }}
-				if i < len(mutators)-1 {
-					_, err = mutators[i+1].Mutate(root, {{ $receiver }}.builders[i+1].mutation)
-				} else {
-					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
-					{{- /* Allow mutating the sqlgraph.BatchCreateSpec by ent extensions or user templates.*/}}
-					{{- with $tmpls := matchTemplate "dialect/sql/create_bulk/spec/*" }}
-						{{- range $tmpl := $tmpls }}
-							{{- xtemplate $tmpl $ }}
-						{{- end }}
-					{{- end }}
-					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, {{ $receiver }}.driver, spec); err != nil {
-						if sqlgraph.IsConstraintError(err) {
-							err = &ConstraintError{msg: err.Error(), wrap: err}
-						}
-					}
-				}
-				if err != nil {
-					return nil, err
-				}
-				{{- if $.HasOneFieldID }}
-					mutation.{{ $.ID.BuilderField }} = &nodes[i].{{ $.ID.StructField }}
-					{{- if and (or $.ID.IsString $.ID.IsUUID $.ID.IsBytes $.ID.IsOther) (not $.ID.HasValueScanner) }}
-						{{- /* Do nothing, because these 4 types must be supplied by the user. */ -}}
-					{{- else if $.ID.HasValueScanner }}
-						if specs[i].ID.Value != nil {
-							sv, ok := specs[i].ID.Value.(field.ValueScanner)
-							if !ok {
-								sv = {{ $.ID.ScanValueFunc }}()
-								if err := sv.Scan(specs[i].ID.Value); err != nil {
-									return nil, err
-								}
-							}
-							if id, err := {{ $.ID.FromValueFunc }}(sv); err != nil {
-								return nil, err
-							} else {
-								nodes[i].ID = id
-							}
-						}
-					{{- else if or $.ID.TypeValueScanner }}
-						if specs[i].ID.Value != nil {
-							if err := nodes[i].ID.Scan(specs[i].ID.Value); err != nil {
-								return nil, err
-							}
-						}
-					{{- else }}
-						if specs[i].ID.Value != nil {{ if $.ID.UserDefined }}&& nodes[i].ID == 0{{ end }} {
-							id := specs[i].ID.Value.(int64)
-							nodes[i].ID = {{ $.ID.GoType }}(id)
-						}
-					{{- end }}
-				{{- end }}
-				mutation.done = true
-				return nodes[i], nil
-			})
-			for i := len(builder.hooks) - 1; i >= 0; i-- {
-				mut = builder.hooks[i](mut)
-			}
-			mutators[i] = mut
-		}(i, ctx)
-	}
-	if len(mutators) > 0 {
-		if _, err := mutators[0].Mutate(ctx, {{ $receiver }}.builders[0].mutation); err != nil {
-			return nil, err
-		}
-	}
-	return nodes, nil
+func({{ $receiver }} *{{ $.CreateBulkName }}) Save(ctx context.Context) ([]*{{ $.Name }}, error) {
+    if {{ $receiver }}.err != nil { return nil, {{ $receiver }}.err }
+    nodes := make([]*{{ $.Name }}, len({{ $receiver }}.builders))
+    specs := make([]*sqlgraph.CreateSpec, len(nodes))
+    for index, builder := range {{ $receiver }}.builders {
+        if builder.err != nil { return nil, builder.err }
+        if err := builder.defaults(); err != nil { return nil, err }
+        if err := builder.check(); err != nil { return nil, err }
+        var err error
+        nodes[index], specs[index], err = builder.createSpec()
+        if err != nil { return nil, err }
+    }
+    if len(specs) == 0 { return nodes, nil }
+    spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+    {{ range $tmpl := matchTemplate "dialect/sql/create_bulk/spec/*" }}{{ xtemplate $tmpl $ }}{{ end }}
+    if err := sqlgraph.BatchCreate(ctx, {{ $receiver }}.driver, spec); err != nil {
+        if sqlgraph.IsConstraintError(err) { err = &ConstraintError{msg: err.Error(), wrap: err} }
+        if errors.Is(err, dialect.ErrNoRows) { err = ErrConflict }
+        return nil, err
+    }
+    result := nodes[:0]
+    for index{{ if $.HasOneFieldID }}, builder{{ end }} := range {{ $receiver }}.builders {
+        if specs[index].Skipped { continue }
+        {{ if $.HasOneFieldID }}builder.mutation.id = &nodes[index].ID{{ end }}
+        result = append(result, nodes[index])
+    }
+    return result, nil
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func ({{ $receiver }} *{{ $builder }}) SaveX(ctx context.Context) []*{{ $.Name }} {
-	v, err := {{ $receiver }}.Save(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
+func(b *{{ $.CreateBulkName }}) SaveX(ctx context.Context) []*{{ $.Name }} {
+    nodes, err := b.Save(ctx); if err != nil { panic(err) }; return nodes
 }
 
-// Exec executes the query.
-func ({{ $receiver }} *{{ $builder }}) Exec(ctx context.Context) error {
-	_, err := {{ $receiver }}.Save(ctx)
-	return err
-}
+func(b *{{ $.CreateBulkName }}) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func ({{ $receiver }} *{{ $builder }}) ExecX(ctx context.Context) {
-	if err := {{ $receiver }}.Exec(ctx); err != nil {
-		panic(err)
-	}
-}
-
-{{- /* Allow adding methods to the create_bulk builder by ent extensions or user templates.*/}}
-{{- with $tmpls := matchTemplate "dialect/sql/create_bulk/additional/*" }}
-	{{- range $tmpl := $tmpls }}
-		{{- xtemplate $tmpl $ }}
-	{{- end }}
-{{- end }}
+func(b *{{ $.CreateBulkName }}) ExecX(ctx context.Context) { if err := b.Exec(ctx); err != nil { panic(err) } }
+{{ range $tmpl := matchTemplate "dialect/sql/create_bulk/additional/*" }}{{ xtemplate $tmpl $ }}{{ end }}
 {{ end }}

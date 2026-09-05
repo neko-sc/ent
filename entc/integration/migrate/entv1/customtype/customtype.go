@@ -6,7 +6,8 @@
 package customtype
 
 import (
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/entc/integration/migrate/entv1/entity"
 )
 
 const (
@@ -19,6 +20,42 @@ const (
 	// Table holds the table name of the customtype in the database.
 	Table = "custom_types"
 )
+
+var (
+	ID     = ent.OrderedColumn[entity.CustomType, int]{Table: Table, Name: FieldID}
+	Custom = ent.StringColumn[entity.CustomType, string]{Table: Table, Name: FieldCustom}
+)
+
+// Alias returns the columns of the custom_types table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.CustomType, int]{Table: name, Name: FieldID},
+		Custom:     ent.StringColumn[entity.CustomType, string]{Table: name, Name: FieldCustom},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.CustomType, int]
+	Custom     ent.StringColumn[entity.CustomType, string]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.CustomType]) ent.Predicate[entity.CustomType] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.CustomType]) ent.Predicate[entity.CustomType] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.CustomType]) ent.Predicate[entity.CustomType] {
+	return ent.Not(predicate)
+}
 
 // Columns holds all SQL columns for customtype fields.
 var Columns = []string{
@@ -34,17 +71,4 @@ func ValidColumn(column string) bool {
 		}
 	}
 	return false
-}
-
-// OrderOption defines the ordering options for the CustomType queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByCustom orders the results by the custom field.
-func ByCustom(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldCustom, opts...).ToFunc()
 }

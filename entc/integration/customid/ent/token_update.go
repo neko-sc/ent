@@ -10,102 +10,207 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/account"
-	"github.com/neko-sc/ent/entc/integration/customid/ent/predicate"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/token"
 	"github.com/neko-sc/ent/entc/integration/customid/sid"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// TokenUpdate is the builder for updating Token entities.
 type TokenUpdate struct {
 	config
-	hooks    []Hook
-	mutation *TokenMutation
+	mutation  *TokenMutation
+	err       error
+	returning *sqlgraph.Returning
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// Where appends a list predicates to the TokenUpdate builder.
-func (_u *TokenUpdate) Where(ps ...predicate.Token) *TokenUpdate {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// SetBody sets the "body" field.
-func (_u *TokenUpdate) SetBody(v string) *TokenUpdate {
-	_u.mutation.SetBody(v)
-	return _u
-}
-
-// SetNillableBody sets the "body" field if the given value is not nil.
-func (_u *TokenUpdate) SetNillableBody(v *string) *TokenUpdate {
-	if v != nil {
-		_u.SetBody(*v)
+func (b *TokenUpdate) Set[T any](column ent.ColumnOf[entity.Token, T], value T) *TokenUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
+
+	return b
+}
+func (b *TokenUpdate) SetOptional[T any](column ent.ColumnOf[entity.Token, T], value ent.Option[T]) *TokenUpdate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *TokenUpdate) SetExpr[T any](column ent.ColumnOf[entity.Token, T], value ent.Expr[T]) *TokenUpdate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case token.FieldBody:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Token is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *TokenUpdate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Token, N, K], id K) *TokenUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *TokenUpdate) AddIDs[N, K any](edge ent.Relation[entity.Token, N, K], ids ...K) *TokenUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *TokenUpdate) Mutation() *TokenMutation { return b.mutation }
+
+func (b *TokenUpdate) Patch() *TokenPatch              { return b.mutation.patch }
+func (b *TokenUpdate) Apply(p TokenPatch) *TokenUpdate { b.mutation.patch.apply(p); return b }
+func (b *TokenUpdate) Add[T ent.Number](column ent.ColumnOf[entity.Token, T], delta T) *TokenUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *TokenUpdate) Append[T any](column ent.ColumnOf[entity.Token, T], values T) *TokenUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *TokenUpdate) Clear[T any](column ent.ColumnOf[entity.Token, T]) *TokenUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *TokenUpdate) RemoveIDs[N, K any](edge ent.Relation[entity.Token, N, K], ids ...K) *TokenUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *TokenUpdate) ClearEdge[N, K any](edge ent.RelationOf[entity.Token, N, K]) *TokenUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// SetAccountID sets the "account" edge to the Account entity by ID.
-func (_u *TokenUpdate) SetAccountID(id sid.ID) *TokenUpdate {
-	_u.mutation.SetAccountID(id)
-	return _u
+func (b *TokenUpdate) Where(predicates ...ent.Predicate[entity.Token]) *TokenUpdate {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// SetAccount sets the "account" edge to the Account entity.
-func (_u *TokenUpdate) SetAccount(v *Account) *TokenUpdate {
-	return _u.SetAccountID(v.ID)
+func (b *TokenUpdate) Save(ctx context.Context) (int, error) {
+	if b.err != nil {
+		return 0, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return 0, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Mutation returns the TokenMutation object of the builder.
-func (_u *TokenUpdate) Mutation() *TokenMutation {
-	return _u.mutation
-}
-
-// ClearAccount clears the "account" edge to the Account entity.
-func (_u *TokenUpdate) ClearAccount() *TokenUpdate {
-	_u.mutation.ClearAccount()
-	return _u
-}
-
-// Save executes the query and returns the number of nodes affected by the update operation.
-func (_u *TokenUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *TokenUpdate) SaveX(ctx context.Context) int {
-	affected, err := _u.Save(ctx)
+func (b *TokenUpdate) SaveX(ctx context.Context) int {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return affected
+	return result
 }
 
-// Exec executes the query.
-func (_u *TokenUpdate) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *TokenUpdate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *TokenUpdate) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *TokenUpdate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_u *TokenUpdate) check() error {
-	if v, ok := _u.mutation.Body(); ok {
+func (b *TokenUpdate) Returning(ctx context.Context) ([]*Token, error) {
+	nodes := make([]*Token, 0)
+	b.returning = &sqlgraph.Returning{Columns: token.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Token{config: b.config}
+		values, err := _node.scanValues(token.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(token.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Save(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
+}
+
+func (b *TokenUpdate) defaults() error {
+
+	return nil
+}
+
+func (b *TokenUpdate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.Body.IsNull() {
+		return &ValidationError{Name: "body", err: errors.New(`ent: field "Token.body" is not nullable`)}
+	}
+
+	if v, ok := b.mutation.patch.Body.Get(); ok && b.mutation.patch.expressions[token.FieldBody] == nil {
+
 		if err := token.BodyValidator(v); err != nil {
 			return &ValidationError{Name: "body", err: fmt.Errorf(`ent: validator failed for field "Token.body": %w`, err)}
 		}
+
 	}
-	if _u.mutation.AccountCleared() && len(_u.mutation.AccountIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "Token.account"`)
+
+	if b.mutation.patch.AccountID.IsNull() {
+		return &ValidationError{Name: "account", err: errors.New(`ent: clearing required edge "Token.account"`)}
 	}
+
 	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *TokenUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *TokenUpdate {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
 }
 
 func (_u *TokenUpdate) sqlSave(ctx context.Context) (_node int, err error) {
@@ -120,10 +225,10 @@ func (_u *TokenUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.Body(); ok {
+	if value, ok := _u.mutation.patch.Body.Get(); ok {
 		_spec.SetField(token.FieldBody, field.TypeString, value)
 	}
-	if _u.mutation.AccountCleared() {
+	if _u.mutation.patch.AccountID.IsNull() || _u.mutation.patch.clearedEdges[token.EdgeAccount] {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -136,7 +241,7 @@ func (_u *TokenUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.AccountIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.accountIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -147,11 +252,22 @@ func (_u *TokenUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(account.FieldID, field.TypeOther),
 			},
 		}
+		seen := make(map[sid.ID]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	_spec.Returning = _u.returning
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{token.Label}
@@ -160,105 +276,201 @@ func (_u *TokenUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		return 0, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }
 
-// TokenUpdateOne is the builder for updating a single Token entity.
 type TokenUpdateOne struct {
 	config
-	fields   []string
-	hooks    []Hook
 	mutation *TokenMutation
+	err      error
+
+	fields []string
+	old    *Token
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// SetBody sets the "body" field.
-func (_u *TokenUpdateOne) SetBody(v string) *TokenUpdateOne {
-	_u.mutation.SetBody(v)
-	return _u
-}
-
-// SetNillableBody sets the "body" field if the given value is not nil.
-func (_u *TokenUpdateOne) SetNillableBody(v *string) *TokenUpdateOne {
-	if v != nil {
-		_u.SetBody(*v)
+func (b *TokenUpdateOne) Set[T any](column ent.ColumnOf[entity.Token, T], value T) *TokenUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
+
+	return b
+}
+func (b *TokenUpdateOne) SetOptional[T any](column ent.ColumnOf[entity.Token, T], value ent.Option[T]) *TokenUpdateOne {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *TokenUpdateOne) SetExpr[T any](column ent.ColumnOf[entity.Token, T], value ent.Expr[T]) *TokenUpdateOne {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case token.FieldBody:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Token is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *TokenUpdateOne) SetEdge[N, K any](edge ent.UniqueRelation[entity.Token, N, K], id K) *TokenUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *TokenUpdateOne) AddIDs[N, K any](edge ent.Relation[entity.Token, N, K], ids ...K) *TokenUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *TokenUpdateOne) Mutation() *TokenMutation { return b.mutation }
+
+func (b *TokenUpdateOne) Patch() *TokenPatch                 { return b.mutation.patch }
+func (b *TokenUpdateOne) Apply(p TokenPatch) *TokenUpdateOne { b.mutation.patch.apply(p); return b }
+func (b *TokenUpdateOne) Add[T ent.Number](column ent.ColumnOf[entity.Token, T], delta T) *TokenUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *TokenUpdateOne) Append[T any](column ent.ColumnOf[entity.Token, T], values T) *TokenUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *TokenUpdateOne) Clear[T any](column ent.ColumnOf[entity.Token, T]) *TokenUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *TokenUpdateOne) RemoveIDs[N, K any](edge ent.Relation[entity.Token, N, K], ids ...K) *TokenUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *TokenUpdateOne) ClearEdge[N, K any](edge ent.RelationOf[entity.Token, N, K]) *TokenUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// SetAccountID sets the "account" edge to the Account entity by ID.
-func (_u *TokenUpdateOne) SetAccountID(id sid.ID) *TokenUpdateOne {
-	_u.mutation.SetAccountID(id)
-	return _u
+func (b *TokenUpdateOne) Where(predicates ...ent.Predicate[entity.Token]) *TokenUpdateOne {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// SetAccount sets the "account" edge to the Account entity.
-func (_u *TokenUpdateOne) SetAccount(v *Account) *TokenUpdateOne {
-	return _u.SetAccountID(v.ID)
+func (b *TokenUpdateOne) Save(ctx context.Context) (*Token, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Mutation returns the TokenMutation object of the builder.
-func (_u *TokenUpdateOne) Mutation() *TokenMutation {
-	return _u.mutation
-}
-
-// ClearAccount clears the "account" edge to the Account entity.
-func (_u *TokenUpdateOne) ClearAccount() *TokenUpdateOne {
-	_u.mutation.ClearAccount()
-	return _u
-}
-
-// Where appends a list predicates to the TokenUpdate builder.
-func (_u *TokenUpdateOne) Where(ps ...predicate.Token) *TokenUpdateOne {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// Select allows selecting one or more fields (columns) of the returned entity.
-// The default is selecting all fields defined in the entity schema.
-func (_u *TokenUpdateOne) Select(field string, fields ...string) *TokenUpdateOne {
-	_u.fields = append([]string{field}, fields...)
-	return _u
-}
-
-// Save executes the query and returns the updated Token entity.
-func (_u *TokenUpdateOne) Save(ctx context.Context) (*Token, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *TokenUpdateOne) SaveX(ctx context.Context) *Token {
-	node, err := _u.Save(ctx)
+func (b *TokenUpdateOne) SaveX(ctx context.Context) *Token {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return node
+	return result
 }
 
-// Exec executes the query on the entity.
-func (_u *TokenUpdateOne) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *TokenUpdateOne) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *TokenUpdateOne) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *TokenUpdateOne) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_u *TokenUpdateOne) check() error {
-	if v, ok := _u.mutation.Body(); ok {
+func (b *TokenUpdateOne) Select(columns ...ent.EntityColumn[entity.Token]) *TokenUpdateOne {
+	if len(columns) == 0 {
+		panic("ent: Select requires at least one column")
+	}
+	b.fields = make([]string, len(columns))
+	for index, column := range columns {
+		b.fields[index] = column.Ref().Name
+	}
+	return b
+}
+
+func (b *TokenUpdateOne) SaveOld(ctx context.Context) (old *Token, updated *Token, err error) {
+	if !b.driver.Capabilities().ReturningOld {
+		return nil, nil, &dialect.UnsupportedError{Feature: "RETURNING OLD", Dialect: dialect.Dialect(b.driver.Dialect())}
+	}
+	b.old = &Token{config: b.config}
+	defer func() { b.old = nil }()
+	updated, err = b.Save(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return b.old, updated, nil
+}
+
+func (b *TokenUpdateOne) defaults() error {
+
+	return nil
+}
+
+func (b *TokenUpdateOne) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.Body.IsNull() {
+		return &ValidationError{Name: "body", err: errors.New(`ent: field "Token.body" is not nullable`)}
+	}
+
+	if v, ok := b.mutation.patch.Body.Get(); ok && b.mutation.patch.expressions[token.FieldBody] == nil {
+
 		if err := token.BodyValidator(v); err != nil {
 			return &ValidationError{Name: "body", err: fmt.Errorf(`ent: validator failed for field "Token.body": %w`, err)}
 		}
+
 	}
-	if _u.mutation.AccountCleared() && len(_u.mutation.AccountIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "Token.account"`)
+
+	if b.mutation.patch.AccountID.IsNull() {
+		return &ValidationError{Name: "account", err: errors.New(`ent: clearing required edge "Token.account"`)}
 	}
+
 	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *TokenUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *TokenUpdateOne {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
 }
 
 func (_u *TokenUpdateOne) sqlSave(ctx context.Context) (_node *Token, err error) {
@@ -290,10 +502,10 @@ func (_u *TokenUpdateOne) sqlSave(ctx context.Context) (_node *Token, err error)
 			}
 		}
 	}
-	if value, ok := _u.mutation.Body(); ok {
+	if value, ok := _u.mutation.patch.Body.Get(); ok {
 		_spec.SetField(token.FieldBody, field.TypeString, value)
 	}
-	if _u.mutation.AccountCleared() {
+	if _u.mutation.patch.AccountID.IsNull() || _u.mutation.patch.clearedEdges[token.EdgeAccount] {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -306,7 +518,7 @@ func (_u *TokenUpdateOne) sqlSave(ctx context.Context) (_node *Token, err error)
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.AccountIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.accountIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -317,14 +529,28 @@ func (_u *TokenUpdateOne) sqlSave(ctx context.Context) (_node *Token, err error)
 				IDSpec: sqlgraph.NewFieldSpec(account.FieldID, field.TypeOther),
 			},
 		}
+		seen := make(map[sid.ID]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	_node = &Token{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
+	if _u.old != nil {
+		_spec.OldScanValues = _u.old.scanValues
+		_spec.OldAssign = _u.old.assignValues
+	}
 	if err = sqlgraph.UpdateNode(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{token.Label}
@@ -333,6 +559,5 @@ func (_u *TokenUpdateOne) sqlSave(ctx context.Context) (_node *Token, err error)
 		}
 		return nil, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }

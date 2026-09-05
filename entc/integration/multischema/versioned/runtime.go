@@ -6,7 +6,7 @@
 package versioned
 
 import (
-	"time"
+	time2 "time"
 
 	"github.com/neko-sc/ent/entc/integration/multischema/versioned/friendship"
 	"github.com/neko-sc/ent/entc/integration/multischema/versioned/group"
@@ -16,7 +16,7 @@ import (
 )
 
 // The init function reads all schema descriptors with runtime code
-// (default values, validators, hooks and policies) and stitches it
+// (default values and validators) and stitches it
 // to their package variables.
 func init() {
 	friendshipFields := schema.Friendship{}.Fields()
@@ -28,7 +28,7 @@ func init() {
 	// friendshipDescCreatedAt is the schema descriptor for created_at field.
 	friendshipDescCreatedAt := friendshipFields[1].Descriptor()
 	// friendship.DefaultCreatedAt holds the default value on creation for the created_at field.
-	friendship.DefaultCreatedAt = friendshipDescCreatedAt.Default.(func() time.Time)
+	friendship.DefaultCreatedAt = friendshipDescCreatedAt.Default.(func() time2.Time)
 	groupFields := schema.Group{}.Fields()
 	_ = groupFields
 	// groupDescName is the schema descriptor for name field.

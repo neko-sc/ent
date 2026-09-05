@@ -11,6 +11,7 @@ import (
 
 	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/intsid"
 	"github.com/neko-sc/ent/entc/integration/customid/sid"
 )
@@ -24,7 +25,6 @@ type IntSID struct {
 	// The values are being populated by the IntSIDQuery when eager-loading is set.
 	Edges          IntSIDEdges `json:"edges"`
 	int_sid_parent *sid.ID
-	selectValues   sql.SelectValues
 }
 
 // IntSIDEdges holds the relations/edges for other nodes in the graph.
@@ -36,6 +36,34 @@ type IntSIDEdges struct {
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes [2]bool
+	counts      map[string]int
+}
+
+func (e IntSIDEdges) Loaded[N, K any](edge ent.RelationOf[entity.IntSID, N, K]) bool {
+	switch edge.Ref().Name {
+	case "parent":
+		return e.loadedTypes[0]
+	case "children":
+		return e.loadedTypes[1]
+
+	default:
+		return false
+	}
+}
+
+func (e *IntSIDEdges) SetLoaded[N, K any](edge ent.RelationOf[entity.IntSID, N, K], loaded bool) {
+	switch edge.Ref().Name {
+	case "parent":
+		e.loadedTypes[0] = loaded
+	case "children":
+		e.loadedTypes[1] = loaded
+
+	}
+}
+
+func (e IntSIDEdges) Count[N, K any](edge ent.Relation[entity.IntSID, N, K]) (int, bool) {
+	count, loaded := e.counts[edge.Ref().Name]
+	return count, loaded
 }
 
 // ParentOrErr returns the Parent value or an error if the edge
@@ -95,17 +123,9 @@ func (_m *IntSID) assignValues(columns []string, values []any) error {
 				_m.int_sid_parent = new(sid.ID)
 				*_m.int_sid_parent = *value.S.(*sid.ID)
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the IntSID.
-// This includes values selected through modifiers, order, etc.
-func (_m *IntSID) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // QueryParent queries the "parent" edge of the IntSID entity.

@@ -6,7 +6,8 @@
 package item
 
 import (
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/entc/integration/ent/entity"
 )
 
 const (
@@ -19,6 +20,40 @@ const (
 	// Table holds the table name of the item in the database.
 	Table = "items"
 )
+
+var (
+	ID   = ent.StringColumn[entity.Item, string]{Table: Table, Name: FieldID}
+	Text = ent.StringColumn[entity.Item, string]{Table: Table, Name: FieldText}
+)
+
+// Alias returns the columns of the items table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.StringColumn[entity.Item, string]{Table: name, Name: FieldID},
+		Text:       ent.StringColumn[entity.Item, string]{Table: name, Name: FieldText},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.StringColumn[entity.Item, string]
+	Text       ent.StringColumn[entity.Item, string]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.Item]) ent.Predicate[entity.Item] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.Item]) ent.Predicate[entity.Item] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.Item]) ent.Predicate[entity.Item] { return ent.Not(predicate) }
 
 // Columns holds all SQL columns for item fields.
 var Columns = []string{
@@ -44,18 +79,5 @@ var (
 	// IDValidator is a validator for the "id" field. It is called by the builders before save.
 	IDValidator func(string) error
 )
-
-// OrderOption defines the ordering options for the Item queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByText orders the results by the text field.
-func ByText(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldText, opts...).ToFunc()
-}
 
 // comment from another template.

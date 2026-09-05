@@ -364,7 +364,7 @@ func TestAbortDuplicateFK(t *testing.T) {
 				{Name: "owner_id", Type: field.TypeInt, Semantic: builtinFieldType(field.TypeInt), Nillable: true, Optional: true},
 			},
 			Edges: []*load.Edge{
-				{Name: "owner", Type: "User", RefName: "pets", Inverse: true, Unique: true},
+				{Name: "owner", Type: "User", RefName: "pets", Inverse: true, Unique: true, Field: "owner_id"},
 			},
 		}
 		car = &load.Schema{
@@ -373,7 +373,7 @@ func TestAbortDuplicateFK(t *testing.T) {
 				{Name: "owner_id", Type: field.TypeInt, Semantic: builtinFieldType(field.TypeInt), Nillable: true, Optional: true},
 			},
 			Edges: []*load.Edge{
-				{Name: "owner", Type: "User", RefName: "cars", Inverse: true, Unique: true},
+				{Name: "owner", Type: "User", RefName: "cars", Inverse: true, Unique: true, Field: "owner_id"},
 			},
 		}
 	)
@@ -503,7 +503,7 @@ func TestEnsureCorrectFK(t *testing.T) {
 				{Name: "owner_id", Type: field.TypeInt, Semantic: builtinFieldType(field.TypeInt), Nillable: true, Optional: true},
 			},
 			Edges: []*load.Edge{
-				{Name: "owner", Type: "User", RefName: "pets", Inverse: true, Unique: true},
+				{Name: "owner", Type: "User", RefName: "pets", Inverse: true, Unique: true, Field: "owner_id"},
 			},
 		}
 	)
@@ -514,6 +514,60 @@ func TestEnsureCorrectFK(t *testing.T) {
 	pet.Edges[0].Field = "owner_id"
 	_, err = NewGraph(&Config{Package: "entc/gen", Storage: drivers[0]}, user, pet)
 	require.NoError(t, err)
+}
+
+func TestGraph_DescriptorNameCollisions(t *testing.T) {
+	storage, err := NewStorage("sql")
+	require.NoError(t, err)
+	for _, name := range []string{"label", "table", "columns", "foreign_keys", "valid_column", "order_option", "alias", "entity", "field_id"} {
+		t.Run(name, func(t *testing.T) {
+			_, err := NewGraph(&Config{Storage: storage}, &load.Schema{Name: "User", Fields: []*load.Field{{Name: name, Type: field.TypeString, Semantic: builtinFieldType(field.TypeString)}}})
+			require.ErrorContains(t, err, "conflicts with generated descriptor name")
+		})
+	}
+	_, err = NewGraph(&Config{Storage: storage}, &load.Schema{Name: "Entity"})
+	require.ErrorContains(t, err, "entity marker package")
+	_, err = NewGraph(&Config{Storage: storage}, &load.Schema{Name: "User", Fields: []*load.Field{{Name: "pet_name", Type: field.TypeString, Semantic: builtinFieldType(field.TypeString)}}, Edges: []*load.Edge{{Name: "petName", Type: "User"}}})
+	require.ErrorContains(t, err, "conflicts with write slot")
+}
+
+func TestGraph_SemanticImportNamespaces(t *testing.T) {
+	first, err := load.FieldTypeOf(field.TypeInt8, namedType("example.com/one/notification", "notification", "Status"))
+	require.NoError(t, err)
+	second, err := load.FieldTypeOf(field.TypeInt8, namedType("example.com/two/notification", "notification", "Status"))
+	require.NoError(t, err)
+	category, err := load.FieldTypeOf(field.TypeJSON, namedType("example.com/schema_types/sub", "subtypes", "Properties"))
+	require.NoError(t, err)
+	graph, err := NewGraph(&Config{
+		Schema:  "example.com/schema",
+		Package: "example.com/ent",
+		Storage: drivers[0],
+	}, &load.Schema{Name: "Notification"}, &load.Schema{
+		Name: "Delivery",
+		Fields: []*load.Field{
+			{Name: "status", Type: field.TypeInt8, Semantic: first, Default: true, Position: &load.Position{Index: 0}},
+			{Name: "properties", Type: field.TypeJSON, Semantic: category, Default: true, Position: &load.Position{Index: 1}},
+		},
+		Edges: []*load.Edge{{Name: "notification", Type: "Notification", Unique: true}},
+	}, &load.Schema{
+		Name: "Report",
+		Fields: []*load.Field{
+			{Name: "status", Type: field.TypeInt8, Semantic: second, Default: true, Position: &load.Position{Index: 0}},
+		},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "notification2.Status", graph.Nodes[1].Fields[0].GoType())
+	require.Equal(t, "notification3.Status", graph.Nodes[2].Fields[0].GoType())
+	require.Equal(t, graph.Nodes[1].SemanticImports(), graph.Nodes[2].SemanticImports())
+	require.Equal(t, graph.Nodes[1].SemanticImports(), graph.RuntimeSemanticImports())
+	require.Contains(t, graph.RuntimeSemanticImports(), Import{Alias: "subtypes", Path: "example.com/schema_types/sub"})
+	templates, _ := graph.templates()
+	var output bytes.Buffer
+	require.NoError(t, templates.ExecuteTemplate(&output, "runtime/ent", graph))
+	require.Contains(t, output.String(), `notification2 "example.com/one/notification"`)
+	require.Contains(t, output.String(), `notification3 "example.com/two/notification"`)
+	require.Contains(t, output.String(), "deliveryDescStatus.Default.(notification2.Status)")
+	require.Contains(t, output.String(), "reportDescStatus.Default.(notification3.Status)")
 }
 
 func TestGraph_GenSemanticFields(t *testing.T) {
@@ -531,7 +585,6 @@ func TestGraph_GenSemanticFields(t *testing.T) {
 		IDType:  new(field.TypeInt),
 	}, spec.Schemas...)
 	require.NoError(err)
-	graph.Features = []Feature{FeatureEntQL}
 	require.NoError(graph.Gen())
 
 	model, err := os.ReadFile(filepath.Join(target, "user.go"))
@@ -540,18 +593,15 @@ func TestGraph_GenSemanticFields(t *testing.T) {
 	require.Contains(string(model), "Restrictions []schema_types.RestrictionType")
 	require.Contains(string(model), "_m.CreatedAt.Format(time.ANSIC)")
 	require.Contains(string(model), `fmt.Sprintf("%v", _m.FormattedAt)`)
-	mutation, err := os.ReadFile(filepath.Join(target, "user", "mutation.go"))
+	mutation, err := os.ReadFile(filepath.Join(target, "user_mutation.go"))
 	require.NoError(err)
 	require.Contains(string(mutation), "\"github.com/google/uuid\"")
-	require.Contains(string(mutation), "map[uuid.UUID]struct{}")
-	require.Contains(string(mutation), "func (m *Mutation) SetStatus(s semantic.Status)")
-	require.Contains(string(mutation), "func (m *Mutation) AddBigInt(")
-	require.Contains(string(mutation), " semantic.BigInt)")
-	require.Contains(string(mutation), "m.addbig_int = m.addbig_int.Add(")
-	require.Contains(string(mutation), "func (m *Mutation) AddDuration(")
-	require.Contains(string(mutation), " time2.Duration)")
-	require.Contains(string(mutation), "func (m *Mutation) AppendRaw(")
-	require.Contains(string(mutation), " json.RawMessage)")
+	require.Contains(string(mutation), "ent.RelationPatch[uuid.UUID]")
+	require.Contains(string(mutation), "ent.Option[semantic.Status]")
+	require.Contains(string(mutation), "ent.Option[semantic.BigInt]")
+	require.Contains(string(mutation), "current.Add(delta)")
+	require.Contains(string(mutation), "ent.Option[time2.Duration]")
+	require.Regexp(`RawAppend\s+json.RawMessage`, string(mutation))
 	runtime, err := os.ReadFile(filepath.Join(target, "runtime.go"))
 	require.NoError(err)
 	require.Contains(string(runtime), "\"github.com/google/uuid\"")
@@ -571,58 +621,56 @@ func TestGraph_GenSemanticFields(t *testing.T) {
 	require.Contains(string(runtime), "user.UpdateDefaultStatus = userDescStatus.UpdateDefault.(func() semantic.Status)")
 	require.NotContains(string(runtime), "user.DefaultState =")
 	require.Contains(string(runtime), "userPhaseDefault := userDescPhase.Default.(func() string)")
-	require.Contains(string(runtime), "user.DefaultPhase = func() user.Phase { return user.Phase(userPhaseDefault()) }")
+	require.Contains(string(runtime), "user.DefaultPhase = func() user.PhaseValue { return user.PhaseValue(userPhaseDefault()) }")
 	require.Contains(string(runtime), "userPhaseUpdateDefault := userDescPhase.UpdateDefault.(func() string)")
-	require.Contains(string(runtime), "user.UpdateDefaultPhase = func() user.Phase { return user.Phase(userPhaseUpdateDefault()) }")
+	require.Contains(string(runtime), "user.UpdateDefaultPhase = func() user.PhaseValue { return user.PhaseValue(userPhaseUpdateDefault()) }")
 	meta, err := os.ReadFile(filepath.Join(target, "user", "user.go"))
 	require.NoError(err)
 	require.Contains(string(meta), "StatusValidator func(semantic.Status) error")
 	require.NotContains(string(meta), "type Status string")
 	require.Contains(string(meta), "const DefaultState semantic.Status = \"ready\"")
 	require.Contains(string(meta), "func StateValuesValidator(s semantic.Status) error")
-	require.Contains(string(meta), "type Phase string")
-	require.Contains(string(meta), "DefaultPhase func() Phase")
-	require.Contains(string(meta), "UpdateDefaultPhase func() Phase")
+	require.Contains(string(meta), "type PhaseValue string")
+	require.Contains(string(meta), "DefaultPhase func() PhaseValue")
+	require.Contains(string(meta), "UpdateDefaultPhase func() PhaseValue")
 	require.NotContains(string(meta), "const DefaultPhase")
-	require.Regexp(`PhaseActive\s+Phase = "active"`, string(meta))
-	require.Contains(string(meta), "func ByLink(opts ...sql.OrderTermOption) OrderOption")
-	require.NotContains(string(meta), "func ByRaw(opts ...sql.OrderTermOption) OrderOption")
-	require.NotContains(string(meta), "func ByDocument(opts ...sql.OrderTermOption) OrderOption")
-	where, err := os.ReadFile(filepath.Join(target, "user", "where.go"))
-	require.NoError(err)
-	require.Contains(string(where), "func LinkContains(v semantic.Link)")
-	require.Contains(string(where), "vc := v.String()")
-	require.NotContains(string(where), "vc := v\n")
-	require.NotContains(string(where), "make([]any, len(ids))")
-	require.Contains(string(where), "func StatusEQ(v semantic.Status)")
+	require.Regexp(`PhaseActive\s+PhaseValue = "active"`, string(meta))
+	require.Contains(string(meta), "ent.StringColumn[entity.User, semantic.Link]")
+	require.Contains(string(meta), "ent.JSONColumn[entity.User, json.RawMessage]")
+	require.Contains(string(meta), "return ValueScanner.Status.Value(value)")
+	require.FileExists(filepath.Join(target, "entity", "entity.go"))
 	decode, err := os.ReadFile(filepath.Join(target, "user.go"))
 	require.NoError(err)
 	require.Contains(string(decode), "&sql.NullScanner{S: new(semantic.Link)}")
 	require.Contains(string(decode), "value.Valid")
 	create, err := os.ReadFile(filepath.Join(target, "user_create.go"))
 	require.NoError(err)
-	require.Contains(string(create), "func (_c *UserCreate) check() error")
+	require.Contains(string(create), "func (b *UserCreate) check() error")
 	require.Contains(string(create), "user.EncodedValidator(v)")
 	require.NotContains(string(create), "user.EncodedValidator([]byte(v))")
 	require.Contains(string(create), "v.Validate()")
 	require.Contains(string(create), "user.StateValuesValidator(v)")
 	require.Contains(string(create), "user.StateValidator(v)")
+	require.Contains(string(create), "func (b *UserCreate) OnConflict(")
+	require.Contains(string(create), "func (b *UserCreateBulk) OnConflict(")
+	require.Contains(string(create), "return b.sqlSave(ctx)")
+	query, err := os.ReadFile(filepath.Join(target, "user_query.go"))
+	require.NoError(err)
+	require.Contains(string(query), "func (_q *UserQuery) ForUpdate(")
+	require.Contains(string(query), "func (_q *UserQuery) Modify(")
+	require.Contains(string(query), "return _q.sqlAll(ctx)")
+	require.Contains(string(query), "return _q.sqlCount(ctx)")
+	client, err := os.ReadFile(filepath.Join(target, "client.go"))
+	require.NoError(err)
+	require.Contains(string(client), "func (c *Client) Driver() dialect.Driver")
 	update, err := os.ReadFile(filepath.Join(target, "user_update.go"))
 	require.NoError(err)
-	require.Contains(string(update), "func (_u *UserUpdate) check() error")
+	require.Contains(string(update), "func (b *UserUpdate) check() error")
 	require.Contains(string(update), "user.EncodedValidator(v)")
 	require.NotContains(string(update), "user.EncodedValidator([]byte(v))")
 	require.Contains(string(update), "v.Validate()")
 	require.Contains(string(update), "user.StateValuesValidator(v)")
 	require.Contains(string(update), "user.StateValidator(v)")
-	entqlFile, err := os.ReadFile(filepath.Join(target, "entql.go"))
-	require.NoError(err)
-	require.Contains(string(entqlFile), "func (f *UserFilter) WhereBigInt(p entql.IntP)")
-	require.Contains(string(entqlFile), "f.Where(p.Field(user.FieldBigInt))")
-	require.Contains(string(entqlFile), "func (f *UserFilter) WhereLink(p entql.StringP)")
-	require.Contains(string(entqlFile), "f.Where(p.Field(user.FieldLink))")
-	require.Contains(string(entqlFile), "func (f *UserFilter) WhereRaw(p entql.BytesP)")
-	require.Contains(string(entqlFile), "f.Where(p.Field(user.FieldRaw))")
 
 	workingDirectory, err := os.Getwd()
 	require.NoError(err)
@@ -849,10 +897,10 @@ func TestGraph_ClientDependencies(t *testing.T) {
 		{
 			name: "aliases fixed qualifier collision",
 			dependencies: Dependencies{
-				{Field: "Predicate", Type: namedType("example.com/predicate", "predicate", "Predicate")},
+				{Field: "Predicate", Type: namedType("example.com/entity", "entity", "Predicate")},
 			},
-			imports:  []Import{{Alias: "predicate2", Path: "example.com/predicate"}},
-			rendered: []string{"predicate2.Predicate"},
+			imports:  []Import{{Alias: "entity2", Path: "example.com/entity"}},
+			rendered: []string{"entity2.Predicate"},
 		},
 	}
 	for _, tt := range tests {

@@ -6,10 +6,12 @@
 package rental
 
 import (
-	"time"
+	time2 "time"
 
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/google/uuid"
+	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/edgefield/ent/entity"
 )
 
 const (
@@ -45,6 +47,50 @@ const (
 	CarColumn = "car_id"
 )
 
+var (
+	ID     = ent.OrderedColumn[entity.Rental, int]{Table: Table, Name: FieldID}
+	Date   = ent.OrderedColumn[entity.Rental, time2.Time]{Table: Table, Name: FieldDate}
+	UserID = ent.OrderedColumn[entity.Rental, int]{Table: Table, Name: FieldUserID}
+	CarID  = ent.OrderedColumn[entity.Rental, uuid.UUID]{Table: Table, Name: FieldCarID}
+	User   = ent.NewUniqueRelation[entity.Rental, entity.User, int](EdgeUser, newUserStep)
+	Car    = ent.NewUniqueRelation[entity.Rental, entity.Car, uuid.UUID](EdgeCar, newCarStep)
+)
+
+// Alias returns the columns of the rentals table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.Rental, int]{Table: name, Name: FieldID},
+		Date:       ent.OrderedColumn[entity.Rental, time2.Time]{Table: name, Name: FieldDate},
+		UserID:     ent.OrderedColumn[entity.Rental, int]{Table: name, Name: FieldUserID},
+		CarID:      ent.OrderedColumn[entity.Rental, uuid.UUID]{Table: name, Name: FieldCarID},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.Rental, int]
+	Date       ent.OrderedColumn[entity.Rental, time2.Time]
+	UserID     ent.OrderedColumn[entity.Rental, int]
+	CarID      ent.OrderedColumn[entity.Rental, uuid.UUID]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.Rental]) ent.Predicate[entity.Rental] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.Rental]) ent.Predicate[entity.Rental] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.Rental]) ent.Predicate[entity.Rental] {
+	return ent.Not(predicate)
+}
+
 // Columns holds all SQL columns for rental fields.
 var Columns = []string{
 	FieldID,
@@ -65,45 +111,9 @@ func ValidColumn(column string) bool {
 
 var (
 	// DefaultDate holds the default value on creation for the "date" field.
-	DefaultDate func() time.Time
+	DefaultDate func() time2.Time
 )
 
-// OrderOption defines the ordering options for the Rental queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByDate orders the results by the date field.
-func ByDate(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldDate, opts...).ToFunc()
-}
-
-// ByUserID orders the results by the user_id field.
-func ByUserID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldUserID, opts...).ToFunc()
-}
-
-// ByCarID orders the results by the car_id field.
-func ByCarID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldCarID, opts...).ToFunc()
-}
-
-// ByUserField orders the results by user field.
-func ByUserField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newUserStep(), sql.OrderByField(field, opts...))
-	}
-}
-
-// ByCarField orders the results by car field.
-func ByCarField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newCarStep(), sql.OrderByField(field, opts...))
-	}
-}
 func newUserStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),

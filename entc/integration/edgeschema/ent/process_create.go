@@ -10,86 +10,122 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/attachedfile"
+	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/file"
 	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/process"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// ProcessCreate is the builder for creating a Process entity.
 type ProcessCreate struct {
 	config
-	mutation *ProcessMutation
-	hooks    []Hook
+	mutation    *ProcessMutation
+	err         error
+	fromBuilder bool
+	present     map[string]struct{}
+
 	conflict []sql.ConflictOption
 }
 
-// AddFileIDs adds the "files" edge to the File entity by IDs.
-func (_c *ProcessCreate) AddFileIDs(ids ...int) *ProcessCreate {
-	_c.mutation.AddFileIDs(ids...)
-	return _c
-}
-
-// AddFiles adds the "files" edges to the File entity.
-func (_c *ProcessCreate) AddFiles(v ...*File) *ProcessCreate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+func (b *ProcessCreate) Set[T any](column ent.ColumnOf[entity.Process, T], value T) *ProcessCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.set(column.Ref().Name, value)
 	}
-	return _c.AddFileIDs(ids...)
-}
-
-// AddAttachedFileIDs adds the "attached_files" edge to the AttachedFile entity by IDs.
-func (_c *ProcessCreate) AddAttachedFileIDs(ids ...int) *ProcessCreate {
-	_c.mutation.AddAttachedFileIDs(ids...)
-	return _c
-}
-
-// AddAttachedFiles adds the "attached_files" edges to the AttachedFile entity.
-func (_c *ProcessCreate) AddAttachedFiles(v ...*AttachedFile) *ProcessCreate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+	if b.present == nil {
+		b.present = make(map[string]struct{})
 	}
-	return _c.AddAttachedFileIDs(ids...)
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+}
+func (b *ProcessCreate) SetOptional[T any](column ent.ColumnOf[entity.Process, T], value ent.Option[T]) *ProcessCreate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.insert.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *ProcessCreate) SetExpr[T any](column ent.ColumnOf[entity.Process, T], value ent.Expr[T]) *ProcessCreate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Process is not settable", column.Ref().Name)}
+		return b
+	}
+
+}
+func (b *ProcessCreate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Process, N, K], id K) *ProcessCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.setEdge(edge.Ref().Name, id)
+	}
+
+	switch edge.Ref().Name {
+
+	}
+
+	return b
+}
+func (b *ProcessCreate) AddIDs[N, K any](edge ent.Relation[entity.Process, N, K], ids ...K) *ProcessCreate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.insert.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *ProcessCreate) Mutation() *ProcessMutation { return b.mutation }
+
+func (b *ProcessCreate) Insert() *ProcessInsert { return b.mutation.insert }
+
+func (b *ProcessCreate) Save(ctx context.Context) (*Process, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Mutation returns the ProcessMutation object of the builder.
-func (_c *ProcessCreate) Mutation() *ProcessMutation {
-	return _c.mutation
-}
-
-// Save creates the Process in the database.
-func (_c *ProcessCreate) Save(ctx context.Context) (*Process, error) {
-	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
-}
-
-// SaveX calls Save and panics if Save returns an error.
-func (_c *ProcessCreate) SaveX(ctx context.Context) *Process {
-	v, err := _c.Save(ctx)
+func (b *ProcessCreate) SaveX(ctx context.Context) *Process {
+	node, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return node
 }
 
-// Exec executes the query.
-func (_c *ProcessCreate) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *ProcessCreate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *ProcessCreate) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *ProcessCreate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_c *ProcessCreate) check() error {
+func (b *ProcessCreate) defaults() error {
+
+	return nil
+}
+
+func (b *ProcessCreate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
 	return nil
 }
 
@@ -97,27 +133,32 @@ func (_c *ProcessCreate) sqlSave(ctx context.Context) (*Process, error) {
 	if err := _c.check(); err != nil {
 		return nil, err
 	}
-	_node, _spec := _c.createSpec()
-	if err := sqlgraph.CreateNode(ctx, _c.driver, _spec); err != nil {
+	node, spec, err := _c.createSpec()
+	if err != nil {
+		return nil, err
+	}
+	if err := sqlgraph.CreateNode(ctx, _c.driver, spec); err != nil {
 		if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
 		return nil, err
 	}
-	id := _spec.ID.Value.(int64)
-	_node.ID = int(id)
-	_c.mutation.id = &_node.ID
-	_c.mutation.done = true
-	return _node, nil
+	_c.mutation.id = &node.ID
+	return node, nil
 }
 
-func (_c *ProcessCreate) createSpec() (*Process, *sqlgraph.CreateSpec) {
-	var (
-		_node = &Process{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(process.Table, sqlgraph.NewFieldSpec(process.FieldID, field.TypeInt))
-	)
+func (_c *ProcessCreate) createSpec() (*Process, *sqlgraph.CreateSpec, error) {
+	_node := &Process{config: _c.config}
+	_spec := sqlgraph.NewCreateSpec(process.Table, sqlgraph.NewFieldSpec(process.FieldID, field.TypeInt))
+
 	_spec.OnConflict = _c.conflict
-	if nodes := _c.mutation.FilesIDs(); len(nodes) > 0 {
+
+	_spec.Expressions = _c.mutation.insert.expressions
+
+	if nodes := _c.mutation.insert.filesIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: false,
@@ -128,16 +169,27 @@ func (_c *ProcessCreate) createSpec() (*Process, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(file.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		createE := &AttachedFileCreate{config: _c.config, mutation: newAttachedFileMutation(_c.config, OpCreate)}
-		createE.defaults()
-		_, specE := createE.createSpec()
+		if err := createE.defaults(); err != nil {
+			return nil, nil, err
+		}
+		_, specE, err := createE.createSpec()
+		if err != nil {
+			return nil, nil, err
+		}
 		edge.Target.Fields = specE.Fields
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	if nodes := _c.mutation.AttachedFilesIDs(); len(nodes) > 0 {
+
+	if nodes := _c.mutation.insert.attachedfilesIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: true,
@@ -148,122 +200,142 @@ func (_c *ProcessCreate) createSpec() (*Process, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(attachedfile.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	return _node, _spec
+
+	_spec.Returning = &sqlgraph.Returning{Columns: process.Columns, Scan: func(rows dialect.Rows) error {
+		values, err := _node.scanValues(process.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(process.Columns, values); err != nil {
+			return err
+		}
+
+		_spec.ID.Value = _node.ID
+
+		return nil
+	}}
+	return _node, _spec, nil
 }
 
-// OnConflict allows configuring the `ON CONFLICT` clause of the `INSERT`
-// statement. For example:
-//
-//	client.Process.Create().
-//		OnConflict(
-//			// Update the row with the new values
-//			// the was proposed for insertion.
-//			sql.ResolveWithNewValues(),
-//		).
-//		Exec(ctx)
-func (_c *ProcessCreate) OnConflict(opts ...sql.ConflictOption) *ProcessUpsertOne {
-	_c.conflict = opts
-	return &ProcessUpsertOne{
-		create: _c,
+type ProcessUpsertOne struct{ create *ProcessCreate }
+
+func (b *ProcessCreate) OnConflict(columns ...ent.EntityColumn[entity.Process]) *ProcessUpsertOne {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
 	}
-}
-
-// OnConflictColumns calls `OnConflict` and configures the columns
-// as conflict target. Using this option is equivalent to using:
-//
-//	client.Process.Create().
-//		OnConflict(sql.ConflictColumns(columns...)).
-//		Exec(ctx)
-func (_c *ProcessCreate) OnConflictColumns(columns ...string) *ProcessUpsertOne {
-	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
-	return &ProcessUpsertOne{
-		create: _c,
+	if len(names) == 0 {
+		return b.OnConflictOptions()
 	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
 }
 
-type (
-	// ProcessUpsertOne is the builder for "upsert"-ing
-	//  one Process node.
-	ProcessUpsertOne struct {
-		create *ProcessCreate
-	}
-
-	// ProcessUpsert is the "OnConflict" setter.
-	ProcessUpsert struct {
-		*sql.UpdateSet
-	}
-)
-
-// UpdateNewValues updates the mutable fields using the new values that were set on create.
-// Using this option is equivalent to using:
-//
-//	client.Process.Create().
-//		OnConflict(
-//			sql.ResolveWithNewValues(),
-//		).
-//		Exec(ctx)
-func (u *ProcessUpsertOne) UpdateNewValues() *ProcessUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
-	return u
+func (b *ProcessCreate) OnConflictConstraint(name string) *ProcessUpsertOne {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
 }
 
-// Ignore sets each column to itself in case of conflict.
-// Using this option is equivalent to using:
-//
-//	client.Process.Create().
-//	    OnConflict(sql.ResolveWithIgnore()).
-//	    Exec(ctx)
-func (u *ProcessUpsertOne) Ignore() *ProcessUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
-	return u
+func (b *ProcessCreate) OnConflictOptions(options ...sql.ConflictOption) *ProcessUpsertOne {
+	b.conflict = options
+	return &ProcessUpsertOne{create: b}
 }
 
-// DoNothing configures the conflict_action to `DO NOTHING`.
-// Supported only by SQLite and PostgreSQL.
 func (u *ProcessUpsertOne) DoNothing() *ProcessUpsertOne {
 	u.create.conflict = append(u.create.conflict, sql.DoNothing())
 	return u
 }
 
-// Update allows overriding fields `UPDATE` values. See the ProcessCreate.OnConflict
-// documentation for more info.
-func (u *ProcessUpsertOne) Update(set func(*ProcessUpsert)) *ProcessUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
-		set(&ProcessUpsert{UpdateSet: update})
+func (u *ProcessUpsertOne) DoSelect() *ProcessUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *ProcessUpsertOne) Ignore() *ProcessUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *ProcessUpsertOne) DoUpdate(set func(*ProcessUpsert)) *ProcessUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&ProcessUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *ProcessUpsertOne) UpdateNewValues() *ProcessUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case process.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
 	}))
 	return u
 }
 
-// Exec executes the query.
-func (u *ProcessUpsertOne) Exec(ctx context.Context) error {
-	if len(u.create.conflict) == 0 {
-		return errors.New("ent: missing options for ProcessCreate.OnConflict")
-	}
-	return u.create.Exec(ctx)
+func (u *ProcessUpsertOne) Where(predicates ...ent.Predicate[entity.Process]) *ProcessUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(process.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// ExecX is like Exec, but panics if an error occurs.
+func (u *ProcessUpsertOne) UpdateWhere(predicates ...ent.Predicate[entity.Process]) *ProcessUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(process.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *ProcessUpsertOne) Save(ctx context.Context) (*Process, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for ProcessCreate.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *ProcessUpsertOne) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
 func (u *ProcessUpsertOne) ExecX(ctx context.Context) {
-	if err := u.create.Exec(ctx); err != nil {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// Exec executes the UPSERT query and returns the inserted/updated ID.
 func (u *ProcessUpsertOne) ID(ctx context.Context) (id int, err error) {
-	node, err := u.create.Save(ctx)
+	node, err := u.Save(ctx)
 	if err != nil {
 		return id, err
 	}
 	return node.ID, nil
 }
 
-// IDX is like ID, but panics if an error occurs.
 func (u *ProcessUpsertOne) IDX(ctx context.Context) int {
 	id, err := u.ID(ctx)
 	if err != nil {
@@ -272,190 +344,220 @@ func (u *ProcessUpsertOne) IDX(ctx context.Context) int {
 	return id
 }
 
-// ProcessCreateBulk is the builder for creating many Process entities in bulk.
+type ProcessUpsert struct{ *sql.UpdateSet }
+
+func (u *ProcessUpsert) Set[T any](column ent.ColumnOf[entity.Process, T], value T) *ProcessUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Process is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *ProcessUpsert) SetExpr[T any](column ent.ColumnOf[entity.Process, T], value ent.Expr[T]) *ProcessUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Process is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *ProcessUpsert) UpdateNewValue[T any](column ent.ColumnOf[entity.Process, T]) *ProcessUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Process is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *ProcessUpsert) Add[T ent.Number](column ent.ColumnOf[entity.Process, T], delta T) *ProcessUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Process does not support addition", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *ProcessUpsert) Clear[T any](column ent.ColumnOf[entity.Process, T]) *ProcessUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Process is not nullable", column.Ref().Name)})
+	}
+	return u
+}
+
 type ProcessCreateBulk struct {
 	config
 	err      error
 	builders []*ProcessCreate
+
 	conflict []sql.ConflictOption
 }
 
-// Save creates the Process entities in the database.
 func (_c *ProcessCreateBulk) Save(ctx context.Context) ([]*Process, error) {
 	if _c.err != nil {
 		return nil, _c.err
 	}
-	specs := make([]*sqlgraph.CreateSpec, len(_c.builders))
 	nodes := make([]*Process, len(_c.builders))
-	mutators := make([]Mutator, len(_c.builders))
-	for i := range _c.builders {
-		func(i int, root context.Context) {
-			builder := _c.builders[i]
-			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*ProcessMutation)
-				if !ok {
-					return nil, fmt.Errorf("unexpected mutation type %T", m)
-				}
-				if err := builder.check(); err != nil {
-					return nil, err
-				}
-				builder.mutation = mutation
-				var err error
-				nodes[i], specs[i] = builder.createSpec()
-				if i < len(mutators)-1 {
-					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
-				} else {
-					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
-					spec.OnConflict = _c.conflict
-					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
-						if sqlgraph.IsConstraintError(err) {
-							err = &ConstraintError{msg: err.Error(), wrap: err}
-						}
-					}
-				}
-				if err != nil {
-					return nil, err
-				}
-				mutation.id = &nodes[i].ID
-				if specs[i].ID.Value != nil {
-					id := specs[i].ID.Value.(int64)
-					nodes[i].ID = int(id)
-				}
-				mutation.done = true
-				return nodes[i], nil
-			})
-			for i := len(builder.hooks) - 1; i >= 0; i-- {
-				mut = builder.hooks[i](mut)
-			}
-			mutators[i] = mut
-		}(i, ctx)
-	}
-	if len(mutators) > 0 {
-		if _, err := mutators[0].Mutate(ctx, _c.builders[0].mutation); err != nil {
+	specs := make([]*sqlgraph.CreateSpec, len(nodes))
+	for index, builder := range _c.builders {
+		if builder.err != nil {
+			return nil, builder.err
+		}
+		if err := builder.defaults(); err != nil {
+			return nil, err
+		}
+		if err := builder.check(); err != nil {
+			return nil, err
+		}
+		var err error
+		nodes[index], specs[index], err = builder.createSpec()
+		if err != nil {
 			return nil, err
 		}
 	}
-	return nodes, nil
+	if len(specs) == 0 {
+		return nodes, nil
+	}
+	spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+
+	spec.OnConflict = _c.conflict
+
+	if err := sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
+		if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{msg: err.Error(), wrap: err}
+		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
+		return nil, err
+	}
+	result := nodes[:0]
+	for index, builder := range _c.builders {
+		if specs[index].Skipped {
+			continue
+		}
+		builder.mutation.id = &nodes[index].ID
+		result = append(result, nodes[index])
+	}
+	return result, nil
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_c *ProcessCreateBulk) SaveX(ctx context.Context) []*Process {
-	v, err := _c.Save(ctx)
+func (b *ProcessCreateBulk) SaveX(ctx context.Context) []*Process {
+	nodes, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return nodes
 }
 
-// Exec executes the query.
-func (_c *ProcessCreateBulk) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *ProcessCreateBulk) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *ProcessCreateBulk) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *ProcessCreateBulk) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// OnConflict allows configuring the `ON CONFLICT` clause of the `INSERT`
-// statement. For example:
-//
-//	client.Process.CreateBulk(builders...).
-//		OnConflict(
-//			// Update the row with the new values
-//			// the was proposed for insertion.
-//			sql.ResolveWithNewValues(),
-//		).
-//		Exec(ctx)
-func (_c *ProcessCreateBulk) OnConflict(opts ...sql.ConflictOption) *ProcessUpsertBulk {
-	_c.conflict = opts
-	return &ProcessUpsertBulk{
-		create: _c,
+type ProcessUpsertBulk struct{ create *ProcessCreateBulk }
+
+func (b *ProcessCreateBulk) OnConflict(columns ...ent.EntityColumn[entity.Process]) *ProcessUpsertBulk {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
 	}
-}
-
-// OnConflictColumns calls `OnConflict` and configures the columns
-// as conflict target. Using this option is equivalent to using:
-//
-//	client.Process.Create().
-//		OnConflict(sql.ConflictColumns(columns...)).
-//		Exec(ctx)
-func (_c *ProcessCreateBulk) OnConflictColumns(columns ...string) *ProcessUpsertBulk {
-	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
-	return &ProcessUpsertBulk{
-		create: _c,
+	if len(names) == 0 {
+		return b.OnConflictOptions()
 	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
 }
 
-// ProcessUpsertBulk is the builder for "upsert"-ing
-// a bulk of Process nodes.
-type ProcessUpsertBulk struct {
-	create *ProcessCreateBulk
+func (b *ProcessCreateBulk) OnConflictConstraint(name string) *ProcessUpsertBulk {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
 }
 
-// UpdateNewValues updates the mutable fields using the new values that
-// were set on create. Using this option is equivalent to using:
-//
-//	client.Process.Create().
-//		OnConflict(
-//			sql.ResolveWithNewValues(),
-//		).
-//		Exec(ctx)
-func (u *ProcessUpsertBulk) UpdateNewValues() *ProcessUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
-	return u
+func (b *ProcessCreateBulk) OnConflictOptions(options ...sql.ConflictOption) *ProcessUpsertBulk {
+	b.conflict = options
+	return &ProcessUpsertBulk{create: b}
 }
 
-// Ignore sets each column to itself in case of conflict.
-// Using this option is equivalent to using:
-//
-//	client.Process.Create().
-//		OnConflict(sql.ResolveWithIgnore()).
-//		Exec(ctx)
-func (u *ProcessUpsertBulk) Ignore() *ProcessUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
-	return u
-}
-
-// DoNothing configures the conflict_action to `DO NOTHING`.
-// Supported only by SQLite and PostgreSQL.
 func (u *ProcessUpsertBulk) DoNothing() *ProcessUpsertBulk {
 	u.create.conflict = append(u.create.conflict, sql.DoNothing())
 	return u
 }
 
-// Update allows overriding fields `UPDATE` values. See the ProcessCreateBulk.OnConflict
-// documentation for more info.
-func (u *ProcessUpsertBulk) Update(set func(*ProcessUpsert)) *ProcessUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
-		set(&ProcessUpsert{UpdateSet: update})
+func (u *ProcessUpsertBulk) DoSelect() *ProcessUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *ProcessUpsertBulk) Ignore() *ProcessUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *ProcessUpsertBulk) DoUpdate(set func(*ProcessUpsert)) *ProcessUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&ProcessUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *ProcessUpsertBulk) UpdateNewValues() *ProcessUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case process.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
 	}))
 	return u
 }
 
-// Exec executes the query.
-func (u *ProcessUpsertBulk) Exec(ctx context.Context) error {
-	if u.create.err != nil {
-		return u.create.err
-	}
-	for i, b := range u.create.builders {
-		if len(b.conflict) != 0 {
-			return fmt.Errorf("ent: OnConflict was set for builder %d. Set it on the ProcessCreateBulk instead", i)
+func (u *ProcessUpsertBulk) Where(predicates ...ent.Predicate[entity.Process]) *ProcessUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(process.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
 		}
-	}
-	if len(u.create.conflict) == 0 {
-		return errors.New("ent: missing options for ProcessCreateBulk.OnConflict")
-	}
-	return u.create.Exec(ctx)
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// ExecX is like Exec, but panics if an error occurs.
+func (u *ProcessUpsertBulk) UpdateWhere(predicates ...ent.Predicate[entity.Process]) *ProcessUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(process.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *ProcessUpsertBulk) Save(ctx context.Context) ([]*Process, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for ProcessCreateBulk.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *ProcessUpsertBulk) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
 func (u *ProcessUpsertBulk) ExecX(ctx context.Context) {
-	if err := u.create.Exec(ctx); err != nil {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

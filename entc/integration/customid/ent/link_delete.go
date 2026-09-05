@@ -8,29 +8,56 @@ package ent
 import (
 	"context"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/link"
-	"github.com/neko-sc/ent/entc/integration/customid/ent/predicate"
 	"github.com/neko-sc/ent/schema/field"
 )
 
 // LinkDelete is the builder for deleting a Link entity.
 type LinkDelete struct {
 	config
-	hooks    []Hook
-	mutation *LinkMutation
+
+	mutation  *LinkMutation
+	returning *sqlgraph.Returning
 }
 
 // Where appends a list predicates to the LinkDelete builder.
-func (_d *LinkDelete) Where(ps ...predicate.Link) *LinkDelete {
-	_d.mutation.Where(ps...)
+func (_d *LinkDelete) Where(predicates ...ent.Predicate[entity.Link]) *LinkDelete {
+	_d.mutation.Where(predicates...)
 	return _d
 }
 
 // Exec executes the deletion query and returns how many vertices were deleted.
 func (_d *LinkDelete) Exec(ctx context.Context) (int, error) {
-	return withHooks(ctx, _d.sqlExec, _d.mutation, _d.hooks)
+	return _d.sqlExec(ctx)
+}
+
+func (b *LinkDelete) Returning(ctx context.Context) ([]*Link, error) {
+	nodes := make([]*Link, 0)
+	b.returning = &sqlgraph.Returning{Columns: link.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Link{config: b.config}
+		values, err := _node.scanValues(link.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(link.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Exec(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
 }
 
 // ExecX is like Exec, but panics if an error occurs.
@@ -51,11 +78,11 @@ func (_d *LinkDelete) sqlExec(ctx context.Context) (int, error) {
 			}
 		}
 	}
+	_spec.Returning = _d.returning
 	affected, err := sqlgraph.DeleteNodes(ctx, _d.driver, _spec)
 	if err != nil && sqlgraph.IsConstraintError(err) {
 		err = &ConstraintError{msg: err.Error(), wrap: err}
 	}
-	_d.mutation.done = true
 	return affected, err
 }
 
@@ -65,8 +92,8 @@ type LinkDeleteOne struct {
 }
 
 // Where appends a list predicates to the LinkDelete builder.
-func (_d *LinkDeleteOne) Where(ps ...predicate.Link) *LinkDeleteOne {
-	_d._d.mutation.Where(ps...)
+func (_d *LinkDeleteOne) Where(predicates ...ent.Predicate[entity.Link]) *LinkDeleteOne {
+	_d._d.mutation.Where(predicates...)
 	return _d
 }
 

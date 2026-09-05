@@ -6,8 +6,9 @@
 package link
 
 import (
-	"github.com/neko-sc/ent/dialect/sql"
-	"github.com/neko-sc/ent/entc/integration/customid/ent/schema"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
+	schema2 "github.com/neko-sc/ent/entc/integration/customid/ent/schema"
 	uuidc "github.com/neko-sc/ent/entc/integration/customid/uuidcompatible"
 )
 
@@ -21,6 +22,40 @@ const (
 	// Table holds the table name of the link in the database.
 	Table = "links"
 )
+
+var (
+	ID              = ent.OrderedColumn[entity.Link, uuidc.UUIDC]{Table: Table, Name: FieldID}
+	LinkInformation = ent.JSONColumn[entity.Link, map[string]schema2.LinkInformation]{Table: Table, Name: FieldLinkInformation}
+)
+
+// Alias returns the columns of the links table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias:      name,
+		ID:              ent.OrderedColumn[entity.Link, uuidc.UUIDC]{Table: name, Name: FieldID},
+		LinkInformation: ent.JSONColumn[entity.Link, map[string]schema2.LinkInformation]{Table: name, Name: FieldLinkInformation},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias      string
+	ID              ent.OrderedColumn[entity.Link, uuidc.UUIDC]
+	LinkInformation ent.JSONColumn[entity.Link, map[string]schema2.LinkInformation]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.Link]) ent.Predicate[entity.Link] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.Link]) ent.Predicate[entity.Link] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.Link]) ent.Predicate[entity.Link] { return ent.Not(predicate) }
 
 // Columns holds all SQL columns for link fields.
 var Columns = []string{
@@ -40,15 +75,7 @@ func ValidColumn(column string) bool {
 
 var (
 	// DefaultLinkInformation holds the default value on creation for the "link_information" field.
-	DefaultLinkInformation map[string]schema.LinkInformation
+	DefaultLinkInformation map[string]schema2.LinkInformation
 	// DefaultID holds the default value on creation for the "id" field.
 	DefaultID func() uuidc.UUIDC
 )
-
-// OrderOption defines the ordering options for the Link queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}

@@ -6,7 +6,7 @@
 package ent
 
 import (
-	"time"
+	time2 "time"
 
 	"github.com/google/uuid"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/account"
@@ -21,6 +21,7 @@ import (
 	"github.com/neko-sc/ent/entc/integration/customid/ent/other"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/pet"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/schema"
+	schema2 "github.com/neko-sc/ent/entc/integration/customid/ent/schema"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/session"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/token"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/valuescan"
@@ -31,7 +32,7 @@ import (
 )
 
 // The init function reads all schema descriptors with runtime code
-// (default values, validators, hooks and policies) and stitches it
+// (default values and validators) and stitches it
 // to their package variables.
 func init() {
 	accountFields := schema.Account{}.Fields()
@@ -69,7 +70,7 @@ func init() {
 	// bloblinkDescCreatedAt is the schema descriptor for created_at field.
 	bloblinkDescCreatedAt := bloblinkFields[0].Descriptor()
 	// bloblink.DefaultCreatedAt holds the default value on creation for the created_at field.
-	bloblink.DefaultCreatedAt = bloblinkDescCreatedAt.Default.(func() time.Time)
+	bloblink.DefaultCreatedAt = bloblinkDescCreatedAt.Default.(func() time2.Time)
 	carMixin := schema.Car{}.Mixin()
 	carMixinFields0 := carMixin[0].Fields()
 	_ = carMixinFields0
@@ -110,9 +111,9 @@ func init() {
 	// deviceDescID is the schema descriptor for id field.
 	deviceDescID := deviceFields[0].Descriptor()
 	// device.DefaultID holds the default value on creation for the id field.
-	device.DefaultID = deviceDescID.Default.(func() schema.ID)
+	device.DefaultID = deviceDescID.Default.(func() schema2.ID)
 	// device.IDValidator is a validator for the "id" field. It is called by the builders before save.
-	device.IDValidator = func(value schema.ID) error {
+	device.IDValidator = func(value schema2.ID) error {
 		validators := deviceDescID.Validators
 		if err := validators[0].(func([]uint8) error)(value[:]); err != nil {
 			return err
@@ -124,9 +125,9 @@ func init() {
 	// docDescID is the schema descriptor for id field.
 	docDescID := docFields[0].Descriptor()
 	// doc.DefaultID holds the default value on creation for the id field.
-	doc.DefaultID = docDescID.Default.(func() schema.DocID)
+	doc.DefaultID = docDescID.Default.(func() schema2.DocID)
 	// doc.IDValidator is a validator for the "id" field. It is called by the builders before save.
-	doc.IDValidator = func(value schema.DocID) error {
+	doc.IDValidator = func(value schema2.DocID) error {
 		validators := docDescID.Validators
 		if err := validators[0].(func(string) error)(string(value)); err != nil {
 			return err
@@ -141,7 +142,7 @@ func init() {
 	// linkDescLinkInformation is the schema descriptor for link_information field.
 	linkDescLinkInformation := linkFields[1].Descriptor()
 	// link.DefaultLinkInformation holds the default value on creation for the link_information field.
-	link.DefaultLinkInformation = linkDescLinkInformation.Default.(map[string]schema.LinkInformation)
+	link.DefaultLinkInformation = linkDescLinkInformation.Default.(map[string]schema2.LinkInformation)
 	// linkDescID is the schema descriptor for id field.
 	linkDescID := linkFields[0].Descriptor()
 	// link.DefaultID holds the default value on creation for the id field.
@@ -160,9 +161,9 @@ func init() {
 	// noteDescID is the schema descriptor for id field.
 	noteDescID := noteFields[0].Descriptor()
 	// note.DefaultID holds the default value on creation for the id field.
-	note.DefaultID = noteDescID.Default.(func() schema.NoteID)
+	note.DefaultID = noteDescID.Default.(func() schema2.NoteID)
 	// note.IDValidator is a validator for the "id" field. It is called by the builders before save.
-	note.IDValidator = func(value schema.NoteID) error {
+	note.IDValidator = func(value schema2.NoteID) error {
 		validators := noteDescID.Validators
 		if err := validators[0].(func(string) error)(string(value)); err != nil {
 			return err
@@ -200,9 +201,9 @@ func init() {
 	// sessionDescID is the schema descriptor for id field.
 	sessionDescID := sessionFields[0].Descriptor()
 	// session.DefaultID holds the default value on creation for the id field.
-	session.DefaultID = sessionDescID.Default.(func() schema.ID)
+	session.DefaultID = sessionDescID.Default.(func() schema2.ID)
 	// session.IDValidator is a validator for the "id" field. It is called by the builders before save.
-	session.IDValidator = func(value schema.ID) error {
+	session.IDValidator = func(value schema2.ID) error {
 		validators := sessionDescID.Validators
 		if err := validators[0].(func([]uint8) error)(value[:]); err != nil {
 			return err
@@ -229,5 +230,5 @@ func init() {
 	_ = valuescanFields
 	// valuescanDescID is the schema descriptor for id field.
 	valuescanDescID := valuescanFields[0].Descriptor()
-	valuescan.ValueScanner.ID = valuescanDescID.ValueScanner.(field.TypeValueScanner[schema.ValueScanID])
+	valuescan.ValueScanner.ID = valuescanDescID.ValueScanner.(field.TypeValueScanner[schema2.ValueScanID])
 }

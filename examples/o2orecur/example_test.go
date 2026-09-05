@@ -36,7 +36,7 @@ func Example_o2oRecur() {
 func Do(ctx context.Context, client *ent.Client) error {
 	head, err := client.Node.
 		Create().
-		SetValue(1).
+		Set(node.Value, 1).
 		Save(ctx)
 	if err != nil {
 		return fmt.Errorf("creating the head: %w", err)
@@ -46,8 +46,8 @@ func Do(ctx context.Context, client *ent.Client) error {
 	for i := 0; i < 4; i++ {
 		curr, err = client.Node.
 			Create().
-			SetValue(curr.Value + 1).
-			SetPrev(curr).
+			Set(node.Value, curr.Value+1).
+			SetEdge(node.Prev, curr.ID).
 			Save(ctx)
 		if err != nil {
 			return err
@@ -64,12 +64,12 @@ func Do(ctx context.Context, client *ent.Client) error {
 	// The tail of the list, has no "next".
 	tail, err := client.Node.
 		Query().
-		Where(node.Not(node.HasNext())).
+		Where(node.Not(node.Next.Has())).
 		Only(ctx)
 	if err != nil {
 		return fmt.Errorf("getting the tail of the list: %v", tail)
 	}
-	tail, err = tail.Update().SetNext(head).Save(ctx)
+	tail, err = tail.Update().SetEdge(node.Next, head.ID).Save(ctx)
 	if err != nil {
 		return err
 	}

@@ -12,10 +12,10 @@ import (
 	"log"
 	"reflect"
 
-	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/examples/o2mrecur/ent/migrate"
 
 	"github.com/neko-sc/ent/dialect"
+	"github.com/neko-sc/ent/dialect/pg"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/examples/o2mrecur/ent/node"
@@ -31,7 +31,7 @@ type Client struct {
 }
 
 // NewClient creates a new client configured with the given options.
-func NewClient(opts ...Option) *Client {
+func NewClient(opts ...ClientOption) *Client {
 	client := &Client{config: newConfig(opts...)}
 	client.init()
 	return client
@@ -51,24 +51,20 @@ type (
 		debug bool
 		// log used for logging on debug mode.
 		log func(...any)
-		// hooks to execute on mutations.
-		hooks *hooks
-		// interceptors to execute on queries.
-		inters *inters
 	}
-	// Option function to configure the client.
-	Option func(*config)
+	// ClientOption function to configure the client.
+	ClientOption func(*config)
 )
 
 // newConfig creates a new config for the client.
-func newConfig(opts ...Option) config {
-	cfg := config{log: log.Println, hooks: &hooks{}, inters: &inters{}}
+func newConfig(opts ...ClientOption) config {
+	cfg := config{log: log.Println}
 	cfg.options(opts...)
 	return cfg
 }
 
 // options applies the options on the config object.
-func (c *config) options(opts ...Option) {
+func (c *config) options(opts ...ClientOption) {
 	for _, opt := range opts {
 		opt(c)
 	}
@@ -78,21 +74,21 @@ func (c *config) options(opts ...Option) {
 }
 
 // Debug enables debug logging on the ent.Driver.
-func Debug() Option {
+func Debug() ClientOption {
 	return func(c *config) {
 		c.debug = true
 	}
 }
 
 // Log sets the logging function for debug mode.
-func Log(fn func(...any)) Option {
+func Log(fn func(...any)) ClientOption {
 	return func(c *config) {
 		c.log = fn
 	}
 }
 
 // Driver configures the client driver.
-func Driver(driver dialect.Driver) Option {
+func Driver(driver dialect.Driver) ClientOption {
 	return func(c *config) {
 		c.driver = driver
 	}
@@ -100,11 +96,17 @@ func Driver(driver dialect.Driver) Option {
 
 // Open opens a database/sql.DB specified by the driver name and
 // the data source name, and returns a new client attached to it.
-// Optional parameters can be added for configuring the client.
-func Open(driverName, dataSourceName string, options ...Option) (*Client, error) {
+// ClientOptional parameters can be added for configuring the client.
+func Open(driverName, dataSourceName string, options ...ClientOption) (*Client, error) {
 	switch driverName {
 	case dialect.Postgres, dialect.SQLite:
-		drv, err := sql.Open(driverName, dataSourceName)
+		var drv dialect.Driver
+		var err error
+		if driverName == dialect.Postgres {
+			drv, err = pg.Open(context.Background(), dataSourceName)
+		} else {
+			drv, err = sql.Open(dialect.Dialect(driverName), dataSourceName)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -141,9 +143,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	if _, ok := c.driver.(*txDriver); ok {
 		return nil, errors.New("ent: cannot start a transaction within a transaction")
 	}
-	tx, err := c.driver.(interface {
-		BeginTx(context.Context, *sql.TxOptions) (dialect.Tx, error)
-	}).BeginTx(ctx, opts)
+	tx, err := c.driver.BeginTx(ctx, opts)
 	if err != nil {
 		return nil, fmt.Errorf("ent: starting a transaction: %w", err)
 	}
@@ -178,20 +178,8 @@ func (c *Client) Close() error {
 	return c.driver.Close()
 }
 
-// Use adds the mutation hooks to all the entity clients.
-// In order to add hooks to a specific client, call: `client.Node.Use(...)`.
-func (c *Client) Use(hooks ...Hook) {
-	c.Node.Use(hooks...)
-}
-
-// Intercept adds the query interceptors to all the entity clients.
-// In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
-func (c *Client) Intercept(interceptors ...Interceptor) {
-	c.Node.Intercept(interceptors...)
-}
-
-// Mutate implements the ent.Mutator interface.
-func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
+// Mutate executes the given mutation.
+func (c *Client) Mutate(ctx context.Context, m Mutation) (any, error) {
 	switch m := m.(type) {
 	case *NodeMutation:
 		return c.Node.mutate(ctx, m)
@@ -210,22 +198,24 @@ func NewNodeClient(c config) *NodeClient {
 	return &NodeClient{config: c}
 }
 
-// Use adds a list of mutation hooks to the hooks stack.
-// A call to `Use(f, g, h)` equals to `node.Hooks(f(g(h())))`.
-func (c *NodeClient) Use(hooks ...Hook) {
-	c.hooks.Node = append(c.hooks.Node, hooks...)
-}
-
-// Intercept adds a list of query interceptors to the interceptors stack.
-// A call to `Intercept(f, g, h)` equals to `node.Intercept(f(g(h())))`.
-func (c *NodeClient) Intercept(interceptors ...Interceptor) {
-	c.inters.Node = append(c.inters.Node, interceptors...)
-}
-
 // Create returns a builder for creating a Node entity.
 func (c *NodeClient) Create() *NodeCreate {
 	mutation := newNodeMutation(c.config, OpCreate)
-	return &NodeCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &NodeCreate{config: c.config, mutation: mutation, fromBuilder: true}
+}
+
+func (c *NodeClient) Insert(value NodeInsert) *NodeCreate {
+	mutation := newNodeMutation(c.config, OpCreate)
+	mutation.insert = &value
+	return &NodeCreate{config: c.config, mutation: mutation}
+}
+
+func (c *NodeClient) InsertBulk(values ...NodeInsert) *NodeCreateBulk {
+	builders := make([]*NodeCreate, len(values))
+	for index := range values {
+		builders[index] = c.Insert(values[index])
+	}
+	return c.CreateBulk(builders...)
 }
 
 // CreateBulk returns a builder for creating a bulk of Node entities.
@@ -251,25 +241,26 @@ func (c *NodeClient) MapCreateBulk(slice any, setFunc func(*NodeCreate, int)) *N
 // Update returns an update builder for Node.
 func (c *NodeClient) Update() *NodeUpdate {
 	mutation := newNodeMutation(c.config, OpUpdate)
-	return &NodeUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &NodeUpdate{config: c.config, mutation: mutation}
 }
 
 // UpdateOne returns an update builder for the given entity.
 func (c *NodeClient) UpdateOne(_m *Node) *NodeUpdateOne {
-	mutation := newNodeMutation(c.config, OpUpdateOne, withNode(_m))
-	return &NodeUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return c.UpdateOneID(_m.ID)
+
 }
 
 // UpdateOneID returns an update builder for the given id.
 func (c *NodeClient) UpdateOneID(id int) *NodeUpdateOne {
-	mutation := newNodeMutation(c.config, OpUpdateOne, withNodeID(id))
-	return &NodeUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	mutation := newNodeMutation(c.config, OpUpdateOne)
+	mutation.id = &id
+	return &NodeUpdateOne{config: c.config, mutation: mutation}
 }
 
 // Delete returns a delete builder for Node.
 func (c *NodeClient) Delete() *NodeDelete {
 	mutation := newNodeMutation(c.config, OpDelete)
-	return &NodeDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &NodeDelete{config: c.config, mutation: mutation}
 }
 
 // DeleteOne returns a builder for deleting the given entity.
@@ -279,9 +270,9 @@ func (c *NodeClient) DeleteOne(_m *Node) *NodeDeleteOne {
 
 // DeleteOneID returns a builder for deleting the given entity by its id.
 func (c *NodeClient) DeleteOneID(id int) *NodeDeleteOne {
-	builder := c.Delete().Where(node.ID(id))
+	builder := c.Delete().Where(node.ID.EQ(id))
 	builder.mutation.id = &id
-	builder.mutation.SetOp(OpDeleteOne)
+	builder.mutation.op = OpDeleteOne
 	return &NodeDeleteOne{builder}
 }
 
@@ -290,13 +281,12 @@ func (c *NodeClient) Query() *NodeQuery {
 	return &NodeQuery{
 		config: c.config,
 		ctx:    &QueryContext{Type: TypeNode},
-		inters: c.Interceptors(),
 	}
 }
 
 // Get returns a Node entity by its id.
 func (c *NodeClient) Get(ctx context.Context, id int) (*Node, error) {
-	return c.Query().Where(node.ID(id)).Only(ctx)
+	return c.Query().Where(node.ID.EQ(id)).Only(ctx)
 }
 
 // GetX is like Get, but panics if an error occurs.
@@ -340,37 +330,20 @@ func (c *NodeClient) QueryChildren(_m *Node) *NodeQuery {
 	return query
 }
 
-// Hooks returns the client hooks.
-func (c *NodeClient) Hooks() []Hook {
-	return c.hooks.Node
-}
-
-// Interceptors returns the client interceptors.
-func (c *NodeClient) Interceptors() []Interceptor {
-	return c.inters.Node
-}
-
-func (c *NodeClient) mutate(ctx context.Context, m *NodeMutation) (Value, error) {
+func (c *NodeClient) mutate(ctx context.Context, m *NodeMutation) (any, error) {
 	switch m.Op() {
 	case OpCreate:
-		return (&NodeCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&NodeCreate{config: c.config, mutation: m}).Save(ctx)
 	case OpUpdate:
-		return (&NodeUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&NodeUpdate{config: c.config, mutation: m}).Save(ctx)
 	case OpUpdateOne:
-		return (&NodeUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&NodeUpdateOne{config: c.config, mutation: m}).Save(ctx)
 	case OpDelete, OpDeleteOne:
-		return (&NodeDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+		return (&NodeDelete{config: c.config, mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown Node mutation op: %q", m.Op())
 	}
 }
 
-// hooks and interceptors per client, for fast access.
-type (
-	hooks struct {
-		Node []ent.Hook
-	}
-	inters struct {
-		Node []ent.Interceptor
-	}
-)
+// Driver returns the driver bound to this client or transaction.
+func (c *Client) Driver() dialect.Driver { return c.config.driver }

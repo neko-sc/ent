@@ -7,6 +7,7 @@ package ent
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 
@@ -14,8 +15,8 @@ import (
 	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/ent/exvaluescan"
-	"github.com/neko-sc/ent/entc/integration/ent/predicate"
 	"github.com/neko-sc/ent/schema/field"
 )
 
@@ -23,18 +24,88 @@ import (
 type ExValueScanQuery struct {
 	config
 	ctx        *QueryContext
-	order      []exvaluescan.OrderOption
-	inters     []Interceptor
-	predicates []predicate.ExValueScan
+	order      []ent.OrderOption[entity.ExValueScan]
+	joins      []func(*sql.Selector)
+	withCounts []ent.RelationRef
+
+	predicates []ent.Predicate[entity.ExValueScan]
 	modifiers  []func(*sql.Selector)
+
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
 }
 
 // Where adds a new predicate for the ExValueScanQuery builder.
-func (_q *ExValueScanQuery) Where(ps ...predicate.ExValueScan) *ExValueScanQuery {
-	_q.predicates = append(_q.predicates, ps...)
+func (_q *ExValueScanQuery) Where(predicates ...ent.Predicate[entity.ExValueScan]) *ExValueScanQuery {
+	_q.predicates = append(_q.predicates, predicates...)
+	return _q
+}
+
+func (_q *ExValueScanQuery) WhereP(predicates ...func(*sql.Selector)) *ExValueScanQuery {
+	for _, predicate := range predicates {
+		_q.predicates = append(_q.predicates, predicate)
+	}
+	return _q
+}
+
+func (_q *ExValueScanQuery) Join(table string, on ...func(*sql.Selector)) *ExValueScanQuery {
+	return _q.JoinAs(table, "", on...)
+}
+
+func (_q *ExValueScanQuery) JoinAs(table, alias string, on ...func(*sql.Selector)) *ExValueScanQuery {
+	on = append([]func(*sql.Selector){}, on...)
+	_q.joins = append(_q.joins, func(selector *sql.Selector) {
+		joined := sql.Dialect(selector.Dialect()).Table(table)
+		if alias != "" {
+			joined.As(alias)
+		} else {
+			joined.As(table)
+		}
+		condition := sql.Dialect(selector.Dialect()).Select().From(selector.Table())
+		for _, predicate := range on {
+			predicate(condition)
+		}
+		if err := condition.Err(); err != nil {
+			selector.AddError(err)
+		}
+		selector.Join(joined).OnP(condition.P())
+	})
+	return _q
+}
+
+func (_q *ExValueScanQuery) LeftJoin(table string, on ...func(*sql.Selector)) *ExValueScanQuery {
+	return _q.LeftJoinAs(table, "", on...)
+}
+
+func (_q *ExValueScanQuery) LeftJoinAs(table, alias string, on ...func(*sql.Selector)) *ExValueScanQuery {
+	on = append([]func(*sql.Selector){}, on...)
+	_q.joins = append(_q.joins, func(selector *sql.Selector) {
+		joined := sql.Dialect(selector.Dialect()).Table(table)
+		if alias != "" {
+			joined.As(alias)
+		} else {
+			joined.As(table)
+		}
+		condition := sql.Dialect(selector.Dialect()).Select().From(selector.Table())
+		for _, predicate := range on {
+			predicate(condition)
+		}
+		if err := condition.Err(); err != nil {
+			selector.AddError(err)
+		}
+		selector.LeftJoin(joined).OnP(condition.P())
+	})
+	return _q
+}
+
+func (_q *ExValueScanQuery) WithCount[N, K any](edge ent.Relation[entity.ExValueScan, N, K]) *ExValueScanQuery {
+	for _, requested := range _q.withCounts {
+		if requested.Name == edge.Ref().Name {
+			return _q
+		}
+	}
+	_q.withCounts = append(_q.withCounts, edge.Ref())
 	return _q
 }
 
@@ -58,7 +129,7 @@ func (_q *ExValueScanQuery) Unique(unique bool) *ExValueScanQuery {
 }
 
 // Order specifies how the records should be ordered.
-func (_q *ExValueScanQuery) Order(o ...exvaluescan.OrderOption) *ExValueScanQuery {
+func (_q *ExValueScanQuery) Order(o ...ent.OrderOption[entity.ExValueScan]) *ExValueScanQuery {
 	_q.order = append(_q.order, o...)
 	return _q
 }
@@ -66,7 +137,7 @@ func (_q *ExValueScanQuery) Order(o ...exvaluescan.OrderOption) *ExValueScanQuer
 // First returns the first ExValueScan entity from the query.
 // Returns a *NotFoundError when no ExValueScan was found.
 func (_q *ExValueScanQuery) First(ctx context.Context) (*ExValueScan, error) {
-	nodes, err := _q.Limit(1).All(setContextOp(ctx, _q.ctx, ent.OpQueryFirst))
+	nodes, err := _q.Limit(1).All(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +160,7 @@ func (_q *ExValueScanQuery) FirstX(ctx context.Context) *ExValueScan {
 // Returns a *NotFoundError when no ExValueScan ID was found.
 func (_q *ExValueScanQuery) FirstID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = _q.Limit(1).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryFirstID)); err != nil {
+	if ids, err = _q.Limit(1).IDs(ctx); err != nil {
 		return
 	}
 	if len(ids) == 0 {
@@ -112,7 +183,7 @@ func (_q *ExValueScanQuery) FirstIDX(ctx context.Context) int {
 // Returns a *NotSingularError when more than one ExValueScan entity is found.
 // Returns a *NotFoundError when no ExValueScan entities are found.
 func (_q *ExValueScanQuery) Only(ctx context.Context) (*ExValueScan, error) {
-	nodes, err := _q.Limit(2).All(setContextOp(ctx, _q.ctx, ent.OpQueryOnly))
+	nodes, err := _q.Limit(2).All(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -140,7 +211,7 @@ func (_q *ExValueScanQuery) OnlyX(ctx context.Context) *ExValueScan {
 // Returns a *NotFoundError when no entities are found.
 func (_q *ExValueScanQuery) OnlyID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = _q.Limit(2).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryOnlyID)); err != nil {
+	if ids, err = _q.Limit(2).IDs(ctx); err != nil {
 		return
 	}
 	switch len(ids) {
@@ -165,12 +236,10 @@ func (_q *ExValueScanQuery) OnlyIDX(ctx context.Context) int {
 
 // All executes the query and returns a list of ExValueScans.
 func (_q *ExValueScanQuery) All(ctx context.Context) ([]*ExValueScan, error) {
-	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryAll)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
-	qr := querierAll[[]*ExValueScan, *ExValueScanQuery]()
-	return withInterceptors[[]*ExValueScan](ctx, _q, qr, _q.inters)
+	return _q.sqlAll(ctx)
 }
 
 // AllX is like All, but panics if an error occurs.
@@ -187,8 +256,7 @@ func (_q *ExValueScanQuery) IDs(ctx context.Context) (ids []int, err error) {
 	if _q.ctx.Unique == nil && _q.path != nil {
 		_q.Unique(true)
 	}
-	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryIDs)
-	if err = _q.Select(exvaluescan.FieldID).Scan(ctx, &ids); err != nil {
+	if ids, err = ent.Values(ctx, _q.Select(exvaluescan.ID), exvaluescan.ID); err != nil {
 		return nil, err
 	}
 	return ids, nil
@@ -205,11 +273,10 @@ func (_q *ExValueScanQuery) IDsX(ctx context.Context) []int {
 
 // Count returns the count of the given query.
 func (_q *ExValueScanQuery) Count(ctx context.Context) (int, error) {
-	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryCount)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
-	return withInterceptors[int](ctx, _q, querierCount[*ExValueScanQuery](), _q.inters)
+	return _q.sqlCount(ctx)
 }
 
 // CountX is like Count, but panics if an error occurs.
@@ -223,7 +290,6 @@ func (_q *ExValueScanQuery) CountX(ctx context.Context) int {
 
 // Exist returns true if the query has elements in the graph.
 func (_q *ExValueScanQuery) Exist(ctx context.Context) (bool, error) {
-	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryExist)
 	switch _, err := _q.FirstID(ctx); {
 	case IsNotFound(err):
 		return false, nil
@@ -249,21 +315,25 @@ func (_q *ExValueScanQuery) Clone() *ExValueScanQuery {
 	if _q == nil {
 		return nil
 	}
-	return &ExValueScanQuery{
+	cloned := &ExValueScanQuery{
 		config:     _q.config,
 		ctx:        _q.ctx.Clone(),
-		order:      append([]exvaluescan.OrderOption{}, _q.order...),
-		inters:     append([]Interceptor{}, _q.inters...),
-		predicates: append([]predicate.ExValueScan{}, _q.predicates...),
+		order:      append([]ent.OrderOption[entity.ExValueScan]{}, _q.order...),
+		predicates: append([]ent.Predicate[entity.ExValueScan]{}, _q.predicates...),
+		joins:      append([]func(*sql.Selector){}, _q.joins...),
+		withCounts: append([]ent.RelationRef{}, _q.withCounts...),
+
 		// clone intermediate query.
 		sql:       _q.sql.Clone(),
 		path:      _q.path,
 		modifiers: append([]func(*sql.Selector){}, _q.modifiers...),
 	}
+
+	return cloned
 }
 
 // GroupBy is used to group vertices by one or more fields/columns.
-// It is often used with aggregate functions, like: count, max, mean, min, sum.
+// It can be combined with typed aggregate selections.
 //
 // Example:
 //
@@ -273,16 +343,14 @@ func (_q *ExValueScanQuery) Clone() *ExValueScanQuery {
 //	}
 //
 //	client.ExValueScan.Query().
-//		GroupBy(exvaluescan.FieldBinary).
+//		GroupBy(exvaluescan.Binary).
 //		Aggregate(ent.Count()).
 //		Scan(ctx, &v)
-func (_q *ExValueScanQuery) GroupBy(field string, fields ...string) *ExValueScanGroupBy {
-	_q.ctx.Fields = append([]string{field}, fields...)
-	grbuild := &ExValueScanGroupBy{build: _q}
-	grbuild.flds = &_q.ctx.Fields
-	grbuild.label = exvaluescan.Label
-	grbuild.scan = grbuild.Scan
-	return grbuild
+func (_q *ExValueScanQuery) GroupBy(columns ...ent.EntityColumn[entity.ExValueScan]) *ExValueScanGroupBy {
+	if len(columns) == 0 {
+		panic("ent: GroupBy requires at least one column")
+	}
+	return &ExValueScanGroupBy{query: _q, columns: append([]ent.EntityColumn[entity.ExValueScan](nil), columns...)}
 }
 
 // Select allows the selection one or more fields/columns for the given query,
@@ -295,32 +363,18 @@ func (_q *ExValueScanQuery) GroupBy(field string, fields ...string) *ExValueScan
 //	}
 //
 //	client.ExValueScan.Query().
-//		Select(exvaluescan.FieldBinary).
+//		Select(exvaluescan.Binary).
 //		Scan(ctx, &v)
-func (_q *ExValueScanQuery) Select(fields ...string) *ExValueScanSelect {
-	_q.ctx.Fields = append(_q.ctx.Fields, fields...)
-	sbuild := &ExValueScanSelect{ExValueScanQuery: _q}
-	sbuild.label = exvaluescan.Label
-	sbuild.flds, sbuild.scan = &_q.ctx.Fields, sbuild.Scan
-	return sbuild
+func (_q *ExValueScanQuery) Select(selections ...ent.Selection) *ExValueScanSelect {
+	return &ExValueScanSelect{query: _q, selections: append([]ent.Selection(nil), selections...)}
 }
 
 // Aggregate returns a ExValueScanSelect configured with the given aggregations.
-func (_q *ExValueScanQuery) Aggregate(fns ...AggregateFunc) *ExValueScanSelect {
-	return _q.Select().Aggregate(fns...)
+func (_q *ExValueScanQuery) Aggregate(selections ...ent.Selection) *ExValueScanSelect {
+	return _q.Select(selections...)
 }
 
 func (_q *ExValueScanQuery) prepareQuery(ctx context.Context) error {
-	for _, inter := range _q.inters {
-		if inter == nil {
-			return fmt.Errorf("ent: uninitialized interceptor (forgotten import ent/runtime?)")
-		}
-		if trv, ok := inter.(Traverser); ok {
-			if err := trv.Traverse(ctx, _q); err != nil {
-				return err
-			}
-		}
-	}
 	for _, f := range _q.ctx.Fields {
 		if !exvaluescan.ValidColumn(f) {
 			return &ValidationError{Name: f, err: fmt.Errorf("ent: invalid field %q for query", f)}
@@ -352,6 +406,7 @@ func (_q *ExValueScanQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*
 	if len(_q.modifiers) > 0 {
 		_spec.Modifiers = _q.modifiers
 	}
+
 	for i := range hooks {
 		hooks[i](ctx, _spec)
 	}
@@ -361,6 +416,7 @@ func (_q *ExValueScanQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
+
 	return nodes, nil
 }
 
@@ -369,6 +425,7 @@ func (_q *ExValueScanQuery) sqlCount(ctx context.Context) (int, error) {
 	if len(_q.modifiers) > 0 {
 		_spec.Modifiers = _q.modifiers
 	}
+
 	_spec.Node.Columns = _q.ctx.Fields
 	if len(_q.ctx.Fields) > 0 {
 		_spec.Unique = _q.ctx.Unique != nil && *_q.ctx.Unique
@@ -393,10 +450,13 @@ func (_q *ExValueScanQuery) querySpec() *sqlgraph.QuerySpec {
 			}
 		}
 	}
-	if ps := _q.predicates; len(ps) > 0 {
+	if predicates := _q.predicates; len(predicates) > 0 || len(_q.joins) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
-			for i := range ps {
-				ps[i](selector)
+			for _, join := range _q.joins {
+				join(selector)
+			}
+			for i := range predicates {
+				predicates[i](selector)
 			}
 		}
 	}
@@ -431,8 +491,8 @@ func (_q *ExValueScanQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	if _q.ctx.Unique != nil && *_q.ctx.Unique {
 		selector.Distinct()
 	}
-	for _, m := range _q.modifiers {
-		m(selector)
+	for _, join := range _q.joins {
+		join(selector)
 	}
 	for _, p := range _q.predicates {
 		p(selector)
@@ -447,6 +507,9 @@ func (_q *ExValueScanQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	}
 	if limit := _q.ctx.Limit; limit != nil {
 		selector.Limit(*limit)
+	}
+	for _, modifier := range _q.modifiers {
+		modifier(selector)
 	}
 	return selector
 }
@@ -485,96 +548,148 @@ func (_q *ExValueScanQuery) Modify(modifiers ...func(s *sql.Selector)) *ExValueS
 
 // ExValueScanGroupBy is the group-by builder for ExValueScan entities.
 type ExValueScanGroupBy struct {
-	selector
-	build *ExValueScanQuery
+	query      *ExValueScanQuery
+	columns    []ent.EntityColumn[entity.ExValueScan]
+	aggregates []ent.Selection
 }
 
-// Aggregate adds the given aggregation functions to the group-by query.
-func (_g *ExValueScanGroupBy) Aggregate(fns ...AggregateFunc) *ExValueScanGroupBy {
-	_g.fns = append(_g.fns, fns...)
+func (_g *ExValueScanGroupBy) Aggregate(selections ...ent.Selection) *ExValueScanGroupBy {
+	_g.aggregates = append(_g.aggregates, selections...)
 	return _g
 }
 
-// Scan applies the selector query and scans the result into the given value.
 func (_g *ExValueScanGroupBy) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, _g.build.ctx, ent.OpQueryGroupBy)
-	if err := _g.build.prepareQuery(ctx); err != nil {
-		return err
-	}
-	return scanWithInterceptors[*ExValueScanQuery, *ExValueScanGroupBy](ctx, _g.build, _g, _g.build.inters, v)
+	return _g.selectQuery().Scan(ctx, v)
 }
 
-func (_g *ExValueScanGroupBy) sqlScan(ctx context.Context, root *ExValueScanQuery, v any) error {
-	selector := root.sqlQuery(ctx).Select()
-	aggregation := make([]string, 0, len(_g.fns))
-	for _, fn := range _g.fns {
-		aggregation = append(aggregation, fn(selector))
+func (_g *ExValueScanGroupBy) Rows(ctx context.Context) ([]*ent.Row, error) {
+	return _g.selectQuery().Rows(ctx)
+}
+
+func (_g *ExValueScanGroupBy) selectQuery() *ExValueScanSelect {
+	selections := make([]ent.Selection, 0, len(_g.columns)+len(_g.aggregates))
+	for _, column := range _g.columns {
+		selections = append(selections, column)
 	}
-	if len(selector.SelectedColumns()) == 0 {
-		columns := make([]string, 0, len(*_g.flds)+len(_g.fns))
-		for _, f := range *_g.flds {
-			columns = append(columns, selector.C(f))
-		}
-		columns = append(columns, aggregation...)
-		selector.Select(columns...)
-	}
-	selector.GroupBy(selector.Columns(*_g.flds...)...)
-	if err := selector.Err(); err != nil {
-		return err
-	}
-	rows := &sql.Rows{}
-	query, args := selector.Query()
-	if err := _g.build.driver.Query(ctx, query, args, rows); err != nil {
-		return err
-	}
-	defer rows.Close()
-	return sql.ScanSlice(rows, v)
+	selected := _g.query.Select(append(selections, _g.aggregates...)...)
+	selected.groups = _g.columns
+	return selected
 }
 
 // ExValueScanSelect is the builder for selecting fields of ExValueScan entities.
 type ExValueScanSelect struct {
-	*ExValueScanQuery
-	selector
+	query      *ExValueScanQuery
+	selections []ent.Selection
+	groups     []ent.EntityColumn[entity.ExValueScan]
 }
 
-// Aggregate adds the given aggregation functions to the selector query.
-func (_s *ExValueScanSelect) Aggregate(fns ...AggregateFunc) *ExValueScanSelect {
-	_s.fns = append(_s.fns, fns...)
+func (_s *ExValueScanSelect) Aggregate(selections ...ent.Selection) *ExValueScanSelect {
+	_s.selections = append(_s.selections, selections...)
 	return _s
 }
 
-// Scan applies the selector query and scans the result into the given value.
-func (_s *ExValueScanSelect) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, _s.ctx, ent.OpQuerySelect)
-	if err := _s.prepareQuery(ctx); err != nil {
-		return err
+func (_s *ExValueScanSelect) Row(ctx context.Context) (*ent.Row, error) {
+	rows, err := _s.Rows(ctx)
+	if err != nil {
+		return nil, err
 	}
-	return scanWithInterceptors[*ExValueScanQuery, *ExValueScanSelect](ctx, _s.ExValueScanQuery, _s, _s.inters, v)
+	switch len(rows) {
+	case 0:
+		return nil, &NotFoundError{exvaluescan.Label}
+	case 1:
+		return rows[0], nil
+	default:
+		return nil, &NotSingularError{exvaluescan.Label}
+	}
 }
 
-func (_s *ExValueScanSelect) sqlScan(ctx context.Context, root *ExValueScanQuery, v any) error {
+func (_s *ExValueScanSelect) sqlQuery(ctx context.Context) (*sql.Selector, error) {
+	root := _s.query.Clone()
+	root.ctx.Fields = nil
+	for _, selection := range _s.selections {
+		if column := selection.Ref(); column.Name != "" && (column.Table == "" || column.Table == exvaluescan.Table) {
+			root.ctx.AppendFieldOnce(column.Name)
+		}
+	}
+	if err := root.prepareQuery(ctx); err != nil {
+		return nil, err
+	}
+	root.modifiers = nil
 	selector := root.sqlQuery(ctx)
-	aggregation := make([]string, 0, len(_s.fns))
-	for _, fn := range _s.fns {
-		aggregation = append(aggregation, fn(selector))
+	if len(_s.selections) > 0 {
+		ent.SelectColumns(selector, _s.selections...)
 	}
-	switch n := len(*_s.selector.flds); {
-	case n == 0 && len(aggregation) > 0:
-		selector.Select(aggregation...)
-	case n != 0 && len(aggregation) > 0:
-		selector.AppendSelect(aggregation...)
+	for _, column := range _s.groups {
+		reference := column.Ref()
+		if reference.Table == "" || reference.Table == selector.TableName() {
+			selector.GroupBy(selector.C(reference.Name))
+		} else {
+			selector.GroupBy(sql.Dialect(selector.Dialect()).Table(reference.Table).C(reference.Name))
+		}
 	}
-	rows := &sql.Rows{}
-	query, args := selector.Query()
-	if err := _s.driver.Query(ctx, query, args, rows); err != nil {
+	for _, modifier := range _s.query.modifiers {
+		modifier(selector)
+	}
+	return selector, selector.Err()
+}
+
+func (_s *ExValueScanSelect) Scan(ctx context.Context, value any) error {
+	selector, err := _s.sqlQuery(ctx)
+	if err != nil {
+		return err
+	}
+	query, arguments := selector.Query()
+	if err := selector.Err(); err != nil {
+		return err
+	}
+	rows, err := _s.query.driver.Query(ctx, query, arguments)
+	if err != nil {
 		return err
 	}
 	defer rows.Close()
-	return sql.ScanSlice(rows, v)
+	return sql.ScanSlice(rows, value)
+}
+
+func (_s *ExValueScanSelect) Rows(ctx context.Context) ([]*ent.Row, error) {
+	if len(_s.selections) == 0 {
+		return nil, errors.New("ent: Rows requires explicit selections")
+	}
+	selector, err := _s.sqlQuery(ctx)
+	if err != nil {
+		return nil, err
+	}
+	query, arguments := selector.Query()
+	if err := selector.Err(); err != nil {
+		return nil, err
+	}
+	rows, err := _s.query.driver.Query(ctx, query, arguments)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	columns, err := rows.Columns()
+	if err != nil {
+		return nil, err
+	}
+	if len(columns) != len(_s.selections) {
+		return nil, fmt.Errorf("ent: projection column count %d differs from selection count %d", len(columns), len(_s.selections))
+	}
+	result := make([]*ent.Row, 0)
+	for rows.Next() {
+		row, destinations := ent.NewRow(_s.selections)
+		if err := rows.Scan(destinations...); err != nil {
+			return nil, err
+		}
+		result = append(result, row)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 // Modify adds a query modifier for attaching custom logic to queries.
 func (_s *ExValueScanSelect) Modify(modifiers ...func(s *sql.Selector)) *ExValueScanSelect {
-	_s.modifiers = append(_s.modifiers, modifiers...)
+	_s.query.modifiers = append(_s.query.modifiers, modifiers...)
 	return _s
 }

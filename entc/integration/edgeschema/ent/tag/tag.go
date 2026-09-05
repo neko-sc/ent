@@ -6,8 +6,10 @@
 package tag
 
 import (
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/google/uuid"
+	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/entity"
 )
 
 const (
@@ -53,6 +55,44 @@ const (
 	GroupTagsColumn = "tag_id"
 )
 
+var (
+	ID        = ent.OrderedColumn[entity.Tag, int]{Table: Table, Name: FieldID}
+	Value     = ent.StringColumn[entity.Tag, string]{Table: Table, Name: FieldValue}
+	Tweets    = ent.NewRelation[entity.Tag, entity.Tweet, int](EdgeTweets, newTweetsStep)
+	Groups    = ent.NewRelation[entity.Tag, entity.Group, int](EdgeGroups, newGroupsStep)
+	TweetTags = ent.NewRelation[entity.Tag, entity.TweetTag, uuid.UUID](EdgeTweetTags, newTweetTagsStep)
+	GroupTags = ent.NewRelation[entity.Tag, entity.GroupTag, int](EdgeGroupTags, newGroupTagsStep)
+)
+
+// Alias returns the columns of the tags table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.Tag, int]{Table: name, Name: FieldID},
+		Value:      ent.StringColumn[entity.Tag, string]{Table: name, Name: FieldValue},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.Tag, int]
+	Value      ent.StringColumn[entity.Tag, string]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.Tag]) ent.Predicate[entity.Tag] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.Tag]) ent.Predicate[entity.Tag] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.Tag]) ent.Predicate[entity.Tag] { return ent.Not(predicate) }
+
 // Columns holds all SQL columns for tag fields.
 var Columns = []string{
 	FieldID,
@@ -78,74 +118,6 @@ func ValidColumn(column string) bool {
 	return false
 }
 
-// OrderOption defines the ordering options for the Tag queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByValue orders the results by the value field.
-func ByValue(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldValue, opts...).ToFunc()
-}
-
-// ByTweetsCount orders the results by tweets count.
-func ByTweetsCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newTweetsStep(), opts...)
-	}
-}
-
-// ByTweets orders the results by tweets terms.
-func ByTweets(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newTweetsStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
-// ByGroupsCount orders the results by groups count.
-func ByGroupsCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newGroupsStep(), opts...)
-	}
-}
-
-// ByGroups orders the results by groups terms.
-func ByGroups(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newGroupsStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
-// ByTweetTagsCount orders the results by tweet_tags count.
-func ByTweetTagsCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newTweetTagsStep(), opts...)
-	}
-}
-
-// ByTweetTags orders the results by tweet_tags terms.
-func ByTweetTags(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newTweetTagsStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
-// ByGroupTagsCount orders the results by group_tags count.
-func ByGroupTagsCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newGroupTagsStep(), opts...)
-	}
-}
-
-// ByGroupTags orders the results by group_tags terms.
-func ByGroupTags(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newGroupTagsStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
 func newTweetsStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),

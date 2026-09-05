@@ -42,5 +42,5 @@ func TestEnumTypes(t *testing.T) {
 	})
 	require.NoError(t, err)
 	t.Cleanup(func() { client.User.Delete().ExecX(ctx) })
-	client.User.Create().SetStatus(user.StatusActive).SaveX(ctx)
+	client.User.Create().Set(user.Status, user.StatusActive).SaveX(ctx)
 }

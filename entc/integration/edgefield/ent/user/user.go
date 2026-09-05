@@ -6,8 +6,9 @@
 package user
 
 import (
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/edgefield/ent/entity"
 )
 
 const (
@@ -86,6 +87,51 @@ const (
 	RentalsColumn = "user_id"
 )
 
+var (
+	ID       = ent.OrderedColumn[entity.User, int]{Table: Table, Name: FieldID}
+	ParentID = ent.OrderedColumn[entity.User, int]{Table: Table, Name: FieldParentID}
+	SpouseID = ent.OrderedColumn[entity.User, int]{Table: Table, Name: FieldSpouseID}
+	Pets     = ent.NewRelation[entity.User, entity.Pet, int](EdgePets, newPetsStep)
+	Parent   = ent.NewUniqueRelation[entity.User, entity.User, int](EdgeParent, newParentStep)
+	Children = ent.NewRelation[entity.User, entity.User, int](EdgeChildren, newChildrenStep)
+	Spouse   = ent.NewUniqueRelation[entity.User, entity.User, int](EdgeSpouse, newSpouseStep)
+	Card     = ent.NewUniqueRelation[entity.User, entity.Card, int](EdgeCard, newCardStep)
+	Metadata = ent.NewUniqueRelation[entity.User, entity.Metadata, int](EdgeMetadata, newMetadataStep)
+	Info     = ent.NewRelation[entity.User, entity.Info, int](EdgeInfo, newInfoStep)
+	Rentals  = ent.NewRelation[entity.User, entity.Rental, int](EdgeRentals, newRentalsStep)
+)
+
+// Alias returns the columns of the users table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.User, int]{Table: name, Name: FieldID},
+		ParentID:   ent.OrderedColumn[entity.User, int]{Table: name, Name: FieldParentID},
+		SpouseID:   ent.OrderedColumn[entity.User, int]{Table: name, Name: FieldSpouseID},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.User, int]
+	ParentID   ent.OrderedColumn[entity.User, int]
+	SpouseID   ent.OrderedColumn[entity.User, int]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.User]) ent.Predicate[entity.User] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.User]) ent.Predicate[entity.User] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.User]) ent.Predicate[entity.User] { return ent.Not(predicate) }
+
 // Columns holds all SQL columns for user fields.
 var Columns = []string{
 	FieldID,
@@ -103,107 +149,6 @@ func ValidColumn(column string) bool {
 	return false
 }
 
-// OrderOption defines the ordering options for the User queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByParentID orders the results by the parent_id field.
-func ByParentID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldParentID, opts...).ToFunc()
-}
-
-// BySpouseID orders the results by the spouse_id field.
-func BySpouseID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldSpouseID, opts...).ToFunc()
-}
-
-// ByPetsCount orders the results by pets count.
-func ByPetsCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newPetsStep(), opts...)
-	}
-}
-
-// ByPets orders the results by pets terms.
-func ByPets(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newPetsStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
-// ByParentField orders the results by parent field.
-func ByParentField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newParentStep(), sql.OrderByField(field, opts...))
-	}
-}
-
-// ByChildrenCount orders the results by children count.
-func ByChildrenCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newChildrenStep(), opts...)
-	}
-}
-
-// ByChildren orders the results by children terms.
-func ByChildren(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newChildrenStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
-// BySpouseField orders the results by spouse field.
-func BySpouseField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newSpouseStep(), sql.OrderByField(field, opts...))
-	}
-}
-
-// ByCardField orders the results by card field.
-func ByCardField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newCardStep(), sql.OrderByField(field, opts...))
-	}
-}
-
-// ByMetadataField orders the results by metadata field.
-func ByMetadataField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newMetadataStep(), sql.OrderByField(field, opts...))
-	}
-}
-
-// ByInfoCount orders the results by info count.
-func ByInfoCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newInfoStep(), opts...)
-	}
-}
-
-// ByInfo orders the results by info terms.
-func ByInfo(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newInfoStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
-// ByRentalsCount orders the results by rentals count.
-func ByRentalsCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newRentalsStep(), opts...)
-	}
-}
-
-// ByRentals orders the results by rentals terms.
-func ByRentals(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newRentalsStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
 func newPetsStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),

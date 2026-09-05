@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/examples/viewcomposite/ent/petusername"
 )
@@ -15,8 +14,7 @@ import (
 type PetUserName struct {
 	config `json:"-"`
 	// Name holds the value of the "name" field.
-	Name         string `json:"name,omitempty"`
-	selectValues sql.SelectValues
+	Name string `json:"name,omitempty"`
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -25,7 +23,7 @@ func (*PetUserName) scanValues(columns []string) ([]any, error) {
 	for i := range columns {
 		switch columns[i] {
 		case petusername.FieldName:
-			values[i] = new(sql.NullString)
+			values[i] = new(*string)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -42,22 +40,15 @@ func (_m *PetUserName) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case petusername.FieldName:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field name", values[i])
-			} else if value.Valid {
-				_m.Name = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.Name = **value
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the PetUserName.
-// This includes values selected through modifiers, order, etc.
-func (_m *PetUserName) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // Unwrap unwraps the PetUserName entity that was returned from a transaction after it was closed,

@@ -6,8 +6,9 @@
 package token
 
 import (
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/customid/sid"
 )
 
@@ -30,6 +31,43 @@ const (
 	// AccountColumn is the table column denoting the account relation/edge.
 	AccountColumn = "account_token"
 )
+
+var (
+	ID      = ent.OrderedColumn[entity.Token, sid.ID]{Table: Table, Name: FieldID}
+	Body    = ent.StringColumn[entity.Token, string]{Table: Table, Name: FieldBody}
+	Account = ent.NewUniqueRelation[entity.Token, entity.Account, sid.ID](EdgeAccount, newAccountStep)
+)
+
+// Alias returns the columns of the tokens table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.Token, sid.ID]{Table: name, Name: FieldID},
+		Body:       ent.StringColumn[entity.Token, string]{Table: name, Name: FieldBody},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.Token, sid.ID]
+	Body       ent.StringColumn[entity.Token, string]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.Token]) ent.Predicate[entity.Token] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.Token]) ent.Predicate[entity.Token] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.Token]) ent.Predicate[entity.Token] {
+	return ent.Not(predicate)
+}
 
 // Columns holds all SQL columns for token fields.
 var Columns = []string{
@@ -65,25 +103,6 @@ var (
 	DefaultID func() sid.ID
 )
 
-// OrderOption defines the ordering options for the Token queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByBody orders the results by the body field.
-func ByBody(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldBody, opts...).ToFunc()
-}
-
-// ByAccountField orders the results by account field.
-func ByAccountField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newAccountStep(), sql.OrderByField(field, opts...))
-	}
-}
 func newAccountStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),

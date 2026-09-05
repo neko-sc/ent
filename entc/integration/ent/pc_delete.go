@@ -8,29 +8,56 @@ package ent
 import (
 	"context"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/ent/pc"
-	"github.com/neko-sc/ent/entc/integration/ent/predicate"
 	"github.com/neko-sc/ent/schema/field"
 )
 
 // PCDelete is the builder for deleting a PC entity.
 type PCDelete struct {
 	config
-	hooks    []Hook
-	mutation *PCMutation
+
+	mutation  *PCMutation
+	returning *sqlgraph.Returning
 }
 
 // Where appends a list predicates to the PCDelete builder.
-func (_d *PCDelete) Where(ps ...predicate.PC) *PCDelete {
-	_d.mutation.Where(ps...)
+func (_d *PCDelete) Where(predicates ...ent.Predicate[entity.PC]) *PCDelete {
+	_d.mutation.Where(predicates...)
 	return _d
 }
 
 // Exec executes the deletion query and returns how many vertices were deleted.
 func (_d *PCDelete) Exec(ctx context.Context) (int, error) {
-	return withHooks(ctx, _d.sqlExec, _d.mutation, _d.hooks)
+	return _d.sqlExec(ctx)
+}
+
+func (b *PCDelete) Returning(ctx context.Context) ([]*PC, error) {
+	nodes := make([]*PC, 0)
+	b.returning = &sqlgraph.Returning{Columns: pc.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &PC{config: b.config}
+		values, err := _node.scanValues(pc.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(pc.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Exec(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
 }
 
 // ExecX is like Exec, but panics if an error occurs.
@@ -51,11 +78,11 @@ func (_d *PCDelete) sqlExec(ctx context.Context) (int, error) {
 			}
 		}
 	}
+	_spec.Returning = _d.returning
 	affected, err := sqlgraph.DeleteNodes(ctx, _d.driver, _spec)
 	if err != nil && sqlgraph.IsConstraintError(err) {
 		err = &ConstraintError{msg: err.Error(), wrap: err}
 	}
-	_d.mutation.done = true
 	return affected, err
 }
 
@@ -65,8 +92,8 @@ type PCDeleteOne struct {
 }
 
 // Where appends a list predicates to the PCDelete builder.
-func (_d *PCDeleteOne) Where(ps ...predicate.PC) *PCDeleteOne {
-	_d._d.mutation.Where(ps...)
+func (_d *PCDeleteOne) Where(predicates ...ent.Predicate[entity.PC]) *PCDeleteOne {
+	_d._d.mutation.Where(predicates...)
 	return _d
 }
 

@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/entc/integration/ent/comment"
 	schemadir "github.com/neko-sc/ent/entc/integration/ent/schema/dir"
@@ -27,13 +26,12 @@ type Comment struct {
 	UniqueFloat float64 `json:"unique_float,omitempty"`
 	// NillableInt holds the value of the "nillable_int" field.
 	NillableInt *int `json:"nillable_int,omitempty"`
-	// Table holds the value of the "table" field.
-	Table string `json:"table,omitempty"`
+	// TableName holds the value of the "table_name" field.
+	TableName string `json:"table_name,omitempty"`
 	// Dir holds the value of the "dir" field.
 	Dir schemadir.Dir `json:"dir,omitempty"`
 	// Client holds the value of the "client" field.
-	Client       string `json:"client,omitempty"`
-	selectValues sql.SelectValues
+	Client string `json:"client,omitempty"`
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -41,14 +39,14 @@ func (*Comment) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case comment.FieldUniqueFloat:
+			values[i] = new(*float64)
+		case comment.FieldID, comment.FieldUniqueInt, comment.FieldNillableInt:
+			values[i] = new(*int)
+		case comment.FieldTableName, comment.FieldClient:
+			values[i] = new(*string)
 		case comment.FieldDir:
 			values[i] = new([]byte)
-		case comment.FieldUniqueFloat:
-			values[i] = new(sql.NullFloat64)
-		case comment.FieldID, comment.FieldUniqueInt, comment.FieldNillableInt:
-			values[i] = new(sql.NullInt64)
-		case comment.FieldTable, comment.FieldClient:
-			values[i] = new(sql.NullString)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -65,35 +63,39 @@ func (_m *Comment) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case comment.FieldID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field id", values[i])
-			} else if value.Valid {
-				_m.ID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.ID = **value
 			}
 		case comment.FieldUniqueInt:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field unique_int", values[i])
-			} else if value.Valid {
-				_m.UniqueInt = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.UniqueInt = **value
 			}
 		case comment.FieldUniqueFloat:
-			if value, ok := values[i].(*sql.NullFloat64); !ok {
+
+			if value, ok := values[i].(**float64); !ok {
 				return fmt.Errorf("unexpected type %T for field unique_float", values[i])
-			} else if value.Valid {
-				_m.UniqueFloat = float64(value.Float64)
+			} else if value != nil && *value != nil {
+				_m.UniqueFloat = **value
 			}
 		case comment.FieldNillableInt:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field nillable_int", values[i])
-			} else if value.Valid {
-				_m.NillableInt = new(int)
-				*_m.NillableInt = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.NillableInt = *value
 			}
-		case comment.FieldTable:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field table", values[i])
-			} else if value.Valid {
-				_m.Table = string(value.String)
+		case comment.FieldTableName:
+
+			if value, ok := values[i].(**string); !ok {
+				return fmt.Errorf("unexpected type %T for field table_name", values[i])
+			} else if value != nil && *value != nil {
+				_m.TableName = **value
 			}
 		case comment.FieldDir:
 			if value, ok := values[i].(*[]byte); !ok {
@@ -104,22 +106,15 @@ func (_m *Comment) assignValues(columns []string, values []any) error {
 				}
 			}
 		case comment.FieldClient:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field client", values[i])
-			} else if value.Valid {
-				_m.Client = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.Client = **value
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the Comment.
-// This includes values selected through modifiers, order, etc.
-func (_m *Comment) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // Update returns a builder for updating this Comment.
@@ -156,8 +151,8 @@ func (_m *Comment) String() string {
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
 	builder.WriteString(", ")
-	builder.WriteString("table=")
-	builder.WriteString(_m.Table)
+	builder.WriteString("table_name=")
+	builder.WriteString(_m.TableName)
 	builder.WriteString(", ")
 	builder.WriteString("dir=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Dir))

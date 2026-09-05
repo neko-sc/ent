@@ -41,8 +41,6 @@ type Storage struct {
 	IdentName  string             // identifier name (fields and funcs).
 	Imports    []string           // import packages needed.
 	SchemaMode SchemaMode         // schema mode support.
-	Ops        func(*Field) []Op  // storage specific operations.
-	OpCode     func(Op) string    // operation code for predicates.
 	Init       func(*Graph) error // optional init function.
 }
 
@@ -61,13 +59,6 @@ var drivers = []*Storage{
 			"github.com/neko-sc/ent/schema/field",
 		},
 		SchemaMode: Unique | Indexes | Cascade | Migrate,
-		Ops: func(f *Field) []Op {
-			if f.IsString() && f.RepresentationIsBase() {
-				return []Op{EqualFold, ContainsFold}
-			}
-			return nil
-		},
-		OpCode: opCodes(sqlCode[:]),
 		Init: func(g *Graph) error {
 			var with, without []string
 			for _, n := range g.Nodes {
@@ -109,23 +100,6 @@ func NewStorage(s string) (*Storage, error) {
 
 // String implements the fmt.Stringer interface for template usage.
 func (s *Storage) String() string { return s.Name }
-
-var (
-	// exceptional operation names in sql.
-	sqlCode = [...]string{
-		IsNil:  "IsNull",
-		NotNil: "NotNull",
-	}
-)
-
-func opCodes(codes []string) func(Op) string {
-	return func(o Op) string {
-		if int(o) < len(codes) && codes[o] != "" {
-			return codes[o]
-		}
-		return o.Name()
-	}
-}
 
 // TableSchemas returns all table schemas in ent/schema (intentionally exported).
 func (g *Graph) TableSchemas() ([]string, error) {

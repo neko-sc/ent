@@ -7,101 +7,156 @@ package ent
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/link"
-	"github.com/neko-sc/ent/entc/integration/customid/ent/schema"
 	uuidc "github.com/neko-sc/ent/entc/integration/customid/uuidcompatible"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// LinkCreate is the builder for creating a Link entity.
 type LinkCreate struct {
 	config
-	mutation *LinkMutation
-	hooks    []Hook
+	mutation    *LinkMutation
+	err         error
+	fromBuilder bool
+	present     map[string]struct{}
+
 	conflict []sql.ConflictOption
 }
 
-// SetLinkInformation sets the "link_information" field.
-func (_c *LinkCreate) SetLinkInformation(v map[string]schema.LinkInformation) *LinkCreate {
-	_c.mutation.SetLinkInformation(v)
-	return _c
-}
-
-// SetID sets the "id" field.
-func (_c *LinkCreate) SetID(v uuidc.UUIDC) *LinkCreate {
-	_c.mutation.SetID(v)
-	return _c
-}
-
-// SetNillableID sets the "id" field if the given value is not nil.
-func (_c *LinkCreate) SetNillableID(v *uuidc.UUIDC) *LinkCreate {
-	if v != nil {
-		_c.SetID(*v)
+func (b *LinkCreate) Set[T any](column ent.ColumnOf[entity.Link, T], value T) *LinkCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.set(column.Ref().Name, value)
 	}
-	return _c
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
 }
-
-// Mutation returns the LinkMutation object of the builder.
-func (_c *LinkCreate) Mutation() *LinkMutation {
-	return _c.mutation
+func (b *LinkCreate) SetOptional[T any](column ent.ColumnOf[entity.Link, T], value ent.Option[T]) *LinkCreate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.insert.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
 }
+func (b *LinkCreate) SetExpr[T any](column ent.ColumnOf[entity.Link, T], value ent.Expr[T]) *LinkCreate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
 
-// Save creates the Link in the database.
-func (_c *LinkCreate) Save(ctx context.Context) (*Link, error) {
-	if err := _c.defaults(); err != nil {
+	case link.FieldID:
+
+	case link.FieldLinkInformation:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Link is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.insert.setExpr(column.Ref().Name, value.Render)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+
+}
+func (b *LinkCreate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Link, N, K], id K) *LinkCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.setEdge(edge.Ref().Name, id)
+	}
+
+	switch edge.Ref().Name {
+
+	}
+
+	return b
+}
+func (b *LinkCreate) AddIDs[N, K any](edge ent.Relation[entity.Link, N, K], ids ...K) *LinkCreate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.insert.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *LinkCreate) Mutation() *LinkMutation { return b.mutation }
+
+func (b *LinkCreate) Insert() *LinkInsert { return b.mutation.insert }
+
+func (b *LinkCreate) Save(ctx context.Context) (*Link, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
 		return nil, err
 	}
-	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
+	return b.sqlSave(ctx)
 }
 
-// SaveX calls Save and panics if Save returns an error.
-func (_c *LinkCreate) SaveX(ctx context.Context) *Link {
-	v, err := _c.Save(ctx)
+func (b *LinkCreate) SaveX(ctx context.Context) *Link {
+	node, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return node
 }
 
-// Exec executes the query.
-func (_c *LinkCreate) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *LinkCreate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *LinkCreate) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *LinkCreate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// defaults sets the default values of the builder before save.
-func (_c *LinkCreate) defaults() error {
-	if _, ok := _c.mutation.LinkInformation(); !ok {
-		v := link.DefaultLinkInformation
-		_c.mutation.SetLinkInformation(v)
-	}
-	if _, ok := _c.mutation.ID(); !ok {
+func (b *LinkCreate) defaults() error {
+
+	if b.mutation.insert.ID.IsUnset() && b.mutation.insert.expressions[link.FieldID] == nil {
 		if link.DefaultID == nil {
-			return fmt.Errorf("ent: uninitialized link.DefaultID (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized link.DefaultID")
 		}
-		v := link.DefaultID()
-		_c.mutation.SetID(v)
+		b.mutation.insert.ID = ent.Some(link.DefaultID())
 	}
+
+	if b.mutation.insert.LinkInformation.IsUnset() && b.mutation.insert.expressions[link.FieldLinkInformation] == nil {
+
+		b.mutation.insert.LinkInformation = ent.Some(link.DefaultLinkInformation)
+	}
+
 	return nil
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_c *LinkCreate) check() error {
-	if _, ok := _c.mutation.LinkInformation(); !ok {
-		return &ValidationError{Name: "link_information", err: errors.New(`ent: missing required field "Link.link_information"`)}
+func (b *LinkCreate) check() error {
+	if b.err != nil {
+		return b.err
 	}
+
+	if b.mutation.insert.ID.IsNull() {
+		return &ValidationError{Name: "id", err: errors.New(`ent: field "Link.id" is not nullable`)}
+	}
+
+	if b.mutation.insert.LinkInformation.IsNull() {
+		return &ValidationError{Name: "link_information", err: errors.New(`ent: field "Link.link_information" is not nullable`)}
+	}
+
 	return nil
 }
 
@@ -109,190 +164,167 @@ func (_c *LinkCreate) sqlSave(ctx context.Context) (*Link, error) {
 	if err := _c.check(); err != nil {
 		return nil, err
 	}
-	_node, _spec := _c.createSpec()
-	if err := sqlgraph.CreateNode(ctx, _c.driver, _spec); err != nil {
+	node, spec, err := _c.createSpec()
+	if err != nil {
+		return nil, err
+	}
+	if err := sqlgraph.CreateNode(ctx, _c.driver, spec); err != nil {
 		if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
 		return nil, err
 	}
-	if _spec.ID.Value != nil {
-		if id, ok := _spec.ID.Value.(*uuidc.UUIDC); ok {
-			_node.ID = *id
-		} else if err := _node.ID.Scan(_spec.ID.Value); err != nil {
-			return nil, err
-		}
-	}
-	_c.mutation.id = &_node.ID
-	_c.mutation.done = true
-	return _node, nil
+	_c.mutation.id = &node.ID
+	return node, nil
 }
 
-func (_c *LinkCreate) createSpec() (*Link, *sqlgraph.CreateSpec) {
-	var (
-		_node = &Link{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(link.Table, sqlgraph.NewFieldSpec(link.FieldID, field.TypeUUID))
-	)
+func (_c *LinkCreate) createSpec() (*Link, *sqlgraph.CreateSpec, error) {
+	_node := &Link{config: _c.config}
+	_spec := sqlgraph.NewCreateSpec(link.Table, sqlgraph.NewFieldSpec(link.FieldID, field.TypeUUID))
+
 	_spec.OnConflict = _c.conflict
-	if id, ok := _c.mutation.ID(); ok {
-		_node.ID = id
-		_spec.ID.Value = &id
+
+	if value, ok := _c.mutation.insert.ID.Get(); ok {
+		_spec.ID.Value = &value
 	}
-	if value, ok := _c.mutation.LinkInformation(); ok {
+
+	if value, ok := _c.mutation.insert.LinkInformation.Get(); ok {
 		_spec.SetField(link.FieldLinkInformation, field.TypeJSON, value)
-		_node.LinkInformation = value
 	}
-	return _node, _spec
-}
-
-// OnConflict allows configuring the `ON CONFLICT` clause of the `INSERT`
-// statement. For example:
-//
-//	client.Link.Create().
-//		SetLinkInformation(v).
-//		OnConflict(
-//			// Update the row with the new values
-//			// the was proposed for insertion.
-//			sql.ResolveWithNewValues(),
-//		).
-//		// Override some of the fields with custom
-//		// update values.
-//		Update(func(u *ent.LinkUpsert) {
-//			SetLinkInformation(v+v).
-//		}).
-//		Exec(ctx)
-func (_c *LinkCreate) OnConflict(opts ...sql.ConflictOption) *LinkUpsertOne {
-	_c.conflict = opts
-	return &LinkUpsertOne{
-		create: _c,
-	}
-}
-
-// OnConflictColumns calls `OnConflict` and configures the columns
-// as conflict target. Using this option is equivalent to using:
-//
-//	client.Link.Create().
-//		OnConflict(sql.ConflictColumns(columns...)).
-//		Exec(ctx)
-func (_c *LinkCreate) OnConflictColumns(columns ...string) *LinkUpsertOne {
-	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
-	return &LinkUpsertOne{
-		create: _c,
-	}
-}
-
-type (
-	// LinkUpsertOne is the builder for "upsert"-ing
-	//  one Link node.
-	LinkUpsertOne struct {
-		create *LinkCreate
+	if _c.mutation.insert.LinkInformation.IsNull() {
+		_spec.SetField(link.FieldLinkInformation, field.TypeJSON, nil)
 	}
 
-	// LinkUpsert is the "OnConflict" setter.
-	LinkUpsert struct {
-		*sql.UpdateSet
-	}
-)
+	_spec.Expressions = _c.mutation.insert.expressions
 
-// SetLinkInformation sets the "link_information" field.
-func (u *LinkUpsert) SetLinkInformation(v map[string]schema.LinkInformation) *LinkUpsert {
-	u.Set(link.FieldLinkInformation, v)
-	return u
-}
-
-// UpdateLinkInformation sets the "link_information" field to the value that was provided on create.
-func (u *LinkUpsert) UpdateLinkInformation() *LinkUpsert {
-	u.SetExcluded(link.FieldLinkInformation)
-	return u
-}
-
-// UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
-// Using this option is equivalent to using:
-//
-//	client.Link.Create().
-//		OnConflict(
-//			sql.ResolveWithNewValues(),
-//			sql.ResolveWith(func(u *sql.UpdateSet) {
-//				u.SetIgnore(link.FieldID)
-//			}),
-//		).
-//		Exec(ctx)
-func (u *LinkUpsertOne) UpdateNewValues() *LinkUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
-		if _, exists := u.create.mutation.ID(); exists {
-			s.SetIgnore(link.FieldID)
+	_spec.Returning = &sqlgraph.Returning{Columns: link.Columns, Scan: func(rows dialect.Rows) error {
+		values, err := _node.scanValues(link.Columns)
+		if err != nil {
+			return err
 		}
-	}))
-	return u
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(link.Columns, values); err != nil {
+			return err
+		}
+
+		_spec.ID.Value = _node.ID
+
+		return nil
+	}}
+	return _node, _spec, nil
 }
 
-// Ignore sets each column to itself in case of conflict.
-// Using this option is equivalent to using:
-//
-//	client.Link.Create().
-//	    OnConflict(sql.ResolveWithIgnore()).
-//	    Exec(ctx)
-func (u *LinkUpsertOne) Ignore() *LinkUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
-	return u
+type LinkUpsertOne struct{ create *LinkCreate }
+
+func (b *LinkCreate) OnConflict(columns ...ent.EntityColumn[entity.Link]) *LinkUpsertOne {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
+	}
+	if len(names) == 0 {
+		return b.OnConflictOptions()
+	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
 }
 
-// DoNothing configures the conflict_action to `DO NOTHING`.
-// Supported only by SQLite and PostgreSQL.
+func (b *LinkCreate) OnConflictConstraint(name string) *LinkUpsertOne {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
+}
+
+func (b *LinkCreate) OnConflictOptions(options ...sql.ConflictOption) *LinkUpsertOne {
+	b.conflict = options
+	return &LinkUpsertOne{create: b}
+}
+
 func (u *LinkUpsertOne) DoNothing() *LinkUpsertOne {
 	u.create.conflict = append(u.create.conflict, sql.DoNothing())
 	return u
 }
 
-// Update allows overriding fields `UPDATE` values. See the LinkCreate.OnConflict
-// documentation for more info.
-func (u *LinkUpsertOne) Update(set func(*LinkUpsert)) *LinkUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
-		set(&LinkUpsert{UpdateSet: update})
+func (u *LinkUpsertOne) DoSelect() *LinkUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *LinkUpsertOne) Ignore() *LinkUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *LinkUpsertOne) DoUpdate(set func(*LinkUpsert)) *LinkUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&LinkUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *LinkUpsertOne) UpdateNewValues() *LinkUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case link.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
 	}))
 	return u
 }
 
-// SetLinkInformation sets the "link_information" field.
-func (u *LinkUpsertOne) SetLinkInformation(v map[string]schema.LinkInformation) *LinkUpsertOne {
-	return u.Update(func(s *LinkUpsert) {
-		s.SetLinkInformation(v)
-	})
+func (u *LinkUpsertOne) Where(predicates ...ent.Predicate[entity.Link]) *LinkUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(link.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// UpdateLinkInformation sets the "link_information" field to the value that was provided on create.
-func (u *LinkUpsertOne) UpdateLinkInformation() *LinkUpsertOne {
-	return u.Update(func(s *LinkUpsert) {
-		s.UpdateLinkInformation()
-	})
+func (u *LinkUpsertOne) UpdateWhere(predicates ...ent.Predicate[entity.Link]) *LinkUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(link.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// Exec executes the query.
-func (u *LinkUpsertOne) Exec(ctx context.Context) error {
+func (u *LinkUpsertOne) Save(ctx context.Context) (*Link, error) {
 	if len(u.create.conflict) == 0 {
-		return errors.New("ent: missing options for LinkCreate.OnConflict")
+		return nil, errors.New("ent: missing options for LinkCreate.OnConflict")
 	}
-	return u.create.Exec(ctx)
+	return u.create.Save(ctx)
 }
 
-// ExecX is like Exec, but panics if an error occurs.
+func (u *LinkUpsertOne) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
 func (u *LinkUpsertOne) ExecX(ctx context.Context) {
-	if err := u.create.Exec(ctx); err != nil {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// Exec executes the UPSERT query and returns the inserted/updated ID.
 func (u *LinkUpsertOne) ID(ctx context.Context) (id uuidc.UUIDC, err error) {
-	node, err := u.create.Save(ctx)
+	node, err := u.Save(ctx)
 	if err != nil {
 		return id, err
 	}
 	return node.ID, nil
 }
 
-// IDX is like ID, but panics if an error occurs.
 func (u *LinkUpsertOne) IDX(ctx context.Context) uuidc.UUIDC {
 	id, err := u.ID(ctx)
 	if err != nil {
@@ -301,216 +333,235 @@ func (u *LinkUpsertOne) IDX(ctx context.Context) uuidc.UUIDC {
 	return id
 }
 
-// LinkCreateBulk is the builder for creating many Link entities in bulk.
+type LinkUpsert struct{ *sql.UpdateSet }
+
+func (u *LinkUpsert) Set[T any](column ent.ColumnOf[entity.Link, T], value T) *LinkUpsert {
+	switch column.Ref().Name {
+
+	case link.FieldLinkInformation:
+
+		encoded, err := json.Marshal(value)
+		if err != nil {
+			u.UpdateSet.AddError(err)
+			return u
+		}
+		u.UpdateSet.Set(column.Ref().Name, json.RawMessage(encoded))
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Link is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *LinkUpsert) SetExpr[T any](column ent.ColumnOf[entity.Link, T], value ent.Expr[T]) *LinkUpsert {
+	switch column.Ref().Name {
+
+	case link.FieldLinkInformation:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Link is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *LinkUpsert) UpdateNewValue[T any](column ent.ColumnOf[entity.Link, T]) *LinkUpsert {
+	switch column.Ref().Name {
+
+	case link.FieldLinkInformation:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Link is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *LinkUpsert) Add[T ent.Number](column ent.ColumnOf[entity.Link, T], delta T) *LinkUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Link does not support addition", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *LinkUpsert) Clear[T any](column ent.ColumnOf[entity.Link, T]) *LinkUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Link is not nullable", column.Ref().Name)})
+	}
+	return u
+}
+
 type LinkCreateBulk struct {
 	config
 	err      error
 	builders []*LinkCreate
+
 	conflict []sql.ConflictOption
 }
 
-// Save creates the Link entities in the database.
 func (_c *LinkCreateBulk) Save(ctx context.Context) ([]*Link, error) {
 	if _c.err != nil {
 		return nil, _c.err
 	}
-	specs := make([]*sqlgraph.CreateSpec, len(_c.builders))
 	nodes := make([]*Link, len(_c.builders))
-	mutators := make([]Mutator, len(_c.builders))
-	for i := range _c.builders {
-		func(i int, root context.Context) {
-			builder := _c.builders[i]
-			builder.defaults()
-			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*LinkMutation)
-				if !ok {
-					return nil, fmt.Errorf("unexpected mutation type %T", m)
-				}
-				if err := builder.check(); err != nil {
-					return nil, err
-				}
-				builder.mutation = mutation
-				var err error
-				nodes[i], specs[i] = builder.createSpec()
-				if i < len(mutators)-1 {
-					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
-				} else {
-					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
-					spec.OnConflict = _c.conflict
-					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
-						if sqlgraph.IsConstraintError(err) {
-							err = &ConstraintError{msg: err.Error(), wrap: err}
-						}
-					}
-				}
-				if err != nil {
-					return nil, err
-				}
-				mutation.id = &nodes[i].ID
-				mutation.done = true
-				return nodes[i], nil
-			})
-			for i := len(builder.hooks) - 1; i >= 0; i-- {
-				mut = builder.hooks[i](mut)
-			}
-			mutators[i] = mut
-		}(i, ctx)
-	}
-	if len(mutators) > 0 {
-		if _, err := mutators[0].Mutate(ctx, _c.builders[0].mutation); err != nil {
+	specs := make([]*sqlgraph.CreateSpec, len(nodes))
+	for index, builder := range _c.builders {
+		if builder.err != nil {
+			return nil, builder.err
+		}
+		if err := builder.defaults(); err != nil {
+			return nil, err
+		}
+		if err := builder.check(); err != nil {
+			return nil, err
+		}
+		var err error
+		nodes[index], specs[index], err = builder.createSpec()
+		if err != nil {
 			return nil, err
 		}
 	}
-	return nodes, nil
+	if len(specs) == 0 {
+		return nodes, nil
+	}
+	spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+
+	spec.OnConflict = _c.conflict
+
+	if err := sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
+		if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{msg: err.Error(), wrap: err}
+		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
+		return nil, err
+	}
+	result := nodes[:0]
+	for index, builder := range _c.builders {
+		if specs[index].Skipped {
+			continue
+		}
+		builder.mutation.id = &nodes[index].ID
+		result = append(result, nodes[index])
+	}
+	return result, nil
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_c *LinkCreateBulk) SaveX(ctx context.Context) []*Link {
-	v, err := _c.Save(ctx)
+func (b *LinkCreateBulk) SaveX(ctx context.Context) []*Link {
+	nodes, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return nodes
 }
 
-// Exec executes the query.
-func (_c *LinkCreateBulk) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *LinkCreateBulk) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *LinkCreateBulk) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *LinkCreateBulk) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// OnConflict allows configuring the `ON CONFLICT` clause of the `INSERT`
-// statement. For example:
-//
-//	client.Link.CreateBulk(builders...).
-//		OnConflict(
-//			// Update the row with the new values
-//			// the was proposed for insertion.
-//			sql.ResolveWithNewValues(),
-//		).
-//		// Override some of the fields with custom
-//		// update values.
-//		Update(func(u *ent.LinkUpsert) {
-//			SetLinkInformation(v+v).
-//		}).
-//		Exec(ctx)
-func (_c *LinkCreateBulk) OnConflict(opts ...sql.ConflictOption) *LinkUpsertBulk {
-	_c.conflict = opts
-	return &LinkUpsertBulk{
-		create: _c,
+type LinkUpsertBulk struct{ create *LinkCreateBulk }
+
+func (b *LinkCreateBulk) OnConflict(columns ...ent.EntityColumn[entity.Link]) *LinkUpsertBulk {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
 	}
-}
-
-// OnConflictColumns calls `OnConflict` and configures the columns
-// as conflict target. Using this option is equivalent to using:
-//
-//	client.Link.Create().
-//		OnConflict(sql.ConflictColumns(columns...)).
-//		Exec(ctx)
-func (_c *LinkCreateBulk) OnConflictColumns(columns ...string) *LinkUpsertBulk {
-	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
-	return &LinkUpsertBulk{
-		create: _c,
+	if len(names) == 0 {
+		return b.OnConflictOptions()
 	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
 }
 
-// LinkUpsertBulk is the builder for "upsert"-ing
-// a bulk of Link nodes.
-type LinkUpsertBulk struct {
-	create *LinkCreateBulk
+func (b *LinkCreateBulk) OnConflictConstraint(name string) *LinkUpsertBulk {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
 }
 
-// UpdateNewValues updates the mutable fields using the new values that
-// were set on create. Using this option is equivalent to using:
-//
-//	client.Link.Create().
-//		OnConflict(
-//			sql.ResolveWithNewValues(),
-//			sql.ResolveWith(func(u *sql.UpdateSet) {
-//				u.SetIgnore(link.FieldID)
-//			}),
-//		).
-//		Exec(ctx)
-func (u *LinkUpsertBulk) UpdateNewValues() *LinkUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
-		for _, b := range u.create.builders {
-			if _, exists := b.mutation.ID(); exists {
-				s.SetIgnore(link.FieldID)
-			}
-		}
-	}))
-	return u
+func (b *LinkCreateBulk) OnConflictOptions(options ...sql.ConflictOption) *LinkUpsertBulk {
+	b.conflict = options
+	return &LinkUpsertBulk{create: b}
 }
 
-// Ignore sets each column to itself in case of conflict.
-// Using this option is equivalent to using:
-//
-//	client.Link.Create().
-//		OnConflict(sql.ResolveWithIgnore()).
-//		Exec(ctx)
-func (u *LinkUpsertBulk) Ignore() *LinkUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
-	return u
-}
-
-// DoNothing configures the conflict_action to `DO NOTHING`.
-// Supported only by SQLite and PostgreSQL.
 func (u *LinkUpsertBulk) DoNothing() *LinkUpsertBulk {
 	u.create.conflict = append(u.create.conflict, sql.DoNothing())
 	return u
 }
 
-// Update allows overriding fields `UPDATE` values. See the LinkCreateBulk.OnConflict
-// documentation for more info.
-func (u *LinkUpsertBulk) Update(set func(*LinkUpsert)) *LinkUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
-		set(&LinkUpsert{UpdateSet: update})
+func (u *LinkUpsertBulk) DoSelect() *LinkUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *LinkUpsertBulk) Ignore() *LinkUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *LinkUpsertBulk) DoUpdate(set func(*LinkUpsert)) *LinkUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&LinkUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *LinkUpsertBulk) UpdateNewValues() *LinkUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case link.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
 	}))
 	return u
 }
 
-// SetLinkInformation sets the "link_information" field.
-func (u *LinkUpsertBulk) SetLinkInformation(v map[string]schema.LinkInformation) *LinkUpsertBulk {
-	return u.Update(func(s *LinkUpsert) {
-		s.SetLinkInformation(v)
-	})
-}
-
-// UpdateLinkInformation sets the "link_information" field to the value that was provided on create.
-func (u *LinkUpsertBulk) UpdateLinkInformation() *LinkUpsertBulk {
-	return u.Update(func(s *LinkUpsert) {
-		s.UpdateLinkInformation()
-	})
-}
-
-// Exec executes the query.
-func (u *LinkUpsertBulk) Exec(ctx context.Context) error {
-	if u.create.err != nil {
-		return u.create.err
-	}
-	for i, b := range u.create.builders {
-		if len(b.conflict) != 0 {
-			return fmt.Errorf("ent: OnConflict was set for builder %d. Set it on the LinkCreateBulk instead", i)
+func (u *LinkUpsertBulk) Where(predicates ...ent.Predicate[entity.Link]) *LinkUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(link.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
 		}
-	}
-	if len(u.create.conflict) == 0 {
-		return errors.New("ent: missing options for LinkCreateBulk.OnConflict")
-	}
-	return u.create.Exec(ctx)
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// ExecX is like Exec, but panics if an error occurs.
+func (u *LinkUpsertBulk) UpdateWhere(predicates ...ent.Predicate[entity.Link]) *LinkUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(link.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *LinkUpsertBulk) Save(ctx context.Context) ([]*Link, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for LinkCreateBulk.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *LinkUpsertBulk) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
 func (u *LinkUpsertBulk) ExecX(ctx context.Context) {
-	if err := u.create.Exec(ctx); err != nil {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

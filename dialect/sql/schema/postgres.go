@@ -34,8 +34,8 @@ func (d *Postgres) init(ctx context.Context) error {
 	if d.version != "" {
 		return nil // already initialized.
 	}
-	rows := &sql.Rows{}
-	if err := d.Query(ctx, "SHOW server_version_num", []any{}, rows); err != nil {
+	rows, err := d.Query(ctx, "SHOW server_version_num", []any{})
+	if err != nil {
 		return fmt.Errorf("querying server version %w", err)
 	}
 	defer rows.Close()

@@ -8,29 +8,56 @@ package ent
 import (
 	"context"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/ent/filetype"
-	"github.com/neko-sc/ent/entc/integration/ent/predicate"
 	"github.com/neko-sc/ent/schema/field"
 )
 
 // FileTypeDelete is the builder for deleting a FileType entity.
 type FileTypeDelete struct {
 	config
-	hooks    []Hook
-	mutation *FileTypeMutation
+
+	mutation  *FileTypeMutation
+	returning *sqlgraph.Returning
 }
 
 // Where appends a list predicates to the FileTypeDelete builder.
-func (_d *FileTypeDelete) Where(ps ...predicate.FileType) *FileTypeDelete {
-	_d.mutation.Where(ps...)
+func (_d *FileTypeDelete) Where(predicates ...ent.Predicate[entity.FileType]) *FileTypeDelete {
+	_d.mutation.Where(predicates...)
 	return _d
 }
 
 // Exec executes the deletion query and returns how many vertices were deleted.
 func (_d *FileTypeDelete) Exec(ctx context.Context) (int, error) {
-	return withHooks(ctx, _d.sqlExec, _d.mutation, _d.hooks)
+	return _d.sqlExec(ctx)
+}
+
+func (b *FileTypeDelete) Returning(ctx context.Context) ([]*FileType, error) {
+	nodes := make([]*FileType, 0)
+	b.returning = &sqlgraph.Returning{Columns: filetype.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &FileType{config: b.config}
+		values, err := _node.scanValues(filetype.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(filetype.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Exec(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
 }
 
 // ExecX is like Exec, but panics if an error occurs.
@@ -51,11 +78,11 @@ func (_d *FileTypeDelete) sqlExec(ctx context.Context) (int, error) {
 			}
 		}
 	}
+	_spec.Returning = _d.returning
 	affected, err := sqlgraph.DeleteNodes(ctx, _d.driver, _spec)
 	if err != nil && sqlgraph.IsConstraintError(err) {
 		err = &ConstraintError{msg: err.Error(), wrap: err}
 	}
-	_d.mutation.done = true
 	return affected, err
 }
 
@@ -65,8 +92,8 @@ type FileTypeDeleteOne struct {
 }
 
 // Where appends a list predicates to the FileTypeDelete builder.
-func (_d *FileTypeDeleteOne) Where(ps ...predicate.FileType) *FileTypeDeleteOne {
-	_d._d.mutation.Where(ps...)
+func (_d *FileTypeDeleteOne) Where(predicates ...ent.Predicate[entity.FileType]) *FileTypeDeleteOne {
+	_d._d.mutation.Where(predicates...)
 	return _d
 }
 

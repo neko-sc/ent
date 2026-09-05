@@ -10,113 +10,164 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/account"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/token"
 	"github.com/neko-sc/ent/entc/integration/customid/sid"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// TokenCreate is the builder for creating a Token entity.
 type TokenCreate struct {
 	config
-	mutation *TokenMutation
-	hooks    []Hook
+	mutation    *TokenMutation
+	err         error
+	fromBuilder bool
+	present     map[string]struct{}
+
 	conflict []sql.ConflictOption
 }
 
-// SetBody sets the "body" field.
-func (_c *TokenCreate) SetBody(v string) *TokenCreate {
-	_c.mutation.SetBody(v)
-	return _c
-}
-
-// SetID sets the "id" field.
-func (_c *TokenCreate) SetID(v sid.ID) *TokenCreate {
-	_c.mutation.SetID(v)
-	return _c
-}
-
-// SetNillableID sets the "id" field if the given value is not nil.
-func (_c *TokenCreate) SetNillableID(v *sid.ID) *TokenCreate {
-	if v != nil {
-		_c.SetID(*v)
+func (b *TokenCreate) Set[T any](column ent.ColumnOf[entity.Token, T], value T) *TokenCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.set(column.Ref().Name, value)
 	}
-	return _c
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
 }
-
-// SetAccountID sets the "account" edge to the Account entity by ID.
-func (_c *TokenCreate) SetAccountID(id sid.ID) *TokenCreate {
-	_c.mutation.SetAccountID(id)
-	return _c
+func (b *TokenCreate) SetOptional[T any](column ent.ColumnOf[entity.Token, T], value ent.Option[T]) *TokenCreate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.insert.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
 }
+func (b *TokenCreate) SetExpr[T any](column ent.ColumnOf[entity.Token, T], value ent.Expr[T]) *TokenCreate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
 
-// SetAccount sets the "account" edge to the Account entity.
-func (_c *TokenCreate) SetAccount(v *Account) *TokenCreate {
-	return _c.SetAccountID(v.ID)
+	case token.FieldID:
+
+	case token.FieldBody:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Token is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.insert.setExpr(column.Ref().Name, value.Render)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+
 }
+func (b *TokenCreate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Token, N, K], id K) *TokenCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.setEdge(edge.Ref().Name, id)
+	}
 
-// Mutation returns the TokenMutation object of the builder.
-func (_c *TokenCreate) Mutation() *TokenMutation {
-	return _c.mutation
+	switch edge.Ref().Name {
+
+	}
+
+	return b
 }
+func (b *TokenCreate) AddIDs[N, K any](edge ent.Relation[entity.Token, N, K], ids ...K) *TokenCreate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.insert.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *TokenCreate) Mutation() *TokenMutation { return b.mutation }
 
-// Save creates the Token in the database.
-func (_c *TokenCreate) Save(ctx context.Context) (*Token, error) {
-	if err := _c.defaults(); err != nil {
+func (b *TokenCreate) Insert() *TokenInsert { return b.mutation.insert }
+
+func (b *TokenCreate) Save(ctx context.Context) (*Token, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
 		return nil, err
 	}
-	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
+	return b.sqlSave(ctx)
 }
 
-// SaveX calls Save and panics if Save returns an error.
-func (_c *TokenCreate) SaveX(ctx context.Context) *Token {
-	v, err := _c.Save(ctx)
+func (b *TokenCreate) SaveX(ctx context.Context) *Token {
+	node, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return node
 }
 
-// Exec executes the query.
-func (_c *TokenCreate) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *TokenCreate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *TokenCreate) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *TokenCreate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// defaults sets the default values of the builder before save.
-func (_c *TokenCreate) defaults() error {
-	if _, ok := _c.mutation.ID(); !ok {
+func (b *TokenCreate) defaults() error {
+
+	if b.mutation.insert.ID.IsUnset() && b.mutation.insert.expressions[token.FieldID] == nil {
 		if token.DefaultID == nil {
-			return fmt.Errorf("ent: uninitialized token.DefaultID (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized token.DefaultID")
 		}
-		v := token.DefaultID()
-		_c.mutation.SetID(v)
+		b.mutation.insert.ID = ent.Some(token.DefaultID())
 	}
+
 	return nil
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_c *TokenCreate) check() error {
-	if _, ok := _c.mutation.Body(); !ok {
-		return &ValidationError{Name: "body", err: errors.New(`ent: missing required field "Token.body"`)}
+func (b *TokenCreate) check() error {
+	if b.err != nil {
+		return b.err
 	}
-	if v, ok := _c.mutation.Body(); ok {
+
+	if b.mutation.insert.ID.IsNull() {
+		return &ValidationError{Name: "id", err: errors.New(`ent: field "Token.id" is not nullable`)}
+	}
+
+	switch b.driver.Dialect() {
+	case dialect.Postgres, dialect.SQLite:
+		if _, present := b.present[token.FieldBody]; b.fromBuilder && !present {
+			return &ValidationError{Name: "body", err: errors.New(`ent: missing required field "Token.body"`)}
+		}
+	}
+
+	if b.mutation.insert.expressions[token.FieldBody] == nil {
+		v := b.mutation.insert.Body
+
 		if err := token.BodyValidator(v); err != nil {
 			return &ValidationError{Name: "body", err: fmt.Errorf(`ent: validator failed for field "Token.body": %w`, err)}
 		}
+
 	}
-	if len(_c.mutation.AccountIDs()) == 0 {
+
+	if len(b.mutation.insert.accountIDs()) == 0 {
 		return &ValidationError{Name: "account", err: errors.New(`ent: missing required edge "Token.account"`)}
 	}
+
 	return nil
 }
 
@@ -124,40 +175,41 @@ func (_c *TokenCreate) sqlSave(ctx context.Context) (*Token, error) {
 	if err := _c.check(); err != nil {
 		return nil, err
 	}
-	_node, _spec := _c.createSpec()
-	if err := sqlgraph.CreateNode(ctx, _c.driver, _spec); err != nil {
+	node, spec, err := _c.createSpec()
+	if err != nil {
+		return nil, err
+	}
+	if err := sqlgraph.CreateNode(ctx, _c.driver, spec); err != nil {
 		if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
 		return nil, err
 	}
-	if _spec.ID.Value != nil {
-		if id, ok := _spec.ID.Value.(*sid.ID); ok {
-			_node.ID = *id
-		} else if err := _node.ID.Scan(_spec.ID.Value); err != nil {
-			return nil, err
-		}
-	}
-	_c.mutation.id = &_node.ID
-	_c.mutation.done = true
-	return _node, nil
+	_c.mutation.id = &node.ID
+	return node, nil
 }
 
-func (_c *TokenCreate) createSpec() (*Token, *sqlgraph.CreateSpec) {
-	var (
-		_node = &Token{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(token.Table, sqlgraph.NewFieldSpec(token.FieldID, field.TypeOther))
-	)
+func (_c *TokenCreate) createSpec() (*Token, *sqlgraph.CreateSpec, error) {
+	_node := &Token{config: _c.config}
+	_spec := sqlgraph.NewCreateSpec(token.Table, sqlgraph.NewFieldSpec(token.FieldID, field.TypeOther))
+
 	_spec.OnConflict = _c.conflict
-	if id, ok := _c.mutation.ID(); ok {
-		_node.ID = id
-		_spec.ID.Value = &id
+
+	if value, ok := _c.mutation.insert.ID.Get(); ok {
+		_spec.ID.Value = &value
 	}
-	if value, ok := _c.mutation.Body(); ok {
+
+	if _, present := _c.present[token.FieldBody]; !_c.fromBuilder || present {
+		value := _c.mutation.insert.Body
 		_spec.SetField(token.FieldBody, field.TypeString, value)
-		_node.Body = value
 	}
-	if nodes := _c.mutation.AccountIDs(); len(nodes) > 0 {
+
+	_spec.Expressions = _c.mutation.insert.expressions
+
+	if nodes := _c.mutation.insert.accountIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -168,163 +220,142 @@ func (_c *TokenCreate) createSpec() (*Token, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(account.FieldID, field.TypeOther),
 			},
 		}
+		seen := make(map[sid.ID]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
-		_node.account_token = &nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	return _node, _spec
-}
 
-// OnConflict allows configuring the `ON CONFLICT` clause of the `INSERT`
-// statement. For example:
-//
-//	client.Token.Create().
-//		SetBody(v).
-//		OnConflict(
-//			// Update the row with the new values
-//			// the was proposed for insertion.
-//			sql.ResolveWithNewValues(),
-//		).
-//		// Override some of the fields with custom
-//		// update values.
-//		Update(func(u *ent.TokenUpsert) {
-//			SetBody(v+v).
-//		}).
-//		Exec(ctx)
-func (_c *TokenCreate) OnConflict(opts ...sql.ConflictOption) *TokenUpsertOne {
-	_c.conflict = opts
-	return &TokenUpsertOne{
-		create: _c,
-	}
-}
-
-// OnConflictColumns calls `OnConflict` and configures the columns
-// as conflict target. Using this option is equivalent to using:
-//
-//	client.Token.Create().
-//		OnConflict(sql.ConflictColumns(columns...)).
-//		Exec(ctx)
-func (_c *TokenCreate) OnConflictColumns(columns ...string) *TokenUpsertOne {
-	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
-	return &TokenUpsertOne{
-		create: _c,
-	}
-}
-
-type (
-	// TokenUpsertOne is the builder for "upsert"-ing
-	//  one Token node.
-	TokenUpsertOne struct {
-		create *TokenCreate
-	}
-
-	// TokenUpsert is the "OnConflict" setter.
-	TokenUpsert struct {
-		*sql.UpdateSet
-	}
-)
-
-// SetBody sets the "body" field.
-func (u *TokenUpsert) SetBody(v string) *TokenUpsert {
-	u.Set(token.FieldBody, v)
-	return u
-}
-
-// UpdateBody sets the "body" field to the value that was provided on create.
-func (u *TokenUpsert) UpdateBody() *TokenUpsert {
-	u.SetExcluded(token.FieldBody)
-	return u
-}
-
-// UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
-// Using this option is equivalent to using:
-//
-//	client.Token.Create().
-//		OnConflict(
-//			sql.ResolveWithNewValues(),
-//			sql.ResolveWith(func(u *sql.UpdateSet) {
-//				u.SetIgnore(token.FieldID)
-//			}),
-//		).
-//		Exec(ctx)
-func (u *TokenUpsertOne) UpdateNewValues() *TokenUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
-		if _, exists := u.create.mutation.ID(); exists {
-			s.SetIgnore(token.FieldID)
+	_spec.Returning = &sqlgraph.Returning{Columns: token.Columns, Scan: func(rows dialect.Rows) error {
+		values, err := _node.scanValues(token.Columns)
+		if err != nil {
+			return err
 		}
-	}))
-	return u
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(token.Columns, values); err != nil {
+			return err
+		}
+
+		_spec.ID.Value = _node.ID
+
+		return nil
+	}}
+	return _node, _spec, nil
 }
 
-// Ignore sets each column to itself in case of conflict.
-// Using this option is equivalent to using:
-//
-//	client.Token.Create().
-//	    OnConflict(sql.ResolveWithIgnore()).
-//	    Exec(ctx)
-func (u *TokenUpsertOne) Ignore() *TokenUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
-	return u
+type TokenUpsertOne struct{ create *TokenCreate }
+
+func (b *TokenCreate) OnConflict(columns ...ent.EntityColumn[entity.Token]) *TokenUpsertOne {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
+	}
+	if len(names) == 0 {
+		return b.OnConflictOptions()
+	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
 }
 
-// DoNothing configures the conflict_action to `DO NOTHING`.
-// Supported only by SQLite and PostgreSQL.
+func (b *TokenCreate) OnConflictConstraint(name string) *TokenUpsertOne {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
+}
+
+func (b *TokenCreate) OnConflictOptions(options ...sql.ConflictOption) *TokenUpsertOne {
+	b.conflict = options
+	return &TokenUpsertOne{create: b}
+}
+
 func (u *TokenUpsertOne) DoNothing() *TokenUpsertOne {
 	u.create.conflict = append(u.create.conflict, sql.DoNothing())
 	return u
 }
 
-// Update allows overriding fields `UPDATE` values. See the TokenCreate.OnConflict
-// documentation for more info.
-func (u *TokenUpsertOne) Update(set func(*TokenUpsert)) *TokenUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
-		set(&TokenUpsert{UpdateSet: update})
+func (u *TokenUpsertOne) DoSelect() *TokenUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *TokenUpsertOne) Ignore() *TokenUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *TokenUpsertOne) DoUpdate(set func(*TokenUpsert)) *TokenUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&TokenUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *TokenUpsertOne) UpdateNewValues() *TokenUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case token.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
 	}))
 	return u
 }
 
-// SetBody sets the "body" field.
-func (u *TokenUpsertOne) SetBody(v string) *TokenUpsertOne {
-	return u.Update(func(s *TokenUpsert) {
-		s.SetBody(v)
-	})
+func (u *TokenUpsertOne) Where(predicates ...ent.Predicate[entity.Token]) *TokenUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(token.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// UpdateBody sets the "body" field to the value that was provided on create.
-func (u *TokenUpsertOne) UpdateBody() *TokenUpsertOne {
-	return u.Update(func(s *TokenUpsert) {
-		s.UpdateBody()
-	})
+func (u *TokenUpsertOne) UpdateWhere(predicates ...ent.Predicate[entity.Token]) *TokenUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(token.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// Exec executes the query.
-func (u *TokenUpsertOne) Exec(ctx context.Context) error {
+func (u *TokenUpsertOne) Save(ctx context.Context) (*Token, error) {
 	if len(u.create.conflict) == 0 {
-		return errors.New("ent: missing options for TokenCreate.OnConflict")
+		return nil, errors.New("ent: missing options for TokenCreate.OnConflict")
 	}
-	return u.create.Exec(ctx)
+	return u.create.Save(ctx)
 }
 
-// ExecX is like Exec, but panics if an error occurs.
+func (u *TokenUpsertOne) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
 func (u *TokenUpsertOne) ExecX(ctx context.Context) {
-	if err := u.create.Exec(ctx); err != nil {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// Exec executes the UPSERT query and returns the inserted/updated ID.
 func (u *TokenUpsertOne) ID(ctx context.Context) (id sid.ID, err error) {
-	node, err := u.create.Save(ctx)
+	node, err := u.Save(ctx)
 	if err != nil {
 		return id, err
 	}
 	return node.ID, nil
 }
 
-// IDX is like ID, but panics if an error occurs.
 func (u *TokenUpsertOne) IDX(ctx context.Context) sid.ID {
 	id, err := u.ID(ctx)
 	if err != nil {
@@ -333,216 +364,229 @@ func (u *TokenUpsertOne) IDX(ctx context.Context) sid.ID {
 	return id
 }
 
-// TokenCreateBulk is the builder for creating many Token entities in bulk.
+type TokenUpsert struct{ *sql.UpdateSet }
+
+func (u *TokenUpsert) Set[T any](column ent.ColumnOf[entity.Token, T], value T) *TokenUpsert {
+	switch column.Ref().Name {
+
+	case token.FieldBody:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Token is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *TokenUpsert) SetExpr[T any](column ent.ColumnOf[entity.Token, T], value ent.Expr[T]) *TokenUpsert {
+	switch column.Ref().Name {
+
+	case token.FieldBody:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Token is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *TokenUpsert) UpdateNewValue[T any](column ent.ColumnOf[entity.Token, T]) *TokenUpsert {
+	switch column.Ref().Name {
+
+	case token.FieldBody:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Token is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *TokenUpsert) Add[T ent.Number](column ent.ColumnOf[entity.Token, T], delta T) *TokenUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Token does not support addition", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *TokenUpsert) Clear[T any](column ent.ColumnOf[entity.Token, T]) *TokenUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Token is not nullable", column.Ref().Name)})
+	}
+	return u
+}
+
 type TokenCreateBulk struct {
 	config
 	err      error
 	builders []*TokenCreate
+
 	conflict []sql.ConflictOption
 }
 
-// Save creates the Token entities in the database.
 func (_c *TokenCreateBulk) Save(ctx context.Context) ([]*Token, error) {
 	if _c.err != nil {
 		return nil, _c.err
 	}
-	specs := make([]*sqlgraph.CreateSpec, len(_c.builders))
 	nodes := make([]*Token, len(_c.builders))
-	mutators := make([]Mutator, len(_c.builders))
-	for i := range _c.builders {
-		func(i int, root context.Context) {
-			builder := _c.builders[i]
-			builder.defaults()
-			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*TokenMutation)
-				if !ok {
-					return nil, fmt.Errorf("unexpected mutation type %T", m)
-				}
-				if err := builder.check(); err != nil {
-					return nil, err
-				}
-				builder.mutation = mutation
-				var err error
-				nodes[i], specs[i] = builder.createSpec()
-				if i < len(mutators)-1 {
-					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
-				} else {
-					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
-					spec.OnConflict = _c.conflict
-					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
-						if sqlgraph.IsConstraintError(err) {
-							err = &ConstraintError{msg: err.Error(), wrap: err}
-						}
-					}
-				}
-				if err != nil {
-					return nil, err
-				}
-				mutation.id = &nodes[i].ID
-				mutation.done = true
-				return nodes[i], nil
-			})
-			for i := len(builder.hooks) - 1; i >= 0; i-- {
-				mut = builder.hooks[i](mut)
-			}
-			mutators[i] = mut
-		}(i, ctx)
-	}
-	if len(mutators) > 0 {
-		if _, err := mutators[0].Mutate(ctx, _c.builders[0].mutation); err != nil {
+	specs := make([]*sqlgraph.CreateSpec, len(nodes))
+	for index, builder := range _c.builders {
+		if builder.err != nil {
+			return nil, builder.err
+		}
+		if err := builder.defaults(); err != nil {
+			return nil, err
+		}
+		if err := builder.check(); err != nil {
+			return nil, err
+		}
+		var err error
+		nodes[index], specs[index], err = builder.createSpec()
+		if err != nil {
 			return nil, err
 		}
 	}
-	return nodes, nil
+	if len(specs) == 0 {
+		return nodes, nil
+	}
+	spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+
+	spec.OnConflict = _c.conflict
+
+	if err := sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
+		if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{msg: err.Error(), wrap: err}
+		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
+		return nil, err
+	}
+	result := nodes[:0]
+	for index, builder := range _c.builders {
+		if specs[index].Skipped {
+			continue
+		}
+		builder.mutation.id = &nodes[index].ID
+		result = append(result, nodes[index])
+	}
+	return result, nil
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_c *TokenCreateBulk) SaveX(ctx context.Context) []*Token {
-	v, err := _c.Save(ctx)
+func (b *TokenCreateBulk) SaveX(ctx context.Context) []*Token {
+	nodes, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return nodes
 }
 
-// Exec executes the query.
-func (_c *TokenCreateBulk) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *TokenCreateBulk) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *TokenCreateBulk) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *TokenCreateBulk) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// OnConflict allows configuring the `ON CONFLICT` clause of the `INSERT`
-// statement. For example:
-//
-//	client.Token.CreateBulk(builders...).
-//		OnConflict(
-//			// Update the row with the new values
-//			// the was proposed for insertion.
-//			sql.ResolveWithNewValues(),
-//		).
-//		// Override some of the fields with custom
-//		// update values.
-//		Update(func(u *ent.TokenUpsert) {
-//			SetBody(v+v).
-//		}).
-//		Exec(ctx)
-func (_c *TokenCreateBulk) OnConflict(opts ...sql.ConflictOption) *TokenUpsertBulk {
-	_c.conflict = opts
-	return &TokenUpsertBulk{
-		create: _c,
+type TokenUpsertBulk struct{ create *TokenCreateBulk }
+
+func (b *TokenCreateBulk) OnConflict(columns ...ent.EntityColumn[entity.Token]) *TokenUpsertBulk {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
 	}
-}
-
-// OnConflictColumns calls `OnConflict` and configures the columns
-// as conflict target. Using this option is equivalent to using:
-//
-//	client.Token.Create().
-//		OnConflict(sql.ConflictColumns(columns...)).
-//		Exec(ctx)
-func (_c *TokenCreateBulk) OnConflictColumns(columns ...string) *TokenUpsertBulk {
-	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
-	return &TokenUpsertBulk{
-		create: _c,
+	if len(names) == 0 {
+		return b.OnConflictOptions()
 	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
 }
 
-// TokenUpsertBulk is the builder for "upsert"-ing
-// a bulk of Token nodes.
-type TokenUpsertBulk struct {
-	create *TokenCreateBulk
+func (b *TokenCreateBulk) OnConflictConstraint(name string) *TokenUpsertBulk {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
 }
 
-// UpdateNewValues updates the mutable fields using the new values that
-// were set on create. Using this option is equivalent to using:
-//
-//	client.Token.Create().
-//		OnConflict(
-//			sql.ResolveWithNewValues(),
-//			sql.ResolveWith(func(u *sql.UpdateSet) {
-//				u.SetIgnore(token.FieldID)
-//			}),
-//		).
-//		Exec(ctx)
-func (u *TokenUpsertBulk) UpdateNewValues() *TokenUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
-		for _, b := range u.create.builders {
-			if _, exists := b.mutation.ID(); exists {
-				s.SetIgnore(token.FieldID)
-			}
-		}
-	}))
-	return u
+func (b *TokenCreateBulk) OnConflictOptions(options ...sql.ConflictOption) *TokenUpsertBulk {
+	b.conflict = options
+	return &TokenUpsertBulk{create: b}
 }
 
-// Ignore sets each column to itself in case of conflict.
-// Using this option is equivalent to using:
-//
-//	client.Token.Create().
-//		OnConflict(sql.ResolveWithIgnore()).
-//		Exec(ctx)
-func (u *TokenUpsertBulk) Ignore() *TokenUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
-	return u
-}
-
-// DoNothing configures the conflict_action to `DO NOTHING`.
-// Supported only by SQLite and PostgreSQL.
 func (u *TokenUpsertBulk) DoNothing() *TokenUpsertBulk {
 	u.create.conflict = append(u.create.conflict, sql.DoNothing())
 	return u
 }
 
-// Update allows overriding fields `UPDATE` values. See the TokenCreateBulk.OnConflict
-// documentation for more info.
-func (u *TokenUpsertBulk) Update(set func(*TokenUpsert)) *TokenUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
-		set(&TokenUpsert{UpdateSet: update})
+func (u *TokenUpsertBulk) DoSelect() *TokenUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *TokenUpsertBulk) Ignore() *TokenUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *TokenUpsertBulk) DoUpdate(set func(*TokenUpsert)) *TokenUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&TokenUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *TokenUpsertBulk) UpdateNewValues() *TokenUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case token.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
 	}))
 	return u
 }
 
-// SetBody sets the "body" field.
-func (u *TokenUpsertBulk) SetBody(v string) *TokenUpsertBulk {
-	return u.Update(func(s *TokenUpsert) {
-		s.SetBody(v)
-	})
-}
-
-// UpdateBody sets the "body" field to the value that was provided on create.
-func (u *TokenUpsertBulk) UpdateBody() *TokenUpsertBulk {
-	return u.Update(func(s *TokenUpsert) {
-		s.UpdateBody()
-	})
-}
-
-// Exec executes the query.
-func (u *TokenUpsertBulk) Exec(ctx context.Context) error {
-	if u.create.err != nil {
-		return u.create.err
-	}
-	for i, b := range u.create.builders {
-		if len(b.conflict) != 0 {
-			return fmt.Errorf("ent: OnConflict was set for builder %d. Set it on the TokenCreateBulk instead", i)
+func (u *TokenUpsertBulk) Where(predicates ...ent.Predicate[entity.Token]) *TokenUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(token.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
 		}
-	}
-	if len(u.create.conflict) == 0 {
-		return errors.New("ent: missing options for TokenCreateBulk.OnConflict")
-	}
-	return u.create.Exec(ctx)
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// ExecX is like Exec, but panics if an error occurs.
+func (u *TokenUpsertBulk) UpdateWhere(predicates ...ent.Predicate[entity.Token]) *TokenUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(token.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *TokenUpsertBulk) Save(ctx context.Context) ([]*Token, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for TokenCreateBulk.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *TokenUpsertBulk) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
 func (u *TokenUpsertBulk) ExecX(ctx context.Context) {
-	if err := u.create.Exec(ctx); err != nil {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

@@ -7,7 +7,8 @@ package mixinid
 
 import (
 	"github.com/google/uuid"
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
 )
 
 const (
@@ -22,6 +23,45 @@ const (
 	// Table holds the table name of the mixinid in the database.
 	Table = "mixin_ids"
 )
+
+var (
+	ID         = ent.OrderedColumn[entity.MixinID, uuid.UUID]{Table: Table, Name: FieldID}
+	SomeField  = ent.StringColumn[entity.MixinID, string]{Table: Table, Name: FieldSomeField}
+	MixinField = ent.StringColumn[entity.MixinID, string]{Table: Table, Name: FieldMixinField}
+)
+
+// Alias returns the columns of the mixin_ids table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.MixinID, uuid.UUID]{Table: name, Name: FieldID},
+		SomeField:  ent.StringColumn[entity.MixinID, string]{Table: name, Name: FieldSomeField},
+		MixinField: ent.StringColumn[entity.MixinID, string]{Table: name, Name: FieldMixinField},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.MixinID, uuid.UUID]
+	SomeField  ent.StringColumn[entity.MixinID, string]
+	MixinField ent.StringColumn[entity.MixinID, string]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.MixinID]) ent.Predicate[entity.MixinID] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.MixinID]) ent.Predicate[entity.MixinID] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.MixinID]) ent.Predicate[entity.MixinID] {
+	return ent.Not(predicate)
+}
 
 // Columns holds all SQL columns for mixinid fields.
 var Columns = []string{
@@ -44,21 +84,3 @@ var (
 	// DefaultID holds the default value on creation for the "id" field.
 	DefaultID func() uuid.UUID
 )
-
-// OrderOption defines the ordering options for the MixinID queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// BySomeField orders the results by the some_field field.
-func BySomeField(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldSomeField, opts...).ToFunc()
-}
-
-// ByMixinField orders the results by the mixin_field field.
-func ByMixinField(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldMixinField, opts...).ToFunc()
-}

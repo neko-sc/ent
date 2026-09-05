@@ -6,8 +6,12 @@
 package pet
 
 import (
-	"github.com/neko-sc/ent/dialect/sql"
+	time2 "time"
+
+	"github.com/google/uuid"
+	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/ent/entity"
 )
 
 const (
@@ -49,6 +53,57 @@ const (
 	OwnerColumn = "user_pets"
 )
 
+var (
+	ID           = ent.OrderedColumn[entity.Pet, int]{Table: Table, Name: FieldID}
+	Age          = ent.OrderedColumn[entity.Pet, float64]{Table: Table, Name: FieldAge}
+	Name         = ent.StringColumn[entity.Pet, string]{Table: Table, Name: FieldName}
+	UUID         = ent.OrderedColumn[entity.Pet, uuid.UUID]{Table: Table, Name: FieldUUID}
+	Nickname     = ent.StringColumn[entity.Pet, string]{Table: Table, Name: FieldNickname}
+	Trained      = ent.Column[entity.Pet, bool]{Table: Table, Name: FieldTrained}
+	OptionalTime = ent.OrderedColumn[entity.Pet, time2.Time]{Table: Table, Name: FieldOptionalTime}
+	Team         = ent.NewUniqueRelation[entity.Pet, entity.User, int](EdgeTeam, newTeamStep)
+	Owner        = ent.NewUniqueRelation[entity.Pet, entity.User, int](EdgeOwner, newOwnerStep)
+)
+
+// Alias returns the columns of the pet table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias:   name,
+		ID:           ent.OrderedColumn[entity.Pet, int]{Table: name, Name: FieldID},
+		Age:          ent.OrderedColumn[entity.Pet, float64]{Table: name, Name: FieldAge},
+		Name:         ent.StringColumn[entity.Pet, string]{Table: name, Name: FieldName},
+		UUID:         ent.OrderedColumn[entity.Pet, uuid.UUID]{Table: name, Name: FieldUUID},
+		Nickname:     ent.StringColumn[entity.Pet, string]{Table: name, Name: FieldNickname},
+		Trained:      ent.Column[entity.Pet, bool]{Table: name, Name: FieldTrained},
+		OptionalTime: ent.OrderedColumn[entity.Pet, time2.Time]{Table: name, Name: FieldOptionalTime},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias   string
+	ID           ent.OrderedColumn[entity.Pet, int]
+	Age          ent.OrderedColumn[entity.Pet, float64]
+	Name         ent.StringColumn[entity.Pet, string]
+	UUID         ent.OrderedColumn[entity.Pet, uuid.UUID]
+	Nickname     ent.StringColumn[entity.Pet, string]
+	Trained      ent.Column[entity.Pet, bool]
+	OptionalTime ent.OrderedColumn[entity.Pet, time2.Time]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.Pet]) ent.Predicate[entity.Pet] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.Pet]) ent.Predicate[entity.Pet] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.Pet]) ent.Predicate[entity.Pet] { return ent.Not(predicate) }
+
 // Columns holds all SQL columns for pet fields.
 var Columns = []string{
 	FieldID,
@@ -89,57 +144,6 @@ var (
 	DefaultTrained bool
 )
 
-// OrderOption defines the ordering options for the Pet queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByAge orders the results by the age field.
-func ByAge(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldAge, opts...).ToFunc()
-}
-
-// ByName orders the results by the name field.
-func ByName(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldName, opts...).ToFunc()
-}
-
-// ByUUID orders the results by the uuid field.
-func ByUUID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldUUID, opts...).ToFunc()
-}
-
-// ByNickname orders the results by the nickname field.
-func ByNickname(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldNickname, opts...).ToFunc()
-}
-
-// ByTrained orders the results by the trained field.
-func ByTrained(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldTrained, opts...).ToFunc()
-}
-
-// ByOptionalTime orders the results by the optional_time field.
-func ByOptionalTime(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldOptionalTime, opts...).ToFunc()
-}
-
-// ByTeamField orders the results by team field.
-func ByTeamField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newTeamStep(), sql.OrderByField(field, opts...))
-	}
-}
-
-// ByOwnerField orders the results by owner field.
-func ByOwnerField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newOwnerStep(), sql.OrderByField(field, opts...))
-	}
-}
 func newTeamStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),

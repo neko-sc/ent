@@ -10,9 +10,12 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/entc/integration/ent/card"
+	"github.com/neko-sc/ent/entc/integration/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/ent/file"
 	"github.com/neko-sc/ent/entc/integration/ent/group"
 	"github.com/neko-sc/ent/entc/integration/ent/pet"
@@ -20,438 +23,224 @@ import (
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// UserCreate is the builder for creating a User entity.
 type UserCreate struct {
 	config
-	mutation *UserMutation
-	hooks    []Hook
+	mutation    *UserMutation
+	err         error
+	fromBuilder bool
+	present     map[string]struct{}
+
 	conflict []sql.ConflictOption
 }
 
-// SetOptionalInt sets the "optional_int" field.
-func (_c *UserCreate) SetOptionalInt(v int) *UserCreate {
-	_c.mutation.SetOptionalInt(v)
-	return _c
-}
-
-// SetNillableOptionalInt sets the "optional_int" field if the given value is not nil.
-func (_c *UserCreate) SetNillableOptionalInt(v *int) *UserCreate {
-	if v != nil {
-		_c.SetOptionalInt(*v)
+func (b *UserCreate) Set[T any](column ent.ColumnOf[entity.User, T], value T) *UserCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.set(column.Ref().Name, value)
 	}
-	return _c
-}
-
-// SetAge sets the "age" field.
-func (_c *UserCreate) SetAge(v int) *UserCreate {
-	_c.mutation.SetAge(v)
-	return _c
-}
-
-// SetName sets the "name" field.
-func (_c *UserCreate) SetName(v string) *UserCreate {
-	_c.mutation.SetName(v)
-	return _c
-}
-
-// SetLast sets the "last" field.
-func (_c *UserCreate) SetLast(v string) *UserCreate {
-	_c.mutation.SetLast(v)
-	return _c
-}
-
-// SetNillableLast sets the "last" field if the given value is not nil.
-func (_c *UserCreate) SetNillableLast(v *string) *UserCreate {
-	if v != nil {
-		_c.SetLast(*v)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
 	}
-	return _c
+	b.present[column.Ref().Name] = struct{}{}
+	return b
 }
-
-// SetNickname sets the "nickname" field.
-func (_c *UserCreate) SetNickname(v string) *UserCreate {
-	_c.mutation.SetNickname(v)
-	return _c
-}
-
-// SetNillableNickname sets the "nickname" field if the given value is not nil.
-func (_c *UserCreate) SetNillableNickname(v *string) *UserCreate {
-	if v != nil {
-		_c.SetNickname(*v)
+func (b *UserCreate) SetOptional[T any](column ent.ColumnOf[entity.User, T], value ent.Option[T]) *UserCreate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.insert.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _c
-}
-
-// SetAddress sets the "address" field.
-func (_c *UserCreate) SetAddress(v string) *UserCreate {
-	_c.mutation.SetAddress(v)
-	return _c
-}
-
-// SetNillableAddress sets the "address" field if the given value is not nil.
-func (_c *UserCreate) SetNillableAddress(v *string) *UserCreate {
-	if v != nil {
-		_c.SetAddress(*v)
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
 	}
-	return _c
+	return b
 }
-
-// SetPhone sets the "phone" field.
-func (_c *UserCreate) SetPhone(v string) *UserCreate {
-	_c.mutation.SetPhone(v)
-	return _c
-}
-
-// SetNillablePhone sets the "phone" field if the given value is not nil.
-func (_c *UserCreate) SetNillablePhone(v *string) *UserCreate {
-	if v != nil {
-		_c.SetPhone(*v)
+func (b *UserCreate) SetExpr[T any](column ent.ColumnOf[entity.User, T], value ent.Expr[T]) *UserCreate {
+	if b.err != nil {
+		return b
 	}
-	return _c
-}
+	switch column.Ref().Name {
 
-// SetPassword sets the "password" field.
-func (_c *UserCreate) SetPassword(v string) *UserCreate {
-	_c.mutation.SetPassword(v)
-	return _c
-}
+	case user.FieldOptionalInt:
 
-// SetNillablePassword sets the "password" field if the given value is not nil.
-func (_c *UserCreate) SetNillablePassword(v *string) *UserCreate {
-	if v != nil {
-		_c.SetPassword(*v)
+	case user.FieldTags:
+
+	case user.FieldScores:
+
+	case user.FieldAge:
+
+	case user.FieldName:
+
+	case user.FieldLast:
+
+	case user.FieldNickname:
+
+	case user.FieldAddress:
+
+	case user.FieldPhone:
+
+	case user.FieldPassword:
+
+	case user.FieldRole:
+
+	case user.FieldEmployment:
+
+	case user.FieldSSOCert:
+
+	case user.FieldFilesCount:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of User is not settable", column.Ref().Name)}
+		return b
 	}
-	return _c
-}
 
-// SetRole sets the "role" field.
-func (_c *UserCreate) SetRole(v user.Role) *UserCreate {
-	_c.mutation.SetRole(v)
-	return _c
-}
-
-// SetNillableRole sets the "role" field if the given value is not nil.
-func (_c *UserCreate) SetNillableRole(v *user.Role) *UserCreate {
-	if v != nil {
-		_c.SetRole(*v)
+	b.mutation.insert.setExpr(column.Ref().Name, value.Render)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
 	}
-	return _c
-}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
 
-// SetEmployment sets the "employment" field.
-func (_c *UserCreate) SetEmployment(v user.Employment) *UserCreate {
-	_c.mutation.SetEmployment(v)
-	return _c
 }
-
-// SetNillableEmployment sets the "employment" field if the given value is not nil.
-func (_c *UserCreate) SetNillableEmployment(v *user.Employment) *UserCreate {
-	if v != nil {
-		_c.SetEmployment(*v)
+func (b *UserCreate) SetEdge[N, K any](edge ent.UniqueRelation[entity.User, N, K], id K) *UserCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.setEdge(edge.Ref().Name, id)
 	}
-	return _c
-}
 
-// SetSSOCert sets the "SSOCert" field.
-func (_c *UserCreate) SetSSOCert(v string) *UserCreate {
-	_c.mutation.SetSSOCert(v)
-	return _c
-}
+	switch edge.Ref().Name {
 
-// SetNillableSSOCert sets the "SSOCert" field if the given value is not nil.
-func (_c *UserCreate) SetNillableSSOCert(v *string) *UserCreate {
-	if v != nil {
-		_c.SetSSOCert(*v)
 	}
-	return _c
-}
 
-// SetFilesCount sets the "files_count" field.
-func (_c *UserCreate) SetFilesCount(v int) *UserCreate {
-	_c.mutation.SetFilesCount(v)
-	return _c
+	return b
 }
-
-// SetNillableFilesCount sets the "files_count" field if the given value is not nil.
-func (_c *UserCreate) SetNillableFilesCount(v *int) *UserCreate {
-	if v != nil {
-		_c.SetFilesCount(*v)
+func (b *UserCreate) AddIDs[N, K any](edge ent.Relation[entity.User, N, K], ids ...K) *UserCreate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
 	}
-	return _c
-}
-
-// SetCardID sets the "card" edge to the Card entity by ID.
-func (_c *UserCreate) SetCardID(id int) *UserCreate {
-	_c.mutation.SetCardID(id)
-	return _c
-}
-
-// SetNillableCardID sets the "card" edge to the Card entity by ID if the given value is not nil.
-func (_c *UserCreate) SetNillableCardID(id *int) *UserCreate {
-	if id != nil {
-		_c = _c.SetCardID(*id)
+	if b.err == nil {
+		b.err = b.mutation.insert.addIDs(edge.Ref().Name, values...)
 	}
-	return _c
+	return b
 }
+func (b *UserCreate) Mutation() *UserMutation { return b.mutation }
 
-// SetCard sets the "card" edge to the Card entity.
-func (_c *UserCreate) SetCard(v *Card) *UserCreate {
-	return _c.SetCardID(v.ID)
-}
+func (b *UserCreate) Insert() *UserInsert { return b.mutation.insert }
 
-// AddPetIDs adds the "pets" edge to the Pet entity by IDs.
-func (_c *UserCreate) AddPetIDs(ids ...int) *UserCreate {
-	_c.mutation.AddPetIDs(ids...)
-	return _c
-}
-
-// AddPets adds the "pets" edges to the Pet entity.
-func (_c *UserCreate) AddPets(v ...*Pet) *UserCreate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+func (b *UserCreate) Save(ctx context.Context) (*User, error) {
+	if b.err != nil {
+		return nil, b.err
 	}
-	return _c.AddPetIDs(ids...)
-}
-
-// AddFileIDs adds the "files" edge to the File entity by IDs.
-func (_c *UserCreate) AddFileIDs(ids ...int) *UserCreate {
-	_c.mutation.AddFileIDs(ids...)
-	return _c
-}
-
-// AddFiles adds the "files" edges to the File entity.
-func (_c *UserCreate) AddFiles(v ...*File) *UserCreate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
-	}
-	return _c.AddFileIDs(ids...)
-}
-
-// AddGroupIDs adds the "groups" edge to the Group entity by IDs.
-func (_c *UserCreate) AddGroupIDs(ids ...int) *UserCreate {
-	_c.mutation.AddGroupIDs(ids...)
-	return _c
-}
-
-// AddGroups adds the "groups" edges to the Group entity.
-func (_c *UserCreate) AddGroups(v ...*Group) *UserCreate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
-	}
-	return _c.AddGroupIDs(ids...)
-}
-
-// AddFriendIDs adds the "friends" edge to the User entity by IDs.
-func (_c *UserCreate) AddFriendIDs(ids ...int) *UserCreate {
-	_c.mutation.AddFriendIDs(ids...)
-	return _c
-}
-
-// AddFriends adds the "friends" edges to the User entity.
-func (_c *UserCreate) AddFriends(v ...*User) *UserCreate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
-	}
-	return _c.AddFriendIDs(ids...)
-}
-
-// AddFollowerIDs adds the "followers" edge to the User entity by IDs.
-func (_c *UserCreate) AddFollowerIDs(ids ...int) *UserCreate {
-	_c.mutation.AddFollowerIDs(ids...)
-	return _c
-}
-
-// AddFollowers adds the "followers" edges to the User entity.
-func (_c *UserCreate) AddFollowers(v ...*User) *UserCreate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
-	}
-	return _c.AddFollowerIDs(ids...)
-}
-
-// AddFollowingIDs adds the "following" edge to the User entity by IDs.
-func (_c *UserCreate) AddFollowingIDs(ids ...int) *UserCreate {
-	_c.mutation.AddFollowingIDs(ids...)
-	return _c
-}
-
-// AddFollowing adds the "following" edges to the User entity.
-func (_c *UserCreate) AddFollowing(v ...*User) *UserCreate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
-	}
-	return _c.AddFollowingIDs(ids...)
-}
-
-// SetTeamID sets the "team" edge to the Pet entity by ID.
-func (_c *UserCreate) SetTeamID(id int) *UserCreate {
-	_c.mutation.SetTeamID(id)
-	return _c
-}
-
-// SetNillableTeamID sets the "team" edge to the Pet entity by ID if the given value is not nil.
-func (_c *UserCreate) SetNillableTeamID(id *int) *UserCreate {
-	if id != nil {
-		_c = _c.SetTeamID(*id)
-	}
-	return _c
-}
-
-// SetTeam sets the "team" edge to the Pet entity.
-func (_c *UserCreate) SetTeam(v *Pet) *UserCreate {
-	return _c.SetTeamID(v.ID)
-}
-
-// SetSpouseID sets the "spouse" edge to the User entity by ID.
-func (_c *UserCreate) SetSpouseID(id int) *UserCreate {
-	_c.mutation.SetSpouseID(id)
-	return _c
-}
-
-// SetNillableSpouseID sets the "spouse" edge to the User entity by ID if the given value is not nil.
-func (_c *UserCreate) SetNillableSpouseID(id *int) *UserCreate {
-	if id != nil {
-		_c = _c.SetSpouseID(*id)
-	}
-	return _c
-}
-
-// SetSpouse sets the "spouse" edge to the User entity.
-func (_c *UserCreate) SetSpouse(v *User) *UserCreate {
-	return _c.SetSpouseID(v.ID)
-}
-
-// AddChildIDs adds the "children" edge to the User entity by IDs.
-func (_c *UserCreate) AddChildIDs(ids ...int) *UserCreate {
-	_c.mutation.AddChildIDs(ids...)
-	return _c
-}
-
-// AddChildren adds the "children" edges to the User entity.
-func (_c *UserCreate) AddChildren(v ...*User) *UserCreate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
-	}
-	return _c.AddChildIDs(ids...)
-}
-
-// SetParentID sets the "parent" edge to the User entity by ID.
-func (_c *UserCreate) SetParentID(id int) *UserCreate {
-	_c.mutation.SetParentID(id)
-	return _c
-}
-
-// SetNillableParentID sets the "parent" edge to the User entity by ID if the given value is not nil.
-func (_c *UserCreate) SetNillableParentID(id *int) *UserCreate {
-	if id != nil {
-		_c = _c.SetParentID(*id)
-	}
-	return _c
-}
-
-// SetParent sets the "parent" edge to the User entity.
-func (_c *UserCreate) SetParent(v *User) *UserCreate {
-	return _c.SetParentID(v.ID)
-}
-
-// Mutation returns the UserMutation object of the builder.
-func (_c *UserCreate) Mutation() *UserMutation {
-	return _c.mutation
-}
-
-// Save creates the User in the database.
-func (_c *UserCreate) Save(ctx context.Context) (*User, error) {
-	if err := _c.defaults(); err != nil {
+	if err := b.defaults(); err != nil {
 		return nil, err
 	}
-	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
+	return b.sqlSave(ctx)
 }
 
-// SaveX calls Save and panics if Save returns an error.
-func (_c *UserCreate) SaveX(ctx context.Context) *User {
-	v, err := _c.Save(ctx)
+func (b *UserCreate) SaveX(ctx context.Context) *User {
+	node, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return node
 }
 
-// Exec executes the query.
-func (_c *UserCreate) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *UserCreate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *UserCreate) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *UserCreate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// defaults sets the default values of the builder before save.
-func (_c *UserCreate) defaults() error {
-	if _, ok := _c.mutation.Last(); !ok {
-		v := user.DefaultLast
-		_c.mutation.SetLast(v)
+func (b *UserCreate) defaults() error {
+
+	if b.mutation.insert.Last.IsUnset() && b.mutation.insert.expressions[user.FieldLast] == nil {
+
+		b.mutation.insert.Last = ent.Some(user.DefaultLast)
 	}
-	if _, ok := _c.mutation.Address(); !ok {
+
+	if b.mutation.insert.Address.IsUnset() && b.mutation.insert.expressions[user.FieldAddress] == nil {
 		if user.DefaultAddress == nil {
-			return fmt.Errorf("ent: uninitialized user.DefaultAddress (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized user.DefaultAddress")
 		}
-		v := user.DefaultAddress()
-		_c.mutation.SetAddress(v)
+		b.mutation.insert.Address = ent.Some(user.DefaultAddress())
 	}
-	if _, ok := _c.mutation.Role(); !ok {
-		v := user.DefaultRole
-		_c.mutation.SetRole(v)
+
+	if b.mutation.insert.Role.IsUnset() && b.mutation.insert.expressions[user.FieldRole] == nil {
+
+		b.mutation.insert.Role = ent.Some(user.DefaultRole)
 	}
-	if _, ok := _c.mutation.Employment(); !ok {
-		v := user.DefaultEmployment
-		_c.mutation.SetEmployment(v)
+
+	if b.mutation.insert.Employment.IsUnset() && b.mutation.insert.expressions[user.FieldEmployment] == nil {
+
+		b.mutation.insert.Employment = ent.Some(user.DefaultEmployment)
 	}
+
 	return nil
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_c *UserCreate) check() error {
-	if v, ok := _c.mutation.OptionalInt(); ok {
-		if err := user.OptionalIntValidator(v); err != nil {
-			return &ValidationError{Name: "optional_int", err: fmt.Errorf(`ent: validator failed for field "User.optional_int": %w`, err)}
+func (b *UserCreate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.insert.expressions[user.FieldOptionalInt] == nil {
+		if v, ok := b.mutation.insert.OptionalInt.Get(); ok {
+
+			if err := user.OptionalIntValidator(v); err != nil {
+				return &ValidationError{Name: "optional_int", err: fmt.Errorf(`ent: validator failed for field "User.optional_int": %w`, err)}
+			}
+
 		}
 	}
-	if _, ok := _c.mutation.Age(); !ok {
-		return &ValidationError{Name: "age", err: errors.New(`ent: missing required field "User.age"`)}
-	}
-	if _, ok := _c.mutation.Name(); !ok {
-		return &ValidationError{Name: "name", err: errors.New(`ent: missing required field "User.name"`)}
-	}
-	if _, ok := _c.mutation.Last(); !ok {
-		return &ValidationError{Name: "last", err: errors.New(`ent: missing required field "User.last"`)}
-	}
-	if _, ok := _c.mutation.Role(); !ok {
-		return &ValidationError{Name: "role", err: errors.New(`ent: missing required field "User.role"`)}
-	}
-	if v, ok := _c.mutation.Role(); ok {
-		if err := user.RoleValidator(v); err != nil {
-			return &ValidationError{Name: "role", err: fmt.Errorf(`ent: validator failed for field "User.role": %w`, err)}
+
+	switch b.driver.Dialect() {
+	case dialect.Postgres, dialect.SQLite:
+		if _, present := b.present[user.FieldAge]; b.fromBuilder && !present {
+			return &ValidationError{Name: "age", err: errors.New(`ent: missing required field "User.age"`)}
 		}
 	}
-	if _, ok := _c.mutation.Employment(); !ok {
-		return &ValidationError{Name: "employment", err: errors.New(`ent: missing required field "User.employment"`)}
-	}
-	if v, ok := _c.mutation.Employment(); ok {
-		if err := user.EmploymentValidator(v); err != nil {
-			return &ValidationError{Name: "employment", err: fmt.Errorf(`ent: validator failed for field "User.employment": %w`, err)}
+
+	switch b.driver.Dialect() {
+	case dialect.Postgres, dialect.SQLite:
+		if _, present := b.present[user.FieldName]; b.fromBuilder && !present {
+			return &ValidationError{Name: "name", err: errors.New(`ent: missing required field "User.name"`)}
 		}
 	}
+
+	if b.mutation.insert.Last.IsNull() {
+		return &ValidationError{Name: "last", err: errors.New(`ent: field "User.last" is not nullable`)}
+	}
+
+	if b.mutation.insert.Role.IsNull() {
+		return &ValidationError{Name: "role", err: errors.New(`ent: field "User.role" is not nullable`)}
+	}
+
+	if b.mutation.insert.expressions[user.FieldRole] == nil {
+		if v, ok := b.mutation.insert.Role.Get(); ok {
+
+			if err := user.RoleValidator(v); err != nil {
+				return &ValidationError{Name: "role", err: fmt.Errorf(`ent: validator failed for field "User.role": %w`, err)}
+			}
+
+		}
+	}
+
+	if b.mutation.insert.Employment.IsNull() {
+		return &ValidationError{Name: "employment", err: errors.New(`ent: field "User.employment" is not nullable`)}
+	}
+
+	if b.mutation.insert.expressions[user.FieldEmployment] == nil {
+		if v, ok := b.mutation.insert.Employment.Get(); ok {
+
+			if err := user.EmploymentValidator(v); err != nil {
+				return &ValidationError{Name: "employment", err: fmt.Errorf(`ent: validator failed for field "User.employment": %w`, err)}
+			}
+
+		}
+	}
+
 	return nil
 }
 
@@ -459,75 +248,126 @@ func (_c *UserCreate) sqlSave(ctx context.Context) (*User, error) {
 	if err := _c.check(); err != nil {
 		return nil, err
 	}
-	_node, _spec := _c.createSpec()
-	if err := sqlgraph.CreateNode(ctx, _c.driver, _spec); err != nil {
+	node, spec, err := _c.createSpec()
+	if err != nil {
+		return nil, err
+	}
+	if err := sqlgraph.CreateNode(ctx, _c.driver, spec); err != nil {
 		if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
 		return nil, err
 	}
-	id := _spec.ID.Value.(int64)
-	_node.ID = int(id)
-	_c.mutation.id = &_node.ID
-	_c.mutation.done = true
-	return _node, nil
+	_c.mutation.id = &node.ID
+	return node, nil
 }
 
-func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
-	var (
-		_node = &User{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(user.Table, sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt))
-	)
+func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec, error) {
+	_node := &User{config: _c.config}
+	_spec := sqlgraph.NewCreateSpec(user.Table, sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt))
+
 	_spec.OnConflict = _c.conflict
-	if value, ok := _c.mutation.OptionalInt(); ok {
+
+	if value, ok := _c.mutation.insert.OptionalInt.Get(); ok {
 		_spec.SetField(user.FieldOptionalInt, field.TypeInt, value)
-		_node.OptionalInt = value
 	}
-	if value, ok := _c.mutation.Age(); ok {
+	if _c.mutation.insert.OptionalInt.IsNull() {
+		_spec.SetField(user.FieldOptionalInt, field.TypeInt, nil)
+	}
+
+	if value, ok := _c.mutation.insert.Tags.Get(); ok {
+		_spec.SetField(user.FieldTags, field.TypeArray, value)
+	}
+	if _c.mutation.insert.Tags.IsNull() {
+		_spec.SetField(user.FieldTags, field.TypeArray, nil)
+	}
+
+	if value, ok := _c.mutation.insert.Scores.Get(); ok {
+		_spec.SetField(user.FieldScores, field.TypeArray, value)
+	}
+	if _c.mutation.insert.Scores.IsNull() {
+		_spec.SetField(user.FieldScores, field.TypeArray, nil)
+	}
+
+	if _, present := _c.present[user.FieldAge]; !_c.fromBuilder || present {
+		value := _c.mutation.insert.Age
 		_spec.SetField(user.FieldAge, field.TypeInt, value)
-		_node.Age = value
 	}
-	if value, ok := _c.mutation.Name(); ok {
+
+	if _, present := _c.present[user.FieldName]; !_c.fromBuilder || present {
+		value := _c.mutation.insert.Name
 		_spec.SetField(user.FieldName, field.TypeString, value)
-		_node.Name = value
 	}
-	if value, ok := _c.mutation.Last(); ok {
+
+	if value, ok := _c.mutation.insert.Last.Get(); ok {
 		_spec.SetField(user.FieldLast, field.TypeString, value)
-		_node.Last = value
 	}
-	if value, ok := _c.mutation.Nickname(); ok {
+	if _c.mutation.insert.Last.IsNull() {
+		_spec.SetField(user.FieldLast, field.TypeString, nil)
+	}
+
+	if value, ok := _c.mutation.insert.Nickname.Get(); ok {
 		_spec.SetField(user.FieldNickname, field.TypeString, value)
-		_node.Nickname = value
 	}
-	if value, ok := _c.mutation.Address(); ok {
+	if _c.mutation.insert.Nickname.IsNull() {
+		_spec.SetField(user.FieldNickname, field.TypeString, nil)
+	}
+
+	if value, ok := _c.mutation.insert.Address.Get(); ok {
 		_spec.SetField(user.FieldAddress, field.TypeString, value)
-		_node.Address = value
 	}
-	if value, ok := _c.mutation.Phone(); ok {
+	if _c.mutation.insert.Address.IsNull() {
+		_spec.SetField(user.FieldAddress, field.TypeString, nil)
+	}
+
+	if value, ok := _c.mutation.insert.Phone.Get(); ok {
 		_spec.SetField(user.FieldPhone, field.TypeString, value)
-		_node.Phone = value
 	}
-	if value, ok := _c.mutation.Password(); ok {
+	if _c.mutation.insert.Phone.IsNull() {
+		_spec.SetField(user.FieldPhone, field.TypeString, nil)
+	}
+
+	if value, ok := _c.mutation.insert.Password.Get(); ok {
 		_spec.SetField(user.FieldPassword, field.TypeString, value)
-		_node.Password = value
 	}
-	if value, ok := _c.mutation.Role(); ok {
+	if _c.mutation.insert.Password.IsNull() {
+		_spec.SetField(user.FieldPassword, field.TypeString, nil)
+	}
+
+	if value, ok := _c.mutation.insert.Role.Get(); ok {
 		_spec.SetField(user.FieldRole, field.TypeEnum, value)
-		_node.Role = value
 	}
-	if value, ok := _c.mutation.Employment(); ok {
+	if _c.mutation.insert.Role.IsNull() {
+		_spec.SetField(user.FieldRole, field.TypeEnum, nil)
+	}
+
+	if value, ok := _c.mutation.insert.Employment.Get(); ok {
 		_spec.SetField(user.FieldEmployment, field.TypeEnum, value)
-		_node.Employment = value
 	}
-	if value, ok := _c.mutation.SSOCert(); ok {
+	if _c.mutation.insert.Employment.IsNull() {
+		_spec.SetField(user.FieldEmployment, field.TypeEnum, nil)
+	}
+
+	if value, ok := _c.mutation.insert.SSOCert.Get(); ok {
 		_spec.SetField(user.FieldSSOCert, field.TypeString, value)
-		_node.SSOCert = value
 	}
-	if value, ok := _c.mutation.FilesCount(); ok {
+	if _c.mutation.insert.SSOCert.IsNull() {
+		_spec.SetField(user.FieldSSOCert, field.TypeString, nil)
+	}
+
+	if value, ok := _c.mutation.insert.FilesCount.Get(); ok {
 		_spec.SetField(user.FieldFilesCount, field.TypeInt, value)
-		_node.FilesCount = value
 	}
-	if nodes := _c.mutation.CardIDs(); len(nodes) > 0 {
+	if _c.mutation.insert.FilesCount.IsNull() {
+		_spec.SetField(user.FieldFilesCount, field.TypeInt, nil)
+	}
+
+	_spec.Expressions = _c.mutation.insert.expressions
+
+	if nodes := _c.mutation.insert.cardIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2O,
 			Inverse: false,
@@ -538,12 +378,18 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(card.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	if nodes := _c.mutation.PetsIDs(); len(nodes) > 0 {
+
+	if nodes := _c.mutation.insert.petsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -554,12 +400,18 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(pet.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	if nodes := _c.mutation.FilesIDs(); len(nodes) > 0 {
+
+	if nodes := _c.mutation.insert.filesIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -570,12 +422,18 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(file.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	if nodes := _c.mutation.GroupsIDs(); len(nodes) > 0 {
+
+	if nodes := _c.mutation.insert.groupsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: false,
@@ -586,12 +444,18 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(group.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	if nodes := _c.mutation.FriendsIDs(); len(nodes) > 0 {
+
+	if nodes := _c.mutation.insert.friendsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: false,
@@ -602,12 +466,18 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	if nodes := _c.mutation.FollowersIDs(); len(nodes) > 0 {
+
+	if nodes := _c.mutation.insert.followersIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: true,
@@ -618,12 +488,18 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	if nodes := _c.mutation.FollowingIDs(); len(nodes) > 0 {
+
+	if nodes := _c.mutation.insert.followingIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: false,
@@ -634,12 +510,18 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	if nodes := _c.mutation.TeamIDs(); len(nodes) > 0 {
+
+	if nodes := _c.mutation.insert.teamIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2O,
 			Inverse: false,
@@ -650,12 +532,18 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(pet.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	if nodes := _c.mutation.SpouseIDs(); len(nodes) > 0 {
+
+	if nodes := _c.mutation.insert.spouseIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2O,
 			Inverse: false,
@@ -666,13 +554,18 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
-		_node.user_spouse = &nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	if nodes := _c.mutation.ChildrenIDs(); len(nodes) > 0 {
+
+	if nodes := _c.mutation.insert.childrenIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: true,
@@ -683,12 +576,18 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	if nodes := _c.mutation.ParentIDs(); len(nodes) > 0 {
+
+	if nodes := _c.mutation.insert.parentIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
@@ -699,571 +598,142 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
-		_node.user_parent = &nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	return _node, _spec
+
+	_spec.Returning = &sqlgraph.Returning{Columns: user.Columns, Scan: func(rows dialect.Rows) error {
+		values, err := _node.scanValues(user.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(user.Columns, values); err != nil {
+			return err
+		}
+
+		_spec.ID.Value = _node.ID
+
+		return nil
+	}}
+	return _node, _spec, nil
 }
 
-// OnConflict allows configuring the `ON CONFLICT` clause of the `INSERT`
-// statement. For example:
-//
-//	client.User.Create().
-//		SetOptionalInt(v).
-//		OnConflict(
-//			// Update the row with the new values
-//			// the was proposed for insertion.
-//			sql.ResolveWithNewValues(),
-//		).
-//		// Override some of the fields with custom
-//		// update values.
-//		Update(func(u *ent.UserUpsert) {
-//			SetOptionalInt(v+v).
-//		}).
-//		Exec(ctx)
-func (_c *UserCreate) OnConflict(opts ...sql.ConflictOption) *UserUpsertOne {
-	_c.conflict = opts
-	return &UserUpsertOne{
-		create: _c,
+type UserUpsertOne struct{ create *UserCreate }
+
+func (b *UserCreate) OnConflict(columns ...ent.EntityColumn[entity.User]) *UserUpsertOne {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
 	}
-}
-
-// OnConflictColumns calls `OnConflict` and configures the columns
-// as conflict target. Using this option is equivalent to using:
-//
-//	client.User.Create().
-//		OnConflict(sql.ConflictColumns(columns...)).
-//		Exec(ctx)
-func (_c *UserCreate) OnConflictColumns(columns ...string) *UserUpsertOne {
-	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
-	return &UserUpsertOne{
-		create: _c,
+	if len(names) == 0 {
+		return b.OnConflictOptions()
 	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
 }
 
-type (
-	// UserUpsertOne is the builder for "upsert"-ing
-	//  one User node.
-	UserUpsertOne struct {
-		create *UserCreate
-	}
-
-	// UserUpsert is the "OnConflict" setter.
-	UserUpsert struct {
-		*sql.UpdateSet
-	}
-)
-
-// SetOptionalInt sets the "optional_int" field.
-func (u *UserUpsert) SetOptionalInt(v int) *UserUpsert {
-	u.Set(user.FieldOptionalInt, v)
-	return u
+func (b *UserCreate) OnConflictConstraint(name string) *UserUpsertOne {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
 }
 
-// UpdateOptionalInt sets the "optional_int" field to the value that was provided on create.
-func (u *UserUpsert) UpdateOptionalInt() *UserUpsert {
-	u.SetExcluded(user.FieldOptionalInt)
-	return u
+func (b *UserCreate) OnConflictOptions(options ...sql.ConflictOption) *UserUpsertOne {
+	b.conflict = options
+	return &UserUpsertOne{create: b}
 }
 
-// AddOptionalInt adds v to the "optional_int" field.
-func (u *UserUpsert) AddOptionalInt(v int) *UserUpsert {
-	u.Add(user.FieldOptionalInt, v)
-	return u
-}
-
-// ClearOptionalInt clears the value of the "optional_int" field.
-func (u *UserUpsert) ClearOptionalInt() *UserUpsert {
-	u.SetNull(user.FieldOptionalInt)
-	return u
-}
-
-// SetAge sets the "age" field.
-func (u *UserUpsert) SetAge(v int) *UserUpsert {
-	u.Set(user.FieldAge, v)
-	return u
-}
-
-// UpdateAge sets the "age" field to the value that was provided on create.
-func (u *UserUpsert) UpdateAge() *UserUpsert {
-	u.SetExcluded(user.FieldAge)
-	return u
-}
-
-// AddAge adds v to the "age" field.
-func (u *UserUpsert) AddAge(v int) *UserUpsert {
-	u.Add(user.FieldAge, v)
-	return u
-}
-
-// SetName sets the "name" field.
-func (u *UserUpsert) SetName(v string) *UserUpsert {
-	u.Set(user.FieldName, v)
-	return u
-}
-
-// UpdateName sets the "name" field to the value that was provided on create.
-func (u *UserUpsert) UpdateName() *UserUpsert {
-	u.SetExcluded(user.FieldName)
-	return u
-}
-
-// SetLast sets the "last" field.
-func (u *UserUpsert) SetLast(v string) *UserUpsert {
-	u.Set(user.FieldLast, v)
-	return u
-}
-
-// UpdateLast sets the "last" field to the value that was provided on create.
-func (u *UserUpsert) UpdateLast() *UserUpsert {
-	u.SetExcluded(user.FieldLast)
-	return u
-}
-
-// SetNickname sets the "nickname" field.
-func (u *UserUpsert) SetNickname(v string) *UserUpsert {
-	u.Set(user.FieldNickname, v)
-	return u
-}
-
-// UpdateNickname sets the "nickname" field to the value that was provided on create.
-func (u *UserUpsert) UpdateNickname() *UserUpsert {
-	u.SetExcluded(user.FieldNickname)
-	return u
-}
-
-// ClearNickname clears the value of the "nickname" field.
-func (u *UserUpsert) ClearNickname() *UserUpsert {
-	u.SetNull(user.FieldNickname)
-	return u
-}
-
-// SetAddress sets the "address" field.
-func (u *UserUpsert) SetAddress(v string) *UserUpsert {
-	u.Set(user.FieldAddress, v)
-	return u
-}
-
-// UpdateAddress sets the "address" field to the value that was provided on create.
-func (u *UserUpsert) UpdateAddress() *UserUpsert {
-	u.SetExcluded(user.FieldAddress)
-	return u
-}
-
-// ClearAddress clears the value of the "address" field.
-func (u *UserUpsert) ClearAddress() *UserUpsert {
-	u.SetNull(user.FieldAddress)
-	return u
-}
-
-// SetPhone sets the "phone" field.
-func (u *UserUpsert) SetPhone(v string) *UserUpsert {
-	u.Set(user.FieldPhone, v)
-	return u
-}
-
-// UpdatePhone sets the "phone" field to the value that was provided on create.
-func (u *UserUpsert) UpdatePhone() *UserUpsert {
-	u.SetExcluded(user.FieldPhone)
-	return u
-}
-
-// ClearPhone clears the value of the "phone" field.
-func (u *UserUpsert) ClearPhone() *UserUpsert {
-	u.SetNull(user.FieldPhone)
-	return u
-}
-
-// SetPassword sets the "password" field.
-func (u *UserUpsert) SetPassword(v string) *UserUpsert {
-	u.Set(user.FieldPassword, v)
-	return u
-}
-
-// UpdatePassword sets the "password" field to the value that was provided on create.
-func (u *UserUpsert) UpdatePassword() *UserUpsert {
-	u.SetExcluded(user.FieldPassword)
-	return u
-}
-
-// ClearPassword clears the value of the "password" field.
-func (u *UserUpsert) ClearPassword() *UserUpsert {
-	u.SetNull(user.FieldPassword)
-	return u
-}
-
-// SetRole sets the "role" field.
-func (u *UserUpsert) SetRole(v user.Role) *UserUpsert {
-	u.Set(user.FieldRole, v)
-	return u
-}
-
-// UpdateRole sets the "role" field to the value that was provided on create.
-func (u *UserUpsert) UpdateRole() *UserUpsert {
-	u.SetExcluded(user.FieldRole)
-	return u
-}
-
-// SetEmployment sets the "employment" field.
-func (u *UserUpsert) SetEmployment(v user.Employment) *UserUpsert {
-	u.Set(user.FieldEmployment, v)
-	return u
-}
-
-// UpdateEmployment sets the "employment" field to the value that was provided on create.
-func (u *UserUpsert) UpdateEmployment() *UserUpsert {
-	u.SetExcluded(user.FieldEmployment)
-	return u
-}
-
-// SetSSOCert sets the "SSOCert" field.
-func (u *UserUpsert) SetSSOCert(v string) *UserUpsert {
-	u.Set(user.FieldSSOCert, v)
-	return u
-}
-
-// UpdateSSOCert sets the "SSOCert" field to the value that was provided on create.
-func (u *UserUpsert) UpdateSSOCert() *UserUpsert {
-	u.SetExcluded(user.FieldSSOCert)
-	return u
-}
-
-// ClearSSOCert clears the value of the "SSOCert" field.
-func (u *UserUpsert) ClearSSOCert() *UserUpsert {
-	u.SetNull(user.FieldSSOCert)
-	return u
-}
-
-// SetFilesCount sets the "files_count" field.
-func (u *UserUpsert) SetFilesCount(v int) *UserUpsert {
-	u.Set(user.FieldFilesCount, v)
-	return u
-}
-
-// UpdateFilesCount sets the "files_count" field to the value that was provided on create.
-func (u *UserUpsert) UpdateFilesCount() *UserUpsert {
-	u.SetExcluded(user.FieldFilesCount)
-	return u
-}
-
-// AddFilesCount adds v to the "files_count" field.
-func (u *UserUpsert) AddFilesCount(v int) *UserUpsert {
-	u.Add(user.FieldFilesCount, v)
-	return u
-}
-
-// ClearFilesCount clears the value of the "files_count" field.
-func (u *UserUpsert) ClearFilesCount() *UserUpsert {
-	u.SetNull(user.FieldFilesCount)
-	return u
-}
-
-// UpdateNewValues updates the mutable fields using the new values that were set on create.
-// Using this option is equivalent to using:
-//
-//	client.User.Create().
-//		OnConflict(
-//			sql.ResolveWithNewValues(),
-//		).
-//		Exec(ctx)
-func (u *UserUpsertOne) UpdateNewValues() *UserUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
-	return u
-}
-
-// Ignore sets each column to itself in case of conflict.
-// Using this option is equivalent to using:
-//
-//	client.User.Create().
-//	    OnConflict(sql.ResolveWithIgnore()).
-//	    Exec(ctx)
-func (u *UserUpsertOne) Ignore() *UserUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
-	return u
-}
-
-// DoNothing configures the conflict_action to `DO NOTHING`.
-// Supported only by SQLite and PostgreSQL.
 func (u *UserUpsertOne) DoNothing() *UserUpsertOne {
 	u.create.conflict = append(u.create.conflict, sql.DoNothing())
 	return u
 }
 
-// Update allows overriding fields `UPDATE` values. See the UserCreate.OnConflict
-// documentation for more info.
-func (u *UserUpsertOne) Update(set func(*UserUpsert)) *UserUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
-		set(&UserUpsert{UpdateSet: update})
+func (u *UserUpsertOne) DoSelect() *UserUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *UserUpsertOne) Ignore() *UserUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *UserUpsertOne) DoUpdate(set func(*UserUpsert)) *UserUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&UserUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *UserUpsertOne) UpdateNewValues() *UserUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case user.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
 	}))
 	return u
 }
 
-// SetOptionalInt sets the "optional_int" field.
-func (u *UserUpsertOne) SetOptionalInt(v int) *UserUpsertOne {
-	return u.Update(func(s *UserUpsert) {
-		s.SetOptionalInt(v)
-	})
+func (u *UserUpsertOne) Where(predicates ...ent.Predicate[entity.User]) *UserUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(user.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// AddOptionalInt adds v to the "optional_int" field.
-func (u *UserUpsertOne) AddOptionalInt(v int) *UserUpsertOne {
-	return u.Update(func(s *UserUpsert) {
-		s.AddOptionalInt(v)
-	})
+func (u *UserUpsertOne) UpdateWhere(predicates ...ent.Predicate[entity.User]) *UserUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(user.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// UpdateOptionalInt sets the "optional_int" field to the value that was provided on create.
-func (u *UserUpsertOne) UpdateOptionalInt() *UserUpsertOne {
-	return u.Update(func(s *UserUpsert) {
-		s.UpdateOptionalInt()
-	})
-}
-
-// ClearOptionalInt clears the value of the "optional_int" field.
-func (u *UserUpsertOne) ClearOptionalInt() *UserUpsertOne {
-	return u.Update(func(s *UserUpsert) {
-		s.ClearOptionalInt()
-	})
-}
-
-// SetAge sets the "age" field.
-func (u *UserUpsertOne) SetAge(v int) *UserUpsertOne {
-	return u.Update(func(s *UserUpsert) {
-		s.SetAge(v)
-	})
-}
-
-// AddAge adds v to the "age" field.
-func (u *UserUpsertOne) AddAge(v int) *UserUpsertOne {
-	return u.Update(func(s *UserUpsert) {
-		s.AddAge(v)
-	})
-}
-
-// UpdateAge sets the "age" field to the value that was provided on create.
-func (u *UserUpsertOne) UpdateAge() *UserUpsertOne {
-	return u.Update(func(s *UserUpsert) {
-		s.UpdateAge()
-	})
-}
-
-// SetName sets the "name" field.
-func (u *UserUpsertOne) SetName(v string) *UserUpsertOne {
-	return u.Update(func(s *UserUpsert) {
-		s.SetName(v)
-	})
-}
-
-// UpdateName sets the "name" field to the value that was provided on create.
-func (u *UserUpsertOne) UpdateName() *UserUpsertOne {
-	return u.Update(func(s *UserUpsert) {
-		s.UpdateName()
-	})
-}
-
-// SetLast sets the "last" field.
-func (u *UserUpsertOne) SetLast(v string) *UserUpsertOne {
-	return u.Update(func(s *UserUpsert) {
-		s.SetLast(v)
-	})
-}
-
-// UpdateLast sets the "last" field to the value that was provided on create.
-func (u *UserUpsertOne) UpdateLast() *UserUpsertOne {
-	return u.Update(func(s *UserUpsert) {
-		s.UpdateLast()
-	})
-}
-
-// SetNickname sets the "nickname" field.
-func (u *UserUpsertOne) SetNickname(v string) *UserUpsertOne {
-	return u.Update(func(s *UserUpsert) {
-		s.SetNickname(v)
-	})
-}
-
-// UpdateNickname sets the "nickname" field to the value that was provided on create.
-func (u *UserUpsertOne) UpdateNickname() *UserUpsertOne {
-	return u.Update(func(s *UserUpsert) {
-		s.UpdateNickname()
-	})
-}
-
-// ClearNickname clears the value of the "nickname" field.
-func (u *UserUpsertOne) ClearNickname() *UserUpsertOne {
-	return u.Update(func(s *UserUpsert) {
-		s.ClearNickname()
-	})
-}
-
-// SetAddress sets the "address" field.
-func (u *UserUpsertOne) SetAddress(v string) *UserUpsertOne {
-	return u.Update(func(s *UserUpsert) {
-		s.SetAddress(v)
-	})
-}
-
-// UpdateAddress sets the "address" field to the value that was provided on create.
-func (u *UserUpsertOne) UpdateAddress() *UserUpsertOne {
-	return u.Update(func(s *UserUpsert) {
-		s.UpdateAddress()
-	})
-}
-
-// ClearAddress clears the value of the "address" field.
-func (u *UserUpsertOne) ClearAddress() *UserUpsertOne {
-	return u.Update(func(s *UserUpsert) {
-		s.ClearAddress()
-	})
-}
-
-// SetPhone sets the "phone" field.
-func (u *UserUpsertOne) SetPhone(v string) *UserUpsertOne {
-	return u.Update(func(s *UserUpsert) {
-		s.SetPhone(v)
-	})
-}
-
-// UpdatePhone sets the "phone" field to the value that was provided on create.
-func (u *UserUpsertOne) UpdatePhone() *UserUpsertOne {
-	return u.Update(func(s *UserUpsert) {
-		s.UpdatePhone()
-	})
-}
-
-// ClearPhone clears the value of the "phone" field.
-func (u *UserUpsertOne) ClearPhone() *UserUpsertOne {
-	return u.Update(func(s *UserUpsert) {
-		s.ClearPhone()
-	})
-}
-
-// SetPassword sets the "password" field.
-func (u *UserUpsertOne) SetPassword(v string) *UserUpsertOne {
-	return u.Update(func(s *UserUpsert) {
-		s.SetPassword(v)
-	})
-}
-
-// UpdatePassword sets the "password" field to the value that was provided on create.
-func (u *UserUpsertOne) UpdatePassword() *UserUpsertOne {
-	return u.Update(func(s *UserUpsert) {
-		s.UpdatePassword()
-	})
-}
-
-// ClearPassword clears the value of the "password" field.
-func (u *UserUpsertOne) ClearPassword() *UserUpsertOne {
-	return u.Update(func(s *UserUpsert) {
-		s.ClearPassword()
-	})
-}
-
-// SetRole sets the "role" field.
-func (u *UserUpsertOne) SetRole(v user.Role) *UserUpsertOne {
-	return u.Update(func(s *UserUpsert) {
-		s.SetRole(v)
-	})
-}
-
-// UpdateRole sets the "role" field to the value that was provided on create.
-func (u *UserUpsertOne) UpdateRole() *UserUpsertOne {
-	return u.Update(func(s *UserUpsert) {
-		s.UpdateRole()
-	})
-}
-
-// SetEmployment sets the "employment" field.
-func (u *UserUpsertOne) SetEmployment(v user.Employment) *UserUpsertOne {
-	return u.Update(func(s *UserUpsert) {
-		s.SetEmployment(v)
-	})
-}
-
-// UpdateEmployment sets the "employment" field to the value that was provided on create.
-func (u *UserUpsertOne) UpdateEmployment() *UserUpsertOne {
-	return u.Update(func(s *UserUpsert) {
-		s.UpdateEmployment()
-	})
-}
-
-// SetSSOCert sets the "SSOCert" field.
-func (u *UserUpsertOne) SetSSOCert(v string) *UserUpsertOne {
-	return u.Update(func(s *UserUpsert) {
-		s.SetSSOCert(v)
-	})
-}
-
-// UpdateSSOCert sets the "SSOCert" field to the value that was provided on create.
-func (u *UserUpsertOne) UpdateSSOCert() *UserUpsertOne {
-	return u.Update(func(s *UserUpsert) {
-		s.UpdateSSOCert()
-	})
-}
-
-// ClearSSOCert clears the value of the "SSOCert" field.
-func (u *UserUpsertOne) ClearSSOCert() *UserUpsertOne {
-	return u.Update(func(s *UserUpsert) {
-		s.ClearSSOCert()
-	})
-}
-
-// SetFilesCount sets the "files_count" field.
-func (u *UserUpsertOne) SetFilesCount(v int) *UserUpsertOne {
-	return u.Update(func(s *UserUpsert) {
-		s.SetFilesCount(v)
-	})
-}
-
-// AddFilesCount adds v to the "files_count" field.
-func (u *UserUpsertOne) AddFilesCount(v int) *UserUpsertOne {
-	return u.Update(func(s *UserUpsert) {
-		s.AddFilesCount(v)
-	})
-}
-
-// UpdateFilesCount sets the "files_count" field to the value that was provided on create.
-func (u *UserUpsertOne) UpdateFilesCount() *UserUpsertOne {
-	return u.Update(func(s *UserUpsert) {
-		s.UpdateFilesCount()
-	})
-}
-
-// ClearFilesCount clears the value of the "files_count" field.
-func (u *UserUpsertOne) ClearFilesCount() *UserUpsertOne {
-	return u.Update(func(s *UserUpsert) {
-		s.ClearFilesCount()
-	})
-}
-
-// Exec executes the query.
-func (u *UserUpsertOne) Exec(ctx context.Context) error {
+func (u *UserUpsertOne) Save(ctx context.Context) (*User, error) {
 	if len(u.create.conflict) == 0 {
-		return errors.New("ent: missing options for UserCreate.OnConflict")
+		return nil, errors.New("ent: missing options for UserCreate.OnConflict")
 	}
-	return u.create.Exec(ctx)
+	return u.create.Save(ctx)
 }
 
-// ExecX is like Exec, but panics if an error occurs.
+func (u *UserUpsertOne) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
 func (u *UserUpsertOne) ExecX(ctx context.Context) {
-	if err := u.create.Exec(ctx); err != nil {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// Exec executes the UPSERT query and returns the inserted/updated ID.
 func (u *UserUpsertOne) ID(ctx context.Context) (id int, err error) {
-	node, err := u.create.Save(ctx)
+	node, err := u.Save(ctx)
 	if err != nil {
 		return id, err
 	}
 	return node.ID, nil
 }
 
-// IDX is like ID, but panics if an error occurs.
 func (u *UserUpsertOne) IDX(ctx context.Context) int {
 	id, err := u.ID(ctx)
 	if err != nil {
@@ -1272,434 +742,382 @@ func (u *UserUpsertOne) IDX(ctx context.Context) int {
 	return id
 }
 
-// UserCreateBulk is the builder for creating many User entities in bulk.
+type UserUpsert struct{ *sql.UpdateSet }
+
+func (u *UserUpsert) Set[T any](column ent.ColumnOf[entity.User, T], value T) *UserUpsert {
+	switch column.Ref().Name {
+
+	case user.FieldOptionalInt:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case user.FieldTags:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case user.FieldScores:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case user.FieldAge:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case user.FieldName:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case user.FieldLast:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case user.FieldNickname:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case user.FieldAddress:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case user.FieldPhone:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case user.FieldPassword:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case user.FieldRole:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case user.FieldEmployment:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case user.FieldSSOCert:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case user.FieldFilesCount:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of User is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *UserUpsert) SetExpr[T any](column ent.ColumnOf[entity.User, T], value ent.Expr[T]) *UserUpsert {
+	switch column.Ref().Name {
+
+	case user.FieldOptionalInt:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case user.FieldTags:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case user.FieldScores:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case user.FieldAge:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case user.FieldName:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case user.FieldLast:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case user.FieldNickname:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case user.FieldAddress:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case user.FieldPhone:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case user.FieldPassword:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case user.FieldRole:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case user.FieldEmployment:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case user.FieldSSOCert:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case user.FieldFilesCount:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of User is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *UserUpsert) UpdateNewValue[T any](column ent.ColumnOf[entity.User, T]) *UserUpsert {
+	switch column.Ref().Name {
+
+	case user.FieldOptionalInt:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case user.FieldTags:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case user.FieldScores:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case user.FieldAge:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case user.FieldName:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case user.FieldLast:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case user.FieldNickname:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case user.FieldAddress:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case user.FieldPhone:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case user.FieldPassword:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case user.FieldRole:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case user.FieldEmployment:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case user.FieldSSOCert:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case user.FieldFilesCount:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of User is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *UserUpsert) Add[T ent.Number](column ent.ColumnOf[entity.User, T], delta T) *UserUpsert {
+	switch column.Ref().Name {
+
+	case user.FieldOptionalInt:
+		u.UpdateSet.Add(column.Ref().Name, delta)
+
+	case user.FieldAge:
+		u.UpdateSet.Add(column.Ref().Name, delta)
+
+	case user.FieldFilesCount:
+		u.UpdateSet.Add(column.Ref().Name, delta)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of User does not support addition", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *UserUpsert) Clear[T any](column ent.ColumnOf[entity.User, T]) *UserUpsert {
+	switch column.Ref().Name {
+
+	case user.FieldOptionalInt:
+		u.UpdateSet.SetNull(column.Ref().Name)
+
+	case user.FieldTags:
+		u.UpdateSet.SetNull(column.Ref().Name)
+
+	case user.FieldScores:
+		u.UpdateSet.SetNull(column.Ref().Name)
+
+	case user.FieldNickname:
+		u.UpdateSet.SetNull(column.Ref().Name)
+
+	case user.FieldAddress:
+		u.UpdateSet.SetNull(column.Ref().Name)
+
+	case user.FieldPhone:
+		u.UpdateSet.SetNull(column.Ref().Name)
+
+	case user.FieldPassword:
+		u.UpdateSet.SetNull(column.Ref().Name)
+
+	case user.FieldSSOCert:
+		u.UpdateSet.SetNull(column.Ref().Name)
+
+	case user.FieldFilesCount:
+		u.UpdateSet.SetNull(column.Ref().Name)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of User is not nullable", column.Ref().Name)})
+	}
+	return u
+}
+
 type UserCreateBulk struct {
 	config
 	err      error
 	builders []*UserCreate
+
 	conflict []sql.ConflictOption
 }
 
-// Save creates the User entities in the database.
 func (_c *UserCreateBulk) Save(ctx context.Context) ([]*User, error) {
 	if _c.err != nil {
 		return nil, _c.err
 	}
-	specs := make([]*sqlgraph.CreateSpec, len(_c.builders))
 	nodes := make([]*User, len(_c.builders))
-	mutators := make([]Mutator, len(_c.builders))
-	for i := range _c.builders {
-		func(i int, root context.Context) {
-			builder := _c.builders[i]
-			builder.defaults()
-			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*UserMutation)
-				if !ok {
-					return nil, fmt.Errorf("unexpected mutation type %T", m)
-				}
-				if err := builder.check(); err != nil {
-					return nil, err
-				}
-				builder.mutation = mutation
-				var err error
-				nodes[i], specs[i] = builder.createSpec()
-				if i < len(mutators)-1 {
-					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
-				} else {
-					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
-					spec.OnConflict = _c.conflict
-					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
-						if sqlgraph.IsConstraintError(err) {
-							err = &ConstraintError{msg: err.Error(), wrap: err}
-						}
-					}
-				}
-				if err != nil {
-					return nil, err
-				}
-				mutation.id = &nodes[i].ID
-				if specs[i].ID.Value != nil {
-					id := specs[i].ID.Value.(int64)
-					nodes[i].ID = int(id)
-				}
-				mutation.done = true
-				return nodes[i], nil
-			})
-			for i := len(builder.hooks) - 1; i >= 0; i-- {
-				mut = builder.hooks[i](mut)
-			}
-			mutators[i] = mut
-		}(i, ctx)
-	}
-	if len(mutators) > 0 {
-		if _, err := mutators[0].Mutate(ctx, _c.builders[0].mutation); err != nil {
+	specs := make([]*sqlgraph.CreateSpec, len(nodes))
+	for index, builder := range _c.builders {
+		if builder.err != nil {
+			return nil, builder.err
+		}
+		if err := builder.defaults(); err != nil {
+			return nil, err
+		}
+		if err := builder.check(); err != nil {
+			return nil, err
+		}
+		var err error
+		nodes[index], specs[index], err = builder.createSpec()
+		if err != nil {
 			return nil, err
 		}
 	}
-	return nodes, nil
+	if len(specs) == 0 {
+		return nodes, nil
+	}
+	spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+
+	spec.OnConflict = _c.conflict
+
+	if err := sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
+		if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{msg: err.Error(), wrap: err}
+		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
+		return nil, err
+	}
+	result := nodes[:0]
+	for index, builder := range _c.builders {
+		if specs[index].Skipped {
+			continue
+		}
+		builder.mutation.id = &nodes[index].ID
+		result = append(result, nodes[index])
+	}
+	return result, nil
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_c *UserCreateBulk) SaveX(ctx context.Context) []*User {
-	v, err := _c.Save(ctx)
+func (b *UserCreateBulk) SaveX(ctx context.Context) []*User {
+	nodes, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return nodes
 }
 
-// Exec executes the query.
-func (_c *UserCreateBulk) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *UserCreateBulk) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *UserCreateBulk) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *UserCreateBulk) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// OnConflict allows configuring the `ON CONFLICT` clause of the `INSERT`
-// statement. For example:
-//
-//	client.User.CreateBulk(builders...).
-//		OnConflict(
-//			// Update the row with the new values
-//			// the was proposed for insertion.
-//			sql.ResolveWithNewValues(),
-//		).
-//		// Override some of the fields with custom
-//		// update values.
-//		Update(func(u *ent.UserUpsert) {
-//			SetOptionalInt(v+v).
-//		}).
-//		Exec(ctx)
-func (_c *UserCreateBulk) OnConflict(opts ...sql.ConflictOption) *UserUpsertBulk {
-	_c.conflict = opts
-	return &UserUpsertBulk{
-		create: _c,
+type UserUpsertBulk struct{ create *UserCreateBulk }
+
+func (b *UserCreateBulk) OnConflict(columns ...ent.EntityColumn[entity.User]) *UserUpsertBulk {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
 	}
-}
-
-// OnConflictColumns calls `OnConflict` and configures the columns
-// as conflict target. Using this option is equivalent to using:
-//
-//	client.User.Create().
-//		OnConflict(sql.ConflictColumns(columns...)).
-//		Exec(ctx)
-func (_c *UserCreateBulk) OnConflictColumns(columns ...string) *UserUpsertBulk {
-	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
-	return &UserUpsertBulk{
-		create: _c,
+	if len(names) == 0 {
+		return b.OnConflictOptions()
 	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
 }
 
-// UserUpsertBulk is the builder for "upsert"-ing
-// a bulk of User nodes.
-type UserUpsertBulk struct {
-	create *UserCreateBulk
+func (b *UserCreateBulk) OnConflictConstraint(name string) *UserUpsertBulk {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
 }
 
-// UpdateNewValues updates the mutable fields using the new values that
-// were set on create. Using this option is equivalent to using:
-//
-//	client.User.Create().
-//		OnConflict(
-//			sql.ResolveWithNewValues(),
-//		).
-//		Exec(ctx)
-func (u *UserUpsertBulk) UpdateNewValues() *UserUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
-	return u
+func (b *UserCreateBulk) OnConflictOptions(options ...sql.ConflictOption) *UserUpsertBulk {
+	b.conflict = options
+	return &UserUpsertBulk{create: b}
 }
 
-// Ignore sets each column to itself in case of conflict.
-// Using this option is equivalent to using:
-//
-//	client.User.Create().
-//		OnConflict(sql.ResolveWithIgnore()).
-//		Exec(ctx)
-func (u *UserUpsertBulk) Ignore() *UserUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
-	return u
-}
-
-// DoNothing configures the conflict_action to `DO NOTHING`.
-// Supported only by SQLite and PostgreSQL.
 func (u *UserUpsertBulk) DoNothing() *UserUpsertBulk {
 	u.create.conflict = append(u.create.conflict, sql.DoNothing())
 	return u
 }
 
-// Update allows overriding fields `UPDATE` values. See the UserCreateBulk.OnConflict
-// documentation for more info.
-func (u *UserUpsertBulk) Update(set func(*UserUpsert)) *UserUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
-		set(&UserUpsert{UpdateSet: update})
+func (u *UserUpsertBulk) DoSelect() *UserUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *UserUpsertBulk) Ignore() *UserUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *UserUpsertBulk) DoUpdate(set func(*UserUpsert)) *UserUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&UserUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *UserUpsertBulk) UpdateNewValues() *UserUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case user.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
 	}))
 	return u
 }
 
-// SetOptionalInt sets the "optional_int" field.
-func (u *UserUpsertBulk) SetOptionalInt(v int) *UserUpsertBulk {
-	return u.Update(func(s *UserUpsert) {
-		s.SetOptionalInt(v)
-	})
-}
-
-// AddOptionalInt adds v to the "optional_int" field.
-func (u *UserUpsertBulk) AddOptionalInt(v int) *UserUpsertBulk {
-	return u.Update(func(s *UserUpsert) {
-		s.AddOptionalInt(v)
-	})
-}
-
-// UpdateOptionalInt sets the "optional_int" field to the value that was provided on create.
-func (u *UserUpsertBulk) UpdateOptionalInt() *UserUpsertBulk {
-	return u.Update(func(s *UserUpsert) {
-		s.UpdateOptionalInt()
-	})
-}
-
-// ClearOptionalInt clears the value of the "optional_int" field.
-func (u *UserUpsertBulk) ClearOptionalInt() *UserUpsertBulk {
-	return u.Update(func(s *UserUpsert) {
-		s.ClearOptionalInt()
-	})
-}
-
-// SetAge sets the "age" field.
-func (u *UserUpsertBulk) SetAge(v int) *UserUpsertBulk {
-	return u.Update(func(s *UserUpsert) {
-		s.SetAge(v)
-	})
-}
-
-// AddAge adds v to the "age" field.
-func (u *UserUpsertBulk) AddAge(v int) *UserUpsertBulk {
-	return u.Update(func(s *UserUpsert) {
-		s.AddAge(v)
-	})
-}
-
-// UpdateAge sets the "age" field to the value that was provided on create.
-func (u *UserUpsertBulk) UpdateAge() *UserUpsertBulk {
-	return u.Update(func(s *UserUpsert) {
-		s.UpdateAge()
-	})
-}
-
-// SetName sets the "name" field.
-func (u *UserUpsertBulk) SetName(v string) *UserUpsertBulk {
-	return u.Update(func(s *UserUpsert) {
-		s.SetName(v)
-	})
-}
-
-// UpdateName sets the "name" field to the value that was provided on create.
-func (u *UserUpsertBulk) UpdateName() *UserUpsertBulk {
-	return u.Update(func(s *UserUpsert) {
-		s.UpdateName()
-	})
-}
-
-// SetLast sets the "last" field.
-func (u *UserUpsertBulk) SetLast(v string) *UserUpsertBulk {
-	return u.Update(func(s *UserUpsert) {
-		s.SetLast(v)
-	})
-}
-
-// UpdateLast sets the "last" field to the value that was provided on create.
-func (u *UserUpsertBulk) UpdateLast() *UserUpsertBulk {
-	return u.Update(func(s *UserUpsert) {
-		s.UpdateLast()
-	})
-}
-
-// SetNickname sets the "nickname" field.
-func (u *UserUpsertBulk) SetNickname(v string) *UserUpsertBulk {
-	return u.Update(func(s *UserUpsert) {
-		s.SetNickname(v)
-	})
-}
-
-// UpdateNickname sets the "nickname" field to the value that was provided on create.
-func (u *UserUpsertBulk) UpdateNickname() *UserUpsertBulk {
-	return u.Update(func(s *UserUpsert) {
-		s.UpdateNickname()
-	})
-}
-
-// ClearNickname clears the value of the "nickname" field.
-func (u *UserUpsertBulk) ClearNickname() *UserUpsertBulk {
-	return u.Update(func(s *UserUpsert) {
-		s.ClearNickname()
-	})
-}
-
-// SetAddress sets the "address" field.
-func (u *UserUpsertBulk) SetAddress(v string) *UserUpsertBulk {
-	return u.Update(func(s *UserUpsert) {
-		s.SetAddress(v)
-	})
-}
-
-// UpdateAddress sets the "address" field to the value that was provided on create.
-func (u *UserUpsertBulk) UpdateAddress() *UserUpsertBulk {
-	return u.Update(func(s *UserUpsert) {
-		s.UpdateAddress()
-	})
-}
-
-// ClearAddress clears the value of the "address" field.
-func (u *UserUpsertBulk) ClearAddress() *UserUpsertBulk {
-	return u.Update(func(s *UserUpsert) {
-		s.ClearAddress()
-	})
-}
-
-// SetPhone sets the "phone" field.
-func (u *UserUpsertBulk) SetPhone(v string) *UserUpsertBulk {
-	return u.Update(func(s *UserUpsert) {
-		s.SetPhone(v)
-	})
-}
-
-// UpdatePhone sets the "phone" field to the value that was provided on create.
-func (u *UserUpsertBulk) UpdatePhone() *UserUpsertBulk {
-	return u.Update(func(s *UserUpsert) {
-		s.UpdatePhone()
-	})
-}
-
-// ClearPhone clears the value of the "phone" field.
-func (u *UserUpsertBulk) ClearPhone() *UserUpsertBulk {
-	return u.Update(func(s *UserUpsert) {
-		s.ClearPhone()
-	})
-}
-
-// SetPassword sets the "password" field.
-func (u *UserUpsertBulk) SetPassword(v string) *UserUpsertBulk {
-	return u.Update(func(s *UserUpsert) {
-		s.SetPassword(v)
-	})
-}
-
-// UpdatePassword sets the "password" field to the value that was provided on create.
-func (u *UserUpsertBulk) UpdatePassword() *UserUpsertBulk {
-	return u.Update(func(s *UserUpsert) {
-		s.UpdatePassword()
-	})
-}
-
-// ClearPassword clears the value of the "password" field.
-func (u *UserUpsertBulk) ClearPassword() *UserUpsertBulk {
-	return u.Update(func(s *UserUpsert) {
-		s.ClearPassword()
-	})
-}
-
-// SetRole sets the "role" field.
-func (u *UserUpsertBulk) SetRole(v user.Role) *UserUpsertBulk {
-	return u.Update(func(s *UserUpsert) {
-		s.SetRole(v)
-	})
-}
-
-// UpdateRole sets the "role" field to the value that was provided on create.
-func (u *UserUpsertBulk) UpdateRole() *UserUpsertBulk {
-	return u.Update(func(s *UserUpsert) {
-		s.UpdateRole()
-	})
-}
-
-// SetEmployment sets the "employment" field.
-func (u *UserUpsertBulk) SetEmployment(v user.Employment) *UserUpsertBulk {
-	return u.Update(func(s *UserUpsert) {
-		s.SetEmployment(v)
-	})
-}
-
-// UpdateEmployment sets the "employment" field to the value that was provided on create.
-func (u *UserUpsertBulk) UpdateEmployment() *UserUpsertBulk {
-	return u.Update(func(s *UserUpsert) {
-		s.UpdateEmployment()
-	})
-}
-
-// SetSSOCert sets the "SSOCert" field.
-func (u *UserUpsertBulk) SetSSOCert(v string) *UserUpsertBulk {
-	return u.Update(func(s *UserUpsert) {
-		s.SetSSOCert(v)
-	})
-}
-
-// UpdateSSOCert sets the "SSOCert" field to the value that was provided on create.
-func (u *UserUpsertBulk) UpdateSSOCert() *UserUpsertBulk {
-	return u.Update(func(s *UserUpsert) {
-		s.UpdateSSOCert()
-	})
-}
-
-// ClearSSOCert clears the value of the "SSOCert" field.
-func (u *UserUpsertBulk) ClearSSOCert() *UserUpsertBulk {
-	return u.Update(func(s *UserUpsert) {
-		s.ClearSSOCert()
-	})
-}
-
-// SetFilesCount sets the "files_count" field.
-func (u *UserUpsertBulk) SetFilesCount(v int) *UserUpsertBulk {
-	return u.Update(func(s *UserUpsert) {
-		s.SetFilesCount(v)
-	})
-}
-
-// AddFilesCount adds v to the "files_count" field.
-func (u *UserUpsertBulk) AddFilesCount(v int) *UserUpsertBulk {
-	return u.Update(func(s *UserUpsert) {
-		s.AddFilesCount(v)
-	})
-}
-
-// UpdateFilesCount sets the "files_count" field to the value that was provided on create.
-func (u *UserUpsertBulk) UpdateFilesCount() *UserUpsertBulk {
-	return u.Update(func(s *UserUpsert) {
-		s.UpdateFilesCount()
-	})
-}
-
-// ClearFilesCount clears the value of the "files_count" field.
-func (u *UserUpsertBulk) ClearFilesCount() *UserUpsertBulk {
-	return u.Update(func(s *UserUpsert) {
-		s.ClearFilesCount()
-	})
-}
-
-// Exec executes the query.
-func (u *UserUpsertBulk) Exec(ctx context.Context) error {
-	if u.create.err != nil {
-		return u.create.err
-	}
-	for i, b := range u.create.builders {
-		if len(b.conflict) != 0 {
-			return fmt.Errorf("ent: OnConflict was set for builder %d. Set it on the UserCreateBulk instead", i)
+func (u *UserUpsertBulk) Where(predicates ...ent.Predicate[entity.User]) *UserUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(user.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
 		}
-	}
-	if len(u.create.conflict) == 0 {
-		return errors.New("ent: missing options for UserCreateBulk.OnConflict")
-	}
-	return u.create.Exec(ctx)
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// ExecX is like Exec, but panics if an error occurs.
+func (u *UserUpsertBulk) UpdateWhere(predicates ...ent.Predicate[entity.User]) *UserUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(user.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *UserUpsertBulk) Save(ctx context.Context) ([]*User, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for UserCreateBulk.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *UserUpsertBulk) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
 func (u *UserUpsertBulk) ExecX(ctx context.Context) {
-	if err := u.create.Exec(ctx); err != nil {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

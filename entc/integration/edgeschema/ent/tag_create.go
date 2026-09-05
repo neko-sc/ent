@@ -11,8 +11,11 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/group"
 	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/grouptag"
 	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/tag"
@@ -21,117 +24,127 @@ import (
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// TagCreate is the builder for creating a Tag entity.
 type TagCreate struct {
 	config
-	mutation *TagMutation
-	hooks    []Hook
+	mutation    *TagMutation
+	err         error
+	fromBuilder bool
+	present     map[string]struct{}
+
 	conflict []sql.ConflictOption
 }
 
-// SetValue sets the "value" field.
-func (_c *TagCreate) SetValue(v string) *TagCreate {
-	_c.mutation.SetValue(v)
-	return _c
-}
-
-// AddTweetIDs adds the "tweets" edge to the Tweet entity by IDs.
-func (_c *TagCreate) AddTweetIDs(ids ...int) *TagCreate {
-	_c.mutation.AddTweetIDs(ids...)
-	return _c
-}
-
-// AddTweets adds the "tweets" edges to the Tweet entity.
-func (_c *TagCreate) AddTweets(v ...*Tweet) *TagCreate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+func (b *TagCreate) Set[T any](column ent.ColumnOf[entity.Tag, T], value T) *TagCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.set(column.Ref().Name, value)
 	}
-	return _c.AddTweetIDs(ids...)
-}
-
-// AddGroupIDs adds the "groups" edge to the Group entity by IDs.
-func (_c *TagCreate) AddGroupIDs(ids ...int) *TagCreate {
-	_c.mutation.AddGroupIDs(ids...)
-	return _c
-}
-
-// AddGroups adds the "groups" edges to the Group entity.
-func (_c *TagCreate) AddGroups(v ...*Group) *TagCreate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+	if b.present == nil {
+		b.present = make(map[string]struct{})
 	}
-	return _c.AddGroupIDs(ids...)
+	b.present[column.Ref().Name] = struct{}{}
+	return b
 }
-
-// AddTweetTagIDs adds the "tweet_tags" edge to the TweetTag entity by IDs.
-func (_c *TagCreate) AddTweetTagIDs(ids ...uuid.UUID) *TagCreate {
-	_c.mutation.AddTweetTagIDs(ids...)
-	return _c
-}
-
-// AddTweetTags adds the "tweet_tags" edges to the TweetTag entity.
-func (_c *TagCreate) AddTweetTags(v ...*TweetTag) *TagCreate {
-	ids := make([]uuid.UUID, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+func (b *TagCreate) SetOptional[T any](column ent.ColumnOf[entity.Tag, T], value ent.Option[T]) *TagCreate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.insert.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _c.AddTweetTagIDs(ids...)
-}
-
-// AddGroupTagIDs adds the "group_tags" edge to the GroupTag entity by IDs.
-func (_c *TagCreate) AddGroupTagIDs(ids ...int) *TagCreate {
-	_c.mutation.AddGroupTagIDs(ids...)
-	return _c
-}
-
-// AddGroupTags adds the "group_tags" edges to the GroupTag entity.
-func (_c *TagCreate) AddGroupTags(v ...*GroupTag) *TagCreate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
 	}
-	return _c.AddGroupTagIDs(ids...)
+	return b
+}
+func (b *TagCreate) SetExpr[T any](column ent.ColumnOf[entity.Tag, T], value ent.Expr[T]) *TagCreate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case tag.FieldValue:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Tag is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.insert.setExpr(column.Ref().Name, value.Render)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+
+}
+func (b *TagCreate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Tag, N, K], id K) *TagCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.setEdge(edge.Ref().Name, id)
+	}
+
+	switch edge.Ref().Name {
+
+	}
+
+	return b
+}
+func (b *TagCreate) AddIDs[N, K any](edge ent.Relation[entity.Tag, N, K], ids ...K) *TagCreate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.insert.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *TagCreate) Mutation() *TagMutation { return b.mutation }
+
+func (b *TagCreate) Insert() *TagInsert { return b.mutation.insert }
+
+func (b *TagCreate) Save(ctx context.Context) (*Tag, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Mutation returns the TagMutation object of the builder.
-func (_c *TagCreate) Mutation() *TagMutation {
-	return _c.mutation
-}
-
-// Save creates the Tag in the database.
-func (_c *TagCreate) Save(ctx context.Context) (*Tag, error) {
-	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
-}
-
-// SaveX calls Save and panics if Save returns an error.
-func (_c *TagCreate) SaveX(ctx context.Context) *Tag {
-	v, err := _c.Save(ctx)
+func (b *TagCreate) SaveX(ctx context.Context) *Tag {
+	node, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return node
 }
 
-// Exec executes the query.
-func (_c *TagCreate) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *TagCreate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *TagCreate) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *TagCreate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_c *TagCreate) check() error {
-	if _, ok := _c.mutation.Value(); !ok {
-		return &ValidationError{Name: "value", err: errors.New(`ent: missing required field "Tag.value"`)}
+func (b *TagCreate) defaults() error {
+
+	return nil
+}
+
+func (b *TagCreate) check() error {
+	if b.err != nil {
+		return b.err
 	}
+
+	switch b.driver.Dialect() {
+	case dialect.Postgres, dialect.SQLite:
+		if _, present := b.present[tag.FieldValue]; b.fromBuilder && !present {
+			return &ValidationError{Name: "value", err: errors.New(`ent: missing required field "Tag.value"`)}
+		}
+	}
+
 	return nil
 }
 
@@ -139,31 +152,37 @@ func (_c *TagCreate) sqlSave(ctx context.Context) (*Tag, error) {
 	if err := _c.check(); err != nil {
 		return nil, err
 	}
-	_node, _spec := _c.createSpec()
-	if err := sqlgraph.CreateNode(ctx, _c.driver, _spec); err != nil {
+	node, spec, err := _c.createSpec()
+	if err != nil {
+		return nil, err
+	}
+	if err := sqlgraph.CreateNode(ctx, _c.driver, spec); err != nil {
 		if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
 		return nil, err
 	}
-	id := _spec.ID.Value.(int64)
-	_node.ID = int(id)
-	_c.mutation.id = &_node.ID
-	_c.mutation.done = true
-	return _node, nil
+	_c.mutation.id = &node.ID
+	return node, nil
 }
 
-func (_c *TagCreate) createSpec() (*Tag, *sqlgraph.CreateSpec) {
-	var (
-		_node = &Tag{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(tag.Table, sqlgraph.NewFieldSpec(tag.FieldID, field.TypeInt))
-	)
+func (_c *TagCreate) createSpec() (*Tag, *sqlgraph.CreateSpec, error) {
+	_node := &Tag{config: _c.config}
+	_spec := sqlgraph.NewCreateSpec(tag.Table, sqlgraph.NewFieldSpec(tag.FieldID, field.TypeInt))
+
 	_spec.OnConflict = _c.conflict
-	if value, ok := _c.mutation.Value(); ok {
+
+	if _, present := _c.present[tag.FieldValue]; !_c.fromBuilder || present {
+		value := _c.mutation.insert.Value
 		_spec.SetField(tag.FieldValue, field.TypeString, value)
-		_node.Value = value
 	}
-	if nodes := _c.mutation.TweetsIDs(); len(nodes) > 0 {
+
+	_spec.Expressions = _c.mutation.insert.expressions
+
+	if nodes := _c.mutation.insert.tweetsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: false,
@@ -174,19 +193,30 @@ func (_c *TagCreate) createSpec() (*Tag, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(tweet.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		createE := &TweetTagCreate{config: _c.config, mutation: newTweetTagMutation(_c.config, OpCreate)}
-		createE.defaults()
-		_, specE := createE.createSpec()
+		if err := createE.defaults(); err != nil {
+			return nil, nil, err
+		}
+		_, specE, err := createE.createSpec()
+		if err != nil {
+			return nil, nil, err
+		}
 		edge.Target.Fields = specE.Fields
 		if specE.ID.Value != nil {
 			edge.Target.Fields = append(edge.Target.Fields, specE.ID)
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	if nodes := _c.mutation.GroupsIDs(); len(nodes) > 0 {
+
+	if nodes := _c.mutation.insert.groupsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: false,
@@ -197,12 +227,18 @@ func (_c *TagCreate) createSpec() (*Tag, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(group.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	if nodes := _c.mutation.TweetTagsIDs(); len(nodes) > 0 {
+
+	if nodes := _c.mutation.insert.tweettagsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: true,
@@ -213,12 +249,18 @@ func (_c *TagCreate) createSpec() (*Tag, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(tweettag.FieldID, field.TypeUUID),
 			},
 		}
+		seen := make(map[uuid.UUID]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	if nodes := _c.mutation.GroupTagsIDs(); len(nodes) > 0 {
+
+	if nodes := _c.mutation.insert.grouptagsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: true,
@@ -229,154 +271,142 @@ func (_c *TagCreate) createSpec() (*Tag, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(grouptag.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	return _node, _spec
+
+	_spec.Returning = &sqlgraph.Returning{Columns: tag.Columns, Scan: func(rows dialect.Rows) error {
+		values, err := _node.scanValues(tag.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(tag.Columns, values); err != nil {
+			return err
+		}
+
+		_spec.ID.Value = _node.ID
+
+		return nil
+	}}
+	return _node, _spec, nil
 }
 
-// OnConflict allows configuring the `ON CONFLICT` clause of the `INSERT`
-// statement. For example:
-//
-//	client.Tag.Create().
-//		SetValue(v).
-//		OnConflict(
-//			// Update the row with the new values
-//			// the was proposed for insertion.
-//			sql.ResolveWithNewValues(),
-//		).
-//		// Override some of the fields with custom
-//		// update values.
-//		Update(func(u *ent.TagUpsert) {
-//			SetValue(v+v).
-//		}).
-//		Exec(ctx)
-func (_c *TagCreate) OnConflict(opts ...sql.ConflictOption) *TagUpsertOne {
-	_c.conflict = opts
-	return &TagUpsertOne{
-		create: _c,
+type TagUpsertOne struct{ create *TagCreate }
+
+func (b *TagCreate) OnConflict(columns ...ent.EntityColumn[entity.Tag]) *TagUpsertOne {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
 	}
-}
-
-// OnConflictColumns calls `OnConflict` and configures the columns
-// as conflict target. Using this option is equivalent to using:
-//
-//	client.Tag.Create().
-//		OnConflict(sql.ConflictColumns(columns...)).
-//		Exec(ctx)
-func (_c *TagCreate) OnConflictColumns(columns ...string) *TagUpsertOne {
-	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
-	return &TagUpsertOne{
-		create: _c,
+	if len(names) == 0 {
+		return b.OnConflictOptions()
 	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
 }
 
-type (
-	// TagUpsertOne is the builder for "upsert"-ing
-	//  one Tag node.
-	TagUpsertOne struct {
-		create *TagCreate
-	}
-
-	// TagUpsert is the "OnConflict" setter.
-	TagUpsert struct {
-		*sql.UpdateSet
-	}
-)
-
-// SetValue sets the "value" field.
-func (u *TagUpsert) SetValue(v string) *TagUpsert {
-	u.Set(tag.FieldValue, v)
-	return u
+func (b *TagCreate) OnConflictConstraint(name string) *TagUpsertOne {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
 }
 
-// UpdateValue sets the "value" field to the value that was provided on create.
-func (u *TagUpsert) UpdateValue() *TagUpsert {
-	u.SetExcluded(tag.FieldValue)
-	return u
+func (b *TagCreate) OnConflictOptions(options ...sql.ConflictOption) *TagUpsertOne {
+	b.conflict = options
+	return &TagUpsertOne{create: b}
 }
 
-// UpdateNewValues updates the mutable fields using the new values that were set on create.
-// Using this option is equivalent to using:
-//
-//	client.Tag.Create().
-//		OnConflict(
-//			sql.ResolveWithNewValues(),
-//		).
-//		Exec(ctx)
-func (u *TagUpsertOne) UpdateNewValues() *TagUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
-	return u
-}
-
-// Ignore sets each column to itself in case of conflict.
-// Using this option is equivalent to using:
-//
-//	client.Tag.Create().
-//	    OnConflict(sql.ResolveWithIgnore()).
-//	    Exec(ctx)
-func (u *TagUpsertOne) Ignore() *TagUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
-	return u
-}
-
-// DoNothing configures the conflict_action to `DO NOTHING`.
-// Supported only by SQLite and PostgreSQL.
 func (u *TagUpsertOne) DoNothing() *TagUpsertOne {
 	u.create.conflict = append(u.create.conflict, sql.DoNothing())
 	return u
 }
 
-// Update allows overriding fields `UPDATE` values. See the TagCreate.OnConflict
-// documentation for more info.
-func (u *TagUpsertOne) Update(set func(*TagUpsert)) *TagUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
-		set(&TagUpsert{UpdateSet: update})
+func (u *TagUpsertOne) DoSelect() *TagUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *TagUpsertOne) Ignore() *TagUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *TagUpsertOne) DoUpdate(set func(*TagUpsert)) *TagUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&TagUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *TagUpsertOne) UpdateNewValues() *TagUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case tag.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
 	}))
 	return u
 }
 
-// SetValue sets the "value" field.
-func (u *TagUpsertOne) SetValue(v string) *TagUpsertOne {
-	return u.Update(func(s *TagUpsert) {
-		s.SetValue(v)
-	})
+func (u *TagUpsertOne) Where(predicates ...ent.Predicate[entity.Tag]) *TagUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(tag.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// UpdateValue sets the "value" field to the value that was provided on create.
-func (u *TagUpsertOne) UpdateValue() *TagUpsertOne {
-	return u.Update(func(s *TagUpsert) {
-		s.UpdateValue()
-	})
+func (u *TagUpsertOne) UpdateWhere(predicates ...ent.Predicate[entity.Tag]) *TagUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(tag.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// Exec executes the query.
-func (u *TagUpsertOne) Exec(ctx context.Context) error {
+func (u *TagUpsertOne) Save(ctx context.Context) (*Tag, error) {
 	if len(u.create.conflict) == 0 {
-		return errors.New("ent: missing options for TagCreate.OnConflict")
+		return nil, errors.New("ent: missing options for TagCreate.OnConflict")
 	}
-	return u.create.Exec(ctx)
+	return u.create.Save(ctx)
 }
 
-// ExecX is like Exec, but panics if an error occurs.
+func (u *TagUpsertOne) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
 func (u *TagUpsertOne) ExecX(ctx context.Context) {
-	if err := u.create.Exec(ctx); err != nil {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// Exec executes the UPSERT query and returns the inserted/updated ID.
 func (u *TagUpsertOne) ID(ctx context.Context) (id int, err error) {
-	node, err := u.create.Save(ctx)
+	node, err := u.Save(ctx)
 	if err != nil {
 		return id, err
 	}
 	return node.ID, nil
 }
 
-// IDX is like ID, but panics if an error occurs.
 func (u *TagUpsertOne) IDX(ctx context.Context) int {
 	id, err := u.ID(ctx)
 	if err != nil {
@@ -385,209 +415,229 @@ func (u *TagUpsertOne) IDX(ctx context.Context) int {
 	return id
 }
 
-// TagCreateBulk is the builder for creating many Tag entities in bulk.
+type TagUpsert struct{ *sql.UpdateSet }
+
+func (u *TagUpsert) Set[T any](column ent.ColumnOf[entity.Tag, T], value T) *TagUpsert {
+	switch column.Ref().Name {
+
+	case tag.FieldValue:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Tag is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *TagUpsert) SetExpr[T any](column ent.ColumnOf[entity.Tag, T], value ent.Expr[T]) *TagUpsert {
+	switch column.Ref().Name {
+
+	case tag.FieldValue:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Tag is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *TagUpsert) UpdateNewValue[T any](column ent.ColumnOf[entity.Tag, T]) *TagUpsert {
+	switch column.Ref().Name {
+
+	case tag.FieldValue:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Tag is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *TagUpsert) Add[T ent.Number](column ent.ColumnOf[entity.Tag, T], delta T) *TagUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Tag does not support addition", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *TagUpsert) Clear[T any](column ent.ColumnOf[entity.Tag, T]) *TagUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Tag is not nullable", column.Ref().Name)})
+	}
+	return u
+}
+
 type TagCreateBulk struct {
 	config
 	err      error
 	builders []*TagCreate
+
 	conflict []sql.ConflictOption
 }
 
-// Save creates the Tag entities in the database.
 func (_c *TagCreateBulk) Save(ctx context.Context) ([]*Tag, error) {
 	if _c.err != nil {
 		return nil, _c.err
 	}
-	specs := make([]*sqlgraph.CreateSpec, len(_c.builders))
 	nodes := make([]*Tag, len(_c.builders))
-	mutators := make([]Mutator, len(_c.builders))
-	for i := range _c.builders {
-		func(i int, root context.Context) {
-			builder := _c.builders[i]
-			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*TagMutation)
-				if !ok {
-					return nil, fmt.Errorf("unexpected mutation type %T", m)
-				}
-				if err := builder.check(); err != nil {
-					return nil, err
-				}
-				builder.mutation = mutation
-				var err error
-				nodes[i], specs[i] = builder.createSpec()
-				if i < len(mutators)-1 {
-					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
-				} else {
-					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
-					spec.OnConflict = _c.conflict
-					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
-						if sqlgraph.IsConstraintError(err) {
-							err = &ConstraintError{msg: err.Error(), wrap: err}
-						}
-					}
-				}
-				if err != nil {
-					return nil, err
-				}
-				mutation.id = &nodes[i].ID
-				if specs[i].ID.Value != nil {
-					id := specs[i].ID.Value.(int64)
-					nodes[i].ID = int(id)
-				}
-				mutation.done = true
-				return nodes[i], nil
-			})
-			for i := len(builder.hooks) - 1; i >= 0; i-- {
-				mut = builder.hooks[i](mut)
-			}
-			mutators[i] = mut
-		}(i, ctx)
-	}
-	if len(mutators) > 0 {
-		if _, err := mutators[0].Mutate(ctx, _c.builders[0].mutation); err != nil {
+	specs := make([]*sqlgraph.CreateSpec, len(nodes))
+	for index, builder := range _c.builders {
+		if builder.err != nil {
+			return nil, builder.err
+		}
+		if err := builder.defaults(); err != nil {
+			return nil, err
+		}
+		if err := builder.check(); err != nil {
+			return nil, err
+		}
+		var err error
+		nodes[index], specs[index], err = builder.createSpec()
+		if err != nil {
 			return nil, err
 		}
 	}
-	return nodes, nil
+	if len(specs) == 0 {
+		return nodes, nil
+	}
+	spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+
+	spec.OnConflict = _c.conflict
+
+	if err := sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
+		if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{msg: err.Error(), wrap: err}
+		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
+		return nil, err
+	}
+	result := nodes[:0]
+	for index, builder := range _c.builders {
+		if specs[index].Skipped {
+			continue
+		}
+		builder.mutation.id = &nodes[index].ID
+		result = append(result, nodes[index])
+	}
+	return result, nil
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_c *TagCreateBulk) SaveX(ctx context.Context) []*Tag {
-	v, err := _c.Save(ctx)
+func (b *TagCreateBulk) SaveX(ctx context.Context) []*Tag {
+	nodes, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return nodes
 }
 
-// Exec executes the query.
-func (_c *TagCreateBulk) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *TagCreateBulk) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *TagCreateBulk) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *TagCreateBulk) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// OnConflict allows configuring the `ON CONFLICT` clause of the `INSERT`
-// statement. For example:
-//
-//	client.Tag.CreateBulk(builders...).
-//		OnConflict(
-//			// Update the row with the new values
-//			// the was proposed for insertion.
-//			sql.ResolveWithNewValues(),
-//		).
-//		// Override some of the fields with custom
-//		// update values.
-//		Update(func(u *ent.TagUpsert) {
-//			SetValue(v+v).
-//		}).
-//		Exec(ctx)
-func (_c *TagCreateBulk) OnConflict(opts ...sql.ConflictOption) *TagUpsertBulk {
-	_c.conflict = opts
-	return &TagUpsertBulk{
-		create: _c,
+type TagUpsertBulk struct{ create *TagCreateBulk }
+
+func (b *TagCreateBulk) OnConflict(columns ...ent.EntityColumn[entity.Tag]) *TagUpsertBulk {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
 	}
-}
-
-// OnConflictColumns calls `OnConflict` and configures the columns
-// as conflict target. Using this option is equivalent to using:
-//
-//	client.Tag.Create().
-//		OnConflict(sql.ConflictColumns(columns...)).
-//		Exec(ctx)
-func (_c *TagCreateBulk) OnConflictColumns(columns ...string) *TagUpsertBulk {
-	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
-	return &TagUpsertBulk{
-		create: _c,
+	if len(names) == 0 {
+		return b.OnConflictOptions()
 	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
 }
 
-// TagUpsertBulk is the builder for "upsert"-ing
-// a bulk of Tag nodes.
-type TagUpsertBulk struct {
-	create *TagCreateBulk
+func (b *TagCreateBulk) OnConflictConstraint(name string) *TagUpsertBulk {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
 }
 
-// UpdateNewValues updates the mutable fields using the new values that
-// were set on create. Using this option is equivalent to using:
-//
-//	client.Tag.Create().
-//		OnConflict(
-//			sql.ResolveWithNewValues(),
-//		).
-//		Exec(ctx)
-func (u *TagUpsertBulk) UpdateNewValues() *TagUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
-	return u
+func (b *TagCreateBulk) OnConflictOptions(options ...sql.ConflictOption) *TagUpsertBulk {
+	b.conflict = options
+	return &TagUpsertBulk{create: b}
 }
 
-// Ignore sets each column to itself in case of conflict.
-// Using this option is equivalent to using:
-//
-//	client.Tag.Create().
-//		OnConflict(sql.ResolveWithIgnore()).
-//		Exec(ctx)
-func (u *TagUpsertBulk) Ignore() *TagUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
-	return u
-}
-
-// DoNothing configures the conflict_action to `DO NOTHING`.
-// Supported only by SQLite and PostgreSQL.
 func (u *TagUpsertBulk) DoNothing() *TagUpsertBulk {
 	u.create.conflict = append(u.create.conflict, sql.DoNothing())
 	return u
 }
 
-// Update allows overriding fields `UPDATE` values. See the TagCreateBulk.OnConflict
-// documentation for more info.
-func (u *TagUpsertBulk) Update(set func(*TagUpsert)) *TagUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
-		set(&TagUpsert{UpdateSet: update})
+func (u *TagUpsertBulk) DoSelect() *TagUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *TagUpsertBulk) Ignore() *TagUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *TagUpsertBulk) DoUpdate(set func(*TagUpsert)) *TagUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&TagUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *TagUpsertBulk) UpdateNewValues() *TagUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case tag.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
 	}))
 	return u
 }
 
-// SetValue sets the "value" field.
-func (u *TagUpsertBulk) SetValue(v string) *TagUpsertBulk {
-	return u.Update(func(s *TagUpsert) {
-		s.SetValue(v)
-	})
-}
-
-// UpdateValue sets the "value" field to the value that was provided on create.
-func (u *TagUpsertBulk) UpdateValue() *TagUpsertBulk {
-	return u.Update(func(s *TagUpsert) {
-		s.UpdateValue()
-	})
-}
-
-// Exec executes the query.
-func (u *TagUpsertBulk) Exec(ctx context.Context) error {
-	if u.create.err != nil {
-		return u.create.err
-	}
-	for i, b := range u.create.builders {
-		if len(b.conflict) != 0 {
-			return fmt.Errorf("ent: OnConflict was set for builder %d. Set it on the TagCreateBulk instead", i)
+func (u *TagUpsertBulk) Where(predicates ...ent.Predicate[entity.Tag]) *TagUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(tag.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
 		}
-	}
-	if len(u.create.conflict) == 0 {
-		return errors.New("ent: missing options for TagCreateBulk.OnConflict")
-	}
-	return u.create.Exec(ctx)
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// ExecX is like Exec, but panics if an error occurs.
+func (u *TagUpsertBulk) UpdateWhere(predicates ...ent.Predicate[entity.Tag]) *TagUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(tag.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *TagUpsertBulk) Save(ctx context.Context) ([]*Tag, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for TagCreateBulk.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *TagUpsertBulk) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
 func (u *TagUpsertBulk) ExecX(ctx context.Context) {
-	if err := u.create.Exec(ctx); err != nil {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

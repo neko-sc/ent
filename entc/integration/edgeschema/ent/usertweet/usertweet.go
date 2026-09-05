@@ -6,10 +6,11 @@
 package usertweet
 
 import (
-	"time"
+	time2 "time"
 
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/entity"
 )
 
 const (
@@ -45,6 +46,50 @@ const (
 	TweetColumn = "tweet_id"
 )
 
+var (
+	ID        = ent.OrderedColumn[entity.UserTweet, int]{Table: Table, Name: FieldID}
+	CreatedAt = ent.OrderedColumn[entity.UserTweet, time2.Time]{Table: Table, Name: FieldCreatedAt}
+	UserID    = ent.OrderedColumn[entity.UserTweet, int]{Table: Table, Name: FieldUserID}
+	TweetID   = ent.OrderedColumn[entity.UserTweet, int]{Table: Table, Name: FieldTweetID}
+	User      = ent.NewUniqueRelation[entity.UserTweet, entity.User, int](EdgeUser, newUserStep)
+	Tweet     = ent.NewUniqueRelation[entity.UserTweet, entity.Tweet, int](EdgeTweet, newTweetStep)
+)
+
+// Alias returns the columns of the user_tweets table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.UserTweet, int]{Table: name, Name: FieldID},
+		CreatedAt:  ent.OrderedColumn[entity.UserTweet, time2.Time]{Table: name, Name: FieldCreatedAt},
+		UserID:     ent.OrderedColumn[entity.UserTweet, int]{Table: name, Name: FieldUserID},
+		TweetID:    ent.OrderedColumn[entity.UserTweet, int]{Table: name, Name: FieldTweetID},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.UserTweet, int]
+	CreatedAt  ent.OrderedColumn[entity.UserTweet, time2.Time]
+	UserID     ent.OrderedColumn[entity.UserTweet, int]
+	TweetID    ent.OrderedColumn[entity.UserTweet, int]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.UserTweet]) ent.Predicate[entity.UserTweet] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.UserTweet]) ent.Predicate[entity.UserTweet] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.UserTweet]) ent.Predicate[entity.UserTweet] {
+	return ent.Not(predicate)
+}
+
 // Columns holds all SQL columns for usertweet fields.
 var Columns = []string{
 	FieldID,
@@ -65,45 +110,9 @@ func ValidColumn(column string) bool {
 
 var (
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
-	DefaultCreatedAt func() time.Time
+	DefaultCreatedAt func() time2.Time
 )
 
-// OrderOption defines the ordering options for the UserTweet queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByCreatedAt orders the results by the created_at field.
-func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldCreatedAt, opts...).ToFunc()
-}
-
-// ByUserID orders the results by the user_id field.
-func ByUserID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldUserID, opts...).ToFunc()
-}
-
-// ByTweetID orders the results by the tweet_id field.
-func ByTweetID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldTweetID, opts...).ToFunc()
-}
-
-// ByUserField orders the results by user field.
-func ByUserField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newUserStep(), sql.OrderByField(field, opts...))
-	}
-}
-
-// ByTweetField orders the results by tweet field.
-func ByTweetField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newTweetStep(), sql.OrderByField(field, opts...))
-	}
-}
 func newUserStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),

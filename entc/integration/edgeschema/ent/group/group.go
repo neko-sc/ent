@@ -6,8 +6,9 @@
 package group
 
 import (
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/entity"
 )
 
 const (
@@ -53,6 +54,46 @@ const (
 	GroupTagsColumn = "group_id"
 )
 
+var (
+	ID          = ent.OrderedColumn[entity.Group, int]{Table: Table, Name: FieldID}
+	Name        = ent.StringColumn[entity.Group, string]{Table: Table, Name: FieldName}
+	Users       = ent.NewRelation[entity.Group, entity.User, int](EdgeUsers, newUsersStep)
+	Tags        = ent.NewRelation[entity.Group, entity.Tag, int](EdgeTags, newTagsStep)
+	JoinedUsers = ent.NewRelation[entity.Group, entity.UserGroup, int](EdgeJoinedUsers, newJoinedUsersStep)
+	GroupTags   = ent.NewRelation[entity.Group, entity.GroupTag, int](EdgeGroupTags, newGroupTagsStep)
+)
+
+// Alias returns the columns of the groups table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.Group, int]{Table: name, Name: FieldID},
+		Name:       ent.StringColumn[entity.Group, string]{Table: name, Name: FieldName},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.Group, int]
+	Name       ent.StringColumn[entity.Group, string]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.Group]) ent.Predicate[entity.Group] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.Group]) ent.Predicate[entity.Group] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.Group]) ent.Predicate[entity.Group] {
+	return ent.Not(predicate)
+}
+
 // Columns holds all SQL columns for group fields.
 var Columns = []string{
 	FieldID,
@@ -83,74 +124,6 @@ var (
 	DefaultName string
 )
 
-// OrderOption defines the ordering options for the Group queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByName orders the results by the name field.
-func ByName(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldName, opts...).ToFunc()
-}
-
-// ByUsersCount orders the results by users count.
-func ByUsersCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newUsersStep(), opts...)
-	}
-}
-
-// ByUsers orders the results by users terms.
-func ByUsers(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newUsersStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
-// ByTagsCount orders the results by tags count.
-func ByTagsCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newTagsStep(), opts...)
-	}
-}
-
-// ByTags orders the results by tags terms.
-func ByTags(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newTagsStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
-// ByJoinedUsersCount orders the results by joined_users count.
-func ByJoinedUsersCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newJoinedUsersStep(), opts...)
-	}
-}
-
-// ByJoinedUsers orders the results by joined_users terms.
-func ByJoinedUsers(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newJoinedUsersStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
-// ByGroupTagsCount orders the results by group_tags count.
-func ByGroupTagsCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newGroupTagsStep(), opts...)
-	}
-}
-
-// ByGroupTags orders the results by group_tags terms.
-func ByGroupTags(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newGroupTagsStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
 func newUsersStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),

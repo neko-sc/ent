@@ -76,17 +76,17 @@ func (cmd *GlobalID) Run(ctx context.Context) error {
 		fmt.Println("\nAborted.")
 		return nil
 	}
-	db, err := sql.Open(cmd.Dialect, cmd.DSN)
+	db, err := sql.Open(dialect.Dialect(cmd.Dialect), cmd.DSN)
 	if err != nil {
 		return err
 	}
-	rows := &sql.Rows{}
 	query, args := sql.Dialect(cmd.Dialect).
 		Select("type").
 		From(sql.Table(schema.TypeTable)).
 		OrderBy(sql.Asc("id")).
 		Query()
-	if err := db.Query(ctx, query, args, rows); err != nil {
+	rows, err := db.Query(ctx, query, args)
+	if err != nil {
 		return err
 	}
 	defer rows.Close()

@@ -12,10 +12,10 @@ import (
 	"log"
 	"reflect"
 
-	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/entc/integration/migrate/entv2/migrate"
 
 	"github.com/neko-sc/ent/dialect"
+	"github.com/neko-sc/ent/dialect/pg"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/entc/integration/migrate/entv2/blog"
@@ -55,7 +55,7 @@ type Client struct {
 }
 
 // NewClient creates a new client configured with the given options.
-func NewClient(opts ...Option) *Client {
+func NewClient(opts ...ClientOption) *Client {
 	client := &Client{config: newConfig(opts...)}
 	client.init()
 	return client
@@ -83,24 +83,20 @@ type (
 		debug bool
 		// log used for logging on debug mode.
 		log func(...any)
-		// hooks to execute on mutations.
-		hooks *hooks
-		// interceptors to execute on queries.
-		inters *inters
 	}
-	// Option function to configure the client.
-	Option func(*config)
+	// ClientOption function to configure the client.
+	ClientOption func(*config)
 )
 
 // newConfig creates a new config for the client.
-func newConfig(opts ...Option) config {
-	cfg := config{log: log.Println, hooks: &hooks{}, inters: &inters{}}
+func newConfig(opts ...ClientOption) config {
+	cfg := config{log: log.Println}
 	cfg.options(opts...)
 	return cfg
 }
 
 // options applies the options on the config object.
-func (c *config) options(opts ...Option) {
+func (c *config) options(opts ...ClientOption) {
 	for _, opt := range opts {
 		opt(c)
 	}
@@ -110,21 +106,21 @@ func (c *config) options(opts ...Option) {
 }
 
 // Debug enables debug logging on the ent.Driver.
-func Debug() Option {
+func Debug() ClientOption {
 	return func(c *config) {
 		c.debug = true
 	}
 }
 
 // Log sets the logging function for debug mode.
-func Log(fn func(...any)) Option {
+func Log(fn func(...any)) ClientOption {
 	return func(c *config) {
 		c.log = fn
 	}
 }
 
 // Driver configures the client driver.
-func Driver(driver dialect.Driver) Option {
+func Driver(driver dialect.Driver) ClientOption {
 	return func(c *config) {
 		c.driver = driver
 	}
@@ -132,11 +128,17 @@ func Driver(driver dialect.Driver) Option {
 
 // Open opens a database/sql.DB specified by the driver name and
 // the data source name, and returns a new client attached to it.
-// Optional parameters can be added for configuring the client.
-func Open(driverName, dataSourceName string, options ...Option) (*Client, error) {
+// ClientOptional parameters can be added for configuring the client.
+func Open(driverName, dataSourceName string, options ...ClientOption) (*Client, error) {
 	switch driverName {
 	case dialect.Postgres, dialect.SQLite:
-		drv, err := sql.Open(driverName, dataSourceName)
+		var drv dialect.Driver
+		var err error
+		if driverName == dialect.Postgres {
+			drv, err = pg.Open(context.Background(), dataSourceName)
+		} else {
+			drv, err = sql.Open(dialect.Dialect(driverName), dataSourceName)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -181,9 +183,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	if _, ok := c.driver.(*txDriver); ok {
 		return nil, errors.New("ent: cannot start a transaction within a transaction")
 	}
-	tx, err := c.driver.(interface {
-		BeginTx(context.Context, *sql.TxOptions) (dialect.Tx, error)
-	}).BeginTx(ctx, opts)
+	tx, err := c.driver.BeginTx(ctx, opts)
 	if err != nil {
 		return nil, fmt.Errorf("ent: starting a transaction: %w", err)
 	}
@@ -226,30 +226,8 @@ func (c *Client) Close() error {
 	return c.driver.Close()
 }
 
-// Use adds the mutation hooks to all the entity clients.
-// In order to add hooks to a specific client, call: `client.Node.Use(...)`.
-func (c *Client) Use(hooks ...Hook) {
-	for _, n := range []interface{ Use(...Hook) }{
-		c.Blog, c.Car, c.Conversion, c.CustomType, c.Group, c.Media, c.Pet, c.User,
-		c.Zoo,
-	} {
-		n.Use(hooks...)
-	}
-}
-
-// Intercept adds the query interceptors to all the entity clients.
-// In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
-func (c *Client) Intercept(interceptors ...Interceptor) {
-	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.Blog, c.Car, c.Conversion, c.CustomType, c.Group, c.Media, c.Pet, c.User,
-		c.Zoo,
-	} {
-		n.Intercept(interceptors...)
-	}
-}
-
-// Mutate implements the ent.Mutator interface.
-func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
+// Mutate executes the given mutation.
+func (c *Client) Mutate(ctx context.Context, m Mutation) (any, error) {
 	switch m := m.(type) {
 	case *BlogMutation:
 		return c.Blog.mutate(ctx, m)
@@ -284,22 +262,24 @@ func NewBlogClient(c config) *BlogClient {
 	return &BlogClient{config: c}
 }
 
-// Use adds a list of mutation hooks to the hooks stack.
-// A call to `Use(f, g, h)` equals to `blog.Hooks(f(g(h())))`.
-func (c *BlogClient) Use(hooks ...Hook) {
-	c.hooks.Blog = append(c.hooks.Blog, hooks...)
-}
-
-// Intercept adds a list of query interceptors to the interceptors stack.
-// A call to `Intercept(f, g, h)` equals to `blog.Intercept(f(g(h())))`.
-func (c *BlogClient) Intercept(interceptors ...Interceptor) {
-	c.inters.Blog = append(c.inters.Blog, interceptors...)
-}
-
 // Create returns a builder for creating a Blog entity.
 func (c *BlogClient) Create() *BlogCreate {
 	mutation := newBlogMutation(c.config, OpCreate)
-	return &BlogCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &BlogCreate{config: c.config, mutation: mutation, fromBuilder: true}
+}
+
+func (c *BlogClient) Insert(value BlogInsert) *BlogCreate {
+	mutation := newBlogMutation(c.config, OpCreate)
+	mutation.insert = &value
+	return &BlogCreate{config: c.config, mutation: mutation}
+}
+
+func (c *BlogClient) InsertBulk(values ...BlogInsert) *BlogCreateBulk {
+	builders := make([]*BlogCreate, len(values))
+	for index := range values {
+		builders[index] = c.Insert(values[index])
+	}
+	return c.CreateBulk(builders...)
 }
 
 // CreateBulk returns a builder for creating a bulk of Blog entities.
@@ -325,25 +305,26 @@ func (c *BlogClient) MapCreateBulk(slice any, setFunc func(*BlogCreate, int)) *B
 // Update returns an update builder for Blog.
 func (c *BlogClient) Update() *BlogUpdate {
 	mutation := newBlogMutation(c.config, OpUpdate)
-	return &BlogUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &BlogUpdate{config: c.config, mutation: mutation}
 }
 
 // UpdateOne returns an update builder for the given entity.
 func (c *BlogClient) UpdateOne(_m *Blog) *BlogUpdateOne {
-	mutation := newBlogMutation(c.config, OpUpdateOne, withBlog(_m))
-	return &BlogUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return c.UpdateOneID(_m.ID)
+
 }
 
 // UpdateOneID returns an update builder for the given id.
 func (c *BlogClient) UpdateOneID(id int) *BlogUpdateOne {
-	mutation := newBlogMutation(c.config, OpUpdateOne, withBlogID(id))
-	return &BlogUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	mutation := newBlogMutation(c.config, OpUpdateOne)
+	mutation.id = &id
+	return &BlogUpdateOne{config: c.config, mutation: mutation}
 }
 
 // Delete returns a delete builder for Blog.
 func (c *BlogClient) Delete() *BlogDelete {
 	mutation := newBlogMutation(c.config, OpDelete)
-	return &BlogDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &BlogDelete{config: c.config, mutation: mutation}
 }
 
 // DeleteOne returns a builder for deleting the given entity.
@@ -353,9 +334,9 @@ func (c *BlogClient) DeleteOne(_m *Blog) *BlogDeleteOne {
 
 // DeleteOneID returns a builder for deleting the given entity by its id.
 func (c *BlogClient) DeleteOneID(id int) *BlogDeleteOne {
-	builder := c.Delete().Where(blog.ID(id))
+	builder := c.Delete().Where(blog.ID.EQ(id))
 	builder.mutation.id = &id
-	builder.mutation.SetOp(OpDeleteOne)
+	builder.mutation.op = OpDeleteOne
 	return &BlogDeleteOne{builder}
 }
 
@@ -364,13 +345,12 @@ func (c *BlogClient) Query() *BlogQuery {
 	return &BlogQuery{
 		config: c.config,
 		ctx:    &QueryContext{Type: TypeBlog},
-		inters: c.Interceptors(),
 	}
 }
 
 // Get returns a Blog entity by its id.
 func (c *BlogClient) Get(ctx context.Context, id int) (*Blog, error) {
-	return c.Query().Where(blog.ID(id)).Only(ctx)
+	return c.Query().Where(blog.ID.EQ(id)).Only(ctx)
 }
 
 // GetX is like Get, but panics if an error occurs.
@@ -398,26 +378,16 @@ func (c *BlogClient) QueryAdmins(_m *Blog) *UserQuery {
 	return query
 }
 
-// Hooks returns the client hooks.
-func (c *BlogClient) Hooks() []Hook {
-	return c.hooks.Blog
-}
-
-// Interceptors returns the client interceptors.
-func (c *BlogClient) Interceptors() []Interceptor {
-	return c.inters.Blog
-}
-
-func (c *BlogClient) mutate(ctx context.Context, m *BlogMutation) (Value, error) {
+func (c *BlogClient) mutate(ctx context.Context, m *BlogMutation) (any, error) {
 	switch m.Op() {
 	case OpCreate:
-		return (&BlogCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&BlogCreate{config: c.config, mutation: m}).Save(ctx)
 	case OpUpdate:
-		return (&BlogUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&BlogUpdate{config: c.config, mutation: m}).Save(ctx)
 	case OpUpdateOne:
-		return (&BlogUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&BlogUpdateOne{config: c.config, mutation: m}).Save(ctx)
 	case OpDelete, OpDeleteOne:
-		return (&BlogDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+		return (&BlogDelete{config: c.config, mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("entv2: unknown Blog mutation op: %q", m.Op())
 	}
@@ -433,22 +403,24 @@ func NewCarClient(c config) *CarClient {
 	return &CarClient{config: c}
 }
 
-// Use adds a list of mutation hooks to the hooks stack.
-// A call to `Use(f, g, h)` equals to `car.Hooks(f(g(h())))`.
-func (c *CarClient) Use(hooks ...Hook) {
-	c.hooks.Car = append(c.hooks.Car, hooks...)
-}
-
-// Intercept adds a list of query interceptors to the interceptors stack.
-// A call to `Intercept(f, g, h)` equals to `car.Intercept(f(g(h())))`.
-func (c *CarClient) Intercept(interceptors ...Interceptor) {
-	c.inters.Car = append(c.inters.Car, interceptors...)
-}
-
 // Create returns a builder for creating a Car entity.
 func (c *CarClient) Create() *CarCreate {
 	mutation := newCarMutation(c.config, OpCreate)
-	return &CarCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &CarCreate{config: c.config, mutation: mutation, fromBuilder: true}
+}
+
+func (c *CarClient) Insert(value CarInsert) *CarCreate {
+	mutation := newCarMutation(c.config, OpCreate)
+	mutation.insert = &value
+	return &CarCreate{config: c.config, mutation: mutation}
+}
+
+func (c *CarClient) InsertBulk(values ...CarInsert) *CarCreateBulk {
+	builders := make([]*CarCreate, len(values))
+	for index := range values {
+		builders[index] = c.Insert(values[index])
+	}
+	return c.CreateBulk(builders...)
 }
 
 // CreateBulk returns a builder for creating a bulk of Car entities.
@@ -474,25 +446,26 @@ func (c *CarClient) MapCreateBulk(slice any, setFunc func(*CarCreate, int)) *Car
 // Update returns an update builder for Car.
 func (c *CarClient) Update() *CarUpdate {
 	mutation := newCarMutation(c.config, OpUpdate)
-	return &CarUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &CarUpdate{config: c.config, mutation: mutation}
 }
 
 // UpdateOne returns an update builder for the given entity.
 func (c *CarClient) UpdateOne(_m *Car) *CarUpdateOne {
-	mutation := newCarMutation(c.config, OpUpdateOne, withCar(_m))
-	return &CarUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return c.UpdateOneID(_m.ID)
+
 }
 
 // UpdateOneID returns an update builder for the given id.
 func (c *CarClient) UpdateOneID(id int) *CarUpdateOne {
-	mutation := newCarMutation(c.config, OpUpdateOne, withCarID(id))
-	return &CarUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	mutation := newCarMutation(c.config, OpUpdateOne)
+	mutation.id = &id
+	return &CarUpdateOne{config: c.config, mutation: mutation}
 }
 
 // Delete returns a delete builder for Car.
 func (c *CarClient) Delete() *CarDelete {
 	mutation := newCarMutation(c.config, OpDelete)
-	return &CarDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &CarDelete{config: c.config, mutation: mutation}
 }
 
 // DeleteOne returns a builder for deleting the given entity.
@@ -502,9 +475,9 @@ func (c *CarClient) DeleteOne(_m *Car) *CarDeleteOne {
 
 // DeleteOneID returns a builder for deleting the given entity by its id.
 func (c *CarClient) DeleteOneID(id int) *CarDeleteOne {
-	builder := c.Delete().Where(car.ID(id))
+	builder := c.Delete().Where(car.ID.EQ(id))
 	builder.mutation.id = &id
-	builder.mutation.SetOp(OpDeleteOne)
+	builder.mutation.op = OpDeleteOne
 	return &CarDeleteOne{builder}
 }
 
@@ -513,13 +486,12 @@ func (c *CarClient) Query() *CarQuery {
 	return &CarQuery{
 		config: c.config,
 		ctx:    &QueryContext{Type: TypeCar},
-		inters: c.Interceptors(),
 	}
 }
 
 // Get returns a Car entity by its id.
 func (c *CarClient) Get(ctx context.Context, id int) (*Car, error) {
-	return c.Query().Where(car.ID(id)).Only(ctx)
+	return c.Query().Where(car.ID.EQ(id)).Only(ctx)
 }
 
 // GetX is like Get, but panics if an error occurs.
@@ -547,26 +519,16 @@ func (c *CarClient) QueryOwner(_m *Car) *UserQuery {
 	return query
 }
 
-// Hooks returns the client hooks.
-func (c *CarClient) Hooks() []Hook {
-	return c.hooks.Car
-}
-
-// Interceptors returns the client interceptors.
-func (c *CarClient) Interceptors() []Interceptor {
-	return c.inters.Car
-}
-
-func (c *CarClient) mutate(ctx context.Context, m *CarMutation) (Value, error) {
+func (c *CarClient) mutate(ctx context.Context, m *CarMutation) (any, error) {
 	switch m.Op() {
 	case OpCreate:
-		return (&CarCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&CarCreate{config: c.config, mutation: m}).Save(ctx)
 	case OpUpdate:
-		return (&CarUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&CarUpdate{config: c.config, mutation: m}).Save(ctx)
 	case OpUpdateOne:
-		return (&CarUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&CarUpdateOne{config: c.config, mutation: m}).Save(ctx)
 	case OpDelete, OpDeleteOne:
-		return (&CarDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+		return (&CarDelete{config: c.config, mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("entv2: unknown Car mutation op: %q", m.Op())
 	}
@@ -582,22 +544,24 @@ func NewConversionClient(c config) *ConversionClient {
 	return &ConversionClient{config: c}
 }
 
-// Use adds a list of mutation hooks to the hooks stack.
-// A call to `Use(f, g, h)` equals to `conversion.Hooks(f(g(h())))`.
-func (c *ConversionClient) Use(hooks ...Hook) {
-	c.hooks.Conversion = append(c.hooks.Conversion, hooks...)
-}
-
-// Intercept adds a list of query interceptors to the interceptors stack.
-// A call to `Intercept(f, g, h)` equals to `conversion.Intercept(f(g(h())))`.
-func (c *ConversionClient) Intercept(interceptors ...Interceptor) {
-	c.inters.Conversion = append(c.inters.Conversion, interceptors...)
-}
-
 // Create returns a builder for creating a Conversion entity.
 func (c *ConversionClient) Create() *ConversionCreate {
 	mutation := newConversionMutation(c.config, OpCreate)
-	return &ConversionCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &ConversionCreate{config: c.config, mutation: mutation, fromBuilder: true}
+}
+
+func (c *ConversionClient) Insert(value ConversionInsert) *ConversionCreate {
+	mutation := newConversionMutation(c.config, OpCreate)
+	mutation.insert = &value
+	return &ConversionCreate{config: c.config, mutation: mutation}
+}
+
+func (c *ConversionClient) InsertBulk(values ...ConversionInsert) *ConversionCreateBulk {
+	builders := make([]*ConversionCreate, len(values))
+	for index := range values {
+		builders[index] = c.Insert(values[index])
+	}
+	return c.CreateBulk(builders...)
 }
 
 // CreateBulk returns a builder for creating a bulk of Conversion entities.
@@ -623,25 +587,26 @@ func (c *ConversionClient) MapCreateBulk(slice any, setFunc func(*ConversionCrea
 // Update returns an update builder for Conversion.
 func (c *ConversionClient) Update() *ConversionUpdate {
 	mutation := newConversionMutation(c.config, OpUpdate)
-	return &ConversionUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &ConversionUpdate{config: c.config, mutation: mutation}
 }
 
 // UpdateOne returns an update builder for the given entity.
 func (c *ConversionClient) UpdateOne(_m *Conversion) *ConversionUpdateOne {
-	mutation := newConversionMutation(c.config, OpUpdateOne, withConversion(_m))
-	return &ConversionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return c.UpdateOneID(_m.ID)
+
 }
 
 // UpdateOneID returns an update builder for the given id.
 func (c *ConversionClient) UpdateOneID(id int) *ConversionUpdateOne {
-	mutation := newConversionMutation(c.config, OpUpdateOne, withConversionID(id))
-	return &ConversionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	mutation := newConversionMutation(c.config, OpUpdateOne)
+	mutation.id = &id
+	return &ConversionUpdateOne{config: c.config, mutation: mutation}
 }
 
 // Delete returns a delete builder for Conversion.
 func (c *ConversionClient) Delete() *ConversionDelete {
 	mutation := newConversionMutation(c.config, OpDelete)
-	return &ConversionDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &ConversionDelete{config: c.config, mutation: mutation}
 }
 
 // DeleteOne returns a builder for deleting the given entity.
@@ -651,9 +616,9 @@ func (c *ConversionClient) DeleteOne(_m *Conversion) *ConversionDeleteOne {
 
 // DeleteOneID returns a builder for deleting the given entity by its id.
 func (c *ConversionClient) DeleteOneID(id int) *ConversionDeleteOne {
-	builder := c.Delete().Where(conversion.ID(id))
+	builder := c.Delete().Where(conversion.ID.EQ(id))
 	builder.mutation.id = &id
-	builder.mutation.SetOp(OpDeleteOne)
+	builder.mutation.op = OpDeleteOne
 	return &ConversionDeleteOne{builder}
 }
 
@@ -662,13 +627,12 @@ func (c *ConversionClient) Query() *ConversionQuery {
 	return &ConversionQuery{
 		config: c.config,
 		ctx:    &QueryContext{Type: TypeConversion},
-		inters: c.Interceptors(),
 	}
 }
 
 // Get returns a Conversion entity by its id.
 func (c *ConversionClient) Get(ctx context.Context, id int) (*Conversion, error) {
-	return c.Query().Where(conversion.ID(id)).Only(ctx)
+	return c.Query().Where(conversion.ID.EQ(id)).Only(ctx)
 }
 
 // GetX is like Get, but panics if an error occurs.
@@ -680,26 +644,16 @@ func (c *ConversionClient) GetX(ctx context.Context, id int) *Conversion {
 	return obj
 }
 
-// Hooks returns the client hooks.
-func (c *ConversionClient) Hooks() []Hook {
-	return c.hooks.Conversion
-}
-
-// Interceptors returns the client interceptors.
-func (c *ConversionClient) Interceptors() []Interceptor {
-	return c.inters.Conversion
-}
-
-func (c *ConversionClient) mutate(ctx context.Context, m *ConversionMutation) (Value, error) {
+func (c *ConversionClient) mutate(ctx context.Context, m *ConversionMutation) (any, error) {
 	switch m.Op() {
 	case OpCreate:
-		return (&ConversionCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&ConversionCreate{config: c.config, mutation: m}).Save(ctx)
 	case OpUpdate:
-		return (&ConversionUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&ConversionUpdate{config: c.config, mutation: m}).Save(ctx)
 	case OpUpdateOne:
-		return (&ConversionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&ConversionUpdateOne{config: c.config, mutation: m}).Save(ctx)
 	case OpDelete, OpDeleteOne:
-		return (&ConversionDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+		return (&ConversionDelete{config: c.config, mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("entv2: unknown Conversion mutation op: %q", m.Op())
 	}
@@ -715,22 +669,24 @@ func NewCustomTypeClient(c config) *CustomTypeClient {
 	return &CustomTypeClient{config: c}
 }
 
-// Use adds a list of mutation hooks to the hooks stack.
-// A call to `Use(f, g, h)` equals to `customtype.Hooks(f(g(h())))`.
-func (c *CustomTypeClient) Use(hooks ...Hook) {
-	c.hooks.CustomType = append(c.hooks.CustomType, hooks...)
-}
-
-// Intercept adds a list of query interceptors to the interceptors stack.
-// A call to `Intercept(f, g, h)` equals to `customtype.Intercept(f(g(h())))`.
-func (c *CustomTypeClient) Intercept(interceptors ...Interceptor) {
-	c.inters.CustomType = append(c.inters.CustomType, interceptors...)
-}
-
 // Create returns a builder for creating a CustomType entity.
 func (c *CustomTypeClient) Create() *CustomTypeCreate {
 	mutation := newCustomTypeMutation(c.config, OpCreate)
-	return &CustomTypeCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &CustomTypeCreate{config: c.config, mutation: mutation, fromBuilder: true}
+}
+
+func (c *CustomTypeClient) Insert(value CustomTypeInsert) *CustomTypeCreate {
+	mutation := newCustomTypeMutation(c.config, OpCreate)
+	mutation.insert = &value
+	return &CustomTypeCreate{config: c.config, mutation: mutation}
+}
+
+func (c *CustomTypeClient) InsertBulk(values ...CustomTypeInsert) *CustomTypeCreateBulk {
+	builders := make([]*CustomTypeCreate, len(values))
+	for index := range values {
+		builders[index] = c.Insert(values[index])
+	}
+	return c.CreateBulk(builders...)
 }
 
 // CreateBulk returns a builder for creating a bulk of CustomType entities.
@@ -756,25 +712,26 @@ func (c *CustomTypeClient) MapCreateBulk(slice any, setFunc func(*CustomTypeCrea
 // Update returns an update builder for CustomType.
 func (c *CustomTypeClient) Update() *CustomTypeUpdate {
 	mutation := newCustomTypeMutation(c.config, OpUpdate)
-	return &CustomTypeUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &CustomTypeUpdate{config: c.config, mutation: mutation}
 }
 
 // UpdateOne returns an update builder for the given entity.
 func (c *CustomTypeClient) UpdateOne(_m *CustomType) *CustomTypeUpdateOne {
-	mutation := newCustomTypeMutation(c.config, OpUpdateOne, withCustomType(_m))
-	return &CustomTypeUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return c.UpdateOneID(_m.ID)
+
 }
 
 // UpdateOneID returns an update builder for the given id.
 func (c *CustomTypeClient) UpdateOneID(id int) *CustomTypeUpdateOne {
-	mutation := newCustomTypeMutation(c.config, OpUpdateOne, withCustomTypeID(id))
-	return &CustomTypeUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	mutation := newCustomTypeMutation(c.config, OpUpdateOne)
+	mutation.id = &id
+	return &CustomTypeUpdateOne{config: c.config, mutation: mutation}
 }
 
 // Delete returns a delete builder for CustomType.
 func (c *CustomTypeClient) Delete() *CustomTypeDelete {
 	mutation := newCustomTypeMutation(c.config, OpDelete)
-	return &CustomTypeDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &CustomTypeDelete{config: c.config, mutation: mutation}
 }
 
 // DeleteOne returns a builder for deleting the given entity.
@@ -784,9 +741,9 @@ func (c *CustomTypeClient) DeleteOne(_m *CustomType) *CustomTypeDeleteOne {
 
 // DeleteOneID returns a builder for deleting the given entity by its id.
 func (c *CustomTypeClient) DeleteOneID(id int) *CustomTypeDeleteOne {
-	builder := c.Delete().Where(customtype.ID(id))
+	builder := c.Delete().Where(customtype.ID.EQ(id))
 	builder.mutation.id = &id
-	builder.mutation.SetOp(OpDeleteOne)
+	builder.mutation.op = OpDeleteOne
 	return &CustomTypeDeleteOne{builder}
 }
 
@@ -795,13 +752,12 @@ func (c *CustomTypeClient) Query() *CustomTypeQuery {
 	return &CustomTypeQuery{
 		config: c.config,
 		ctx:    &QueryContext{Type: TypeCustomType},
-		inters: c.Interceptors(),
 	}
 }
 
 // Get returns a CustomType entity by its id.
 func (c *CustomTypeClient) Get(ctx context.Context, id int) (*CustomType, error) {
-	return c.Query().Where(customtype.ID(id)).Only(ctx)
+	return c.Query().Where(customtype.ID.EQ(id)).Only(ctx)
 }
 
 // GetX is like Get, but panics if an error occurs.
@@ -813,26 +769,16 @@ func (c *CustomTypeClient) GetX(ctx context.Context, id int) *CustomType {
 	return obj
 }
 
-// Hooks returns the client hooks.
-func (c *CustomTypeClient) Hooks() []Hook {
-	return c.hooks.CustomType
-}
-
-// Interceptors returns the client interceptors.
-func (c *CustomTypeClient) Interceptors() []Interceptor {
-	return c.inters.CustomType
-}
-
-func (c *CustomTypeClient) mutate(ctx context.Context, m *CustomTypeMutation) (Value, error) {
+func (c *CustomTypeClient) mutate(ctx context.Context, m *CustomTypeMutation) (any, error) {
 	switch m.Op() {
 	case OpCreate:
-		return (&CustomTypeCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&CustomTypeCreate{config: c.config, mutation: m}).Save(ctx)
 	case OpUpdate:
-		return (&CustomTypeUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&CustomTypeUpdate{config: c.config, mutation: m}).Save(ctx)
 	case OpUpdateOne:
-		return (&CustomTypeUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&CustomTypeUpdateOne{config: c.config, mutation: m}).Save(ctx)
 	case OpDelete, OpDeleteOne:
-		return (&CustomTypeDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+		return (&CustomTypeDelete{config: c.config, mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("entv2: unknown CustomType mutation op: %q", m.Op())
 	}
@@ -848,22 +794,24 @@ func NewGroupClient(c config) *GroupClient {
 	return &GroupClient{config: c}
 }
 
-// Use adds a list of mutation hooks to the hooks stack.
-// A call to `Use(f, g, h)` equals to `group.Hooks(f(g(h())))`.
-func (c *GroupClient) Use(hooks ...Hook) {
-	c.hooks.Group = append(c.hooks.Group, hooks...)
-}
-
-// Intercept adds a list of query interceptors to the interceptors stack.
-// A call to `Intercept(f, g, h)` equals to `group.Intercept(f(g(h())))`.
-func (c *GroupClient) Intercept(interceptors ...Interceptor) {
-	c.inters.Group = append(c.inters.Group, interceptors...)
-}
-
 // Create returns a builder for creating a Group entity.
 func (c *GroupClient) Create() *GroupCreate {
 	mutation := newGroupMutation(c.config, OpCreate)
-	return &GroupCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &GroupCreate{config: c.config, mutation: mutation, fromBuilder: true}
+}
+
+func (c *GroupClient) Insert(value GroupInsert) *GroupCreate {
+	mutation := newGroupMutation(c.config, OpCreate)
+	mutation.insert = &value
+	return &GroupCreate{config: c.config, mutation: mutation}
+}
+
+func (c *GroupClient) InsertBulk(values ...GroupInsert) *GroupCreateBulk {
+	builders := make([]*GroupCreate, len(values))
+	for index := range values {
+		builders[index] = c.Insert(values[index])
+	}
+	return c.CreateBulk(builders...)
 }
 
 // CreateBulk returns a builder for creating a bulk of Group entities.
@@ -889,25 +837,26 @@ func (c *GroupClient) MapCreateBulk(slice any, setFunc func(*GroupCreate, int)) 
 // Update returns an update builder for Group.
 func (c *GroupClient) Update() *GroupUpdate {
 	mutation := newGroupMutation(c.config, OpUpdate)
-	return &GroupUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &GroupUpdate{config: c.config, mutation: mutation}
 }
 
 // UpdateOne returns an update builder for the given entity.
 func (c *GroupClient) UpdateOne(_m *Group) *GroupUpdateOne {
-	mutation := newGroupMutation(c.config, OpUpdateOne, withGroup(_m))
-	return &GroupUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return c.UpdateOneID(_m.ID)
+
 }
 
 // UpdateOneID returns an update builder for the given id.
 func (c *GroupClient) UpdateOneID(id int) *GroupUpdateOne {
-	mutation := newGroupMutation(c.config, OpUpdateOne, withGroupID(id))
-	return &GroupUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	mutation := newGroupMutation(c.config, OpUpdateOne)
+	mutation.id = &id
+	return &GroupUpdateOne{config: c.config, mutation: mutation}
 }
 
 // Delete returns a delete builder for Group.
 func (c *GroupClient) Delete() *GroupDelete {
 	mutation := newGroupMutation(c.config, OpDelete)
-	return &GroupDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &GroupDelete{config: c.config, mutation: mutation}
 }
 
 // DeleteOne returns a builder for deleting the given entity.
@@ -917,9 +866,9 @@ func (c *GroupClient) DeleteOne(_m *Group) *GroupDeleteOne {
 
 // DeleteOneID returns a builder for deleting the given entity by its id.
 func (c *GroupClient) DeleteOneID(id int) *GroupDeleteOne {
-	builder := c.Delete().Where(group.ID(id))
+	builder := c.Delete().Where(group.ID.EQ(id))
 	builder.mutation.id = &id
-	builder.mutation.SetOp(OpDeleteOne)
+	builder.mutation.op = OpDeleteOne
 	return &GroupDeleteOne{builder}
 }
 
@@ -928,13 +877,12 @@ func (c *GroupClient) Query() *GroupQuery {
 	return &GroupQuery{
 		config: c.config,
 		ctx:    &QueryContext{Type: TypeGroup},
-		inters: c.Interceptors(),
 	}
 }
 
 // Get returns a Group entity by its id.
 func (c *GroupClient) Get(ctx context.Context, id int) (*Group, error) {
-	return c.Query().Where(group.ID(id)).Only(ctx)
+	return c.Query().Where(group.ID.EQ(id)).Only(ctx)
 }
 
 // GetX is like Get, but panics if an error occurs.
@@ -946,26 +894,16 @@ func (c *GroupClient) GetX(ctx context.Context, id int) *Group {
 	return obj
 }
 
-// Hooks returns the client hooks.
-func (c *GroupClient) Hooks() []Hook {
-	return c.hooks.Group
-}
-
-// Interceptors returns the client interceptors.
-func (c *GroupClient) Interceptors() []Interceptor {
-	return c.inters.Group
-}
-
-func (c *GroupClient) mutate(ctx context.Context, m *GroupMutation) (Value, error) {
+func (c *GroupClient) mutate(ctx context.Context, m *GroupMutation) (any, error) {
 	switch m.Op() {
 	case OpCreate:
-		return (&GroupCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&GroupCreate{config: c.config, mutation: m}).Save(ctx)
 	case OpUpdate:
-		return (&GroupUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&GroupUpdate{config: c.config, mutation: m}).Save(ctx)
 	case OpUpdateOne:
-		return (&GroupUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&GroupUpdateOne{config: c.config, mutation: m}).Save(ctx)
 	case OpDelete, OpDeleteOne:
-		return (&GroupDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+		return (&GroupDelete{config: c.config, mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("entv2: unknown Group mutation op: %q", m.Op())
 	}
@@ -981,22 +919,24 @@ func NewMediaClient(c config) *MediaClient {
 	return &MediaClient{config: c}
 }
 
-// Use adds a list of mutation hooks to the hooks stack.
-// A call to `Use(f, g, h)` equals to `media.Hooks(f(g(h())))`.
-func (c *MediaClient) Use(hooks ...Hook) {
-	c.hooks.Media = append(c.hooks.Media, hooks...)
-}
-
-// Intercept adds a list of query interceptors to the interceptors stack.
-// A call to `Intercept(f, g, h)` equals to `media.Intercept(f(g(h())))`.
-func (c *MediaClient) Intercept(interceptors ...Interceptor) {
-	c.inters.Media = append(c.inters.Media, interceptors...)
-}
-
 // Create returns a builder for creating a Media entity.
 func (c *MediaClient) Create() *MediaCreate {
 	mutation := newMediaMutation(c.config, OpCreate)
-	return &MediaCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &MediaCreate{config: c.config, mutation: mutation, fromBuilder: true}
+}
+
+func (c *MediaClient) Insert(value MediaInsert) *MediaCreate {
+	mutation := newMediaMutation(c.config, OpCreate)
+	mutation.insert = &value
+	return &MediaCreate{config: c.config, mutation: mutation}
+}
+
+func (c *MediaClient) InsertBulk(values ...MediaInsert) *MediaCreateBulk {
+	builders := make([]*MediaCreate, len(values))
+	for index := range values {
+		builders[index] = c.Insert(values[index])
+	}
+	return c.CreateBulk(builders...)
 }
 
 // CreateBulk returns a builder for creating a bulk of Media entities.
@@ -1022,25 +962,26 @@ func (c *MediaClient) MapCreateBulk(slice any, setFunc func(*MediaCreate, int)) 
 // Update returns an update builder for Media.
 func (c *MediaClient) Update() *MediaUpdate {
 	mutation := newMediaMutation(c.config, OpUpdate)
-	return &MediaUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &MediaUpdate{config: c.config, mutation: mutation}
 }
 
 // UpdateOne returns an update builder for the given entity.
 func (c *MediaClient) UpdateOne(_m *Media) *MediaUpdateOne {
-	mutation := newMediaMutation(c.config, OpUpdateOne, withMedia(_m))
-	return &MediaUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return c.UpdateOneID(_m.ID)
+
 }
 
 // UpdateOneID returns an update builder for the given id.
 func (c *MediaClient) UpdateOneID(id int) *MediaUpdateOne {
-	mutation := newMediaMutation(c.config, OpUpdateOne, withMediaID(id))
-	return &MediaUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	mutation := newMediaMutation(c.config, OpUpdateOne)
+	mutation.id = &id
+	return &MediaUpdateOne{config: c.config, mutation: mutation}
 }
 
 // Delete returns a delete builder for Media.
 func (c *MediaClient) Delete() *MediaDelete {
 	mutation := newMediaMutation(c.config, OpDelete)
-	return &MediaDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &MediaDelete{config: c.config, mutation: mutation}
 }
 
 // DeleteOne returns a builder for deleting the given entity.
@@ -1050,9 +991,9 @@ func (c *MediaClient) DeleteOne(_m *Media) *MediaDeleteOne {
 
 // DeleteOneID returns a builder for deleting the given entity by its id.
 func (c *MediaClient) DeleteOneID(id int) *MediaDeleteOne {
-	builder := c.Delete().Where(media.ID(id))
+	builder := c.Delete().Where(media.ID.EQ(id))
 	builder.mutation.id = &id
-	builder.mutation.SetOp(OpDeleteOne)
+	builder.mutation.op = OpDeleteOne
 	return &MediaDeleteOne{builder}
 }
 
@@ -1061,13 +1002,12 @@ func (c *MediaClient) Query() *MediaQuery {
 	return &MediaQuery{
 		config: c.config,
 		ctx:    &QueryContext{Type: TypeMedia},
-		inters: c.Interceptors(),
 	}
 }
 
 // Get returns a Media entity by its id.
 func (c *MediaClient) Get(ctx context.Context, id int) (*Media, error) {
-	return c.Query().Where(media.ID(id)).Only(ctx)
+	return c.Query().Where(media.ID.EQ(id)).Only(ctx)
 }
 
 // GetX is like Get, but panics if an error occurs.
@@ -1079,26 +1019,16 @@ func (c *MediaClient) GetX(ctx context.Context, id int) *Media {
 	return obj
 }
 
-// Hooks returns the client hooks.
-func (c *MediaClient) Hooks() []Hook {
-	return c.hooks.Media
-}
-
-// Interceptors returns the client interceptors.
-func (c *MediaClient) Interceptors() []Interceptor {
-	return c.inters.Media
-}
-
-func (c *MediaClient) mutate(ctx context.Context, m *MediaMutation) (Value, error) {
+func (c *MediaClient) mutate(ctx context.Context, m *MediaMutation) (any, error) {
 	switch m.Op() {
 	case OpCreate:
-		return (&MediaCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&MediaCreate{config: c.config, mutation: m}).Save(ctx)
 	case OpUpdate:
-		return (&MediaUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&MediaUpdate{config: c.config, mutation: m}).Save(ctx)
 	case OpUpdateOne:
-		return (&MediaUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&MediaUpdateOne{config: c.config, mutation: m}).Save(ctx)
 	case OpDelete, OpDeleteOne:
-		return (&MediaDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+		return (&MediaDelete{config: c.config, mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("entv2: unknown Media mutation op: %q", m.Op())
 	}
@@ -1114,22 +1044,24 @@ func NewPetClient(c config) *PetClient {
 	return &PetClient{config: c}
 }
 
-// Use adds a list of mutation hooks to the hooks stack.
-// A call to `Use(f, g, h)` equals to `pet.Hooks(f(g(h())))`.
-func (c *PetClient) Use(hooks ...Hook) {
-	c.hooks.Pet = append(c.hooks.Pet, hooks...)
-}
-
-// Intercept adds a list of query interceptors to the interceptors stack.
-// A call to `Intercept(f, g, h)` equals to `pet.Intercept(f(g(h())))`.
-func (c *PetClient) Intercept(interceptors ...Interceptor) {
-	c.inters.Pet = append(c.inters.Pet, interceptors...)
-}
-
 // Create returns a builder for creating a Pet entity.
 func (c *PetClient) Create() *PetCreate {
 	mutation := newPetMutation(c.config, OpCreate)
-	return &PetCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &PetCreate{config: c.config, mutation: mutation, fromBuilder: true}
+}
+
+func (c *PetClient) Insert(value PetInsert) *PetCreate {
+	mutation := newPetMutation(c.config, OpCreate)
+	mutation.insert = &value
+	return &PetCreate{config: c.config, mutation: mutation}
+}
+
+func (c *PetClient) InsertBulk(values ...PetInsert) *PetCreateBulk {
+	builders := make([]*PetCreate, len(values))
+	for index := range values {
+		builders[index] = c.Insert(values[index])
+	}
+	return c.CreateBulk(builders...)
 }
 
 // CreateBulk returns a builder for creating a bulk of Pet entities.
@@ -1155,25 +1087,26 @@ func (c *PetClient) MapCreateBulk(slice any, setFunc func(*PetCreate, int)) *Pet
 // Update returns an update builder for Pet.
 func (c *PetClient) Update() *PetUpdate {
 	mutation := newPetMutation(c.config, OpUpdate)
-	return &PetUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &PetUpdate{config: c.config, mutation: mutation}
 }
 
 // UpdateOne returns an update builder for the given entity.
 func (c *PetClient) UpdateOne(_m *Pet) *PetUpdateOne {
-	mutation := newPetMutation(c.config, OpUpdateOne, withPet(_m))
-	return &PetUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return c.UpdateOneID(_m.ID)
+
 }
 
 // UpdateOneID returns an update builder for the given id.
 func (c *PetClient) UpdateOneID(id int) *PetUpdateOne {
-	mutation := newPetMutation(c.config, OpUpdateOne, withPetID(id))
-	return &PetUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	mutation := newPetMutation(c.config, OpUpdateOne)
+	mutation.id = &id
+	return &PetUpdateOne{config: c.config, mutation: mutation}
 }
 
 // Delete returns a delete builder for Pet.
 func (c *PetClient) Delete() *PetDelete {
 	mutation := newPetMutation(c.config, OpDelete)
-	return &PetDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &PetDelete{config: c.config, mutation: mutation}
 }
 
 // DeleteOne returns a builder for deleting the given entity.
@@ -1183,9 +1116,9 @@ func (c *PetClient) DeleteOne(_m *Pet) *PetDeleteOne {
 
 // DeleteOneID returns a builder for deleting the given entity by its id.
 func (c *PetClient) DeleteOneID(id int) *PetDeleteOne {
-	builder := c.Delete().Where(pet.ID(id))
+	builder := c.Delete().Where(pet.ID.EQ(id))
 	builder.mutation.id = &id
-	builder.mutation.SetOp(OpDeleteOne)
+	builder.mutation.op = OpDeleteOne
 	return &PetDeleteOne{builder}
 }
 
@@ -1194,13 +1127,12 @@ func (c *PetClient) Query() *PetQuery {
 	return &PetQuery{
 		config: c.config,
 		ctx:    &QueryContext{Type: TypePet},
-		inters: c.Interceptors(),
 	}
 }
 
 // Get returns a Pet entity by its id.
 func (c *PetClient) Get(ctx context.Context, id int) (*Pet, error) {
-	return c.Query().Where(pet.ID(id)).Only(ctx)
+	return c.Query().Where(pet.ID.EQ(id)).Only(ctx)
 }
 
 // GetX is like Get, but panics if an error occurs.
@@ -1228,26 +1160,16 @@ func (c *PetClient) QueryOwner(_m *Pet) *UserQuery {
 	return query
 }
 
-// Hooks returns the client hooks.
-func (c *PetClient) Hooks() []Hook {
-	return c.hooks.Pet
-}
-
-// Interceptors returns the client interceptors.
-func (c *PetClient) Interceptors() []Interceptor {
-	return c.inters.Pet
-}
-
-func (c *PetClient) mutate(ctx context.Context, m *PetMutation) (Value, error) {
+func (c *PetClient) mutate(ctx context.Context, m *PetMutation) (any, error) {
 	switch m.Op() {
 	case OpCreate:
-		return (&PetCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&PetCreate{config: c.config, mutation: m}).Save(ctx)
 	case OpUpdate:
-		return (&PetUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&PetUpdate{config: c.config, mutation: m}).Save(ctx)
 	case OpUpdateOne:
-		return (&PetUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&PetUpdateOne{config: c.config, mutation: m}).Save(ctx)
 	case OpDelete, OpDeleteOne:
-		return (&PetDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+		return (&PetDelete{config: c.config, mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("entv2: unknown Pet mutation op: %q", m.Op())
 	}
@@ -1263,22 +1185,24 @@ func NewUserClient(c config) *UserClient {
 	return &UserClient{config: c}
 }
 
-// Use adds a list of mutation hooks to the hooks stack.
-// A call to `Use(f, g, h)` equals to `user.Hooks(f(g(h())))`.
-func (c *UserClient) Use(hooks ...Hook) {
-	c.hooks.User = append(c.hooks.User, hooks...)
-}
-
-// Intercept adds a list of query interceptors to the interceptors stack.
-// A call to `Intercept(f, g, h)` equals to `user.Intercept(f(g(h())))`.
-func (c *UserClient) Intercept(interceptors ...Interceptor) {
-	c.inters.User = append(c.inters.User, interceptors...)
-}
-
 // Create returns a builder for creating a User entity.
 func (c *UserClient) Create() *UserCreate {
 	mutation := newUserMutation(c.config, OpCreate)
-	return &UserCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &UserCreate{config: c.config, mutation: mutation, fromBuilder: true}
+}
+
+func (c *UserClient) Insert(value UserInsert) *UserCreate {
+	mutation := newUserMutation(c.config, OpCreate)
+	mutation.insert = &value
+	return &UserCreate{config: c.config, mutation: mutation}
+}
+
+func (c *UserClient) InsertBulk(values ...UserInsert) *UserCreateBulk {
+	builders := make([]*UserCreate, len(values))
+	for index := range values {
+		builders[index] = c.Insert(values[index])
+	}
+	return c.CreateBulk(builders...)
 }
 
 // CreateBulk returns a builder for creating a bulk of User entities.
@@ -1304,25 +1228,26 @@ func (c *UserClient) MapCreateBulk(slice any, setFunc func(*UserCreate, int)) *U
 // Update returns an update builder for User.
 func (c *UserClient) Update() *UserUpdate {
 	mutation := newUserMutation(c.config, OpUpdate)
-	return &UserUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &UserUpdate{config: c.config, mutation: mutation}
 }
 
 // UpdateOne returns an update builder for the given entity.
 func (c *UserClient) UpdateOne(_m *User) *UserUpdateOne {
-	mutation := newUserMutation(c.config, OpUpdateOne, withUser(_m))
-	return &UserUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return c.UpdateOneID(_m.ID)
+
 }
 
 // UpdateOneID returns an update builder for the given id.
 func (c *UserClient) UpdateOneID(id int) *UserUpdateOne {
-	mutation := newUserMutation(c.config, OpUpdateOne, withUserID(id))
-	return &UserUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	mutation := newUserMutation(c.config, OpUpdateOne)
+	mutation.id = &id
+	return &UserUpdateOne{config: c.config, mutation: mutation}
 }
 
 // Delete returns a delete builder for User.
 func (c *UserClient) Delete() *UserDelete {
 	mutation := newUserMutation(c.config, OpDelete)
-	return &UserDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &UserDelete{config: c.config, mutation: mutation}
 }
 
 // DeleteOne returns a builder for deleting the given entity.
@@ -1332,9 +1257,9 @@ func (c *UserClient) DeleteOne(_m *User) *UserDeleteOne {
 
 // DeleteOneID returns a builder for deleting the given entity by its id.
 func (c *UserClient) DeleteOneID(id int) *UserDeleteOne {
-	builder := c.Delete().Where(user.ID(id))
+	builder := c.Delete().Where(user.ID.EQ(id))
 	builder.mutation.id = &id
-	builder.mutation.SetOp(OpDeleteOne)
+	builder.mutation.op = OpDeleteOne
 	return &UserDeleteOne{builder}
 }
 
@@ -1343,13 +1268,12 @@ func (c *UserClient) Query() *UserQuery {
 	return &UserQuery{
 		config: c.config,
 		ctx:    &QueryContext{Type: TypeUser},
-		inters: c.Interceptors(),
 	}
 }
 
 // Get returns a User entity by its id.
 func (c *UserClient) Get(ctx context.Context, id int) (*User, error) {
-	return c.Query().Where(user.ID(id)).Only(ctx)
+	return c.Query().Where(user.ID.EQ(id)).Only(ctx)
 }
 
 // GetX is like Get, but panics if an error occurs.
@@ -1409,26 +1333,16 @@ func (c *UserClient) QueryFriends(_m *User) *UserQuery {
 	return query
 }
 
-// Hooks returns the client hooks.
-func (c *UserClient) Hooks() []Hook {
-	return c.hooks.User
-}
-
-// Interceptors returns the client interceptors.
-func (c *UserClient) Interceptors() []Interceptor {
-	return c.inters.User
-}
-
-func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error) {
+func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (any, error) {
 	switch m.Op() {
 	case OpCreate:
-		return (&UserCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&UserCreate{config: c.config, mutation: m}).Save(ctx)
 	case OpUpdate:
-		return (&UserUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&UserUpdate{config: c.config, mutation: m}).Save(ctx)
 	case OpUpdateOne:
-		return (&UserUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&UserUpdateOne{config: c.config, mutation: m}).Save(ctx)
 	case OpDelete, OpDeleteOne:
-		return (&UserDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+		return (&UserDelete{config: c.config, mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("entv2: unknown User mutation op: %q", m.Op())
 	}
@@ -1444,22 +1358,24 @@ func NewZooClient(c config) *ZooClient {
 	return &ZooClient{config: c}
 }
 
-// Use adds a list of mutation hooks to the hooks stack.
-// A call to `Use(f, g, h)` equals to `zoo.Hooks(f(g(h())))`.
-func (c *ZooClient) Use(hooks ...Hook) {
-	c.hooks.Zoo = append(c.hooks.Zoo, hooks...)
-}
-
-// Intercept adds a list of query interceptors to the interceptors stack.
-// A call to `Intercept(f, g, h)` equals to `zoo.Intercept(f(g(h())))`.
-func (c *ZooClient) Intercept(interceptors ...Interceptor) {
-	c.inters.Zoo = append(c.inters.Zoo, interceptors...)
-}
-
 // Create returns a builder for creating a Zoo entity.
 func (c *ZooClient) Create() *ZooCreate {
 	mutation := newZooMutation(c.config, OpCreate)
-	return &ZooCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &ZooCreate{config: c.config, mutation: mutation, fromBuilder: true}
+}
+
+func (c *ZooClient) Insert(value ZooInsert) *ZooCreate {
+	mutation := newZooMutation(c.config, OpCreate)
+	mutation.insert = &value
+	return &ZooCreate{config: c.config, mutation: mutation}
+}
+
+func (c *ZooClient) InsertBulk(values ...ZooInsert) *ZooCreateBulk {
+	builders := make([]*ZooCreate, len(values))
+	for index := range values {
+		builders[index] = c.Insert(values[index])
+	}
+	return c.CreateBulk(builders...)
 }
 
 // CreateBulk returns a builder for creating a bulk of Zoo entities.
@@ -1485,25 +1401,26 @@ func (c *ZooClient) MapCreateBulk(slice any, setFunc func(*ZooCreate, int)) *Zoo
 // Update returns an update builder for Zoo.
 func (c *ZooClient) Update() *ZooUpdate {
 	mutation := newZooMutation(c.config, OpUpdate)
-	return &ZooUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &ZooUpdate{config: c.config, mutation: mutation}
 }
 
 // UpdateOne returns an update builder for the given entity.
 func (c *ZooClient) UpdateOne(_m *Zoo) *ZooUpdateOne {
-	mutation := newZooMutation(c.config, OpUpdateOne, withZoo(_m))
-	return &ZooUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return c.UpdateOneID(_m.ID)
+
 }
 
 // UpdateOneID returns an update builder for the given id.
 func (c *ZooClient) UpdateOneID(id int) *ZooUpdateOne {
-	mutation := newZooMutation(c.config, OpUpdateOne, withZooID(id))
-	return &ZooUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	mutation := newZooMutation(c.config, OpUpdateOne)
+	mutation.id = &id
+	return &ZooUpdateOne{config: c.config, mutation: mutation}
 }
 
 // Delete returns a delete builder for Zoo.
 func (c *ZooClient) Delete() *ZooDelete {
 	mutation := newZooMutation(c.config, OpDelete)
-	return &ZooDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+	return &ZooDelete{config: c.config, mutation: mutation}
 }
 
 // DeleteOne returns a builder for deleting the given entity.
@@ -1513,9 +1430,9 @@ func (c *ZooClient) DeleteOne(_m *Zoo) *ZooDeleteOne {
 
 // DeleteOneID returns a builder for deleting the given entity by its id.
 func (c *ZooClient) DeleteOneID(id int) *ZooDeleteOne {
-	builder := c.Delete().Where(zoo.ID(id))
+	builder := c.Delete().Where(zoo.ID.EQ(id))
 	builder.mutation.id = &id
-	builder.mutation.SetOp(OpDeleteOne)
+	builder.mutation.op = OpDeleteOne
 	return &ZooDeleteOne{builder}
 }
 
@@ -1524,13 +1441,12 @@ func (c *ZooClient) Query() *ZooQuery {
 	return &ZooQuery{
 		config: c.config,
 		ctx:    &QueryContext{Type: TypeZoo},
-		inters: c.Interceptors(),
 	}
 }
 
 // Get returns a Zoo entity by its id.
 func (c *ZooClient) Get(ctx context.Context, id int) (*Zoo, error) {
-	return c.Query().Where(zoo.ID(id)).Only(ctx)
+	return c.Query().Where(zoo.ID.EQ(id)).Only(ctx)
 }
 
 // GetX is like Get, but panics if an error occurs.
@@ -1542,38 +1458,20 @@ func (c *ZooClient) GetX(ctx context.Context, id int) *Zoo {
 	return obj
 }
 
-// Hooks returns the client hooks.
-func (c *ZooClient) Hooks() []Hook {
-	return c.hooks.Zoo
-}
-
-// Interceptors returns the client interceptors.
-func (c *ZooClient) Interceptors() []Interceptor {
-	return c.inters.Zoo
-}
-
-func (c *ZooClient) mutate(ctx context.Context, m *ZooMutation) (Value, error) {
+func (c *ZooClient) mutate(ctx context.Context, m *ZooMutation) (any, error) {
 	switch m.Op() {
 	case OpCreate:
-		return (&ZooCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&ZooCreate{config: c.config, mutation: m}).Save(ctx)
 	case OpUpdate:
-		return (&ZooUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&ZooUpdate{config: c.config, mutation: m}).Save(ctx)
 	case OpUpdateOne:
-		return (&ZooUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&ZooUpdateOne{config: c.config, mutation: m}).Save(ctx)
 	case OpDelete, OpDeleteOne:
-		return (&ZooDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+		return (&ZooDelete{config: c.config, mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("entv2: unknown Zoo mutation op: %q", m.Op())
 	}
 }
 
-// hooks and interceptors per client, for fast access.
-type (
-	hooks struct {
-		Blog, Car, Conversion, CustomType, Group, Media, Pet, User, Zoo []ent.Hook
-	}
-	inters struct {
-		Blog, Car, Conversion, CustomType, Group, Media, Pet, User,
-		Zoo []ent.Interceptor
-	}
-)
+// Driver returns the driver bound to this client or transaction.
+func (c *Client) Driver() dialect.Driver { return c.config.driver }

@@ -25,11 +25,11 @@ func ({{ $receiver}} *{{ $builder }}) sqlExec(ctx context.Context) (int, error) 
 			}
 		}
 	}
+	_spec.Returning = {{ $receiver }}.returning
 	affected, err := sqlgraph.DeleteNodes(ctx, {{ $receiver}}.driver, _spec)
 	if err != nil && sqlgraph.IsConstraintError(err) {
 		err = &ConstraintError{msg: err.Error(), wrap: err}
 	}
-	{{ $mutation }}.done = true
 	return affected, err
 }
 

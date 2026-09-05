@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/relationshipinfo"
 )
@@ -20,8 +19,7 @@ type RelationshipInfo struct {
 	// ID of the ent.
 	ID int `json:"id,omitempty"`
 	// Text holds the value of the "text" field.
-	Text         string `json:"text,omitempty"`
-	selectValues sql.SelectValues
+	Text string `json:"text,omitempty"`
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -30,9 +28,9 @@ func (*RelationshipInfo) scanValues(columns []string) ([]any, error) {
 	for i := range columns {
 		switch columns[i] {
 		case relationshipinfo.FieldID:
-			values[i] = new(sql.NullInt64)
+			values[i] = new(*int)
 		case relationshipinfo.FieldText:
-			values[i] = new(sql.NullString)
+			values[i] = new(*string)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -49,28 +47,22 @@ func (_m *RelationshipInfo) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case relationshipinfo.FieldID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field id", values[i])
-			} else if value.Valid {
-				_m.ID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.ID = **value
 			}
 		case relationshipinfo.FieldText:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field text", values[i])
-			} else if value.Valid {
-				_m.Text = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.Text = **value
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the RelationshipInfo.
-// This includes values selected through modifiers, order, etc.
-func (_m *RelationshipInfo) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // Update returns a builder for updating this RelationshipInfo.

@@ -8,9 +8,11 @@ package ent
 import (
 	"context"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
-	"github.com/neko-sc/ent/entc/integration/ent/predicate"
+	"github.com/neko-sc/ent/entc/integration/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/ent/task"
 	"github.com/neko-sc/ent/schema/field"
 )
@@ -18,19 +20,44 @@ import (
 // TaskDelete is the builder for deleting a Task entity.
 type TaskDelete struct {
 	config
-	hooks    []Hook
-	mutation *TaskMutation
+
+	mutation  *TaskMutation
+	returning *sqlgraph.Returning
 }
 
 // Where appends a list predicates to the TaskDelete builder.
-func (_d *TaskDelete) Where(ps ...predicate.Task) *TaskDelete {
-	_d.mutation.Where(ps...)
+func (_d *TaskDelete) Where(predicates ...ent.Predicate[entity.Task]) *TaskDelete {
+	_d.mutation.Where(predicates...)
 	return _d
 }
 
 // Exec executes the deletion query and returns how many vertices were deleted.
 func (_d *TaskDelete) Exec(ctx context.Context) (int, error) {
-	return withHooks(ctx, _d.sqlExec, _d.mutation, _d.hooks)
+	return _d.sqlExec(ctx)
+}
+
+func (b *TaskDelete) Returning(ctx context.Context) ([]*Task, error) {
+	nodes := make([]*Task, 0)
+	b.returning = &sqlgraph.Returning{Columns: task.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Task{config: b.config}
+		values, err := _node.scanValues(task.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(task.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Exec(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
 }
 
 // ExecX is like Exec, but panics if an error occurs.
@@ -51,11 +78,11 @@ func (_d *TaskDelete) sqlExec(ctx context.Context) (int, error) {
 			}
 		}
 	}
+	_spec.Returning = _d.returning
 	affected, err := sqlgraph.DeleteNodes(ctx, _d.driver, _spec)
 	if err != nil && sqlgraph.IsConstraintError(err) {
 		err = &ConstraintError{msg: err.Error(), wrap: err}
 	}
-	_d.mutation.done = true
 	return affected, err
 }
 
@@ -65,8 +92,8 @@ type TaskDeleteOne struct {
 }
 
 // Where appends a list predicates to the TaskDelete builder.
-func (_d *TaskDeleteOne) Where(ps ...predicate.Task) *TaskDeleteOne {
-	_d._d.mutation.Where(ps...)
+func (_d *TaskDeleteOne) Where(predicates ...ent.Predicate[entity.Task]) *TaskDeleteOne {
+	_d._d.mutation.Where(predicates...)
 	return _d
 }
 

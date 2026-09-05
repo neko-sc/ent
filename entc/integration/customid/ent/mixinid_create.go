@@ -11,101 +11,158 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/mixinid"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// MixinIDCreate is the builder for creating a MixinID entity.
 type MixinIDCreate struct {
 	config
-	mutation *MixinIDMutation
-	hooks    []Hook
+	mutation    *MixinIDMutation
+	err         error
+	fromBuilder bool
+	present     map[string]struct{}
+
 	conflict []sql.ConflictOption
 }
 
-// SetSomeField sets the "some_field" field.
-func (_c *MixinIDCreate) SetSomeField(v string) *MixinIDCreate {
-	_c.mutation.SetSomeField(v)
-	return _c
-}
-
-// SetMixinField sets the "mixin_field" field.
-func (_c *MixinIDCreate) SetMixinField(v string) *MixinIDCreate {
-	_c.mutation.SetMixinField(v)
-	return _c
-}
-
-// SetID sets the "id" field.
-func (_c *MixinIDCreate) SetID(v uuid.UUID) *MixinIDCreate {
-	_c.mutation.SetID(v)
-	return _c
-}
-
-// SetNillableID sets the "id" field if the given value is not nil.
-func (_c *MixinIDCreate) SetNillableID(v *uuid.UUID) *MixinIDCreate {
-	if v != nil {
-		_c.SetID(*v)
+func (b *MixinIDCreate) Set[T any](column ent.ColumnOf[entity.MixinID, T], value T) *MixinIDCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.set(column.Ref().Name, value)
 	}
-	return _c
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
 }
-
-// Mutation returns the MixinIDMutation object of the builder.
-func (_c *MixinIDCreate) Mutation() *MixinIDMutation {
-	return _c.mutation
+func (b *MixinIDCreate) SetOptional[T any](column ent.ColumnOf[entity.MixinID, T], value ent.Option[T]) *MixinIDCreate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.insert.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
 }
+func (b *MixinIDCreate) SetExpr[T any](column ent.ColumnOf[entity.MixinID, T], value ent.Expr[T]) *MixinIDCreate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
 
-// Save creates the MixinID in the database.
-func (_c *MixinIDCreate) Save(ctx context.Context) (*MixinID, error) {
-	if err := _c.defaults(); err != nil {
+	case mixinid.FieldID:
+
+	case mixinid.FieldSomeField:
+
+	case mixinid.FieldMixinField:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of MixinID is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.insert.setExpr(column.Ref().Name, value.Render)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+
+}
+func (b *MixinIDCreate) SetEdge[N, K any](edge ent.UniqueRelation[entity.MixinID, N, K], id K) *MixinIDCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.setEdge(edge.Ref().Name, id)
+	}
+
+	switch edge.Ref().Name {
+
+	}
+
+	return b
+}
+func (b *MixinIDCreate) AddIDs[N, K any](edge ent.Relation[entity.MixinID, N, K], ids ...K) *MixinIDCreate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.insert.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *MixinIDCreate) Mutation() *MixinIDMutation { return b.mutation }
+
+func (b *MixinIDCreate) Insert() *MixinIDInsert { return b.mutation.insert }
+
+func (b *MixinIDCreate) Save(ctx context.Context) (*MixinID, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
 		return nil, err
 	}
-	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
+	return b.sqlSave(ctx)
 }
 
-// SaveX calls Save and panics if Save returns an error.
-func (_c *MixinIDCreate) SaveX(ctx context.Context) *MixinID {
-	v, err := _c.Save(ctx)
+func (b *MixinIDCreate) SaveX(ctx context.Context) *MixinID {
+	node, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return node
 }
 
-// Exec executes the query.
-func (_c *MixinIDCreate) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *MixinIDCreate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *MixinIDCreate) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *MixinIDCreate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// defaults sets the default values of the builder before save.
-func (_c *MixinIDCreate) defaults() error {
-	if _, ok := _c.mutation.ID(); !ok {
+func (b *MixinIDCreate) defaults() error {
+
+	if b.mutation.insert.ID.IsUnset() && b.mutation.insert.expressions[mixinid.FieldID] == nil {
 		if mixinid.DefaultID == nil {
-			return fmt.Errorf("ent: uninitialized mixinid.DefaultID (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized mixinid.DefaultID")
 		}
-		v := mixinid.DefaultID()
-		_c.mutation.SetID(v)
+		b.mutation.insert.ID = ent.Some(mixinid.DefaultID())
 	}
+
 	return nil
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_c *MixinIDCreate) check() error {
-	if _, ok := _c.mutation.SomeField(); !ok {
-		return &ValidationError{Name: "some_field", err: errors.New(`ent: missing required field "MixinID.some_field"`)}
+func (b *MixinIDCreate) check() error {
+	if b.err != nil {
+		return b.err
 	}
-	if _, ok := _c.mutation.MixinField(); !ok {
-		return &ValidationError{Name: "mixin_field", err: errors.New(`ent: missing required field "MixinID.mixin_field"`)}
+
+	if b.mutation.insert.ID.IsNull() {
+		return &ValidationError{Name: "id", err: errors.New(`ent: field "MixinID.id" is not nullable`)}
 	}
+
+	switch b.driver.Dialect() {
+	case dialect.Postgres, dialect.SQLite:
+		if _, present := b.present[mixinid.FieldSomeField]; b.fromBuilder && !present {
+			return &ValidationError{Name: "some_field", err: errors.New(`ent: missing required field "MixinID.some_field"`)}
+		}
+	}
+
+	switch b.driver.Dialect() {
+	case dialect.Postgres, dialect.SQLite:
+		if _, present := b.present[mixinid.FieldMixinField]; b.fromBuilder && !present {
+			return &ValidationError{Name: "mixin_field", err: errors.New(`ent: missing required field "MixinID.mixin_field"`)}
+		}
+	}
+
 	return nil
 }
 
@@ -113,220 +170,170 @@ func (_c *MixinIDCreate) sqlSave(ctx context.Context) (*MixinID, error) {
 	if err := _c.check(); err != nil {
 		return nil, err
 	}
-	_node, _spec := _c.createSpec()
-	if err := sqlgraph.CreateNode(ctx, _c.driver, _spec); err != nil {
+	node, spec, err := _c.createSpec()
+	if err != nil {
+		return nil, err
+	}
+	if err := sqlgraph.CreateNode(ctx, _c.driver, spec); err != nil {
 		if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
 		return nil, err
 	}
-	if _spec.ID.Value != nil {
-		if id, ok := _spec.ID.Value.(*uuid.UUID); ok {
-			_node.ID = *id
-		} else if err := _node.ID.Scan(_spec.ID.Value); err != nil {
-			return nil, err
-		}
-	}
-	_c.mutation.id = &_node.ID
-	_c.mutation.done = true
-	return _node, nil
+	_c.mutation.id = &node.ID
+	return node, nil
 }
 
-func (_c *MixinIDCreate) createSpec() (*MixinID, *sqlgraph.CreateSpec) {
-	var (
-		_node = &MixinID{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(mixinid.Table, sqlgraph.NewFieldSpec(mixinid.FieldID, field.TypeUUID))
-	)
+func (_c *MixinIDCreate) createSpec() (*MixinID, *sqlgraph.CreateSpec, error) {
+	_node := &MixinID{config: _c.config}
+	_spec := sqlgraph.NewCreateSpec(mixinid.Table, sqlgraph.NewFieldSpec(mixinid.FieldID, field.TypeUUID))
+
 	_spec.OnConflict = _c.conflict
-	if id, ok := _c.mutation.ID(); ok {
-		_node.ID = id
-		_spec.ID.Value = &id
+
+	if value, ok := _c.mutation.insert.ID.Get(); ok {
+		_spec.ID.Value = &value
 	}
-	if value, ok := _c.mutation.SomeField(); ok {
+
+	if _, present := _c.present[mixinid.FieldSomeField]; !_c.fromBuilder || present {
+		value := _c.mutation.insert.SomeField
 		_spec.SetField(mixinid.FieldSomeField, field.TypeString, value)
-		_node.SomeField = value
 	}
-	if value, ok := _c.mutation.MixinField(); ok {
+
+	if _, present := _c.present[mixinid.FieldMixinField]; !_c.fromBuilder || present {
+		value := _c.mutation.insert.MixinField
 		_spec.SetField(mixinid.FieldMixinField, field.TypeString, value)
-		_node.MixinField = value
-	}
-	return _node, _spec
-}
-
-// OnConflict allows configuring the `ON CONFLICT` clause of the `INSERT`
-// statement. For example:
-//
-//	client.MixinID.Create().
-//		SetSomeField(v).
-//		OnConflict(
-//			// Update the row with the new values
-//			// the was proposed for insertion.
-//			sql.ResolveWithNewValues(),
-//		).
-//		// Override some of the fields with custom
-//		// update values.
-//		Update(func(u *ent.MixinIDUpsert) {
-//			SetSomeField(v+v).
-//		}).
-//		Exec(ctx)
-func (_c *MixinIDCreate) OnConflict(opts ...sql.ConflictOption) *MixinIDUpsertOne {
-	_c.conflict = opts
-	return &MixinIDUpsertOne{
-		create: _c,
-	}
-}
-
-// OnConflictColumns calls `OnConflict` and configures the columns
-// as conflict target. Using this option is equivalent to using:
-//
-//	client.MixinID.Create().
-//		OnConflict(sql.ConflictColumns(columns...)).
-//		Exec(ctx)
-func (_c *MixinIDCreate) OnConflictColumns(columns ...string) *MixinIDUpsertOne {
-	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
-	return &MixinIDUpsertOne{
-		create: _c,
-	}
-}
-
-type (
-	// MixinIDUpsertOne is the builder for "upsert"-ing
-	//  one MixinID node.
-	MixinIDUpsertOne struct {
-		create *MixinIDCreate
 	}
 
-	// MixinIDUpsert is the "OnConflict" setter.
-	MixinIDUpsert struct {
-		*sql.UpdateSet
-	}
-)
+	_spec.Expressions = _c.mutation.insert.expressions
 
-// SetSomeField sets the "some_field" field.
-func (u *MixinIDUpsert) SetSomeField(v string) *MixinIDUpsert {
-	u.Set(mixinid.FieldSomeField, v)
-	return u
-}
-
-// UpdateSomeField sets the "some_field" field to the value that was provided on create.
-func (u *MixinIDUpsert) UpdateSomeField() *MixinIDUpsert {
-	u.SetExcluded(mixinid.FieldSomeField)
-	return u
-}
-
-// SetMixinField sets the "mixin_field" field.
-func (u *MixinIDUpsert) SetMixinField(v string) *MixinIDUpsert {
-	u.Set(mixinid.FieldMixinField, v)
-	return u
-}
-
-// UpdateMixinField sets the "mixin_field" field to the value that was provided on create.
-func (u *MixinIDUpsert) UpdateMixinField() *MixinIDUpsert {
-	u.SetExcluded(mixinid.FieldMixinField)
-	return u
-}
-
-// UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
-// Using this option is equivalent to using:
-//
-//	client.MixinID.Create().
-//		OnConflict(
-//			sql.ResolveWithNewValues(),
-//			sql.ResolveWith(func(u *sql.UpdateSet) {
-//				u.SetIgnore(mixinid.FieldID)
-//			}),
-//		).
-//		Exec(ctx)
-func (u *MixinIDUpsertOne) UpdateNewValues() *MixinIDUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
-		if _, exists := u.create.mutation.ID(); exists {
-			s.SetIgnore(mixinid.FieldID)
+	_spec.Returning = &sqlgraph.Returning{Columns: mixinid.Columns, Scan: func(rows dialect.Rows) error {
+		values, err := _node.scanValues(mixinid.Columns)
+		if err != nil {
+			return err
 		}
-	}))
-	return u
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(mixinid.Columns, values); err != nil {
+			return err
+		}
+
+		_spec.ID.Value = _node.ID
+
+		return nil
+	}}
+	return _node, _spec, nil
 }
 
-// Ignore sets each column to itself in case of conflict.
-// Using this option is equivalent to using:
-//
-//	client.MixinID.Create().
-//	    OnConflict(sql.ResolveWithIgnore()).
-//	    Exec(ctx)
-func (u *MixinIDUpsertOne) Ignore() *MixinIDUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
-	return u
+type MixinIDUpsertOne struct{ create *MixinIDCreate }
+
+func (b *MixinIDCreate) OnConflict(columns ...ent.EntityColumn[entity.MixinID]) *MixinIDUpsertOne {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
+	}
+	if len(names) == 0 {
+		return b.OnConflictOptions()
+	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
 }
 
-// DoNothing configures the conflict_action to `DO NOTHING`.
-// Supported only by SQLite and PostgreSQL.
+func (b *MixinIDCreate) OnConflictConstraint(name string) *MixinIDUpsertOne {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
+}
+
+func (b *MixinIDCreate) OnConflictOptions(options ...sql.ConflictOption) *MixinIDUpsertOne {
+	b.conflict = options
+	return &MixinIDUpsertOne{create: b}
+}
+
 func (u *MixinIDUpsertOne) DoNothing() *MixinIDUpsertOne {
 	u.create.conflict = append(u.create.conflict, sql.DoNothing())
 	return u
 }
 
-// Update allows overriding fields `UPDATE` values. See the MixinIDCreate.OnConflict
-// documentation for more info.
-func (u *MixinIDUpsertOne) Update(set func(*MixinIDUpsert)) *MixinIDUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
-		set(&MixinIDUpsert{UpdateSet: update})
+func (u *MixinIDUpsertOne) DoSelect() *MixinIDUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *MixinIDUpsertOne) Ignore() *MixinIDUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *MixinIDUpsertOne) DoUpdate(set func(*MixinIDUpsert)) *MixinIDUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&MixinIDUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *MixinIDUpsertOne) UpdateNewValues() *MixinIDUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case mixinid.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
 	}))
 	return u
 }
 
-// SetSomeField sets the "some_field" field.
-func (u *MixinIDUpsertOne) SetSomeField(v string) *MixinIDUpsertOne {
-	return u.Update(func(s *MixinIDUpsert) {
-		s.SetSomeField(v)
-	})
+func (u *MixinIDUpsertOne) Where(predicates ...ent.Predicate[entity.MixinID]) *MixinIDUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(mixinid.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// UpdateSomeField sets the "some_field" field to the value that was provided on create.
-func (u *MixinIDUpsertOne) UpdateSomeField() *MixinIDUpsertOne {
-	return u.Update(func(s *MixinIDUpsert) {
-		s.UpdateSomeField()
-	})
+func (u *MixinIDUpsertOne) UpdateWhere(predicates ...ent.Predicate[entity.MixinID]) *MixinIDUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(mixinid.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// SetMixinField sets the "mixin_field" field.
-func (u *MixinIDUpsertOne) SetMixinField(v string) *MixinIDUpsertOne {
-	return u.Update(func(s *MixinIDUpsert) {
-		s.SetMixinField(v)
-	})
-}
-
-// UpdateMixinField sets the "mixin_field" field to the value that was provided on create.
-func (u *MixinIDUpsertOne) UpdateMixinField() *MixinIDUpsertOne {
-	return u.Update(func(s *MixinIDUpsert) {
-		s.UpdateMixinField()
-	})
-}
-
-// Exec executes the query.
-func (u *MixinIDUpsertOne) Exec(ctx context.Context) error {
+func (u *MixinIDUpsertOne) Save(ctx context.Context) (*MixinID, error) {
 	if len(u.create.conflict) == 0 {
-		return errors.New("ent: missing options for MixinIDCreate.OnConflict")
+		return nil, errors.New("ent: missing options for MixinIDCreate.OnConflict")
 	}
-	return u.create.Exec(ctx)
+	return u.create.Save(ctx)
 }
 
-// ExecX is like Exec, but panics if an error occurs.
+func (u *MixinIDUpsertOne) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
 func (u *MixinIDUpsertOne) ExecX(ctx context.Context) {
-	if err := u.create.Exec(ctx); err != nil {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// Exec executes the UPSERT query and returns the inserted/updated ID.
 func (u *MixinIDUpsertOne) ID(ctx context.Context) (id uuid.UUID, err error) {
-	node, err := u.create.Save(ctx)
+	node, err := u.Save(ctx)
 	if err != nil {
 		return id, err
 	}
 	return node.ID, nil
 }
 
-// IDX is like ID, but panics if an error occurs.
 func (u *MixinIDUpsertOne) IDX(ctx context.Context) uuid.UUID {
 	id, err := u.ID(ctx)
 	if err != nil {
@@ -335,230 +342,238 @@ func (u *MixinIDUpsertOne) IDX(ctx context.Context) uuid.UUID {
 	return id
 }
 
-// MixinIDCreateBulk is the builder for creating many MixinID entities in bulk.
+type MixinIDUpsert struct{ *sql.UpdateSet }
+
+func (u *MixinIDUpsert) Set[T any](column ent.ColumnOf[entity.MixinID, T], value T) *MixinIDUpsert {
+	switch column.Ref().Name {
+
+	case mixinid.FieldSomeField:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case mixinid.FieldMixinField:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of MixinID is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *MixinIDUpsert) SetExpr[T any](column ent.ColumnOf[entity.MixinID, T], value ent.Expr[T]) *MixinIDUpsert {
+	switch column.Ref().Name {
+
+	case mixinid.FieldSomeField:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case mixinid.FieldMixinField:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of MixinID is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *MixinIDUpsert) UpdateNewValue[T any](column ent.ColumnOf[entity.MixinID, T]) *MixinIDUpsert {
+	switch column.Ref().Name {
+
+	case mixinid.FieldSomeField:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case mixinid.FieldMixinField:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of MixinID is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *MixinIDUpsert) Add[T ent.Number](column ent.ColumnOf[entity.MixinID, T], delta T) *MixinIDUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of MixinID does not support addition", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *MixinIDUpsert) Clear[T any](column ent.ColumnOf[entity.MixinID, T]) *MixinIDUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of MixinID is not nullable", column.Ref().Name)})
+	}
+	return u
+}
+
 type MixinIDCreateBulk struct {
 	config
 	err      error
 	builders []*MixinIDCreate
+
 	conflict []sql.ConflictOption
 }
 
-// Save creates the MixinID entities in the database.
 func (_c *MixinIDCreateBulk) Save(ctx context.Context) ([]*MixinID, error) {
 	if _c.err != nil {
 		return nil, _c.err
 	}
-	specs := make([]*sqlgraph.CreateSpec, len(_c.builders))
 	nodes := make([]*MixinID, len(_c.builders))
-	mutators := make([]Mutator, len(_c.builders))
-	for i := range _c.builders {
-		func(i int, root context.Context) {
-			builder := _c.builders[i]
-			builder.defaults()
-			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*MixinIDMutation)
-				if !ok {
-					return nil, fmt.Errorf("unexpected mutation type %T", m)
-				}
-				if err := builder.check(); err != nil {
-					return nil, err
-				}
-				builder.mutation = mutation
-				var err error
-				nodes[i], specs[i] = builder.createSpec()
-				if i < len(mutators)-1 {
-					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
-				} else {
-					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
-					spec.OnConflict = _c.conflict
-					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
-						if sqlgraph.IsConstraintError(err) {
-							err = &ConstraintError{msg: err.Error(), wrap: err}
-						}
-					}
-				}
-				if err != nil {
-					return nil, err
-				}
-				mutation.id = &nodes[i].ID
-				mutation.done = true
-				return nodes[i], nil
-			})
-			for i := len(builder.hooks) - 1; i >= 0; i-- {
-				mut = builder.hooks[i](mut)
-			}
-			mutators[i] = mut
-		}(i, ctx)
-	}
-	if len(mutators) > 0 {
-		if _, err := mutators[0].Mutate(ctx, _c.builders[0].mutation); err != nil {
+	specs := make([]*sqlgraph.CreateSpec, len(nodes))
+	for index, builder := range _c.builders {
+		if builder.err != nil {
+			return nil, builder.err
+		}
+		if err := builder.defaults(); err != nil {
+			return nil, err
+		}
+		if err := builder.check(); err != nil {
+			return nil, err
+		}
+		var err error
+		nodes[index], specs[index], err = builder.createSpec()
+		if err != nil {
 			return nil, err
 		}
 	}
-	return nodes, nil
+	if len(specs) == 0 {
+		return nodes, nil
+	}
+	spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+
+	spec.OnConflict = _c.conflict
+
+	if err := sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
+		if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{msg: err.Error(), wrap: err}
+		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
+		return nil, err
+	}
+	result := nodes[:0]
+	for index, builder := range _c.builders {
+		if specs[index].Skipped {
+			continue
+		}
+		builder.mutation.id = &nodes[index].ID
+		result = append(result, nodes[index])
+	}
+	return result, nil
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_c *MixinIDCreateBulk) SaveX(ctx context.Context) []*MixinID {
-	v, err := _c.Save(ctx)
+func (b *MixinIDCreateBulk) SaveX(ctx context.Context) []*MixinID {
+	nodes, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return nodes
 }
 
-// Exec executes the query.
-func (_c *MixinIDCreateBulk) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *MixinIDCreateBulk) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *MixinIDCreateBulk) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *MixinIDCreateBulk) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// OnConflict allows configuring the `ON CONFLICT` clause of the `INSERT`
-// statement. For example:
-//
-//	client.MixinID.CreateBulk(builders...).
-//		OnConflict(
-//			// Update the row with the new values
-//			// the was proposed for insertion.
-//			sql.ResolveWithNewValues(),
-//		).
-//		// Override some of the fields with custom
-//		// update values.
-//		Update(func(u *ent.MixinIDUpsert) {
-//			SetSomeField(v+v).
-//		}).
-//		Exec(ctx)
-func (_c *MixinIDCreateBulk) OnConflict(opts ...sql.ConflictOption) *MixinIDUpsertBulk {
-	_c.conflict = opts
-	return &MixinIDUpsertBulk{
-		create: _c,
+type MixinIDUpsertBulk struct{ create *MixinIDCreateBulk }
+
+func (b *MixinIDCreateBulk) OnConflict(columns ...ent.EntityColumn[entity.MixinID]) *MixinIDUpsertBulk {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
 	}
-}
-
-// OnConflictColumns calls `OnConflict` and configures the columns
-// as conflict target. Using this option is equivalent to using:
-//
-//	client.MixinID.Create().
-//		OnConflict(sql.ConflictColumns(columns...)).
-//		Exec(ctx)
-func (_c *MixinIDCreateBulk) OnConflictColumns(columns ...string) *MixinIDUpsertBulk {
-	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
-	return &MixinIDUpsertBulk{
-		create: _c,
+	if len(names) == 0 {
+		return b.OnConflictOptions()
 	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
 }
 
-// MixinIDUpsertBulk is the builder for "upsert"-ing
-// a bulk of MixinID nodes.
-type MixinIDUpsertBulk struct {
-	create *MixinIDCreateBulk
+func (b *MixinIDCreateBulk) OnConflictConstraint(name string) *MixinIDUpsertBulk {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
 }
 
-// UpdateNewValues updates the mutable fields using the new values that
-// were set on create. Using this option is equivalent to using:
-//
-//	client.MixinID.Create().
-//		OnConflict(
-//			sql.ResolveWithNewValues(),
-//			sql.ResolveWith(func(u *sql.UpdateSet) {
-//				u.SetIgnore(mixinid.FieldID)
-//			}),
-//		).
-//		Exec(ctx)
-func (u *MixinIDUpsertBulk) UpdateNewValues() *MixinIDUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
-		for _, b := range u.create.builders {
-			if _, exists := b.mutation.ID(); exists {
-				s.SetIgnore(mixinid.FieldID)
-			}
-		}
-	}))
-	return u
+func (b *MixinIDCreateBulk) OnConflictOptions(options ...sql.ConflictOption) *MixinIDUpsertBulk {
+	b.conflict = options
+	return &MixinIDUpsertBulk{create: b}
 }
 
-// Ignore sets each column to itself in case of conflict.
-// Using this option is equivalent to using:
-//
-//	client.MixinID.Create().
-//		OnConflict(sql.ResolveWithIgnore()).
-//		Exec(ctx)
-func (u *MixinIDUpsertBulk) Ignore() *MixinIDUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
-	return u
-}
-
-// DoNothing configures the conflict_action to `DO NOTHING`.
-// Supported only by SQLite and PostgreSQL.
 func (u *MixinIDUpsertBulk) DoNothing() *MixinIDUpsertBulk {
 	u.create.conflict = append(u.create.conflict, sql.DoNothing())
 	return u
 }
 
-// Update allows overriding fields `UPDATE` values. See the MixinIDCreateBulk.OnConflict
-// documentation for more info.
-func (u *MixinIDUpsertBulk) Update(set func(*MixinIDUpsert)) *MixinIDUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
-		set(&MixinIDUpsert{UpdateSet: update})
+func (u *MixinIDUpsertBulk) DoSelect() *MixinIDUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *MixinIDUpsertBulk) Ignore() *MixinIDUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *MixinIDUpsertBulk) DoUpdate(set func(*MixinIDUpsert)) *MixinIDUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&MixinIDUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *MixinIDUpsertBulk) UpdateNewValues() *MixinIDUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case mixinid.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
 	}))
 	return u
 }
 
-// SetSomeField sets the "some_field" field.
-func (u *MixinIDUpsertBulk) SetSomeField(v string) *MixinIDUpsertBulk {
-	return u.Update(func(s *MixinIDUpsert) {
-		s.SetSomeField(v)
-	})
-}
-
-// UpdateSomeField sets the "some_field" field to the value that was provided on create.
-func (u *MixinIDUpsertBulk) UpdateSomeField() *MixinIDUpsertBulk {
-	return u.Update(func(s *MixinIDUpsert) {
-		s.UpdateSomeField()
-	})
-}
-
-// SetMixinField sets the "mixin_field" field.
-func (u *MixinIDUpsertBulk) SetMixinField(v string) *MixinIDUpsertBulk {
-	return u.Update(func(s *MixinIDUpsert) {
-		s.SetMixinField(v)
-	})
-}
-
-// UpdateMixinField sets the "mixin_field" field to the value that was provided on create.
-func (u *MixinIDUpsertBulk) UpdateMixinField() *MixinIDUpsertBulk {
-	return u.Update(func(s *MixinIDUpsert) {
-		s.UpdateMixinField()
-	})
-}
-
-// Exec executes the query.
-func (u *MixinIDUpsertBulk) Exec(ctx context.Context) error {
-	if u.create.err != nil {
-		return u.create.err
-	}
-	for i, b := range u.create.builders {
-		if len(b.conflict) != 0 {
-			return fmt.Errorf("ent: OnConflict was set for builder %d. Set it on the MixinIDCreateBulk instead", i)
+func (u *MixinIDUpsertBulk) Where(predicates ...ent.Predicate[entity.MixinID]) *MixinIDUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(mixinid.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
 		}
-	}
-	if len(u.create.conflict) == 0 {
-		return errors.New("ent: missing options for MixinIDCreateBulk.OnConflict")
-	}
-	return u.create.Exec(ctx)
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// ExecX is like Exec, but panics if an error occurs.
+func (u *MixinIDUpsertBulk) UpdateWhere(predicates ...ent.Predicate[entity.MixinID]) *MixinIDUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(mixinid.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *MixinIDUpsertBulk) Save(ctx context.Context) ([]*MixinID, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for MixinIDCreateBulk.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *MixinIDUpsertBulk) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
 func (u *MixinIDUpsertBulk) ExecX(ctx context.Context) {
-	if err := u.create.Exec(ctx); err != nil {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

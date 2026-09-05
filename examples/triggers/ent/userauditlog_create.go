@@ -7,98 +7,149 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
+	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/examples/triggers/ent/entity"
 	"github.com/neko-sc/ent/examples/triggers/ent/userauditlog"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// UserAuditLogCreate is the builder for creating a UserAuditLog entity.
 type UserAuditLogCreate struct {
 	config
-	mutation *UserAuditLogMutation
-	hooks    []Hook
+	mutation    *UserAuditLogMutation
+	err         error
+	fromBuilder bool
+	present     map[string]struct{}
+
+	conflict []sql.ConflictOption
 }
 
-// SetOperationType sets the "operation_type" field.
-func (_c *UserAuditLogCreate) SetOperationType(v string) *UserAuditLogCreate {
-	_c.mutation.SetOperationType(v)
-	return _c
-}
-
-// SetOperationTime sets the "operation_time" field.
-func (_c *UserAuditLogCreate) SetOperationTime(v string) *UserAuditLogCreate {
-	_c.mutation.SetOperationTime(v)
-	return _c
-}
-
-// SetOldValue sets the "old_value" field.
-func (_c *UserAuditLogCreate) SetOldValue(v string) *UserAuditLogCreate {
-	_c.mutation.SetOldValue(v)
-	return _c
-}
-
-// SetNillableOldValue sets the "old_value" field if the given value is not nil.
-func (_c *UserAuditLogCreate) SetNillableOldValue(v *string) *UserAuditLogCreate {
-	if v != nil {
-		_c.SetOldValue(*v)
+func (b *UserAuditLogCreate) Set[T any](column ent.ColumnOf[entity.UserAuditLog, T], value T) *UserAuditLogCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.set(column.Ref().Name, value)
 	}
-	return _c
-}
-
-// SetNewValue sets the "new_value" field.
-func (_c *UserAuditLogCreate) SetNewValue(v string) *UserAuditLogCreate {
-	_c.mutation.SetNewValue(v)
-	return _c
-}
-
-// SetNillableNewValue sets the "new_value" field if the given value is not nil.
-func (_c *UserAuditLogCreate) SetNillableNewValue(v *string) *UserAuditLogCreate {
-	if v != nil {
-		_c.SetNewValue(*v)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
 	}
-	return _c
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+}
+func (b *UserAuditLogCreate) SetOptional[T any](column ent.ColumnOf[entity.UserAuditLog, T], value ent.Option[T]) *UserAuditLogCreate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.insert.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *UserAuditLogCreate) SetExpr[T any](column ent.ColumnOf[entity.UserAuditLog, T], value ent.Expr[T]) *UserAuditLogCreate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case userauditlog.FieldOperationType:
+
+	case userauditlog.FieldOperationTime:
+
+	case userauditlog.FieldOldValue:
+
+	case userauditlog.FieldNewValue:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of UserAuditLog is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.insert.setExpr(column.Ref().Name, value.Render)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+
+}
+func (b *UserAuditLogCreate) SetEdge[N, K any](edge ent.UniqueRelation[entity.UserAuditLog, N, K], id K) *UserAuditLogCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.setEdge(edge.Ref().Name, id)
+	}
+
+	switch edge.Ref().Name {
+
+	}
+
+	return b
+}
+func (b *UserAuditLogCreate) AddIDs[N, K any](edge ent.Relation[entity.UserAuditLog, N, K], ids ...K) *UserAuditLogCreate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.insert.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *UserAuditLogCreate) Mutation() *UserAuditLogMutation { return b.mutation }
+
+func (b *UserAuditLogCreate) Insert() *UserAuditLogInsert { return b.mutation.insert }
+
+func (b *UserAuditLogCreate) Save(ctx context.Context) (*UserAuditLog, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Mutation returns the UserAuditLogMutation object of the builder.
-func (_c *UserAuditLogCreate) Mutation() *UserAuditLogMutation {
-	return _c.mutation
-}
-
-// Save creates the UserAuditLog in the database.
-func (_c *UserAuditLogCreate) Save(ctx context.Context) (*UserAuditLog, error) {
-	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
-}
-
-// SaveX calls Save and panics if Save returns an error.
-func (_c *UserAuditLogCreate) SaveX(ctx context.Context) *UserAuditLog {
-	v, err := _c.Save(ctx)
+func (b *UserAuditLogCreate) SaveX(ctx context.Context) *UserAuditLog {
+	node, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return node
 }
 
-// Exec executes the query.
-func (_c *UserAuditLogCreate) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *UserAuditLogCreate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *UserAuditLogCreate) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *UserAuditLogCreate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_c *UserAuditLogCreate) check() error {
-	if _, ok := _c.mutation.OperationType(); !ok {
-		return &ValidationError{Name: "operation_type", err: errors.New(`ent: missing required field "UserAuditLog.operation_type"`)}
+func (b *UserAuditLogCreate) defaults() error {
+
+	return nil
+}
+
+func (b *UserAuditLogCreate) check() error {
+	if b.err != nil {
+		return b.err
 	}
-	if _, ok := _c.mutation.OperationTime(); !ok {
-		return &ValidationError{Name: "operation_time", err: errors.New(`ent: missing required field "UserAuditLog.operation_time"`)}
+
+	switch b.driver.Dialect() {
+	case dialect.Postgres, dialect.SQLite:
+		if _, present := b.present[userauditlog.FieldOperationType]; b.fromBuilder && !present {
+			return &ValidationError{Name: "operation_type", err: errors.New(`ent: missing required field "UserAuditLog.operation_type"`)}
+		}
 	}
+
+	switch b.driver.Dialect() {
+	case dialect.Postgres, dialect.SQLite:
+		if _, present := b.present[userauditlog.FieldOperationTime]; b.fromBuilder && !present {
+			return &ValidationError{Name: "operation_time", err: errors.New(`ent: missing required field "UserAuditLog.operation_time"`)}
+		}
+	}
+
 	return nil
 }
 
@@ -106,127 +157,444 @@ func (_c *UserAuditLogCreate) sqlSave(ctx context.Context) (*UserAuditLog, error
 	if err := _c.check(); err != nil {
 		return nil, err
 	}
-	_node, _spec := _c.createSpec()
-	if err := sqlgraph.CreateNode(ctx, _c.driver, _spec); err != nil {
+	node, spec, err := _c.createSpec()
+	if err != nil {
+		return nil, err
+	}
+	if err := sqlgraph.CreateNode(ctx, _c.driver, spec); err != nil {
 		if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
 		return nil, err
 	}
-	id := _spec.ID.Value.(int64)
-	_node.ID = int(id)
-	_c.mutation.id = &_node.ID
-	_c.mutation.done = true
-	return _node, nil
+	_c.mutation.id = &node.ID
+	return node, nil
 }
 
-func (_c *UserAuditLogCreate) createSpec() (*UserAuditLog, *sqlgraph.CreateSpec) {
-	var (
-		_node = &UserAuditLog{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(userauditlog.Table, sqlgraph.NewFieldSpec(userauditlog.FieldID, field.TypeInt))
-	)
-	if value, ok := _c.mutation.OperationType(); ok {
+func (_c *UserAuditLogCreate) createSpec() (*UserAuditLog, *sqlgraph.CreateSpec, error) {
+	_node := &UserAuditLog{config: _c.config}
+	_spec := sqlgraph.NewCreateSpec(userauditlog.Table, sqlgraph.NewFieldSpec(userauditlog.FieldID, field.TypeInt))
+
+	_spec.OnConflict = _c.conflict
+
+	if _, present := _c.present[userauditlog.FieldOperationType]; !_c.fromBuilder || present {
+		value := _c.mutation.insert.OperationType
 		_spec.SetField(userauditlog.FieldOperationType, field.TypeString, value)
-		_node.OperationType = value
 	}
-	if value, ok := _c.mutation.OperationTime(); ok {
+
+	if _, present := _c.present[userauditlog.FieldOperationTime]; !_c.fromBuilder || present {
+		value := _c.mutation.insert.OperationTime
 		_spec.SetField(userauditlog.FieldOperationTime, field.TypeString, value)
-		_node.OperationTime = value
 	}
-	if value, ok := _c.mutation.OldValue(); ok {
+
+	if value, ok := _c.mutation.insert.OldValue.Get(); ok {
 		_spec.SetField(userauditlog.FieldOldValue, field.TypeString, value)
-		_node.OldValue = value
 	}
-	if value, ok := _c.mutation.NewValue(); ok {
+	if _c.mutation.insert.OldValue.IsNull() {
+		_spec.SetField(userauditlog.FieldOldValue, field.TypeString, nil)
+	}
+
+	if value, ok := _c.mutation.insert.NewValue.Get(); ok {
 		_spec.SetField(userauditlog.FieldNewValue, field.TypeString, value)
-		_node.NewValue = value
 	}
-	return _node, _spec
+	if _c.mutation.insert.NewValue.IsNull() {
+		_spec.SetField(userauditlog.FieldNewValue, field.TypeString, nil)
+	}
+
+	_spec.Expressions = _c.mutation.insert.expressions
+
+	_spec.Returning = &sqlgraph.Returning{Columns: userauditlog.Columns, Scan: func(rows dialect.Rows) error {
+		values, err := _node.scanValues(userauditlog.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(userauditlog.Columns, values); err != nil {
+			return err
+		}
+
+		_spec.ID.Value = _node.ID
+
+		return nil
+	}}
+	return _node, _spec, nil
 }
 
-// UserAuditLogCreateBulk is the builder for creating many UserAuditLog entities in bulk.
+type UserAuditLogUpsertOne struct{ create *UserAuditLogCreate }
+
+func (b *UserAuditLogCreate) OnConflict(columns ...ent.EntityColumn[entity.UserAuditLog]) *UserAuditLogUpsertOne {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
+	}
+	if len(names) == 0 {
+		return b.OnConflictOptions()
+	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
+}
+
+func (b *UserAuditLogCreate) OnConflictConstraint(name string) *UserAuditLogUpsertOne {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
+}
+
+func (b *UserAuditLogCreate) OnConflictOptions(options ...sql.ConflictOption) *UserAuditLogUpsertOne {
+	b.conflict = options
+	return &UserAuditLogUpsertOne{create: b}
+}
+
+func (u *UserAuditLogUpsertOne) DoNothing() *UserAuditLogUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+func (u *UserAuditLogUpsertOne) DoSelect() *UserAuditLogUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *UserAuditLogUpsertOne) Ignore() *UserAuditLogUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *UserAuditLogUpsertOne) DoUpdate(set func(*UserAuditLogUpsert)) *UserAuditLogUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&UserAuditLogUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *UserAuditLogUpsertOne) UpdateNewValues() *UserAuditLogUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case userauditlog.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
+	}))
+	return u
+}
+
+func (u *UserAuditLogUpsertOne) Where(predicates ...ent.Predicate[entity.UserAuditLog]) *UserAuditLogUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(userauditlog.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *UserAuditLogUpsertOne) UpdateWhere(predicates ...ent.Predicate[entity.UserAuditLog]) *UserAuditLogUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(userauditlog.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *UserAuditLogUpsertOne) Save(ctx context.Context) (*UserAuditLog, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for UserAuditLogCreate.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *UserAuditLogUpsertOne) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
+func (u *UserAuditLogUpsertOne) ExecX(ctx context.Context) {
+	if err := u.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+func (u *UserAuditLogUpsertOne) ID(ctx context.Context) (id int, err error) {
+	node, err := u.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+func (u *UserAuditLogUpsertOne) IDX(ctx context.Context) int {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
+type UserAuditLogUpsert struct{ *sql.UpdateSet }
+
+func (u *UserAuditLogUpsert) Set[T any](column ent.ColumnOf[entity.UserAuditLog, T], value T) *UserAuditLogUpsert {
+	switch column.Ref().Name {
+
+	case userauditlog.FieldOperationType:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case userauditlog.FieldOperationTime:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case userauditlog.FieldOldValue:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case userauditlog.FieldNewValue:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of UserAuditLog is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *UserAuditLogUpsert) SetExpr[T any](column ent.ColumnOf[entity.UserAuditLog, T], value ent.Expr[T]) *UserAuditLogUpsert {
+	switch column.Ref().Name {
+
+	case userauditlog.FieldOperationType:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case userauditlog.FieldOperationTime:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case userauditlog.FieldOldValue:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case userauditlog.FieldNewValue:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of UserAuditLog is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *UserAuditLogUpsert) UpdateNewValue[T any](column ent.ColumnOf[entity.UserAuditLog, T]) *UserAuditLogUpsert {
+	switch column.Ref().Name {
+
+	case userauditlog.FieldOperationType:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case userauditlog.FieldOperationTime:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case userauditlog.FieldOldValue:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case userauditlog.FieldNewValue:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of UserAuditLog is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *UserAuditLogUpsert) Add[T ent.Number](column ent.ColumnOf[entity.UserAuditLog, T], delta T) *UserAuditLogUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of UserAuditLog does not support addition", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *UserAuditLogUpsert) Clear[T any](column ent.ColumnOf[entity.UserAuditLog, T]) *UserAuditLogUpsert {
+	switch column.Ref().Name {
+
+	case userauditlog.FieldOldValue:
+		u.UpdateSet.SetNull(column.Ref().Name)
+
+	case userauditlog.FieldNewValue:
+		u.UpdateSet.SetNull(column.Ref().Name)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of UserAuditLog is not nullable", column.Ref().Name)})
+	}
+	return u
+}
+
 type UserAuditLogCreateBulk struct {
 	config
 	err      error
 	builders []*UserAuditLogCreate
+
+	conflict []sql.ConflictOption
 }
 
-// Save creates the UserAuditLog entities in the database.
 func (_c *UserAuditLogCreateBulk) Save(ctx context.Context) ([]*UserAuditLog, error) {
 	if _c.err != nil {
 		return nil, _c.err
 	}
-	specs := make([]*sqlgraph.CreateSpec, len(_c.builders))
 	nodes := make([]*UserAuditLog, len(_c.builders))
-	mutators := make([]Mutator, len(_c.builders))
-	for i := range _c.builders {
-		func(i int, root context.Context) {
-			builder := _c.builders[i]
-			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*UserAuditLogMutation)
-				if !ok {
-					return nil, fmt.Errorf("unexpected mutation type %T", m)
-				}
-				if err := builder.check(); err != nil {
-					return nil, err
-				}
-				builder.mutation = mutation
-				var err error
-				nodes[i], specs[i] = builder.createSpec()
-				if i < len(mutators)-1 {
-					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
-				} else {
-					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
-					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
-						if sqlgraph.IsConstraintError(err) {
-							err = &ConstraintError{msg: err.Error(), wrap: err}
-						}
-					}
-				}
-				if err != nil {
-					return nil, err
-				}
-				mutation.id = &nodes[i].ID
-				if specs[i].ID.Value != nil {
-					id := specs[i].ID.Value.(int64)
-					nodes[i].ID = int(id)
-				}
-				mutation.done = true
-				return nodes[i], nil
-			})
-			for i := len(builder.hooks) - 1; i >= 0; i-- {
-				mut = builder.hooks[i](mut)
-			}
-			mutators[i] = mut
-		}(i, ctx)
-	}
-	if len(mutators) > 0 {
-		if _, err := mutators[0].Mutate(ctx, _c.builders[0].mutation); err != nil {
+	specs := make([]*sqlgraph.CreateSpec, len(nodes))
+	for index, builder := range _c.builders {
+		if builder.err != nil {
+			return nil, builder.err
+		}
+		if err := builder.defaults(); err != nil {
+			return nil, err
+		}
+		if err := builder.check(); err != nil {
+			return nil, err
+		}
+		var err error
+		nodes[index], specs[index], err = builder.createSpec()
+		if err != nil {
 			return nil, err
 		}
 	}
-	return nodes, nil
+	if len(specs) == 0 {
+		return nodes, nil
+	}
+	spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+
+	spec.OnConflict = _c.conflict
+
+	if err := sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
+		if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{msg: err.Error(), wrap: err}
+		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
+		return nil, err
+	}
+	result := nodes[:0]
+	for index, builder := range _c.builders {
+		if specs[index].Skipped {
+			continue
+		}
+		builder.mutation.id = &nodes[index].ID
+		result = append(result, nodes[index])
+	}
+	return result, nil
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_c *UserAuditLogCreateBulk) SaveX(ctx context.Context) []*UserAuditLog {
-	v, err := _c.Save(ctx)
+func (b *UserAuditLogCreateBulk) SaveX(ctx context.Context) []*UserAuditLog {
+	nodes, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return nodes
 }
 
-// Exec executes the query.
-func (_c *UserAuditLogCreateBulk) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
+func (b *UserAuditLogCreateBulk) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
+
+func (b *UserAuditLogCreateBulk) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+type UserAuditLogUpsertBulk struct{ create *UserAuditLogCreateBulk }
+
+func (b *UserAuditLogCreateBulk) OnConflict(columns ...ent.EntityColumn[entity.UserAuditLog]) *UserAuditLogUpsertBulk {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
+	}
+	if len(names) == 0 {
+		return b.OnConflictOptions()
+	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
+}
+
+func (b *UserAuditLogCreateBulk) OnConflictConstraint(name string) *UserAuditLogUpsertBulk {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
+}
+
+func (b *UserAuditLogCreateBulk) OnConflictOptions(options ...sql.ConflictOption) *UserAuditLogUpsertBulk {
+	b.conflict = options
+	return &UserAuditLogUpsertBulk{create: b}
+}
+
+func (u *UserAuditLogUpsertBulk) DoNothing() *UserAuditLogUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+func (u *UserAuditLogUpsertBulk) DoSelect() *UserAuditLogUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *UserAuditLogUpsertBulk) Ignore() *UserAuditLogUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *UserAuditLogUpsertBulk) DoUpdate(set func(*UserAuditLogUpsert)) *UserAuditLogUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&UserAuditLogUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *UserAuditLogUpsertBulk) UpdateNewValues() *UserAuditLogUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case userauditlog.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
+	}))
+	return u
+}
+
+func (u *UserAuditLogUpsertBulk) Where(predicates ...ent.Predicate[entity.UserAuditLog]) *UserAuditLogUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(userauditlog.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *UserAuditLogUpsertBulk) UpdateWhere(predicates ...ent.Predicate[entity.UserAuditLog]) *UserAuditLogUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(userauditlog.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *UserAuditLogUpsertBulk) Save(ctx context.Context) ([]*UserAuditLog, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for UserAuditLogCreateBulk.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *UserAuditLogUpsertBulk) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
 	return err
 }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *UserAuditLogCreateBulk) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (u *UserAuditLogUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

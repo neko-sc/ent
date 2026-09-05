@@ -12,6 +12,7 @@ import (
 	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/account"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/customid/sid"
 )
 
@@ -24,8 +25,7 @@ type Account struct {
 	Email string `json:"email,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the AccountQuery when eager-loading is set.
-	Edges        AccountEdges `json:"edges"`
-	selectValues sql.SelectValues
+	Edges AccountEdges `json:"edges"`
 }
 
 // AccountEdges holds the relations/edges for other nodes in the graph.
@@ -35,6 +35,30 @@ type AccountEdges struct {
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes [1]bool
+	counts      map[string]int
+}
+
+func (e AccountEdges) Loaded[N, K any](edge ent.RelationOf[entity.Account, N, K]) bool {
+	switch edge.Ref().Name {
+	case "token":
+		return e.loadedTypes[0]
+
+	default:
+		return false
+	}
+}
+
+func (e *AccountEdges) SetLoaded[N, K any](edge ent.RelationOf[entity.Account, N, K], loaded bool) {
+	switch edge.Ref().Name {
+	case "token":
+		e.loadedTypes[0] = loaded
+
+	}
+}
+
+func (e AccountEdges) Count[N, K any](edge ent.Relation[entity.Account, N, K]) (int, bool) {
+	count, loaded := e.counts[edge.Ref().Name]
+	return count, loaded
 }
 
 // TokenOrErr returns the Token value or an error if the edge
@@ -51,10 +75,10 @@ func (*Account) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case account.FieldEmail:
+			values[i] = new(*string)
 		case account.FieldID:
 			values[i] = new(sid.ID)
-		case account.FieldEmail:
-			values[i] = new(sql.NullString)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -77,22 +101,15 @@ func (_m *Account) assignValues(columns []string, values []any) error {
 				_m.ID = *value
 			}
 		case account.FieldEmail:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field email", values[i])
-			} else if value.Valid {
-				_m.Email = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.Email = **value
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the Account.
-// This includes values selected through modifiers, order, etc.
-func (_m *Account) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // QueryToken queries the "token" edge of the Account entity.

@@ -5,7 +5,6 @@ package schema
 
 import (
 	"github.com/neko-sc/ent"
-	"github.com/neko-sc/ent/entc/integration/privacy/ent/privacy"
 	"github.com/neko-sc/ent/schema/edge"
 	"github.com/neko-sc/ent/schema/field"
 )
@@ -38,17 +37,5 @@ func (User) Edges() []ent.Edge {
 			Through("user_tweets", UserTweet.Type),
 		edge.To("roles", Role.Type).
 			Through("roles_users", RoleUser.Type),
-	}
-}
-
-// Policy defines the privacy policy of the User.
-func (User) Policy() ent.Policy {
-	return privacy.Policy{
-		Mutation: privacy.MutationPolicy{
-			privacy.AlwaysAllowRule(),
-		},
-		Query: privacy.QueryPolicy{
-			privacy.AlwaysAllowRule(),
-		},
 	}
 }

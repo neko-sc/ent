@@ -11,8 +11,11 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/tag"
 	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/tweet"
 	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/tweettag"
@@ -21,132 +24,127 @@ import (
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// TweetCreate is the builder for creating a Tweet entity.
 type TweetCreate struct {
 	config
-	mutation *TweetMutation
-	hooks    []Hook
+	mutation    *TweetMutation
+	err         error
+	fromBuilder bool
+	present     map[string]struct{}
+
 	conflict []sql.ConflictOption
 }
 
-// SetText sets the "text" field.
-func (_c *TweetCreate) SetText(v string) *TweetCreate {
-	_c.mutation.SetText(v)
-	return _c
-}
-
-// AddLikedUserIDs adds the "liked_users" edge to the User entity by IDs.
-func (_c *TweetCreate) AddLikedUserIDs(ids ...int) *TweetCreate {
-	_c.mutation.AddLikedUserIDs(ids...)
-	return _c
-}
-
-// AddLikedUsers adds the "liked_users" edges to the User entity.
-func (_c *TweetCreate) AddLikedUsers(v ...*User) *TweetCreate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+func (b *TweetCreate) Set[T any](column ent.ColumnOf[entity.Tweet, T], value T) *TweetCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.set(column.Ref().Name, value)
 	}
-	return _c.AddLikedUserIDs(ids...)
-}
-
-// AddUserIDs adds the "user" edge to the User entity by IDs.
-func (_c *TweetCreate) AddUserIDs(ids ...int) *TweetCreate {
-	_c.mutation.AddUserIDs(ids...)
-	return _c
-}
-
-// AddUser adds the "user" edges to the User entity.
-func (_c *TweetCreate) AddUser(v ...*User) *TweetCreate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+	if b.present == nil {
+		b.present = make(map[string]struct{})
 	}
-	return _c.AddUserIDs(ids...)
+	b.present[column.Ref().Name] = struct{}{}
+	return b
 }
-
-// AddTagIDs adds the "tags" edge to the Tag entity by IDs.
-func (_c *TweetCreate) AddTagIDs(ids ...int) *TweetCreate {
-	_c.mutation.AddTagIDs(ids...)
-	return _c
-}
-
-// AddTags adds the "tags" edges to the Tag entity.
-func (_c *TweetCreate) AddTags(v ...*Tag) *TweetCreate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+func (b *TweetCreate) SetOptional[T any](column ent.ColumnOf[entity.Tweet, T], value ent.Option[T]) *TweetCreate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.insert.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _c.AddTagIDs(ids...)
-}
-
-// AddTweetUserIDs adds the "tweet_user" edge to the UserTweet entity by IDs.
-func (_c *TweetCreate) AddTweetUserIDs(ids ...int) *TweetCreate {
-	_c.mutation.AddTweetUserIDs(ids...)
-	return _c
-}
-
-// AddTweetUser adds the "tweet_user" edges to the UserTweet entity.
-func (_c *TweetCreate) AddTweetUser(v ...*UserTweet) *TweetCreate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
 	}
-	return _c.AddTweetUserIDs(ids...)
+	return b
 }
-
-// AddTweetTagIDs adds the "tweet_tags" edge to the TweetTag entity by IDs.
-func (_c *TweetCreate) AddTweetTagIDs(ids ...uuid.UUID) *TweetCreate {
-	_c.mutation.AddTweetTagIDs(ids...)
-	return _c
-}
-
-// AddTweetTags adds the "tweet_tags" edges to the TweetTag entity.
-func (_c *TweetCreate) AddTweetTags(v ...*TweetTag) *TweetCreate {
-	ids := make([]uuid.UUID, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+func (b *TweetCreate) SetExpr[T any](column ent.ColumnOf[entity.Tweet, T], value ent.Expr[T]) *TweetCreate {
+	if b.err != nil {
+		return b
 	}
-	return _c.AddTweetTagIDs(ids...)
+	switch column.Ref().Name {
+
+	case tweet.FieldText:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Tweet is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.insert.setExpr(column.Ref().Name, value.Render)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+
+}
+func (b *TweetCreate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Tweet, N, K], id K) *TweetCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.setEdge(edge.Ref().Name, id)
+	}
+
+	switch edge.Ref().Name {
+
+	}
+
+	return b
+}
+func (b *TweetCreate) AddIDs[N, K any](edge ent.Relation[entity.Tweet, N, K], ids ...K) *TweetCreate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.insert.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *TweetCreate) Mutation() *TweetMutation { return b.mutation }
+
+func (b *TweetCreate) Insert() *TweetInsert { return b.mutation.insert }
+
+func (b *TweetCreate) Save(ctx context.Context) (*Tweet, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Mutation returns the TweetMutation object of the builder.
-func (_c *TweetCreate) Mutation() *TweetMutation {
-	return _c.mutation
-}
-
-// Save creates the Tweet in the database.
-func (_c *TweetCreate) Save(ctx context.Context) (*Tweet, error) {
-	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
-}
-
-// SaveX calls Save and panics if Save returns an error.
-func (_c *TweetCreate) SaveX(ctx context.Context) *Tweet {
-	v, err := _c.Save(ctx)
+func (b *TweetCreate) SaveX(ctx context.Context) *Tweet {
+	node, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return node
 }
 
-// Exec executes the query.
-func (_c *TweetCreate) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *TweetCreate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *TweetCreate) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *TweetCreate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_c *TweetCreate) check() error {
-	if _, ok := _c.mutation.Text(); !ok {
-		return &ValidationError{Name: "text", err: errors.New(`ent: missing required field "Tweet.text"`)}
+func (b *TweetCreate) defaults() error {
+
+	return nil
+}
+
+func (b *TweetCreate) check() error {
+	if b.err != nil {
+		return b.err
 	}
+
+	switch b.driver.Dialect() {
+	case dialect.Postgres, dialect.SQLite:
+		if _, present := b.present[tweet.FieldText]; b.fromBuilder && !present {
+			return &ValidationError{Name: "text", err: errors.New(`ent: missing required field "Tweet.text"`)}
+		}
+	}
+
 	return nil
 }
 
@@ -154,31 +152,37 @@ func (_c *TweetCreate) sqlSave(ctx context.Context) (*Tweet, error) {
 	if err := _c.check(); err != nil {
 		return nil, err
 	}
-	_node, _spec := _c.createSpec()
-	if err := sqlgraph.CreateNode(ctx, _c.driver, _spec); err != nil {
+	node, spec, err := _c.createSpec()
+	if err != nil {
+		return nil, err
+	}
+	if err := sqlgraph.CreateNode(ctx, _c.driver, spec); err != nil {
 		if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
 		return nil, err
 	}
-	id := _spec.ID.Value.(int64)
-	_node.ID = int(id)
-	_c.mutation.id = &_node.ID
-	_c.mutation.done = true
-	return _node, nil
+	_c.mutation.id = &node.ID
+	return node, nil
 }
 
-func (_c *TweetCreate) createSpec() (*Tweet, *sqlgraph.CreateSpec) {
-	var (
-		_node = &Tweet{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(tweet.Table, sqlgraph.NewFieldSpec(tweet.FieldID, field.TypeInt))
-	)
+func (_c *TweetCreate) createSpec() (*Tweet, *sqlgraph.CreateSpec, error) {
+	_node := &Tweet{config: _c.config}
+	_spec := sqlgraph.NewCreateSpec(tweet.Table, sqlgraph.NewFieldSpec(tweet.FieldID, field.TypeInt))
+
 	_spec.OnConflict = _c.conflict
-	if value, ok := _c.mutation.Text(); ok {
+
+	if _, present := _c.present[tweet.FieldText]; !_c.fromBuilder || present {
+		value := _c.mutation.insert.Text
 		_spec.SetField(tweet.FieldText, field.TypeString, value)
-		_node.Text = value
 	}
-	if nodes := _c.mutation.LikedUsersIDs(); len(nodes) > 0 {
+
+	_spec.Expressions = _c.mutation.insert.expressions
+
+	if nodes := _c.mutation.insert.likedusersIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: true,
@@ -189,16 +193,27 @@ func (_c *TweetCreate) createSpec() (*Tweet, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		createE := &TweetLikeCreate{config: _c.config, mutation: newTweetLikeMutation(_c.config, OpCreate)}
-		_ = createE.defaults()
-		_, specE := createE.createSpec()
+		if err := createE.defaults(); err != nil {
+			return nil, nil, err
+		}
+		_, specE, err := createE.createSpec()
+		if err != nil {
+			return nil, nil, err
+		}
 		edge.Target.Fields = specE.Fields
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	if nodes := _c.mutation.UserIDs(); len(nodes) > 0 {
+
+	if nodes := _c.mutation.insert.userIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: true,
@@ -209,16 +224,27 @@ func (_c *TweetCreate) createSpec() (*Tweet, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		createE := &UserTweetCreate{config: _c.config, mutation: newUserTweetMutation(_c.config, OpCreate)}
-		createE.defaults()
-		_, specE := createE.createSpec()
+		if err := createE.defaults(); err != nil {
+			return nil, nil, err
+		}
+		_, specE, err := createE.createSpec()
+		if err != nil {
+			return nil, nil, err
+		}
 		edge.Target.Fields = specE.Fields
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	if nodes := _c.mutation.TagsIDs(); len(nodes) > 0 {
+
+	if nodes := _c.mutation.insert.tagsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: true,
@@ -229,19 +255,30 @@ func (_c *TweetCreate) createSpec() (*Tweet, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(tag.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		createE := &TweetTagCreate{config: _c.config, mutation: newTweetTagMutation(_c.config, OpCreate)}
-		createE.defaults()
-		_, specE := createE.createSpec()
+		if err := createE.defaults(); err != nil {
+			return nil, nil, err
+		}
+		_, specE, err := createE.createSpec()
+		if err != nil {
+			return nil, nil, err
+		}
 		edge.Target.Fields = specE.Fields
 		if specE.ID.Value != nil {
 			edge.Target.Fields = append(edge.Target.Fields, specE.ID)
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	if nodes := _c.mutation.TweetUserIDs(); len(nodes) > 0 {
+
+	if nodes := _c.mutation.insert.tweetuserIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: true,
@@ -252,12 +289,18 @@ func (_c *TweetCreate) createSpec() (*Tweet, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(usertweet.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	if nodes := _c.mutation.TweetTagsIDs(); len(nodes) > 0 {
+
+	if nodes := _c.mutation.insert.tweettagsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: true,
@@ -268,154 +311,142 @@ func (_c *TweetCreate) createSpec() (*Tweet, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(tweettag.FieldID, field.TypeUUID),
 			},
 		}
+		seen := make(map[uuid.UUID]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	return _node, _spec
+
+	_spec.Returning = &sqlgraph.Returning{Columns: tweet.Columns, Scan: func(rows dialect.Rows) error {
+		values, err := _node.scanValues(tweet.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(tweet.Columns, values); err != nil {
+			return err
+		}
+
+		_spec.ID.Value = _node.ID
+
+		return nil
+	}}
+	return _node, _spec, nil
 }
 
-// OnConflict allows configuring the `ON CONFLICT` clause of the `INSERT`
-// statement. For example:
-//
-//	client.Tweet.Create().
-//		SetText(v).
-//		OnConflict(
-//			// Update the row with the new values
-//			// the was proposed for insertion.
-//			sql.ResolveWithNewValues(),
-//		).
-//		// Override some of the fields with custom
-//		// update values.
-//		Update(func(u *ent.TweetUpsert) {
-//			SetText(v+v).
-//		}).
-//		Exec(ctx)
-func (_c *TweetCreate) OnConflict(opts ...sql.ConflictOption) *TweetUpsertOne {
-	_c.conflict = opts
-	return &TweetUpsertOne{
-		create: _c,
+type TweetUpsertOne struct{ create *TweetCreate }
+
+func (b *TweetCreate) OnConflict(columns ...ent.EntityColumn[entity.Tweet]) *TweetUpsertOne {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
 	}
-}
-
-// OnConflictColumns calls `OnConflict` and configures the columns
-// as conflict target. Using this option is equivalent to using:
-//
-//	client.Tweet.Create().
-//		OnConflict(sql.ConflictColumns(columns...)).
-//		Exec(ctx)
-func (_c *TweetCreate) OnConflictColumns(columns ...string) *TweetUpsertOne {
-	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
-	return &TweetUpsertOne{
-		create: _c,
+	if len(names) == 0 {
+		return b.OnConflictOptions()
 	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
 }
 
-type (
-	// TweetUpsertOne is the builder for "upsert"-ing
-	//  one Tweet node.
-	TweetUpsertOne struct {
-		create *TweetCreate
-	}
-
-	// TweetUpsert is the "OnConflict" setter.
-	TweetUpsert struct {
-		*sql.UpdateSet
-	}
-)
-
-// SetText sets the "text" field.
-func (u *TweetUpsert) SetText(v string) *TweetUpsert {
-	u.Set(tweet.FieldText, v)
-	return u
+func (b *TweetCreate) OnConflictConstraint(name string) *TweetUpsertOne {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
 }
 
-// UpdateText sets the "text" field to the value that was provided on create.
-func (u *TweetUpsert) UpdateText() *TweetUpsert {
-	u.SetExcluded(tweet.FieldText)
-	return u
+func (b *TweetCreate) OnConflictOptions(options ...sql.ConflictOption) *TweetUpsertOne {
+	b.conflict = options
+	return &TweetUpsertOne{create: b}
 }
 
-// UpdateNewValues updates the mutable fields using the new values that were set on create.
-// Using this option is equivalent to using:
-//
-//	client.Tweet.Create().
-//		OnConflict(
-//			sql.ResolveWithNewValues(),
-//		).
-//		Exec(ctx)
-func (u *TweetUpsertOne) UpdateNewValues() *TweetUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
-	return u
-}
-
-// Ignore sets each column to itself in case of conflict.
-// Using this option is equivalent to using:
-//
-//	client.Tweet.Create().
-//	    OnConflict(sql.ResolveWithIgnore()).
-//	    Exec(ctx)
-func (u *TweetUpsertOne) Ignore() *TweetUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
-	return u
-}
-
-// DoNothing configures the conflict_action to `DO NOTHING`.
-// Supported only by SQLite and PostgreSQL.
 func (u *TweetUpsertOne) DoNothing() *TweetUpsertOne {
 	u.create.conflict = append(u.create.conflict, sql.DoNothing())
 	return u
 }
 
-// Update allows overriding fields `UPDATE` values. See the TweetCreate.OnConflict
-// documentation for more info.
-func (u *TweetUpsertOne) Update(set func(*TweetUpsert)) *TweetUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
-		set(&TweetUpsert{UpdateSet: update})
+func (u *TweetUpsertOne) DoSelect() *TweetUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *TweetUpsertOne) Ignore() *TweetUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *TweetUpsertOne) DoUpdate(set func(*TweetUpsert)) *TweetUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&TweetUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *TweetUpsertOne) UpdateNewValues() *TweetUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case tweet.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
 	}))
 	return u
 }
 
-// SetText sets the "text" field.
-func (u *TweetUpsertOne) SetText(v string) *TweetUpsertOne {
-	return u.Update(func(s *TweetUpsert) {
-		s.SetText(v)
-	})
+func (u *TweetUpsertOne) Where(predicates ...ent.Predicate[entity.Tweet]) *TweetUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(tweet.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// UpdateText sets the "text" field to the value that was provided on create.
-func (u *TweetUpsertOne) UpdateText() *TweetUpsertOne {
-	return u.Update(func(s *TweetUpsert) {
-		s.UpdateText()
-	})
+func (u *TweetUpsertOne) UpdateWhere(predicates ...ent.Predicate[entity.Tweet]) *TweetUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(tweet.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// Exec executes the query.
-func (u *TweetUpsertOne) Exec(ctx context.Context) error {
+func (u *TweetUpsertOne) Save(ctx context.Context) (*Tweet, error) {
 	if len(u.create.conflict) == 0 {
-		return errors.New("ent: missing options for TweetCreate.OnConflict")
+		return nil, errors.New("ent: missing options for TweetCreate.OnConflict")
 	}
-	return u.create.Exec(ctx)
+	return u.create.Save(ctx)
 }
 
-// ExecX is like Exec, but panics if an error occurs.
+func (u *TweetUpsertOne) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
 func (u *TweetUpsertOne) ExecX(ctx context.Context) {
-	if err := u.create.Exec(ctx); err != nil {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// Exec executes the UPSERT query and returns the inserted/updated ID.
 func (u *TweetUpsertOne) ID(ctx context.Context) (id int, err error) {
-	node, err := u.create.Save(ctx)
+	node, err := u.Save(ctx)
 	if err != nil {
 		return id, err
 	}
 	return node.ID, nil
 }
 
-// IDX is like ID, but panics if an error occurs.
 func (u *TweetUpsertOne) IDX(ctx context.Context) int {
 	id, err := u.ID(ctx)
 	if err != nil {
@@ -424,209 +455,229 @@ func (u *TweetUpsertOne) IDX(ctx context.Context) int {
 	return id
 }
 
-// TweetCreateBulk is the builder for creating many Tweet entities in bulk.
+type TweetUpsert struct{ *sql.UpdateSet }
+
+func (u *TweetUpsert) Set[T any](column ent.ColumnOf[entity.Tweet, T], value T) *TweetUpsert {
+	switch column.Ref().Name {
+
+	case tweet.FieldText:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Tweet is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *TweetUpsert) SetExpr[T any](column ent.ColumnOf[entity.Tweet, T], value ent.Expr[T]) *TweetUpsert {
+	switch column.Ref().Name {
+
+	case tweet.FieldText:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Tweet is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *TweetUpsert) UpdateNewValue[T any](column ent.ColumnOf[entity.Tweet, T]) *TweetUpsert {
+	switch column.Ref().Name {
+
+	case tweet.FieldText:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Tweet is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *TweetUpsert) Add[T ent.Number](column ent.ColumnOf[entity.Tweet, T], delta T) *TweetUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Tweet does not support addition", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *TweetUpsert) Clear[T any](column ent.ColumnOf[entity.Tweet, T]) *TweetUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Tweet is not nullable", column.Ref().Name)})
+	}
+	return u
+}
+
 type TweetCreateBulk struct {
 	config
 	err      error
 	builders []*TweetCreate
+
 	conflict []sql.ConflictOption
 }
 
-// Save creates the Tweet entities in the database.
 func (_c *TweetCreateBulk) Save(ctx context.Context) ([]*Tweet, error) {
 	if _c.err != nil {
 		return nil, _c.err
 	}
-	specs := make([]*sqlgraph.CreateSpec, len(_c.builders))
 	nodes := make([]*Tweet, len(_c.builders))
-	mutators := make([]Mutator, len(_c.builders))
-	for i := range _c.builders {
-		func(i int, root context.Context) {
-			builder := _c.builders[i]
-			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*TweetMutation)
-				if !ok {
-					return nil, fmt.Errorf("unexpected mutation type %T", m)
-				}
-				if err := builder.check(); err != nil {
-					return nil, err
-				}
-				builder.mutation = mutation
-				var err error
-				nodes[i], specs[i] = builder.createSpec()
-				if i < len(mutators)-1 {
-					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
-				} else {
-					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
-					spec.OnConflict = _c.conflict
-					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
-						if sqlgraph.IsConstraintError(err) {
-							err = &ConstraintError{msg: err.Error(), wrap: err}
-						}
-					}
-				}
-				if err != nil {
-					return nil, err
-				}
-				mutation.id = &nodes[i].ID
-				if specs[i].ID.Value != nil {
-					id := specs[i].ID.Value.(int64)
-					nodes[i].ID = int(id)
-				}
-				mutation.done = true
-				return nodes[i], nil
-			})
-			for i := len(builder.hooks) - 1; i >= 0; i-- {
-				mut = builder.hooks[i](mut)
-			}
-			mutators[i] = mut
-		}(i, ctx)
-	}
-	if len(mutators) > 0 {
-		if _, err := mutators[0].Mutate(ctx, _c.builders[0].mutation); err != nil {
+	specs := make([]*sqlgraph.CreateSpec, len(nodes))
+	for index, builder := range _c.builders {
+		if builder.err != nil {
+			return nil, builder.err
+		}
+		if err := builder.defaults(); err != nil {
+			return nil, err
+		}
+		if err := builder.check(); err != nil {
+			return nil, err
+		}
+		var err error
+		nodes[index], specs[index], err = builder.createSpec()
+		if err != nil {
 			return nil, err
 		}
 	}
-	return nodes, nil
+	if len(specs) == 0 {
+		return nodes, nil
+	}
+	spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+
+	spec.OnConflict = _c.conflict
+
+	if err := sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
+		if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{msg: err.Error(), wrap: err}
+		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
+		return nil, err
+	}
+	result := nodes[:0]
+	for index, builder := range _c.builders {
+		if specs[index].Skipped {
+			continue
+		}
+		builder.mutation.id = &nodes[index].ID
+		result = append(result, nodes[index])
+	}
+	return result, nil
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_c *TweetCreateBulk) SaveX(ctx context.Context) []*Tweet {
-	v, err := _c.Save(ctx)
+func (b *TweetCreateBulk) SaveX(ctx context.Context) []*Tweet {
+	nodes, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return nodes
 }
 
-// Exec executes the query.
-func (_c *TweetCreateBulk) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *TweetCreateBulk) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *TweetCreateBulk) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *TweetCreateBulk) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// OnConflict allows configuring the `ON CONFLICT` clause of the `INSERT`
-// statement. For example:
-//
-//	client.Tweet.CreateBulk(builders...).
-//		OnConflict(
-//			// Update the row with the new values
-//			// the was proposed for insertion.
-//			sql.ResolveWithNewValues(),
-//		).
-//		// Override some of the fields with custom
-//		// update values.
-//		Update(func(u *ent.TweetUpsert) {
-//			SetText(v+v).
-//		}).
-//		Exec(ctx)
-func (_c *TweetCreateBulk) OnConflict(opts ...sql.ConflictOption) *TweetUpsertBulk {
-	_c.conflict = opts
-	return &TweetUpsertBulk{
-		create: _c,
+type TweetUpsertBulk struct{ create *TweetCreateBulk }
+
+func (b *TweetCreateBulk) OnConflict(columns ...ent.EntityColumn[entity.Tweet]) *TweetUpsertBulk {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
 	}
-}
-
-// OnConflictColumns calls `OnConflict` and configures the columns
-// as conflict target. Using this option is equivalent to using:
-//
-//	client.Tweet.Create().
-//		OnConflict(sql.ConflictColumns(columns...)).
-//		Exec(ctx)
-func (_c *TweetCreateBulk) OnConflictColumns(columns ...string) *TweetUpsertBulk {
-	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
-	return &TweetUpsertBulk{
-		create: _c,
+	if len(names) == 0 {
+		return b.OnConflictOptions()
 	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
 }
 
-// TweetUpsertBulk is the builder for "upsert"-ing
-// a bulk of Tweet nodes.
-type TweetUpsertBulk struct {
-	create *TweetCreateBulk
+func (b *TweetCreateBulk) OnConflictConstraint(name string) *TweetUpsertBulk {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
 }
 
-// UpdateNewValues updates the mutable fields using the new values that
-// were set on create. Using this option is equivalent to using:
-//
-//	client.Tweet.Create().
-//		OnConflict(
-//			sql.ResolveWithNewValues(),
-//		).
-//		Exec(ctx)
-func (u *TweetUpsertBulk) UpdateNewValues() *TweetUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
-	return u
+func (b *TweetCreateBulk) OnConflictOptions(options ...sql.ConflictOption) *TweetUpsertBulk {
+	b.conflict = options
+	return &TweetUpsertBulk{create: b}
 }
 
-// Ignore sets each column to itself in case of conflict.
-// Using this option is equivalent to using:
-//
-//	client.Tweet.Create().
-//		OnConflict(sql.ResolveWithIgnore()).
-//		Exec(ctx)
-func (u *TweetUpsertBulk) Ignore() *TweetUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
-	return u
-}
-
-// DoNothing configures the conflict_action to `DO NOTHING`.
-// Supported only by SQLite and PostgreSQL.
 func (u *TweetUpsertBulk) DoNothing() *TweetUpsertBulk {
 	u.create.conflict = append(u.create.conflict, sql.DoNothing())
 	return u
 }
 
-// Update allows overriding fields `UPDATE` values. See the TweetCreateBulk.OnConflict
-// documentation for more info.
-func (u *TweetUpsertBulk) Update(set func(*TweetUpsert)) *TweetUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
-		set(&TweetUpsert{UpdateSet: update})
+func (u *TweetUpsertBulk) DoSelect() *TweetUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *TweetUpsertBulk) Ignore() *TweetUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *TweetUpsertBulk) DoUpdate(set func(*TweetUpsert)) *TweetUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&TweetUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *TweetUpsertBulk) UpdateNewValues() *TweetUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case tweet.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
 	}))
 	return u
 }
 
-// SetText sets the "text" field.
-func (u *TweetUpsertBulk) SetText(v string) *TweetUpsertBulk {
-	return u.Update(func(s *TweetUpsert) {
-		s.SetText(v)
-	})
-}
-
-// UpdateText sets the "text" field to the value that was provided on create.
-func (u *TweetUpsertBulk) UpdateText() *TweetUpsertBulk {
-	return u.Update(func(s *TweetUpsert) {
-		s.UpdateText()
-	})
-}
-
-// Exec executes the query.
-func (u *TweetUpsertBulk) Exec(ctx context.Context) error {
-	if u.create.err != nil {
-		return u.create.err
-	}
-	for i, b := range u.create.builders {
-		if len(b.conflict) != 0 {
-			return fmt.Errorf("ent: OnConflict was set for builder %d. Set it on the TweetCreateBulk instead", i)
+func (u *TweetUpsertBulk) Where(predicates ...ent.Predicate[entity.Tweet]) *TweetUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(tweet.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
 		}
-	}
-	if len(u.create.conflict) == 0 {
-		return errors.New("ent: missing options for TweetCreateBulk.OnConflict")
-	}
-	return u.create.Exec(ctx)
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// ExecX is like Exec, but panics if an error occurs.
+func (u *TweetUpsertBulk) UpdateWhere(predicates ...ent.Predicate[entity.Tweet]) *TweetUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(tweet.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *TweetUpsertBulk) Save(ctx context.Context) ([]*Tweet, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for TweetCreateBulk.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *TweetUpsertBulk) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
 func (u *TweetUpsertBulk) ExecX(ctx context.Context) {
-	if err := u.create.Exec(ctx); err != nil {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

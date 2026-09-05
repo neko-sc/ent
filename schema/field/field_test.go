@@ -649,7 +649,7 @@ func TestTypeString(t *testing.T) {
 	assert.Equal(t, "bool", typ.String())
 	typ = field.TypeInvalid
 	assert.Equal(t, "invalid", typ.String())
-	typ = 21
+	typ = field.TypeArray + 1
 	assert.Equal(t, "invalid", typ.String())
 }
 
@@ -665,7 +665,7 @@ func TestTypeValid(t *testing.T) {
 	assert.True(t, typ.Valid())
 	typ = 0
 	assert.False(t, typ.Valid())
-	typ = 21
+	typ = field.TypeArray + 1
 	assert.False(t, typ.Valid())
 }
 
@@ -678,7 +678,7 @@ func TestTypeConstName(t *testing.T) {
 	assert.Equal(t, "TypeInt64", typ.ConstName())
 	typ = field.TypeOther
 	assert.Equal(t, "TypeOther", typ.ConstName())
-	typ = 21
+	typ = field.TypeArray + 1
 	assert.Equal(t, "invalid", typ.ConstName())
 }
 

@@ -10,141 +10,196 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/note"
-	"github.com/neko-sc/ent/entc/integration/customid/ent/predicate"
-	"github.com/neko-sc/ent/entc/integration/customid/ent/schema"
+	schema2 "github.com/neko-sc/ent/entc/integration/customid/ent/schema"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// NoteUpdate is the builder for updating Note entities.
 type NoteUpdate struct {
 	config
-	hooks    []Hook
-	mutation *NoteMutation
+	mutation  *NoteMutation
+	err       error
+	returning *sqlgraph.Returning
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// Where appends a list predicates to the NoteUpdate builder.
-func (_u *NoteUpdate) Where(ps ...predicate.Note) *NoteUpdate {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// SetText sets the "text" field.
-func (_u *NoteUpdate) SetText(v string) *NoteUpdate {
-	_u.mutation.SetText(v)
-	return _u
-}
-
-// SetNillableText sets the "text" field if the given value is not nil.
-func (_u *NoteUpdate) SetNillableText(v *string) *NoteUpdate {
-	if v != nil {
-		_u.SetText(*v)
+func (b *NoteUpdate) Set[T any](column ent.ColumnOf[entity.Note, T], value T) *NoteUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// ClearText clears the value of the "text" field.
-func (_u *NoteUpdate) ClearText() *NoteUpdate {
-	_u.mutation.ClearText()
-	return _u
+	return b
 }
-
-// SetParentID sets the "parent" edge to the Note entity by ID.
-func (_u *NoteUpdate) SetParentID(id schema.NoteID) *NoteUpdate {
-	_u.mutation.SetParentID(id)
-	return _u
-}
-
-// SetNillableParentID sets the "parent" edge to the Note entity by ID if the given value is not nil.
-func (_u *NoteUpdate) SetNillableParentID(id *schema.NoteID) *NoteUpdate {
-	if id != nil {
-		_u = _u.SetParentID(*id)
+func (b *NoteUpdate) SetOptional[T any](column ent.ColumnOf[entity.Note, T], value ent.Option[T]) *NoteUpdate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u
-}
-
-// SetParent sets the "parent" edge to the Note entity.
-func (_u *NoteUpdate) SetParent(v *Note) *NoteUpdate {
-	return _u.SetParentID(v.ID)
-}
-
-// AddChildIDs adds the "children" edge to the Note entity by IDs.
-func (_u *NoteUpdate) AddChildIDs(ids ...schema.NoteID) *NoteUpdate {
-	_u.mutation.AddChildIDs(ids...)
-	return _u
-}
-
-// AddChildren adds the "children" edges to the Note entity.
-func (_u *NoteUpdate) AddChildren(v ...*Note) *NoteUpdate {
-	ids := make([]schema.NoteID, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
 	}
-	return _u.AddChildIDs(ids...)
+	return b
 }
-
-// Mutation returns the NoteMutation object of the builder.
-func (_u *NoteUpdate) Mutation() *NoteMutation {
-	return _u.mutation
-}
-
-// ClearParent clears the "parent" edge to the Note entity.
-func (_u *NoteUpdate) ClearParent() *NoteUpdate {
-	_u.mutation.ClearParent()
-	return _u
-}
-
-// ClearChildren clears all "children" edges to the Note entity.
-func (_u *NoteUpdate) ClearChildren() *NoteUpdate {
-	_u.mutation.ClearChildren()
-	return _u
-}
-
-// RemoveChildIDs removes the "children" edge to Note entities by IDs.
-func (_u *NoteUpdate) RemoveChildIDs(ids ...schema.NoteID) *NoteUpdate {
-	_u.mutation.RemoveChildIDs(ids...)
-	return _u
-}
-
-// RemoveChildren removes "children" edges to Note entities.
-func (_u *NoteUpdate) RemoveChildren(v ...*Note) *NoteUpdate {
-	ids := make([]schema.NoteID, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+func (b *NoteUpdate) SetExpr[T any](column ent.ColumnOf[entity.Note, T], value ent.Expr[T]) *NoteUpdate {
+	if b.err != nil {
+		return b
 	}
-	return _u.RemoveChildIDs(ids...)
+	switch column.Ref().Name {
+
+	case note.FieldText:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Note is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *NoteUpdate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Note, N, K], id K) *NoteUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *NoteUpdate) AddIDs[N, K any](edge ent.Relation[entity.Note, N, K], ids ...K) *NoteUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *NoteUpdate) Mutation() *NoteMutation { return b.mutation }
+
+func (b *NoteUpdate) Patch() *NotePatch             { return b.mutation.patch }
+func (b *NoteUpdate) Apply(p NotePatch) *NoteUpdate { b.mutation.patch.apply(p); return b }
+func (b *NoteUpdate) Add[T ent.Number](column ent.ColumnOf[entity.Note, T], delta T) *NoteUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *NoteUpdate) Append[T any](column ent.ColumnOf[entity.Note, T], values T) *NoteUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *NoteUpdate) Clear[T any](column ent.ColumnOf[entity.Note, T]) *NoteUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *NoteUpdate) RemoveIDs[N, K any](edge ent.Relation[entity.Note, N, K], ids ...K) *NoteUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *NoteUpdate) ClearEdge[N, K any](edge ent.RelationOf[entity.Note, N, K]) *NoteUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// Save executes the query and returns the number of nodes affected by the update operation.
-func (_u *NoteUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
+func (b *NoteUpdate) Where(predicates ...ent.Predicate[entity.Note]) *NoteUpdate {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_u *NoteUpdate) SaveX(ctx context.Context) int {
-	affected, err := _u.Save(ctx)
+func (b *NoteUpdate) Save(ctx context.Context) (int, error) {
+	if b.err != nil {
+		return 0, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return 0, err
+	}
+	return b.sqlSave(ctx)
+}
+
+func (b *NoteUpdate) SaveX(ctx context.Context) int {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return affected
+	return result
 }
 
-// Exec executes the query.
-func (_u *NoteUpdate) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *NoteUpdate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *NoteUpdate) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *NoteUpdate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
+func (b *NoteUpdate) Returning(ctx context.Context) ([]*Note, error) {
+	nodes := make([]*Note, 0)
+	b.returning = &sqlgraph.Returning{Columns: note.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Note{config: b.config}
+		values, err := _node.scanValues(note.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(note.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Save(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
+}
+
+func (b *NoteUpdate) defaults() error {
+
+	return nil
+}
+
+func (b *NoteUpdate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *NoteUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *NoteUpdate {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *NoteUpdate) sqlSave(ctx context.Context) (_node int, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(note.Table, note.Columns, sqlgraph.NewFieldSpec(note.FieldID, field.TypeString))
 	if ps := _u.mutation.Predicates(); len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -153,13 +208,13 @@ func (_u *NoteUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.Text(); ok {
+	if value, ok := _u.mutation.patch.Text.Get(); ok {
 		_spec.SetField(note.FieldText, field.TypeString, value)
 	}
-	if _u.mutation.TextCleared() {
+	if _u.mutation.patch.Text.IsNull() {
 		_spec.ClearField(note.FieldText, field.TypeString)
 	}
-	if _u.mutation.ParentCleared() {
+	if _u.mutation.patch.ParentID.IsNull() || _u.mutation.patch.clearedEdges[note.EdgeParent] {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -172,7 +227,7 @@ func (_u *NoteUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.ParentIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.parentIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -183,12 +238,17 @@ func (_u *NoteUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(note.FieldID, field.TypeString),
 			},
 		}
+		seen := make(map[schema2.NoteID]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
-	if _u.mutation.ChildrenCleared() {
+	if _u.mutation.patch.Children.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -201,7 +261,7 @@ func (_u *NoteUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.RemovedChildrenIDs(); len(nodes) > 0 && !_u.mutation.ChildrenCleared() {
+	if nodes := _u.mutation.patch.Children.Remove; len(nodes) > 0 && !_u.mutation.patch.Children.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -212,12 +272,17 @@ func (_u *NoteUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(note.FieldID, field.TypeString),
 			},
 		}
+		seen := make(map[schema2.NoteID]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.ChildrenIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.childrenIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -228,11 +293,22 @@ func (_u *NoteUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(note.FieldID, field.TypeString),
 			},
 		}
+		seen := make(map[schema2.NoteID]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	_spec.Returning = _u.returning
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{note.Label}
@@ -241,145 +317,191 @@ func (_u *NoteUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		return 0, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }
 
-// NoteUpdateOne is the builder for updating a single Note entity.
 type NoteUpdateOne struct {
 	config
-	fields   []string
-	hooks    []Hook
 	mutation *NoteMutation
+	err      error
+
+	fields []string
+	old    *Note
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// SetText sets the "text" field.
-func (_u *NoteUpdateOne) SetText(v string) *NoteUpdateOne {
-	_u.mutation.SetText(v)
-	return _u
-}
-
-// SetNillableText sets the "text" field if the given value is not nil.
-func (_u *NoteUpdateOne) SetNillableText(v *string) *NoteUpdateOne {
-	if v != nil {
-		_u.SetText(*v)
+func (b *NoteUpdateOne) Set[T any](column ent.ColumnOf[entity.Note, T], value T) *NoteUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// ClearText clears the value of the "text" field.
-func (_u *NoteUpdateOne) ClearText() *NoteUpdateOne {
-	_u.mutation.ClearText()
-	return _u
+	return b
 }
-
-// SetParentID sets the "parent" edge to the Note entity by ID.
-func (_u *NoteUpdateOne) SetParentID(id schema.NoteID) *NoteUpdateOne {
-	_u.mutation.SetParentID(id)
-	return _u
-}
-
-// SetNillableParentID sets the "parent" edge to the Note entity by ID if the given value is not nil.
-func (_u *NoteUpdateOne) SetNillableParentID(id *schema.NoteID) *NoteUpdateOne {
-	if id != nil {
-		_u = _u.SetParentID(*id)
+func (b *NoteUpdateOne) SetOptional[T any](column ent.ColumnOf[entity.Note, T], value ent.Option[T]) *NoteUpdateOne {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u
-}
-
-// SetParent sets the "parent" edge to the Note entity.
-func (_u *NoteUpdateOne) SetParent(v *Note) *NoteUpdateOne {
-	return _u.SetParentID(v.ID)
-}
-
-// AddChildIDs adds the "children" edge to the Note entity by IDs.
-func (_u *NoteUpdateOne) AddChildIDs(ids ...schema.NoteID) *NoteUpdateOne {
-	_u.mutation.AddChildIDs(ids...)
-	return _u
-}
-
-// AddChildren adds the "children" edges to the Note entity.
-func (_u *NoteUpdateOne) AddChildren(v ...*Note) *NoteUpdateOne {
-	ids := make([]schema.NoteID, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
 	}
-	return _u.AddChildIDs(ids...)
+	return b
 }
-
-// Mutation returns the NoteMutation object of the builder.
-func (_u *NoteUpdateOne) Mutation() *NoteMutation {
-	return _u.mutation
-}
-
-// ClearParent clears the "parent" edge to the Note entity.
-func (_u *NoteUpdateOne) ClearParent() *NoteUpdateOne {
-	_u.mutation.ClearParent()
-	return _u
-}
-
-// ClearChildren clears all "children" edges to the Note entity.
-func (_u *NoteUpdateOne) ClearChildren() *NoteUpdateOne {
-	_u.mutation.ClearChildren()
-	return _u
-}
-
-// RemoveChildIDs removes the "children" edge to Note entities by IDs.
-func (_u *NoteUpdateOne) RemoveChildIDs(ids ...schema.NoteID) *NoteUpdateOne {
-	_u.mutation.RemoveChildIDs(ids...)
-	return _u
-}
-
-// RemoveChildren removes "children" edges to Note entities.
-func (_u *NoteUpdateOne) RemoveChildren(v ...*Note) *NoteUpdateOne {
-	ids := make([]schema.NoteID, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+func (b *NoteUpdateOne) SetExpr[T any](column ent.ColumnOf[entity.Note, T], value ent.Expr[T]) *NoteUpdateOne {
+	if b.err != nil {
+		return b
 	}
-	return _u.RemoveChildIDs(ids...)
+	switch column.Ref().Name {
+
+	case note.FieldText:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Note is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *NoteUpdateOne) SetEdge[N, K any](edge ent.UniqueRelation[entity.Note, N, K], id K) *NoteUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *NoteUpdateOne) AddIDs[N, K any](edge ent.Relation[entity.Note, N, K], ids ...K) *NoteUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *NoteUpdateOne) Mutation() *NoteMutation { return b.mutation }
+
+func (b *NoteUpdateOne) Patch() *NotePatch                { return b.mutation.patch }
+func (b *NoteUpdateOne) Apply(p NotePatch) *NoteUpdateOne { b.mutation.patch.apply(p); return b }
+func (b *NoteUpdateOne) Add[T ent.Number](column ent.ColumnOf[entity.Note, T], delta T) *NoteUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *NoteUpdateOne) Append[T any](column ent.ColumnOf[entity.Note, T], values T) *NoteUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *NoteUpdateOne) Clear[T any](column ent.ColumnOf[entity.Note, T]) *NoteUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *NoteUpdateOne) RemoveIDs[N, K any](edge ent.Relation[entity.Note, N, K], ids ...K) *NoteUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *NoteUpdateOne) ClearEdge[N, K any](edge ent.RelationOf[entity.Note, N, K]) *NoteUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// Where appends a list predicates to the NoteUpdate builder.
-func (_u *NoteUpdateOne) Where(ps ...predicate.Note) *NoteUpdateOne {
-	_u.mutation.Where(ps...)
-	return _u
+func (b *NoteUpdateOne) Where(predicates ...ent.Predicate[entity.Note]) *NoteUpdateOne {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Select allows selecting one or more fields (columns) of the returned entity.
-// The default is selecting all fields defined in the entity schema.
-func (_u *NoteUpdateOne) Select(field string, fields ...string) *NoteUpdateOne {
-	_u.fields = append([]string{field}, fields...)
-	return _u
+func (b *NoteUpdateOne) Save(ctx context.Context) (*Note, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Save executes the query and returns the updated Note entity.
-func (_u *NoteUpdateOne) Save(ctx context.Context) (*Note, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *NoteUpdateOne) SaveX(ctx context.Context) *Note {
-	node, err := _u.Save(ctx)
+func (b *NoteUpdateOne) SaveX(ctx context.Context) *Note {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return node
+	return result
 }
 
-// Exec executes the query on the entity.
-func (_u *NoteUpdateOne) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *NoteUpdateOne) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *NoteUpdateOne) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *NoteUpdateOne) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
+func (b *NoteUpdateOne) Select(columns ...ent.EntityColumn[entity.Note]) *NoteUpdateOne {
+	if len(columns) == 0 {
+		panic("ent: Select requires at least one column")
+	}
+	b.fields = make([]string, len(columns))
+	for index, column := range columns {
+		b.fields[index] = column.Ref().Name
+	}
+	return b
+}
+
+func (b *NoteUpdateOne) SaveOld(ctx context.Context) (old *Note, updated *Note, err error) {
+	if !b.driver.Capabilities().ReturningOld {
+		return nil, nil, &dialect.UnsupportedError{Feature: "RETURNING OLD", Dialect: dialect.Dialect(b.driver.Dialect())}
+	}
+	b.old = &Note{config: b.config}
+	defer func() { b.old = nil }()
+	updated, err = b.Save(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return b.old, updated, nil
+}
+
+func (b *NoteUpdateOne) defaults() error {
+
+	return nil
+}
+
+func (b *NoteUpdateOne) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *NoteUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *NoteUpdateOne {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *NoteUpdateOne) sqlSave(ctx context.Context) (_node *Note, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(note.Table, note.Columns, sqlgraph.NewFieldSpec(note.FieldID, field.TypeString))
 	id, ok := _u.mutation.ID()
 	if !ok {
@@ -405,13 +527,13 @@ func (_u *NoteUpdateOne) sqlSave(ctx context.Context) (_node *Note, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.Text(); ok {
+	if value, ok := _u.mutation.patch.Text.Get(); ok {
 		_spec.SetField(note.FieldText, field.TypeString, value)
 	}
-	if _u.mutation.TextCleared() {
+	if _u.mutation.patch.Text.IsNull() {
 		_spec.ClearField(note.FieldText, field.TypeString)
 	}
-	if _u.mutation.ParentCleared() {
+	if _u.mutation.patch.ParentID.IsNull() || _u.mutation.patch.clearedEdges[note.EdgeParent] {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -424,7 +546,7 @@ func (_u *NoteUpdateOne) sqlSave(ctx context.Context) (_node *Note, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.ParentIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.parentIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -435,12 +557,17 @@ func (_u *NoteUpdateOne) sqlSave(ctx context.Context) (_node *Note, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(note.FieldID, field.TypeString),
 			},
 		}
+		seen := make(map[schema2.NoteID]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
-	if _u.mutation.ChildrenCleared() {
+	if _u.mutation.patch.Children.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -453,7 +580,7 @@ func (_u *NoteUpdateOne) sqlSave(ctx context.Context) (_node *Note, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.RemovedChildrenIDs(); len(nodes) > 0 && !_u.mutation.ChildrenCleared() {
+	if nodes := _u.mutation.patch.Children.Remove; len(nodes) > 0 && !_u.mutation.patch.Children.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -464,12 +591,17 @@ func (_u *NoteUpdateOne) sqlSave(ctx context.Context) (_node *Note, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(note.FieldID, field.TypeString),
 			},
 		}
+		seen := make(map[schema2.NoteID]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.ChildrenIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.childrenIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -480,14 +612,28 @@ func (_u *NoteUpdateOne) sqlSave(ctx context.Context) (_node *Note, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(note.FieldID, field.TypeString),
 			},
 		}
+		seen := make(map[schema2.NoteID]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	_node = &Note{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
+	if _u.old != nil {
+		_spec.OldScanValues = _u.old.scanValues
+		_spec.OldAssign = _u.old.assignValues
+	}
 	if err = sqlgraph.UpdateNode(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{note.Label}
@@ -496,6 +642,5 @@ func (_u *NoteUpdateOne) sqlSave(ctx context.Context) (_node *Note, err error) {
 		}
 		return nil, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }

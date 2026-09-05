@@ -10,63 +10,136 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/relationshipinfo"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// RelationshipInfoCreate is the builder for creating a RelationshipInfo entity.
 type RelationshipInfoCreate struct {
 	config
-	mutation *RelationshipInfoMutation
-	hooks    []Hook
+	mutation    *RelationshipInfoMutation
+	err         error
+	fromBuilder bool
+	present     map[string]struct{}
+
 	conflict []sql.ConflictOption
 }
 
-// SetText sets the "text" field.
-func (_c *RelationshipInfoCreate) SetText(v string) *RelationshipInfoCreate {
-	_c.mutation.SetText(v)
-	return _c
+func (b *RelationshipInfoCreate) Set[T any](column ent.ColumnOf[entity.RelationshipInfo, T], value T) *RelationshipInfoCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.set(column.Ref().Name, value)
+	}
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+}
+func (b *RelationshipInfoCreate) SetOptional[T any](column ent.ColumnOf[entity.RelationshipInfo, T], value ent.Option[T]) *RelationshipInfoCreate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.insert.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *RelationshipInfoCreate) SetExpr[T any](column ent.ColumnOf[entity.RelationshipInfo, T], value ent.Expr[T]) *RelationshipInfoCreate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case relationshipinfo.FieldText:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of RelationshipInfo is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.insert.setExpr(column.Ref().Name, value.Render)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+
+}
+func (b *RelationshipInfoCreate) SetEdge[N, K any](edge ent.UniqueRelation[entity.RelationshipInfo, N, K], id K) *RelationshipInfoCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.setEdge(edge.Ref().Name, id)
+	}
+
+	switch edge.Ref().Name {
+
+	}
+
+	return b
+}
+func (b *RelationshipInfoCreate) AddIDs[N, K any](edge ent.Relation[entity.RelationshipInfo, N, K], ids ...K) *RelationshipInfoCreate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.insert.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *RelationshipInfoCreate) Mutation() *RelationshipInfoMutation { return b.mutation }
+
+func (b *RelationshipInfoCreate) Insert() *RelationshipInfoInsert { return b.mutation.insert }
+
+func (b *RelationshipInfoCreate) Save(ctx context.Context) (*RelationshipInfo, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Mutation returns the RelationshipInfoMutation object of the builder.
-func (_c *RelationshipInfoCreate) Mutation() *RelationshipInfoMutation {
-	return _c.mutation
-}
-
-// Save creates the RelationshipInfo in the database.
-func (_c *RelationshipInfoCreate) Save(ctx context.Context) (*RelationshipInfo, error) {
-	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
-}
-
-// SaveX calls Save and panics if Save returns an error.
-func (_c *RelationshipInfoCreate) SaveX(ctx context.Context) *RelationshipInfo {
-	v, err := _c.Save(ctx)
+func (b *RelationshipInfoCreate) SaveX(ctx context.Context) *RelationshipInfo {
+	node, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return node
 }
 
-// Exec executes the query.
-func (_c *RelationshipInfoCreate) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *RelationshipInfoCreate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *RelationshipInfoCreate) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *RelationshipInfoCreate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_c *RelationshipInfoCreate) check() error {
-	if _, ok := _c.mutation.Text(); !ok {
-		return &ValidationError{Name: "text", err: errors.New(`ent: missing required field "RelationshipInfo.text"`)}
+func (b *RelationshipInfoCreate) defaults() error {
+
+	return nil
+}
+
+func (b *RelationshipInfoCreate) check() error {
+	if b.err != nil {
+		return b.err
 	}
+
+	switch b.driver.Dialect() {
+	case dialect.Postgres, dialect.SQLite:
+		if _, present := b.present[relationshipinfo.FieldText]; b.fromBuilder && !present {
+			return &ValidationError{Name: "text", err: errors.New(`ent: missing required field "RelationshipInfo.text"`)}
+		}
+	}
+
 	return nil
 }
 
@@ -74,173 +147,161 @@ func (_c *RelationshipInfoCreate) sqlSave(ctx context.Context) (*RelationshipInf
 	if err := _c.check(); err != nil {
 		return nil, err
 	}
-	_node, _spec := _c.createSpec()
-	if err := sqlgraph.CreateNode(ctx, _c.driver, _spec); err != nil {
+	node, spec, err := _c.createSpec()
+	if err != nil {
+		return nil, err
+	}
+	if err := sqlgraph.CreateNode(ctx, _c.driver, spec); err != nil {
 		if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
 		return nil, err
 	}
-	id := _spec.ID.Value.(int64)
-	_node.ID = int(id)
-	_c.mutation.id = &_node.ID
-	_c.mutation.done = true
-	return _node, nil
+	_c.mutation.id = &node.ID
+	return node, nil
 }
 
-func (_c *RelationshipInfoCreate) createSpec() (*RelationshipInfo, *sqlgraph.CreateSpec) {
-	var (
-		_node = &RelationshipInfo{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(relationshipinfo.Table, sqlgraph.NewFieldSpec(relationshipinfo.FieldID, field.TypeInt))
-	)
+func (_c *RelationshipInfoCreate) createSpec() (*RelationshipInfo, *sqlgraph.CreateSpec, error) {
+	_node := &RelationshipInfo{config: _c.config}
+	_spec := sqlgraph.NewCreateSpec(relationshipinfo.Table, sqlgraph.NewFieldSpec(relationshipinfo.FieldID, field.TypeInt))
+
 	_spec.OnConflict = _c.conflict
-	if value, ok := _c.mutation.Text(); ok {
+
+	if _, present := _c.present[relationshipinfo.FieldText]; !_c.fromBuilder || present {
+		value := _c.mutation.insert.Text
 		_spec.SetField(relationshipinfo.FieldText, field.TypeString, value)
-		_node.Text = value
-	}
-	return _node, _spec
-}
-
-// OnConflict allows configuring the `ON CONFLICT` clause of the `INSERT`
-// statement. For example:
-//
-//	client.RelationshipInfo.Create().
-//		SetText(v).
-//		OnConflict(
-//			// Update the row with the new values
-//			// the was proposed for insertion.
-//			sql.ResolveWithNewValues(),
-//		).
-//		// Override some of the fields with custom
-//		// update values.
-//		Update(func(u *ent.RelationshipInfoUpsert) {
-//			SetText(v+v).
-//		}).
-//		Exec(ctx)
-func (_c *RelationshipInfoCreate) OnConflict(opts ...sql.ConflictOption) *RelationshipInfoUpsertOne {
-	_c.conflict = opts
-	return &RelationshipInfoUpsertOne{
-		create: _c,
-	}
-}
-
-// OnConflictColumns calls `OnConflict` and configures the columns
-// as conflict target. Using this option is equivalent to using:
-//
-//	client.RelationshipInfo.Create().
-//		OnConflict(sql.ConflictColumns(columns...)).
-//		Exec(ctx)
-func (_c *RelationshipInfoCreate) OnConflictColumns(columns ...string) *RelationshipInfoUpsertOne {
-	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
-	return &RelationshipInfoUpsertOne{
-		create: _c,
-	}
-}
-
-type (
-	// RelationshipInfoUpsertOne is the builder for "upsert"-ing
-	//  one RelationshipInfo node.
-	RelationshipInfoUpsertOne struct {
-		create *RelationshipInfoCreate
 	}
 
-	// RelationshipInfoUpsert is the "OnConflict" setter.
-	RelationshipInfoUpsert struct {
-		*sql.UpdateSet
+	_spec.Expressions = _c.mutation.insert.expressions
+
+	_spec.Returning = &sqlgraph.Returning{Columns: relationshipinfo.Columns, Scan: func(rows dialect.Rows) error {
+		values, err := _node.scanValues(relationshipinfo.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(relationshipinfo.Columns, values); err != nil {
+			return err
+		}
+
+		_spec.ID.Value = _node.ID
+
+		return nil
+	}}
+	return _node, _spec, nil
+}
+
+type RelationshipInfoUpsertOne struct{ create *RelationshipInfoCreate }
+
+func (b *RelationshipInfoCreate) OnConflict(columns ...ent.EntityColumn[entity.RelationshipInfo]) *RelationshipInfoUpsertOne {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
 	}
-)
-
-// SetText sets the "text" field.
-func (u *RelationshipInfoUpsert) SetText(v string) *RelationshipInfoUpsert {
-	u.Set(relationshipinfo.FieldText, v)
-	return u
+	if len(names) == 0 {
+		return b.OnConflictOptions()
+	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
 }
 
-// UpdateText sets the "text" field to the value that was provided on create.
-func (u *RelationshipInfoUpsert) UpdateText() *RelationshipInfoUpsert {
-	u.SetExcluded(relationshipinfo.FieldText)
-	return u
+func (b *RelationshipInfoCreate) OnConflictConstraint(name string) *RelationshipInfoUpsertOne {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
 }
 
-// UpdateNewValues updates the mutable fields using the new values that were set on create.
-// Using this option is equivalent to using:
-//
-//	client.RelationshipInfo.Create().
-//		OnConflict(
-//			sql.ResolveWithNewValues(),
-//		).
-//		Exec(ctx)
-func (u *RelationshipInfoUpsertOne) UpdateNewValues() *RelationshipInfoUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
-	return u
+func (b *RelationshipInfoCreate) OnConflictOptions(options ...sql.ConflictOption) *RelationshipInfoUpsertOne {
+	b.conflict = options
+	return &RelationshipInfoUpsertOne{create: b}
 }
 
-// Ignore sets each column to itself in case of conflict.
-// Using this option is equivalent to using:
-//
-//	client.RelationshipInfo.Create().
-//	    OnConflict(sql.ResolveWithIgnore()).
-//	    Exec(ctx)
-func (u *RelationshipInfoUpsertOne) Ignore() *RelationshipInfoUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
-	return u
-}
-
-// DoNothing configures the conflict_action to `DO NOTHING`.
-// Supported only by SQLite and PostgreSQL.
 func (u *RelationshipInfoUpsertOne) DoNothing() *RelationshipInfoUpsertOne {
 	u.create.conflict = append(u.create.conflict, sql.DoNothing())
 	return u
 }
 
-// Update allows overriding fields `UPDATE` values. See the RelationshipInfoCreate.OnConflict
-// documentation for more info.
-func (u *RelationshipInfoUpsertOne) Update(set func(*RelationshipInfoUpsert)) *RelationshipInfoUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
-		set(&RelationshipInfoUpsert{UpdateSet: update})
+func (u *RelationshipInfoUpsertOne) DoSelect() *RelationshipInfoUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *RelationshipInfoUpsertOne) Ignore() *RelationshipInfoUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *RelationshipInfoUpsertOne) DoUpdate(set func(*RelationshipInfoUpsert)) *RelationshipInfoUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&RelationshipInfoUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *RelationshipInfoUpsertOne) UpdateNewValues() *RelationshipInfoUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case relationshipinfo.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
 	}))
 	return u
 }
 
-// SetText sets the "text" field.
-func (u *RelationshipInfoUpsertOne) SetText(v string) *RelationshipInfoUpsertOne {
-	return u.Update(func(s *RelationshipInfoUpsert) {
-		s.SetText(v)
-	})
+func (u *RelationshipInfoUpsertOne) Where(predicates ...ent.Predicate[entity.RelationshipInfo]) *RelationshipInfoUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(relationshipinfo.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// UpdateText sets the "text" field to the value that was provided on create.
-func (u *RelationshipInfoUpsertOne) UpdateText() *RelationshipInfoUpsertOne {
-	return u.Update(func(s *RelationshipInfoUpsert) {
-		s.UpdateText()
-	})
+func (u *RelationshipInfoUpsertOne) UpdateWhere(predicates ...ent.Predicate[entity.RelationshipInfo]) *RelationshipInfoUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(relationshipinfo.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// Exec executes the query.
-func (u *RelationshipInfoUpsertOne) Exec(ctx context.Context) error {
+func (u *RelationshipInfoUpsertOne) Save(ctx context.Context) (*RelationshipInfo, error) {
 	if len(u.create.conflict) == 0 {
-		return errors.New("ent: missing options for RelationshipInfoCreate.OnConflict")
+		return nil, errors.New("ent: missing options for RelationshipInfoCreate.OnConflict")
 	}
-	return u.create.Exec(ctx)
+	return u.create.Save(ctx)
 }
 
-// ExecX is like Exec, but panics if an error occurs.
+func (u *RelationshipInfoUpsertOne) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
 func (u *RelationshipInfoUpsertOne) ExecX(ctx context.Context) {
-	if err := u.create.Exec(ctx); err != nil {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// Exec executes the UPSERT query and returns the inserted/updated ID.
 func (u *RelationshipInfoUpsertOne) ID(ctx context.Context) (id int, err error) {
-	node, err := u.create.Save(ctx)
+	node, err := u.Save(ctx)
 	if err != nil {
 		return id, err
 	}
 	return node.ID, nil
 }
 
-// IDX is like ID, but panics if an error occurs.
 func (u *RelationshipInfoUpsertOne) IDX(ctx context.Context) int {
 	id, err := u.ID(ctx)
 	if err != nil {
@@ -249,209 +310,232 @@ func (u *RelationshipInfoUpsertOne) IDX(ctx context.Context) int {
 	return id
 }
 
-// RelationshipInfoCreateBulk is the builder for creating many RelationshipInfo entities in bulk.
+type RelationshipInfoUpsert struct{ *sql.UpdateSet }
+
+func (u *RelationshipInfoUpsert) Set[T any](column ent.ColumnOf[entity.RelationshipInfo, T], value T) *RelationshipInfoUpsert {
+	switch column.Ref().Name {
+
+	case relationshipinfo.FieldText:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of RelationshipInfo is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *RelationshipInfoUpsert) SetExpr[T any](column ent.ColumnOf[entity.RelationshipInfo, T], value ent.Expr[T]) *RelationshipInfoUpsert {
+	switch column.Ref().Name {
+
+	case relationshipinfo.FieldText:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of RelationshipInfo is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *RelationshipInfoUpsert) UpdateNewValue[T any](column ent.ColumnOf[entity.RelationshipInfo, T]) *RelationshipInfoUpsert {
+	switch column.Ref().Name {
+
+	case relationshipinfo.FieldText:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of RelationshipInfo is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *RelationshipInfoUpsert) Add[T ent.Number](column ent.ColumnOf[entity.RelationshipInfo, T], delta T) *RelationshipInfoUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of RelationshipInfo does not support addition", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *RelationshipInfoUpsert) Clear[T any](column ent.ColumnOf[entity.RelationshipInfo, T]) *RelationshipInfoUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of RelationshipInfo is not nullable", column.Ref().Name)})
+	}
+	return u
+}
+
 type RelationshipInfoCreateBulk struct {
 	config
 	err      error
 	builders []*RelationshipInfoCreate
+
 	conflict []sql.ConflictOption
 }
 
-// Save creates the RelationshipInfo entities in the database.
 func (_c *RelationshipInfoCreateBulk) Save(ctx context.Context) ([]*RelationshipInfo, error) {
 	if _c.err != nil {
 		return nil, _c.err
 	}
-	specs := make([]*sqlgraph.CreateSpec, len(_c.builders))
 	nodes := make([]*RelationshipInfo, len(_c.builders))
-	mutators := make([]Mutator, len(_c.builders))
-	for i := range _c.builders {
-		func(i int, root context.Context) {
-			builder := _c.builders[i]
-			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*RelationshipInfoMutation)
-				if !ok {
-					return nil, fmt.Errorf("unexpected mutation type %T", m)
-				}
-				if err := builder.check(); err != nil {
-					return nil, err
-				}
-				builder.mutation = mutation
-				var err error
-				nodes[i], specs[i] = builder.createSpec()
-				if i < len(mutators)-1 {
-					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
-				} else {
-					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
-					spec.OnConflict = _c.conflict
-					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
-						if sqlgraph.IsConstraintError(err) {
-							err = &ConstraintError{msg: err.Error(), wrap: err}
-						}
-					}
-				}
-				if err != nil {
-					return nil, err
-				}
-				mutation.id = &nodes[i].ID
-				if specs[i].ID.Value != nil {
-					id := specs[i].ID.Value.(int64)
-					nodes[i].ID = int(id)
-				}
-				mutation.done = true
-				return nodes[i], nil
-			})
-			for i := len(builder.hooks) - 1; i >= 0; i-- {
-				mut = builder.hooks[i](mut)
-			}
-			mutators[i] = mut
-		}(i, ctx)
-	}
-	if len(mutators) > 0 {
-		if _, err := mutators[0].Mutate(ctx, _c.builders[0].mutation); err != nil {
+	specs := make([]*sqlgraph.CreateSpec, len(nodes))
+	for index, builder := range _c.builders {
+		if builder.err != nil {
+			return nil, builder.err
+		}
+		if err := builder.defaults(); err != nil {
+			return nil, err
+		}
+		if err := builder.check(); err != nil {
+			return nil, err
+		}
+		var err error
+		nodes[index], specs[index], err = builder.createSpec()
+		if err != nil {
 			return nil, err
 		}
 	}
-	return nodes, nil
+	if len(specs) == 0 {
+		return nodes, nil
+	}
+	spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+
+	spec.OnConflict = _c.conflict
+
+	if err := sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
+		if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{msg: err.Error(), wrap: err}
+		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
+		return nil, err
+	}
+	result := nodes[:0]
+	for index, builder := range _c.builders {
+		if specs[index].Skipped {
+			continue
+		}
+		builder.mutation.id = &nodes[index].ID
+		result = append(result, nodes[index])
+	}
+	return result, nil
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_c *RelationshipInfoCreateBulk) SaveX(ctx context.Context) []*RelationshipInfo {
-	v, err := _c.Save(ctx)
+func (b *RelationshipInfoCreateBulk) SaveX(ctx context.Context) []*RelationshipInfo {
+	nodes, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return nodes
 }
 
-// Exec executes the query.
-func (_c *RelationshipInfoCreateBulk) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
+func (b *RelationshipInfoCreateBulk) Exec(ctx context.Context) error {
+	_, err := b.Save(ctx)
 	return err
 }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *RelationshipInfoCreateBulk) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *RelationshipInfoCreateBulk) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// OnConflict allows configuring the `ON CONFLICT` clause of the `INSERT`
-// statement. For example:
-//
-//	client.RelationshipInfo.CreateBulk(builders...).
-//		OnConflict(
-//			// Update the row with the new values
-//			// the was proposed for insertion.
-//			sql.ResolveWithNewValues(),
-//		).
-//		// Override some of the fields with custom
-//		// update values.
-//		Update(func(u *ent.RelationshipInfoUpsert) {
-//			SetText(v+v).
-//		}).
-//		Exec(ctx)
-func (_c *RelationshipInfoCreateBulk) OnConflict(opts ...sql.ConflictOption) *RelationshipInfoUpsertBulk {
-	_c.conflict = opts
-	return &RelationshipInfoUpsertBulk{
-		create: _c,
+type RelationshipInfoUpsertBulk struct{ create *RelationshipInfoCreateBulk }
+
+func (b *RelationshipInfoCreateBulk) OnConflict(columns ...ent.EntityColumn[entity.RelationshipInfo]) *RelationshipInfoUpsertBulk {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
 	}
-}
-
-// OnConflictColumns calls `OnConflict` and configures the columns
-// as conflict target. Using this option is equivalent to using:
-//
-//	client.RelationshipInfo.Create().
-//		OnConflict(sql.ConflictColumns(columns...)).
-//		Exec(ctx)
-func (_c *RelationshipInfoCreateBulk) OnConflictColumns(columns ...string) *RelationshipInfoUpsertBulk {
-	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
-	return &RelationshipInfoUpsertBulk{
-		create: _c,
+	if len(names) == 0 {
+		return b.OnConflictOptions()
 	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
 }
 
-// RelationshipInfoUpsertBulk is the builder for "upsert"-ing
-// a bulk of RelationshipInfo nodes.
-type RelationshipInfoUpsertBulk struct {
-	create *RelationshipInfoCreateBulk
+func (b *RelationshipInfoCreateBulk) OnConflictConstraint(name string) *RelationshipInfoUpsertBulk {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
 }
 
-// UpdateNewValues updates the mutable fields using the new values that
-// were set on create. Using this option is equivalent to using:
-//
-//	client.RelationshipInfo.Create().
-//		OnConflict(
-//			sql.ResolveWithNewValues(),
-//		).
-//		Exec(ctx)
-func (u *RelationshipInfoUpsertBulk) UpdateNewValues() *RelationshipInfoUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
-	return u
+func (b *RelationshipInfoCreateBulk) OnConflictOptions(options ...sql.ConflictOption) *RelationshipInfoUpsertBulk {
+	b.conflict = options
+	return &RelationshipInfoUpsertBulk{create: b}
 }
 
-// Ignore sets each column to itself in case of conflict.
-// Using this option is equivalent to using:
-//
-//	client.RelationshipInfo.Create().
-//		OnConflict(sql.ResolveWithIgnore()).
-//		Exec(ctx)
-func (u *RelationshipInfoUpsertBulk) Ignore() *RelationshipInfoUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
-	return u
-}
-
-// DoNothing configures the conflict_action to `DO NOTHING`.
-// Supported only by SQLite and PostgreSQL.
 func (u *RelationshipInfoUpsertBulk) DoNothing() *RelationshipInfoUpsertBulk {
 	u.create.conflict = append(u.create.conflict, sql.DoNothing())
 	return u
 }
 
-// Update allows overriding fields `UPDATE` values. See the RelationshipInfoCreateBulk.OnConflict
-// documentation for more info.
-func (u *RelationshipInfoUpsertBulk) Update(set func(*RelationshipInfoUpsert)) *RelationshipInfoUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
-		set(&RelationshipInfoUpsert{UpdateSet: update})
+func (u *RelationshipInfoUpsertBulk) DoSelect() *RelationshipInfoUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *RelationshipInfoUpsertBulk) Ignore() *RelationshipInfoUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *RelationshipInfoUpsertBulk) DoUpdate(set func(*RelationshipInfoUpsert)) *RelationshipInfoUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&RelationshipInfoUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *RelationshipInfoUpsertBulk) UpdateNewValues() *RelationshipInfoUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case relationshipinfo.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
 	}))
 	return u
 }
 
-// SetText sets the "text" field.
-func (u *RelationshipInfoUpsertBulk) SetText(v string) *RelationshipInfoUpsertBulk {
-	return u.Update(func(s *RelationshipInfoUpsert) {
-		s.SetText(v)
-	})
-}
-
-// UpdateText sets the "text" field to the value that was provided on create.
-func (u *RelationshipInfoUpsertBulk) UpdateText() *RelationshipInfoUpsertBulk {
-	return u.Update(func(s *RelationshipInfoUpsert) {
-		s.UpdateText()
-	})
-}
-
-// Exec executes the query.
-func (u *RelationshipInfoUpsertBulk) Exec(ctx context.Context) error {
-	if u.create.err != nil {
-		return u.create.err
-	}
-	for i, b := range u.create.builders {
-		if len(b.conflict) != 0 {
-			return fmt.Errorf("ent: OnConflict was set for builder %d. Set it on the RelationshipInfoCreateBulk instead", i)
+func (u *RelationshipInfoUpsertBulk) Where(predicates ...ent.Predicate[entity.RelationshipInfo]) *RelationshipInfoUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(relationshipinfo.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
 		}
-	}
-	if len(u.create.conflict) == 0 {
-		return errors.New("ent: missing options for RelationshipInfoCreateBulk.OnConflict")
-	}
-	return u.create.Exec(ctx)
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// ExecX is like Exec, but panics if an error occurs.
+func (u *RelationshipInfoUpsertBulk) UpdateWhere(predicates ...ent.Predicate[entity.RelationshipInfo]) *RelationshipInfoUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(relationshipinfo.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *RelationshipInfoUpsertBulk) Save(ctx context.Context) ([]*RelationshipInfo, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for RelationshipInfoCreateBulk.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *RelationshipInfoUpsertBulk) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
 func (u *RelationshipInfoUpsertBulk) ExecX(ctx context.Context) {
-	if err := u.create.Exec(ctx); err != nil {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

@@ -70,9 +70,7 @@ type Edge struct {
 		{{- with $n.Edges }}
 			var ids []{{ $.IDType }}
 			{{- range $i, $e := $n.Edges }}
-				ids, err = {{ $receiver }}.{{ print "Query" (pascal $e.Name) }}().
-					Select({{ $e.Type.Package }}.FieldID).
-					{{ pascal $.IDType.String }}s(ctx)
+				ids, err = Values(ctx, {{ $receiver }}.{{ print "Query" (pascal $e.Name) }}().Select({{ $e.Type.Package }}.ID), {{ $e.Type.Package }}.ID)
 				if err != nil {
 					return nil, err
 				}
@@ -140,7 +138,7 @@ type (
 	}
 
 	querier interface {
-		Query(ctx context.Context, query string, args, v any) error
+		Query(ctx context.Context, query string, args []any) (dialect.Rows, error)
 	}
 )
 
@@ -175,12 +173,12 @@ func (t *tables) Load(ctx context.Context, querier querier) ([]string, error) {
 {{/* An example of a local helper template. */}}
 {{ define "node/helper/loadtable" }}
 func (*tables) load(ctx context.Context, querier querier) ([]string, error) {
-	rows := &sql.Rows{}
 	query, args := sql.Select("type").
 		From(sql.Table(schema.TypeTable)).
 		OrderBy(sql.Asc("id")).
 		Query()
-	if err := querier.Query(ctx, query, args, rows); err != nil {
+	rows, err := querier.Query(ctx, query, args)
+ if err != nil {
 		return nil, err
 	}
 	defer rows.Close()

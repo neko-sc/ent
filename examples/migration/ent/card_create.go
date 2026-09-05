@@ -9,158 +9,181 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
+	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/examples/migration/ent/card"
+	"github.com/neko-sc/ent/examples/migration/ent/entity"
 	"github.com/neko-sc/ent/examples/migration/ent/payment"
 	"github.com/neko-sc/ent/examples/migration/ent/user"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// CardCreate is the builder for creating a Card entity.
 type CardCreate struct {
 	config
-	mutation *CardMutation
-	hooks    []Hook
+	mutation    *CardMutation
+	err         error
+	fromBuilder bool
+	present     map[string]struct{}
+
+	conflict []sql.ConflictOption
 }
 
-// SetType sets the "type" field.
-func (_c *CardCreate) SetType(v string) *CardCreate {
-	_c.mutation.SetType(v)
-	return _c
-}
-
-// SetNillableType sets the "type" field if the given value is not nil.
-func (_c *CardCreate) SetNillableType(v *string) *CardCreate {
-	if v != nil {
-		_c.SetType(*v)
+func (b *CardCreate) Set[T any](column ent.ColumnOf[entity.Card, T], value T) *CardCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.set(column.Ref().Name, value)
 	}
-	return _c
-}
-
-// SetNumberHash sets the "number_hash" field.
-func (_c *CardCreate) SetNumberHash(v string) *CardCreate {
-	_c.mutation.SetNumberHash(v)
-	return _c
-}
-
-// SetCvvHash sets the "cvv_hash" field.
-func (_c *CardCreate) SetCvvHash(v string) *CardCreate {
-	_c.mutation.SetCvvHash(v)
-	return _c
-}
-
-// SetExpiresAt sets the "expires_at" field.
-func (_c *CardCreate) SetExpiresAt(v time.Time) *CardCreate {
-	_c.mutation.SetExpiresAt(v)
-	return _c
-}
-
-// SetNillableExpiresAt sets the "expires_at" field if the given value is not nil.
-func (_c *CardCreate) SetNillableExpiresAt(v *time.Time) *CardCreate {
-	if v != nil {
-		_c.SetExpiresAt(*v)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
 	}
-	return _c
+	b.present[column.Ref().Name] = struct{}{}
+	return b
 }
-
-// SetOwnerID sets the "owner_id" field.
-func (_c *CardCreate) SetOwnerID(v int) *CardCreate {
-	_c.mutation.SetOwnerID(v)
-	return _c
-}
-
-// SetNillableOwnerID sets the "owner_id" field if the given value is not nil.
-func (_c *CardCreate) SetNillableOwnerID(v *int) *CardCreate {
-	if v != nil {
-		_c.SetOwnerID(*v)
+func (b *CardCreate) SetOptional[T any](column ent.ColumnOf[entity.Card, T], value ent.Option[T]) *CardCreate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.insert.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _c
-}
-
-// SetOwner sets the "owner" edge to the User entity.
-func (_c *CardCreate) SetOwner(v *User) *CardCreate {
-	return _c.SetOwnerID(v.ID)
-}
-
-// AddPaymentIDs adds the "payments" edge to the Payment entity by IDs.
-func (_c *CardCreate) AddPaymentIDs(ids ...int) *CardCreate {
-	_c.mutation.AddPaymentIDs(ids...)
-	return _c
-}
-
-// AddPayments adds the "payments" edges to the Payment entity.
-func (_c *CardCreate) AddPayments(v ...*Payment) *CardCreate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
 	}
-	return _c.AddPaymentIDs(ids...)
+	return b
+}
+func (b *CardCreate) SetExpr[T any](column ent.ColumnOf[entity.Card, T], value ent.Expr[T]) *CardCreate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case card.FieldType:
+
+	case card.FieldNumberHash:
+
+	case card.FieldCvvHash:
+
+	case card.FieldExpiresAt:
+
+	case card.FieldOwnerID:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Card is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.insert.setExpr(column.Ref().Name, value.Render)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+
+}
+func (b *CardCreate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Card, N, K], id K) *CardCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.setEdge(edge.Ref().Name, id)
+	}
+
+	switch edge.Ref().Name {
+	case card.EdgeOwner:
+		if b.present == nil {
+			b.present = make(map[string]struct{})
+		}
+		b.present[card.FieldOwnerID] = struct{}{}
+
+	}
+
+	return b
+}
+func (b *CardCreate) AddIDs[N, K any](edge ent.Relation[entity.Card, N, K], ids ...K) *CardCreate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.insert.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *CardCreate) Mutation() *CardMutation { return b.mutation }
+
+func (b *CardCreate) Insert() *CardInsert { return b.mutation.insert }
+
+func (b *CardCreate) Save(ctx context.Context) (*Card, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Mutation returns the CardMutation object of the builder.
-func (_c *CardCreate) Mutation() *CardMutation {
-	return _c.mutation
-}
-
-// Save creates the Card in the database.
-func (_c *CardCreate) Save(ctx context.Context) (*Card, error) {
-	_c.defaults()
-	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
-}
-
-// SaveX calls Save and panics if Save returns an error.
-func (_c *CardCreate) SaveX(ctx context.Context) *Card {
-	v, err := _c.Save(ctx)
+func (b *CardCreate) SaveX(ctx context.Context) *Card {
+	node, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return node
 }
 
-// Exec executes the query.
-func (_c *CardCreate) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *CardCreate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *CardCreate) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *CardCreate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// defaults sets the default values of the builder before save.
-func (_c *CardCreate) defaults() {
-	if _, ok := _c.mutation.GetType(); !ok {
-		v := card.DefaultType
-		_c.mutation.SetType(v)
+func (b *CardCreate) defaults() error {
+
+	if b.mutation.insert.Type.IsUnset() && b.mutation.insert.expressions[card.FieldType] == nil {
+
+		b.mutation.insert.Type = ent.Some(card.DefaultType)
 	}
-	if _, ok := _c.mutation.OwnerID(); !ok {
-		v := card.DefaultOwnerID
-		_c.mutation.SetOwnerID(v)
+
+	if b.mutation.insert.OwnerID.IsUnset() && b.mutation.insert.expressions[card.FieldOwnerID] == nil {
+
+		b.mutation.insert.OwnerID = ent.Some(card.DefaultOwnerID)
 	}
+
+	return nil
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_c *CardCreate) check() error {
-	if _, ok := _c.mutation.GetType(); !ok {
-		return &ValidationError{Name: "type", err: errors.New(`ent: missing required field "Card.type"`)}
+func (b *CardCreate) check() error {
+	if b.err != nil {
+		return b.err
 	}
-	if _, ok := _c.mutation.NumberHash(); !ok {
-		return &ValidationError{Name: "number_hash", err: errors.New(`ent: missing required field "Card.number_hash"`)}
+
+	if b.mutation.insert.Type.IsNull() {
+		return &ValidationError{Name: "type", err: errors.New(`ent: field "Card.type" is not nullable`)}
 	}
-	if _, ok := _c.mutation.CvvHash(); !ok {
-		return &ValidationError{Name: "cvv_hash", err: errors.New(`ent: missing required field "Card.cvv_hash"`)}
+
+	switch b.driver.Dialect() {
+	case dialect.Postgres, dialect.SQLite:
+		if _, present := b.present[card.FieldNumberHash]; b.fromBuilder && !present {
+			return &ValidationError{Name: "number_hash", err: errors.New(`ent: missing required field "Card.number_hash"`)}
+		}
 	}
-	if _, ok := _c.mutation.OwnerID(); !ok {
-		return &ValidationError{Name: "owner_id", err: errors.New(`ent: missing required field "Card.owner_id"`)}
+
+	switch b.driver.Dialect() {
+	case dialect.Postgres, dialect.SQLite:
+		if _, present := b.present[card.FieldCvvHash]; b.fromBuilder && !present {
+			return &ValidationError{Name: "cvv_hash", err: errors.New(`ent: missing required field "Card.cvv_hash"`)}
+		}
 	}
-	if len(_c.mutation.OwnerIDs()) == 0 {
+
+	if b.mutation.insert.OwnerID.IsNull() {
+		return &ValidationError{Name: "owner_id", err: errors.New(`ent: field "Card.owner_id" is not nullable`)}
+	}
+
+	if len(b.mutation.insert.ownerIDs()) == 0 {
 		return &ValidationError{Name: "owner", err: errors.New(`ent: missing required edge "Card.owner"`)}
 	}
+
 	return nil
 }
 
@@ -168,42 +191,56 @@ func (_c *CardCreate) sqlSave(ctx context.Context) (*Card, error) {
 	if err := _c.check(); err != nil {
 		return nil, err
 	}
-	_node, _spec := _c.createSpec()
-	if err := sqlgraph.CreateNode(ctx, _c.driver, _spec); err != nil {
+	node, spec, err := _c.createSpec()
+	if err != nil {
+		return nil, err
+	}
+	if err := sqlgraph.CreateNode(ctx, _c.driver, spec); err != nil {
 		if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
 		return nil, err
 	}
-	id := _spec.ID.Value.(int64)
-	_node.ID = int(id)
-	_c.mutation.id = &_node.ID
-	_c.mutation.done = true
-	return _node, nil
+	_c.mutation.id = &node.ID
+	return node, nil
 }
 
-func (_c *CardCreate) createSpec() (*Card, *sqlgraph.CreateSpec) {
-	var (
-		_node = &Card{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(card.Table, sqlgraph.NewFieldSpec(card.FieldID, field.TypeInt))
-	)
-	if value, ok := _c.mutation.GetType(); ok {
+func (_c *CardCreate) createSpec() (*Card, *sqlgraph.CreateSpec, error) {
+	_node := &Card{config: _c.config}
+	_spec := sqlgraph.NewCreateSpec(card.Table, sqlgraph.NewFieldSpec(card.FieldID, field.TypeInt))
+
+	_spec.OnConflict = _c.conflict
+
+	if value, ok := _c.mutation.insert.Type.Get(); ok {
 		_spec.SetField(card.FieldType, field.TypeString, value)
-		_node.Type = value
 	}
-	if value, ok := _c.mutation.NumberHash(); ok {
+	if _c.mutation.insert.Type.IsNull() {
+		_spec.SetField(card.FieldType, field.TypeString, nil)
+	}
+
+	if _, present := _c.present[card.FieldNumberHash]; !_c.fromBuilder || present {
+		value := _c.mutation.insert.NumberHash
 		_spec.SetField(card.FieldNumberHash, field.TypeString, value)
-		_node.NumberHash = value
 	}
-	if value, ok := _c.mutation.CvvHash(); ok {
+
+	if _, present := _c.present[card.FieldCvvHash]; !_c.fromBuilder || present {
+		value := _c.mutation.insert.CvvHash
 		_spec.SetField(card.FieldCvvHash, field.TypeString, value)
-		_node.CvvHash = value
 	}
-	if value, ok := _c.mutation.ExpiresAt(); ok {
+
+	if value, ok := _c.mutation.insert.ExpiresAt.Get(); ok {
 		_spec.SetField(card.FieldExpiresAt, field.TypeTime, value)
-		_node.ExpiresAt = value
 	}
-	if nodes := _c.mutation.OwnerIDs(); len(nodes) > 0 {
+	if _c.mutation.insert.ExpiresAt.IsNull() {
+		_spec.SetField(card.FieldExpiresAt, field.TypeTime, nil)
+	}
+
+	_spec.Expressions = _c.mutation.insert.expressions
+
+	if nodes := _c.mutation.insert.ownerIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -214,13 +251,18 @@ func (_c *CardCreate) createSpec() (*Card, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
-		_node.OwnerID = nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	if nodes := _c.mutation.PaymentsIDs(); len(nodes) > 0 {
+
+	if nodes := _c.mutation.insert.paymentsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -231,98 +273,412 @@ func (_c *CardCreate) createSpec() (*Card, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(payment.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	return _node, _spec
+
+	_spec.Returning = &sqlgraph.Returning{Columns: card.Columns, Scan: func(rows dialect.Rows) error {
+		values, err := _node.scanValues(card.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(card.Columns, values); err != nil {
+			return err
+		}
+
+		_spec.ID.Value = _node.ID
+
+		return nil
+	}}
+	return _node, _spec, nil
 }
 
-// CardCreateBulk is the builder for creating many Card entities in bulk.
+type CardUpsertOne struct{ create *CardCreate }
+
+func (b *CardCreate) OnConflict(columns ...ent.EntityColumn[entity.Card]) *CardUpsertOne {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
+	}
+	if len(names) == 0 {
+		return b.OnConflictOptions()
+	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
+}
+
+func (b *CardCreate) OnConflictConstraint(name string) *CardUpsertOne {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
+}
+
+func (b *CardCreate) OnConflictOptions(options ...sql.ConflictOption) *CardUpsertOne {
+	b.conflict = options
+	return &CardUpsertOne{create: b}
+}
+
+func (u *CardUpsertOne) DoNothing() *CardUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+func (u *CardUpsertOne) DoSelect() *CardUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *CardUpsertOne) Ignore() *CardUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *CardUpsertOne) DoUpdate(set func(*CardUpsert)) *CardUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&CardUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *CardUpsertOne) UpdateNewValues() *CardUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case card.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
+	}))
+	return u
+}
+
+func (u *CardUpsertOne) Where(predicates ...ent.Predicate[entity.Card]) *CardUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(card.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *CardUpsertOne) UpdateWhere(predicates ...ent.Predicate[entity.Card]) *CardUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(card.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *CardUpsertOne) Save(ctx context.Context) (*Card, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for CardCreate.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *CardUpsertOne) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
+func (u *CardUpsertOne) ExecX(ctx context.Context) {
+	if err := u.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+func (u *CardUpsertOne) ID(ctx context.Context) (id int, err error) {
+	node, err := u.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+func (u *CardUpsertOne) IDX(ctx context.Context) int {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
+type CardUpsert struct{ *sql.UpdateSet }
+
+func (u *CardUpsert) Set[T any](column ent.ColumnOf[entity.Card, T], value T) *CardUpsert {
+	switch column.Ref().Name {
+
+	case card.FieldType:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case card.FieldNumberHash:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case card.FieldCvvHash:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case card.FieldExpiresAt:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case card.FieldOwnerID:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Card is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *CardUpsert) SetExpr[T any](column ent.ColumnOf[entity.Card, T], value ent.Expr[T]) *CardUpsert {
+	switch column.Ref().Name {
+
+	case card.FieldType:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case card.FieldNumberHash:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case card.FieldCvvHash:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case card.FieldExpiresAt:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case card.FieldOwnerID:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Card is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *CardUpsert) UpdateNewValue[T any](column ent.ColumnOf[entity.Card, T]) *CardUpsert {
+	switch column.Ref().Name {
+
+	case card.FieldType:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case card.FieldNumberHash:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case card.FieldCvvHash:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case card.FieldExpiresAt:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case card.FieldOwnerID:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Card is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *CardUpsert) Add[T ent.Number](column ent.ColumnOf[entity.Card, T], delta T) *CardUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Card does not support addition", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *CardUpsert) Clear[T any](column ent.ColumnOf[entity.Card, T]) *CardUpsert {
+	switch column.Ref().Name {
+
+	case card.FieldExpiresAt:
+		u.UpdateSet.SetNull(column.Ref().Name)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Card is not nullable", column.Ref().Name)})
+	}
+	return u
+}
+
 type CardCreateBulk struct {
 	config
 	err      error
 	builders []*CardCreate
+
+	conflict []sql.ConflictOption
 }
 
-// Save creates the Card entities in the database.
 func (_c *CardCreateBulk) Save(ctx context.Context) ([]*Card, error) {
 	if _c.err != nil {
 		return nil, _c.err
 	}
-	specs := make([]*sqlgraph.CreateSpec, len(_c.builders))
 	nodes := make([]*Card, len(_c.builders))
-	mutators := make([]Mutator, len(_c.builders))
-	for i := range _c.builders {
-		func(i int, root context.Context) {
-			builder := _c.builders[i]
-			builder.defaults()
-			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*CardMutation)
-				if !ok {
-					return nil, fmt.Errorf("unexpected mutation type %T", m)
-				}
-				if err := builder.check(); err != nil {
-					return nil, err
-				}
-				builder.mutation = mutation
-				var err error
-				nodes[i], specs[i] = builder.createSpec()
-				if i < len(mutators)-1 {
-					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
-				} else {
-					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
-					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
-						if sqlgraph.IsConstraintError(err) {
-							err = &ConstraintError{msg: err.Error(), wrap: err}
-						}
-					}
-				}
-				if err != nil {
-					return nil, err
-				}
-				mutation.id = &nodes[i].ID
-				if specs[i].ID.Value != nil {
-					id := specs[i].ID.Value.(int64)
-					nodes[i].ID = int(id)
-				}
-				mutation.done = true
-				return nodes[i], nil
-			})
-			for i := len(builder.hooks) - 1; i >= 0; i-- {
-				mut = builder.hooks[i](mut)
-			}
-			mutators[i] = mut
-		}(i, ctx)
-	}
-	if len(mutators) > 0 {
-		if _, err := mutators[0].Mutate(ctx, _c.builders[0].mutation); err != nil {
+	specs := make([]*sqlgraph.CreateSpec, len(nodes))
+	for index, builder := range _c.builders {
+		if builder.err != nil {
+			return nil, builder.err
+		}
+		if err := builder.defaults(); err != nil {
+			return nil, err
+		}
+		if err := builder.check(); err != nil {
+			return nil, err
+		}
+		var err error
+		nodes[index], specs[index], err = builder.createSpec()
+		if err != nil {
 			return nil, err
 		}
 	}
-	return nodes, nil
+	if len(specs) == 0 {
+		return nodes, nil
+	}
+	spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+
+	spec.OnConflict = _c.conflict
+
+	if err := sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
+		if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{msg: err.Error(), wrap: err}
+		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
+		return nil, err
+	}
+	result := nodes[:0]
+	for index, builder := range _c.builders {
+		if specs[index].Skipped {
+			continue
+		}
+		builder.mutation.id = &nodes[index].ID
+		result = append(result, nodes[index])
+	}
+	return result, nil
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_c *CardCreateBulk) SaveX(ctx context.Context) []*Card {
-	v, err := _c.Save(ctx)
+func (b *CardCreateBulk) SaveX(ctx context.Context) []*Card {
+	nodes, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return nodes
 }
 
-// Exec executes the query.
-func (_c *CardCreateBulk) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
+func (b *CardCreateBulk) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
+
+func (b *CardCreateBulk) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+type CardUpsertBulk struct{ create *CardCreateBulk }
+
+func (b *CardCreateBulk) OnConflict(columns ...ent.EntityColumn[entity.Card]) *CardUpsertBulk {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
+	}
+	if len(names) == 0 {
+		return b.OnConflictOptions()
+	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
+}
+
+func (b *CardCreateBulk) OnConflictConstraint(name string) *CardUpsertBulk {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
+}
+
+func (b *CardCreateBulk) OnConflictOptions(options ...sql.ConflictOption) *CardUpsertBulk {
+	b.conflict = options
+	return &CardUpsertBulk{create: b}
+}
+
+func (u *CardUpsertBulk) DoNothing() *CardUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+func (u *CardUpsertBulk) DoSelect() *CardUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *CardUpsertBulk) Ignore() *CardUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *CardUpsertBulk) DoUpdate(set func(*CardUpsert)) *CardUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&CardUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *CardUpsertBulk) UpdateNewValues() *CardUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case card.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
+	}))
+	return u
+}
+
+func (u *CardUpsertBulk) Where(predicates ...ent.Predicate[entity.Card]) *CardUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(card.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *CardUpsertBulk) UpdateWhere(predicates ...ent.Predicate[entity.Card]) *CardUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(card.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *CardUpsertBulk) Save(ctx context.Context) ([]*Card, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for CardCreateBulk.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *CardUpsertBulk) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
 	return err
 }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *CardCreateBulk) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (u *CardUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

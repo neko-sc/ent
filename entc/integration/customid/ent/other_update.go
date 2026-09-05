@@ -10,59 +10,189 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/other"
-	"github.com/neko-sc/ent/entc/integration/customid/ent/predicate"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// OtherUpdate is the builder for updating Other entities.
 type OtherUpdate struct {
 	config
-	hooks    []Hook
-	mutation *OtherMutation
+	mutation  *OtherMutation
+	err       error
+	returning *sqlgraph.Returning
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// Where appends a list predicates to the OtherUpdate builder.
-func (_u *OtherUpdate) Where(ps ...predicate.Other) *OtherUpdate {
-	_u.mutation.Where(ps...)
-	return _u
+func (b *OtherUpdate) Set[T any](column ent.ColumnOf[entity.Other, T], value T) *OtherUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
+	}
+
+	return b
+}
+func (b *OtherUpdate) SetOptional[T any](column ent.ColumnOf[entity.Other, T], value ent.Option[T]) *OtherUpdate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *OtherUpdate) SetExpr[T any](column ent.ColumnOf[entity.Other, T], value ent.Expr[T]) *OtherUpdate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Other is not settable", column.Ref().Name)}
+		return b
+	}
+
+}
+func (b *OtherUpdate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Other, N, K], id K) *OtherUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *OtherUpdate) AddIDs[N, K any](edge ent.Relation[entity.Other, N, K], ids ...K) *OtherUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *OtherUpdate) Mutation() *OtherMutation { return b.mutation }
+
+func (b *OtherUpdate) Patch() *OtherPatch              { return b.mutation.patch }
+func (b *OtherUpdate) Apply(p OtherPatch) *OtherUpdate { b.mutation.patch.apply(p); return b }
+func (b *OtherUpdate) Add[T ent.Number](column ent.ColumnOf[entity.Other, T], delta T) *OtherUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *OtherUpdate) Append[T any](column ent.ColumnOf[entity.Other, T], values T) *OtherUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *OtherUpdate) Clear[T any](column ent.ColumnOf[entity.Other, T]) *OtherUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *OtherUpdate) RemoveIDs[N, K any](edge ent.Relation[entity.Other, N, K], ids ...K) *OtherUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *OtherUpdate) ClearEdge[N, K any](edge ent.RelationOf[entity.Other, N, K]) *OtherUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// Mutation returns the OtherMutation object of the builder.
-func (_u *OtherUpdate) Mutation() *OtherMutation {
-	return _u.mutation
+func (b *OtherUpdate) Where(predicates ...ent.Predicate[entity.Other]) *OtherUpdate {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Save executes the query and returns the number of nodes affected by the update operation.
-func (_u *OtherUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
+func (b *OtherUpdate) Save(ctx context.Context) (int, error) {
+	if b.err != nil {
+		return 0, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return 0, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_u *OtherUpdate) SaveX(ctx context.Context) int {
-	affected, err := _u.Save(ctx)
+func (b *OtherUpdate) SaveX(ctx context.Context) int {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return affected
+	return result
 }
 
-// Exec executes the query.
-func (_u *OtherUpdate) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *OtherUpdate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *OtherUpdate) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *OtherUpdate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
+func (b *OtherUpdate) Returning(ctx context.Context) ([]*Other, error) {
+	nodes := make([]*Other, 0)
+	b.returning = &sqlgraph.Returning{Columns: other.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Other{config: b.config}
+		values, err := _node.scanValues(other.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(other.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Save(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
+}
+
+func (b *OtherUpdate) defaults() error {
+
+	return nil
+}
+
+func (b *OtherUpdate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *OtherUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *OtherUpdate {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *OtherUpdate) sqlSave(ctx context.Context) (_node int, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(other.Table, other.Columns, sqlgraph.NewFieldSpec(other.FieldID, field.TypeOther))
 	if ps := _u.mutation.Predicates(); len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -71,6 +201,12 @@ func (_u *OtherUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			}
 		}
 	}
+	_spec.Returning = _u.returning
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{other.Label}
@@ -79,64 +215,185 @@ func (_u *OtherUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		return 0, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }
 
-// OtherUpdateOne is the builder for updating a single Other entity.
 type OtherUpdateOne struct {
 	config
-	fields   []string
-	hooks    []Hook
 	mutation *OtherMutation
+	err      error
+
+	fields []string
+	old    *Other
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// Mutation returns the OtherMutation object of the builder.
-func (_u *OtherUpdateOne) Mutation() *OtherMutation {
-	return _u.mutation
+func (b *OtherUpdateOne) Set[T any](column ent.ColumnOf[entity.Other, T], value T) *OtherUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
+	}
+
+	return b
+}
+func (b *OtherUpdateOne) SetOptional[T any](column ent.ColumnOf[entity.Other, T], value ent.Option[T]) *OtherUpdateOne {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *OtherUpdateOne) SetExpr[T any](column ent.ColumnOf[entity.Other, T], value ent.Expr[T]) *OtherUpdateOne {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Other is not settable", column.Ref().Name)}
+		return b
+	}
+
+}
+func (b *OtherUpdateOne) SetEdge[N, K any](edge ent.UniqueRelation[entity.Other, N, K], id K) *OtherUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *OtherUpdateOne) AddIDs[N, K any](edge ent.Relation[entity.Other, N, K], ids ...K) *OtherUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *OtherUpdateOne) Mutation() *OtherMutation { return b.mutation }
+
+func (b *OtherUpdateOne) Patch() *OtherPatch                 { return b.mutation.patch }
+func (b *OtherUpdateOne) Apply(p OtherPatch) *OtherUpdateOne { b.mutation.patch.apply(p); return b }
+func (b *OtherUpdateOne) Add[T ent.Number](column ent.ColumnOf[entity.Other, T], delta T) *OtherUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *OtherUpdateOne) Append[T any](column ent.ColumnOf[entity.Other, T], values T) *OtherUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *OtherUpdateOne) Clear[T any](column ent.ColumnOf[entity.Other, T]) *OtherUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *OtherUpdateOne) RemoveIDs[N, K any](edge ent.Relation[entity.Other, N, K], ids ...K) *OtherUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *OtherUpdateOne) ClearEdge[N, K any](edge ent.RelationOf[entity.Other, N, K]) *OtherUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// Where appends a list predicates to the OtherUpdate builder.
-func (_u *OtherUpdateOne) Where(ps ...predicate.Other) *OtherUpdateOne {
-	_u.mutation.Where(ps...)
-	return _u
+func (b *OtherUpdateOne) Where(predicates ...ent.Predicate[entity.Other]) *OtherUpdateOne {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Select allows selecting one or more fields (columns) of the returned entity.
-// The default is selecting all fields defined in the entity schema.
-func (_u *OtherUpdateOne) Select(field string, fields ...string) *OtherUpdateOne {
-	_u.fields = append([]string{field}, fields...)
-	return _u
+func (b *OtherUpdateOne) Save(ctx context.Context) (*Other, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Save executes the query and returns the updated Other entity.
-func (_u *OtherUpdateOne) Save(ctx context.Context) (*Other, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *OtherUpdateOne) SaveX(ctx context.Context) *Other {
-	node, err := _u.Save(ctx)
+func (b *OtherUpdateOne) SaveX(ctx context.Context) *Other {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return node
+	return result
 }
 
-// Exec executes the query on the entity.
-func (_u *OtherUpdateOne) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *OtherUpdateOne) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *OtherUpdateOne) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *OtherUpdateOne) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
+func (b *OtherUpdateOne) Select(columns ...ent.EntityColumn[entity.Other]) *OtherUpdateOne {
+	if len(columns) == 0 {
+		panic("ent: Select requires at least one column")
+	}
+	b.fields = make([]string, len(columns))
+	for index, column := range columns {
+		b.fields[index] = column.Ref().Name
+	}
+	return b
+}
+
+func (b *OtherUpdateOne) SaveOld(ctx context.Context) (old *Other, updated *Other, err error) {
+	if !b.driver.Capabilities().ReturningOld {
+		return nil, nil, &dialect.UnsupportedError{Feature: "RETURNING OLD", Dialect: dialect.Dialect(b.driver.Dialect())}
+	}
+	b.old = &Other{config: b.config}
+	defer func() { b.old = nil }()
+	updated, err = b.Save(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return b.old, updated, nil
+}
+
+func (b *OtherUpdateOne) defaults() error {
+
+	return nil
+}
+
+func (b *OtherUpdateOne) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *OtherUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *OtherUpdateOne {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *OtherUpdateOne) sqlSave(ctx context.Context) (_node *Other, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(other.Table, other.Columns, sqlgraph.NewFieldSpec(other.FieldID, field.TypeOther))
 	id, ok := _u.mutation.ID()
 	if !ok {
@@ -162,9 +419,18 @@ func (_u *OtherUpdateOne) sqlSave(ctx context.Context) (_node *Other, err error)
 			}
 		}
 	}
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	_node = &Other{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
+	if _u.old != nil {
+		_spec.OldScanValues = _u.old.scanValues
+		_spec.OldAssign = _u.old.assignValues
+	}
 	if err = sqlgraph.UpdateNode(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{other.Label}
@@ -173,6 +439,5 @@ func (_u *OtherUpdateOne) sqlSave(ctx context.Context) (_node *Other, err error)
 		}
 		return nil, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }

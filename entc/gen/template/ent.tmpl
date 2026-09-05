@@ -61,8 +61,29 @@ type {{ $edgesType }} struct {
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes [{{ len . }}]bool
+	counts map[string]int
 	{{- /* Additional fields to add by the user. */}}
 	{{- template "model/edges/fields/additional" $ }}
+}
+
+func (e {{ $edgesType }}) Loaded[N, K any](edge ent.RelationOf[entity.{{ $.Name }}, N, K]) bool {
+	switch edge.Ref().Name {
+	{{ range $index, $edge := . }}case "{{ $edge.Name }}": return e.loadedTypes[{{ $index }}]
+	{{ end }}
+	default: return false
+	}
+}
+
+func (e *{{ $edgesType }}) SetLoaded[N, K any](edge ent.RelationOf[entity.{{ $.Name }}, N, K], loaded bool) {
+	switch edge.Ref().Name {
+	{{ range $index, $edge := . }}case "{{ $edge.Name }}": e.loadedTypes[{{ $index }}] = loaded
+	{{ end }}
+	}
+}
+
+func (e {{ $edgesType }}) Count[N, K any](edge ent.Relation[entity.{{ $.Name }}, N, K]) (int, bool) {
+	count, loaded := e.counts[edge.Ref().Name]
+	return count, loaded
 }
 
 {{- range $i, $e := . }}

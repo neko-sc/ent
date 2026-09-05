@@ -6,7 +6,13 @@ SPDX-License-Identifier: Apache-2.0
 {{/* gotype: github.com/neko-sc/ent/entc/gen.Graph */}}
 
 {{ define "dialect/sql/client/open" }}
-	drv, err := sql.Open(driverName, dataSourceName)
+	var drv dialect.Driver
+  var err error
+  if driverName == dialect.Postgres {
+   drv, err = pg.Open(context.Background(), dataSourceName)
+  } else {
+   drv, err = sql.Open(dialect.Dialect(driverName), dataSourceName)
+  }
 	if err != nil {
 		return nil, err
 	}

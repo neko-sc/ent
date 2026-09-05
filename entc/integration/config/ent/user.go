@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/entc/integration/config/ent/user"
 )
@@ -23,9 +22,8 @@ type User struct {
 	// Comment line1
 	// Comment line2
 	Name string `json:"name,omitempty"`
-	// Label holds the value of the "label" field.
-	Label        string `json:"label,omitempty"`
-	selectValues sql.SelectValues
+	// DisplayLabel holds the value of the "display_label" field.
+	DisplayLabel string `json:"display_label,omitempty"`
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -34,9 +32,9 @@ func (*User) scanValues(columns []string) ([]any, error) {
 	for i := range columns {
 		switch columns[i] {
 		case user.FieldID:
-			values[i] = new(sql.NullInt64)
-		case user.FieldName, user.FieldLabel:
-			values[i] = new(sql.NullString)
+			values[i] = new(*int)
+		case user.FieldName, user.FieldDisplayLabel:
+			values[i] = new(*string)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -53,34 +51,29 @@ func (_m *User) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case user.FieldID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field id", values[i])
-			} else if value.Valid {
-				_m.ID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.ID = **value
 			}
 		case user.FieldName:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field name", values[i])
-			} else if value.Valid {
-				_m.Name = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.Name = **value
 			}
-		case user.FieldLabel:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field label", values[i])
-			} else if value.Valid {
-				_m.Label = string(value.String)
+		case user.FieldDisplayLabel:
+
+			if value, ok := values[i].(**string); !ok {
+				return fmt.Errorf("unexpected type %T for field display_label", values[i])
+			} else if value != nil && *value != nil {
+				_m.DisplayLabel = **value
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the User.
-// This includes values selected through modifiers, order, etc.
-func (_m *User) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // Update returns a builder for updating this User.
@@ -109,8 +102,8 @@ func (_m *User) String() string {
 	builder.WriteString("name=")
 	builder.WriteString(_m.Name)
 	builder.WriteString(", ")
-	builder.WriteString("label=")
-	builder.WriteString(_m.Label)
+	builder.WriteString("display_label=")
+	builder.WriteString(_m.DisplayLabel)
 	builder.WriteByte(')')
 	return builder.String()
 }

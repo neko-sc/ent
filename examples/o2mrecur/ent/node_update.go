@@ -10,147 +10,201 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/examples/o2mrecur/ent/entity"
 	"github.com/neko-sc/ent/examples/o2mrecur/ent/node"
-	"github.com/neko-sc/ent/examples/o2mrecur/ent/predicate"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// NodeUpdate is the builder for updating Node entities.
 type NodeUpdate struct {
 	config
-	hooks    []Hook
-	mutation *NodeMutation
+	mutation  *NodeMutation
+	err       error
+	returning *sqlgraph.Returning
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// Where appends a list predicates to the NodeUpdate builder.
-func (_u *NodeUpdate) Where(ps ...predicate.Node) *NodeUpdate {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// SetValue sets the "value" field.
-func (_u *NodeUpdate) SetValue(v int) *NodeUpdate {
-	_u.mutation.ResetValue()
-	_u.mutation.SetValue(v)
-	return _u
-}
-
-// SetNillableValue sets the "value" field if the given value is not nil.
-func (_u *NodeUpdate) SetNillableValue(v *int) *NodeUpdate {
-	if v != nil {
-		_u.SetValue(*v)
+func (b *NodeUpdate) Set[T any](column ent.ColumnOf[entity.Node, T], value T) *NodeUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// AddValue adds value to the "value" field.
-func (_u *NodeUpdate) AddValue(v int) *NodeUpdate {
-	_u.mutation.AddValue(v)
-	return _u
+	return b
 }
-
-// SetParentID sets the "parent_id" field.
-func (_u *NodeUpdate) SetParentID(v int) *NodeUpdate {
-	_u.mutation.SetParentID(v)
-	return _u
-}
-
-// SetNillableParentID sets the "parent_id" field if the given value is not nil.
-func (_u *NodeUpdate) SetNillableParentID(v *int) *NodeUpdate {
-	if v != nil {
-		_u.SetParentID(*v)
+func (b *NodeUpdate) SetOptional[T any](column ent.ColumnOf[entity.Node, T], value ent.Option[T]) *NodeUpdate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u
-}
-
-// ClearParentID clears the value of the "parent_id" field.
-func (_u *NodeUpdate) ClearParentID() *NodeUpdate {
-	_u.mutation.ClearParentID()
-	return _u
-}
-
-// SetParent sets the "parent" edge to the Node entity.
-func (_u *NodeUpdate) SetParent(v *Node) *NodeUpdate {
-	return _u.SetParentID(v.ID)
-}
-
-// AddChildIDs adds the "children" edge to the Node entity by IDs.
-func (_u *NodeUpdate) AddChildIDs(ids ...int) *NodeUpdate {
-	_u.mutation.AddChildIDs(ids...)
-	return _u
-}
-
-// AddChildren adds the "children" edges to the Node entity.
-func (_u *NodeUpdate) AddChildren(v ...*Node) *NodeUpdate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
 	}
-	return _u.AddChildIDs(ids...)
+	return b
 }
-
-// Mutation returns the NodeMutation object of the builder.
-func (_u *NodeUpdate) Mutation() *NodeMutation {
-	return _u.mutation
-}
-
-// ClearParent clears the "parent" edge to the Node entity.
-func (_u *NodeUpdate) ClearParent() *NodeUpdate {
-	_u.mutation.ClearParent()
-	return _u
-}
-
-// ClearChildren clears all "children" edges to the Node entity.
-func (_u *NodeUpdate) ClearChildren() *NodeUpdate {
-	_u.mutation.ClearChildren()
-	return _u
-}
-
-// RemoveChildIDs removes the "children" edge to Node entities by IDs.
-func (_u *NodeUpdate) RemoveChildIDs(ids ...int) *NodeUpdate {
-	_u.mutation.RemoveChildIDs(ids...)
-	return _u
-}
-
-// RemoveChildren removes "children" edges to Node entities.
-func (_u *NodeUpdate) RemoveChildren(v ...*Node) *NodeUpdate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+func (b *NodeUpdate) SetExpr[T any](column ent.ColumnOf[entity.Node, T], value ent.Expr[T]) *NodeUpdate {
+	if b.err != nil {
+		return b
 	}
-	return _u.RemoveChildIDs(ids...)
+	switch column.Ref().Name {
+
+	case node.FieldValue:
+
+	case node.FieldParentID:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Node is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *NodeUpdate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Node, N, K], id K) *NodeUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *NodeUpdate) AddIDs[N, K any](edge ent.Relation[entity.Node, N, K], ids ...K) *NodeUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *NodeUpdate) Mutation() *NodeMutation { return b.mutation }
+
+func (b *NodeUpdate) Patch() *NodePatch             { return b.mutation.patch }
+func (b *NodeUpdate) Apply(p NodePatch) *NodeUpdate { b.mutation.patch.apply(p); return b }
+func (b *NodeUpdate) Add[T ent.Number](column ent.ColumnOf[entity.Node, T], delta T) *NodeUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *NodeUpdate) Append[T any](column ent.ColumnOf[entity.Node, T], values T) *NodeUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *NodeUpdate) Clear[T any](column ent.ColumnOf[entity.Node, T]) *NodeUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *NodeUpdate) RemoveIDs[N, K any](edge ent.Relation[entity.Node, N, K], ids ...K) *NodeUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *NodeUpdate) ClearEdge[N, K any](edge ent.RelationOf[entity.Node, N, K]) *NodeUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// Save executes the query and returns the number of nodes affected by the update operation.
-func (_u *NodeUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
+func (b *NodeUpdate) Where(predicates ...ent.Predicate[entity.Node]) *NodeUpdate {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_u *NodeUpdate) SaveX(ctx context.Context) int {
-	affected, err := _u.Save(ctx)
+func (b *NodeUpdate) Save(ctx context.Context) (int, error) {
+	if b.err != nil {
+		return 0, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return 0, err
+	}
+	return b.sqlSave(ctx)
+}
+
+func (b *NodeUpdate) SaveX(ctx context.Context) int {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return affected
+	return result
 }
 
-// Exec executes the query.
-func (_u *NodeUpdate) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *NodeUpdate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *NodeUpdate) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *NodeUpdate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
+func (b *NodeUpdate) Returning(ctx context.Context) ([]*Node, error) {
+	nodes := make([]*Node, 0)
+	b.returning = &sqlgraph.Returning{Columns: node.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Node{config: b.config}
+		values, err := _node.scanValues(node.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(node.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Save(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
+}
+
+func (b *NodeUpdate) defaults() error {
+
+	return nil
+}
+
+func (b *NodeUpdate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.Value.IsNull() {
+		return &ValidationError{Name: "value", err: errors.New(`ent: field "Node.value" is not nullable`)}
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *NodeUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *NodeUpdate {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *NodeUpdate) sqlSave(ctx context.Context) (_node int, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(node.Table, node.Columns, sqlgraph.NewFieldSpec(node.FieldID, field.TypeInt))
 	if ps := _u.mutation.Predicates(); len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -159,13 +213,13 @@ func (_u *NodeUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.Value(); ok {
+	if value, ok := _u.mutation.patch.Value.Get(); ok {
 		_spec.SetField(node.FieldValue, field.TypeInt, value)
 	}
-	if value, ok := _u.mutation.AddedValue(); ok {
+	if value, ok := _u.mutation.patch.ValueAdd.Get(); ok {
 		_spec.AddField(node.FieldValue, field.TypeInt, value)
 	}
-	if _u.mutation.ParentCleared() {
+	if _u.mutation.patch.ParentID.IsNull() || _u.mutation.patch.clearedEdges[node.EdgeParent] {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -178,7 +232,7 @@ func (_u *NodeUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.ParentIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.parentIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -189,12 +243,17 @@ func (_u *NodeUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(node.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
-	if _u.mutation.ChildrenCleared() {
+	if _u.mutation.patch.Children.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -207,7 +266,7 @@ func (_u *NodeUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.RemovedChildrenIDs(); len(nodes) > 0 && !_u.mutation.ChildrenCleared() {
+	if nodes := _u.mutation.patch.Children.Remove; len(nodes) > 0 && !_u.mutation.patch.Children.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -218,12 +277,17 @@ func (_u *NodeUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(node.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.ChildrenIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.childrenIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -234,11 +298,22 @@ func (_u *NodeUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(node.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	_spec.Returning = _u.returning
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{node.Label}
@@ -247,152 +322,197 @@ func (_u *NodeUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		return 0, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }
 
-// NodeUpdateOne is the builder for updating a single Node entity.
 type NodeUpdateOne struct {
 	config
-	fields   []string
-	hooks    []Hook
 	mutation *NodeMutation
+	err      error
+
+	fields []string
+	old    *Node
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// SetValue sets the "value" field.
-func (_u *NodeUpdateOne) SetValue(v int) *NodeUpdateOne {
-	_u.mutation.ResetValue()
-	_u.mutation.SetValue(v)
-	return _u
-}
-
-// SetNillableValue sets the "value" field if the given value is not nil.
-func (_u *NodeUpdateOne) SetNillableValue(v *int) *NodeUpdateOne {
-	if v != nil {
-		_u.SetValue(*v)
+func (b *NodeUpdateOne) Set[T any](column ent.ColumnOf[entity.Node, T], value T) *NodeUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// AddValue adds value to the "value" field.
-func (_u *NodeUpdateOne) AddValue(v int) *NodeUpdateOne {
-	_u.mutation.AddValue(v)
-	return _u
+	return b
 }
-
-// SetParentID sets the "parent_id" field.
-func (_u *NodeUpdateOne) SetParentID(v int) *NodeUpdateOne {
-	_u.mutation.SetParentID(v)
-	return _u
-}
-
-// SetNillableParentID sets the "parent_id" field if the given value is not nil.
-func (_u *NodeUpdateOne) SetNillableParentID(v *int) *NodeUpdateOne {
-	if v != nil {
-		_u.SetParentID(*v)
+func (b *NodeUpdateOne) SetOptional[T any](column ent.ColumnOf[entity.Node, T], value ent.Option[T]) *NodeUpdateOne {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u
-}
-
-// ClearParentID clears the value of the "parent_id" field.
-func (_u *NodeUpdateOne) ClearParentID() *NodeUpdateOne {
-	_u.mutation.ClearParentID()
-	return _u
-}
-
-// SetParent sets the "parent" edge to the Node entity.
-func (_u *NodeUpdateOne) SetParent(v *Node) *NodeUpdateOne {
-	return _u.SetParentID(v.ID)
-}
-
-// AddChildIDs adds the "children" edge to the Node entity by IDs.
-func (_u *NodeUpdateOne) AddChildIDs(ids ...int) *NodeUpdateOne {
-	_u.mutation.AddChildIDs(ids...)
-	return _u
-}
-
-// AddChildren adds the "children" edges to the Node entity.
-func (_u *NodeUpdateOne) AddChildren(v ...*Node) *NodeUpdateOne {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
 	}
-	return _u.AddChildIDs(ids...)
+	return b
 }
-
-// Mutation returns the NodeMutation object of the builder.
-func (_u *NodeUpdateOne) Mutation() *NodeMutation {
-	return _u.mutation
-}
-
-// ClearParent clears the "parent" edge to the Node entity.
-func (_u *NodeUpdateOne) ClearParent() *NodeUpdateOne {
-	_u.mutation.ClearParent()
-	return _u
-}
-
-// ClearChildren clears all "children" edges to the Node entity.
-func (_u *NodeUpdateOne) ClearChildren() *NodeUpdateOne {
-	_u.mutation.ClearChildren()
-	return _u
-}
-
-// RemoveChildIDs removes the "children" edge to Node entities by IDs.
-func (_u *NodeUpdateOne) RemoveChildIDs(ids ...int) *NodeUpdateOne {
-	_u.mutation.RemoveChildIDs(ids...)
-	return _u
-}
-
-// RemoveChildren removes "children" edges to Node entities.
-func (_u *NodeUpdateOne) RemoveChildren(v ...*Node) *NodeUpdateOne {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+func (b *NodeUpdateOne) SetExpr[T any](column ent.ColumnOf[entity.Node, T], value ent.Expr[T]) *NodeUpdateOne {
+	if b.err != nil {
+		return b
 	}
-	return _u.RemoveChildIDs(ids...)
+	switch column.Ref().Name {
+
+	case node.FieldValue:
+
+	case node.FieldParentID:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Node is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *NodeUpdateOne) SetEdge[N, K any](edge ent.UniqueRelation[entity.Node, N, K], id K) *NodeUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *NodeUpdateOne) AddIDs[N, K any](edge ent.Relation[entity.Node, N, K], ids ...K) *NodeUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *NodeUpdateOne) Mutation() *NodeMutation { return b.mutation }
+
+func (b *NodeUpdateOne) Patch() *NodePatch                { return b.mutation.patch }
+func (b *NodeUpdateOne) Apply(p NodePatch) *NodeUpdateOne { b.mutation.patch.apply(p); return b }
+func (b *NodeUpdateOne) Add[T ent.Number](column ent.ColumnOf[entity.Node, T], delta T) *NodeUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *NodeUpdateOne) Append[T any](column ent.ColumnOf[entity.Node, T], values T) *NodeUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *NodeUpdateOne) Clear[T any](column ent.ColumnOf[entity.Node, T]) *NodeUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *NodeUpdateOne) RemoveIDs[N, K any](edge ent.Relation[entity.Node, N, K], ids ...K) *NodeUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *NodeUpdateOne) ClearEdge[N, K any](edge ent.RelationOf[entity.Node, N, K]) *NodeUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// Where appends a list predicates to the NodeUpdate builder.
-func (_u *NodeUpdateOne) Where(ps ...predicate.Node) *NodeUpdateOne {
-	_u.mutation.Where(ps...)
-	return _u
+func (b *NodeUpdateOne) Where(predicates ...ent.Predicate[entity.Node]) *NodeUpdateOne {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Select allows selecting one or more fields (columns) of the returned entity.
-// The default is selecting all fields defined in the entity schema.
-func (_u *NodeUpdateOne) Select(field string, fields ...string) *NodeUpdateOne {
-	_u.fields = append([]string{field}, fields...)
-	return _u
+func (b *NodeUpdateOne) Save(ctx context.Context) (*Node, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Save executes the query and returns the updated Node entity.
-func (_u *NodeUpdateOne) Save(ctx context.Context) (*Node, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *NodeUpdateOne) SaveX(ctx context.Context) *Node {
-	node, err := _u.Save(ctx)
+func (b *NodeUpdateOne) SaveX(ctx context.Context) *Node {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return node
+	return result
 }
 
-// Exec executes the query on the entity.
-func (_u *NodeUpdateOne) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *NodeUpdateOne) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *NodeUpdateOne) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *NodeUpdateOne) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
+func (b *NodeUpdateOne) Select(columns ...ent.EntityColumn[entity.Node]) *NodeUpdateOne {
+	if len(columns) == 0 {
+		panic("ent: Select requires at least one column")
+	}
+	b.fields = make([]string, len(columns))
+	for index, column := range columns {
+		b.fields[index] = column.Ref().Name
+	}
+	return b
+}
+
+func (b *NodeUpdateOne) SaveOld(ctx context.Context) (old *Node, updated *Node, err error) {
+	if !b.driver.Capabilities().ReturningOld {
+		return nil, nil, &dialect.UnsupportedError{Feature: "RETURNING OLD", Dialect: dialect.Dialect(b.driver.Dialect())}
+	}
+	b.old = &Node{config: b.config}
+	defer func() { b.old = nil }()
+	updated, err = b.Save(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return b.old, updated, nil
+}
+
+func (b *NodeUpdateOne) defaults() error {
+
+	return nil
+}
+
+func (b *NodeUpdateOne) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.Value.IsNull() {
+		return &ValidationError{Name: "value", err: errors.New(`ent: field "Node.value" is not nullable`)}
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *NodeUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *NodeUpdateOne {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *NodeUpdateOne) sqlSave(ctx context.Context) (_node *Node, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(node.Table, node.Columns, sqlgraph.NewFieldSpec(node.FieldID, field.TypeInt))
 	id, ok := _u.mutation.ID()
 	if !ok {
@@ -418,13 +538,13 @@ func (_u *NodeUpdateOne) sqlSave(ctx context.Context) (_node *Node, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.Value(); ok {
+	if value, ok := _u.mutation.patch.Value.Get(); ok {
 		_spec.SetField(node.FieldValue, field.TypeInt, value)
 	}
-	if value, ok := _u.mutation.AddedValue(); ok {
+	if value, ok := _u.mutation.patch.ValueAdd.Get(); ok {
 		_spec.AddField(node.FieldValue, field.TypeInt, value)
 	}
-	if _u.mutation.ParentCleared() {
+	if _u.mutation.patch.ParentID.IsNull() || _u.mutation.patch.clearedEdges[node.EdgeParent] {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -437,7 +557,7 @@ func (_u *NodeUpdateOne) sqlSave(ctx context.Context) (_node *Node, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.ParentIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.parentIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -448,12 +568,17 @@ func (_u *NodeUpdateOne) sqlSave(ctx context.Context) (_node *Node, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(node.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
-	if _u.mutation.ChildrenCleared() {
+	if _u.mutation.patch.Children.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -466,7 +591,7 @@ func (_u *NodeUpdateOne) sqlSave(ctx context.Context) (_node *Node, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.RemovedChildrenIDs(); len(nodes) > 0 && !_u.mutation.ChildrenCleared() {
+	if nodes := _u.mutation.patch.Children.Remove; len(nodes) > 0 && !_u.mutation.patch.Children.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -477,12 +602,17 @@ func (_u *NodeUpdateOne) sqlSave(ctx context.Context) (_node *Node, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(node.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.ChildrenIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.childrenIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -493,14 +623,28 @@ func (_u *NodeUpdateOne) sqlSave(ctx context.Context) (_node *Node, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(node.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	_node = &Node{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
+	if _u.old != nil {
+		_spec.OldScanValues = _u.old.scanValues
+		_spec.OldAssign = _u.old.assignValues
+	}
 	if err = sqlgraph.UpdateNode(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{node.Label}
@@ -509,6 +653,5 @@ func (_u *NodeUpdateOne) sqlSave(ctx context.Context) (_node *Node, err error) {
 		}
 		return nil, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }

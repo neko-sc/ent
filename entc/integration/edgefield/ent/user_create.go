@@ -7,10 +7,15 @@ package ent
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
+	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/entc/integration/edgefield/ent/card"
+	"github.com/neko-sc/ent/entc/integration/edgefield/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/edgefield/ent/info"
 	"github.com/neko-sc/ent/entc/integration/edgefield/ent/metadata"
 	"github.com/neko-sc/ent/entc/integration/edgefield/ent/pet"
@@ -19,189 +24,138 @@ import (
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// UserCreate is the builder for creating a User entity.
 type UserCreate struct {
 	config
-	mutation *UserMutation
-	hooks    []Hook
+	mutation    *UserMutation
+	err         error
+	fromBuilder bool
+	present     map[string]struct{}
+
+	conflict []sql.ConflictOption
 }
 
-// SetParentID sets the "parent_id" field.
-func (_c *UserCreate) SetParentID(v int) *UserCreate {
-	_c.mutation.SetParentID(v)
-	return _c
-}
-
-// SetNillableParentID sets the "parent_id" field if the given value is not nil.
-func (_c *UserCreate) SetNillableParentID(v *int) *UserCreate {
-	if v != nil {
-		_c.SetParentID(*v)
+func (b *UserCreate) Set[T any](column ent.ColumnOf[entity.User, T], value T) *UserCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.set(column.Ref().Name, value)
 	}
-	return _c
-}
-
-// SetSpouseID sets the "spouse_id" field.
-func (_c *UserCreate) SetSpouseID(v int) *UserCreate {
-	_c.mutation.SetSpouseID(v)
-	return _c
-}
-
-// SetNillableSpouseID sets the "spouse_id" field if the given value is not nil.
-func (_c *UserCreate) SetNillableSpouseID(v *int) *UserCreate {
-	if v != nil {
-		_c.SetSpouseID(*v)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
 	}
-	return _c
+	b.present[column.Ref().Name] = struct{}{}
+	return b
 }
-
-// SetID sets the "id" field.
-func (_c *UserCreate) SetID(v int) *UserCreate {
-	_c.mutation.SetID(v)
-	return _c
-}
-
-// AddPetIDs adds the "pets" edge to the Pet entity by IDs.
-func (_c *UserCreate) AddPetIDs(ids ...int) *UserCreate {
-	_c.mutation.AddPetIDs(ids...)
-	return _c
-}
-
-// AddPets adds the "pets" edges to the Pet entity.
-func (_c *UserCreate) AddPets(v ...*Pet) *UserCreate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+func (b *UserCreate) SetOptional[T any](column ent.ColumnOf[entity.User, T], value ent.Option[T]) *UserCreate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.insert.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _c.AddPetIDs(ids...)
-}
-
-// SetParent sets the "parent" edge to the User entity.
-func (_c *UserCreate) SetParent(v *User) *UserCreate {
-	return _c.SetParentID(v.ID)
-}
-
-// AddChildIDs adds the "children" edge to the User entity by IDs.
-func (_c *UserCreate) AddChildIDs(ids ...int) *UserCreate {
-	_c.mutation.AddChildIDs(ids...)
-	return _c
-}
-
-// AddChildren adds the "children" edges to the User entity.
-func (_c *UserCreate) AddChildren(v ...*User) *UserCreate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
 	}
-	return _c.AddChildIDs(ids...)
+	return b
 }
-
-// SetSpouse sets the "spouse" edge to the User entity.
-func (_c *UserCreate) SetSpouse(v *User) *UserCreate {
-	return _c.SetSpouseID(v.ID)
-}
-
-// SetCardID sets the "card" edge to the Card entity by ID.
-func (_c *UserCreate) SetCardID(id int) *UserCreate {
-	_c.mutation.SetCardID(id)
-	return _c
-}
-
-// SetNillableCardID sets the "card" edge to the Card entity by ID if the given value is not nil.
-func (_c *UserCreate) SetNillableCardID(id *int) *UserCreate {
-	if id != nil {
-		_c = _c.SetCardID(*id)
+func (b *UserCreate) SetExpr[T any](column ent.ColumnOf[entity.User, T], value ent.Expr[T]) *UserCreate {
+	if b.err != nil {
+		return b
 	}
-	return _c
-}
+	switch column.Ref().Name {
 
-// SetCard sets the "card" edge to the Card entity.
-func (_c *UserCreate) SetCard(v *Card) *UserCreate {
-	return _c.SetCardID(v.ID)
-}
+	case user.FieldID:
 
-// SetMetadataID sets the "metadata" edge to the Metadata entity by ID.
-func (_c *UserCreate) SetMetadataID(id int) *UserCreate {
-	_c.mutation.SetMetadataID(id)
-	return _c
-}
+	case user.FieldParentID:
 
-// SetNillableMetadataID sets the "metadata" edge to the Metadata entity by ID if the given value is not nil.
-func (_c *UserCreate) SetNillableMetadataID(id *int) *UserCreate {
-	if id != nil {
-		_c = _c.SetMetadataID(*id)
+	case user.FieldSpouseID:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of User is not settable", column.Ref().Name)}
+		return b
 	}
-	return _c
-}
 
-// SetMetadata sets the "metadata" edge to the Metadata entity.
-func (_c *UserCreate) SetMetadata(v *Metadata) *UserCreate {
-	return _c.SetMetadataID(v.ID)
-}
-
-// AddInfoIDs adds the "info" edge to the Info entity by IDs.
-func (_c *UserCreate) AddInfoIDs(ids ...int) *UserCreate {
-	_c.mutation.AddInfoIDs(ids...)
-	return _c
-}
-
-// AddInfo adds the "info" edges to the Info entity.
-func (_c *UserCreate) AddInfo(v ...*Info) *UserCreate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+	b.mutation.insert.setExpr(column.Ref().Name, value.Render)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
 	}
-	return _c.AddInfoIDs(ids...)
-}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
 
-// AddRentalIDs adds the "rentals" edge to the Rental entity by IDs.
-func (_c *UserCreate) AddRentalIDs(ids ...int) *UserCreate {
-	_c.mutation.AddRentalIDs(ids...)
-	return _c
 }
-
-// AddRentals adds the "rentals" edges to the Rental entity.
-func (_c *UserCreate) AddRentals(v ...*Rental) *UserCreate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+func (b *UserCreate) SetEdge[N, K any](edge ent.UniqueRelation[entity.User, N, K], id K) *UserCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.setEdge(edge.Ref().Name, id)
 	}
-	return _c.AddRentalIDs(ids...)
+
+	switch edge.Ref().Name {
+	case user.EdgeParent:
+		if b.present == nil {
+			b.present = make(map[string]struct{})
+		}
+		b.present[user.FieldParentID] = struct{}{}
+	case user.EdgeSpouse:
+		if b.present == nil {
+			b.present = make(map[string]struct{})
+		}
+		b.present[user.FieldSpouseID] = struct{}{}
+
+	}
+
+	return b
+}
+func (b *UserCreate) AddIDs[N, K any](edge ent.Relation[entity.User, N, K], ids ...K) *UserCreate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.insert.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *UserCreate) Mutation() *UserMutation { return b.mutation }
+
+func (b *UserCreate) Insert() *UserInsert { return b.mutation.insert }
+
+func (b *UserCreate) Save(ctx context.Context) (*User, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Mutation returns the UserMutation object of the builder.
-func (_c *UserCreate) Mutation() *UserMutation {
-	return _c.mutation
-}
-
-// Save creates the User in the database.
-func (_c *UserCreate) Save(ctx context.Context) (*User, error) {
-	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
-}
-
-// SaveX calls Save and panics if Save returns an error.
-func (_c *UserCreate) SaveX(ctx context.Context) *User {
-	v, err := _c.Save(ctx)
+func (b *UserCreate) SaveX(ctx context.Context) *User {
+	node, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return node
 }
 
-// Exec executes the query.
-func (_c *UserCreate) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *UserCreate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *UserCreate) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *UserCreate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_c *UserCreate) check() error {
+func (b *UserCreate) defaults() error {
+
+	return nil
+}
+
+func (b *UserCreate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.insert.ID.IsNull() {
+		return &ValidationError{Name: "id", err: errors.New(`ent: field "User.id" is not nullable`)}
+	}
+
 	return nil
 }
 
@@ -209,32 +163,36 @@ func (_c *UserCreate) sqlSave(ctx context.Context) (*User, error) {
 	if err := _c.check(); err != nil {
 		return nil, err
 	}
-	_node, _spec := _c.createSpec()
-	if err := sqlgraph.CreateNode(ctx, _c.driver, _spec); err != nil {
+	node, spec, err := _c.createSpec()
+	if err != nil {
+		return nil, err
+	}
+	if err := sqlgraph.CreateNode(ctx, _c.driver, spec); err != nil {
 		if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
 		return nil, err
 	}
-	if _spec.ID.Value != _node.ID {
-		id := _spec.ID.Value.(int64)
-		_node.ID = int(id)
-	}
-	_c.mutation.id = &_node.ID
-	_c.mutation.done = true
-	return _node, nil
+	_c.mutation.id = &node.ID
+	return node, nil
 }
 
-func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
-	var (
-		_node = &User{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(user.Table, sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt))
-	)
-	if id, ok := _c.mutation.ID(); ok {
-		_node.ID = id
-		_spec.ID.Value = id
+func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec, error) {
+	_node := &User{config: _c.config}
+	_spec := sqlgraph.NewCreateSpec(user.Table, sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt))
+
+	_spec.OnConflict = _c.conflict
+
+	if value, ok := _c.mutation.insert.ID.Get(); ok {
+		_spec.ID.Value = value
 	}
-	if nodes := _c.mutation.PetsIDs(); len(nodes) > 0 {
+
+	_spec.Expressions = _c.mutation.insert.expressions
+
+	if nodes := _c.mutation.insert.petsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -245,12 +203,18 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(pet.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	if nodes := _c.mutation.ParentIDs(); len(nodes) > 0 {
+
+	if nodes := _c.mutation.insert.parentIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -261,13 +225,18 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
-		_node.ParentID = nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	if nodes := _c.mutation.ChildrenIDs(); len(nodes) > 0 {
+
+	if nodes := _c.mutation.insert.childrenIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -278,12 +247,18 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	if nodes := _c.mutation.SpouseIDs(); len(nodes) > 0 {
+
+	if nodes := _c.mutation.insert.spouseIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2O,
 			Inverse: false,
@@ -294,13 +269,18 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
-		_node.SpouseID = nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	if nodes := _c.mutation.CardIDs(); len(nodes) > 0 {
+
+	if nodes := _c.mutation.insert.cardIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2O,
 			Inverse: false,
@@ -311,12 +291,18 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(card.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	if nodes := _c.mutation.MetadataIDs(); len(nodes) > 0 {
+
+	if nodes := _c.mutation.insert.metadataIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2O,
 			Inverse: false,
@@ -327,12 +313,18 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(metadata.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	if nodes := _c.mutation.InfoIDs(); len(nodes) > 0 {
+
+	if nodes := _c.mutation.insert.infoIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: true,
@@ -343,12 +335,18 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(info.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	if nodes := _c.mutation.RentalsIDs(); len(nodes) > 0 {
+
+	if nodes := _c.mutation.insert.rentalsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -359,97 +357,382 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(rental.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	return _node, _spec
+
+	_spec.Returning = &sqlgraph.Returning{Columns: user.Columns, Scan: func(rows dialect.Rows) error {
+		values, err := _node.scanValues(user.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(user.Columns, values); err != nil {
+			return err
+		}
+
+		_spec.ID.Value = _node.ID
+
+		return nil
+	}}
+	return _node, _spec, nil
 }
 
-// UserCreateBulk is the builder for creating many User entities in bulk.
+type UserUpsertOne struct{ create *UserCreate }
+
+func (b *UserCreate) OnConflict(columns ...ent.EntityColumn[entity.User]) *UserUpsertOne {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
+	}
+	if len(names) == 0 {
+		return b.OnConflictOptions()
+	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
+}
+
+func (b *UserCreate) OnConflictConstraint(name string) *UserUpsertOne {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
+}
+
+func (b *UserCreate) OnConflictOptions(options ...sql.ConflictOption) *UserUpsertOne {
+	b.conflict = options
+	return &UserUpsertOne{create: b}
+}
+
+func (u *UserUpsertOne) DoNothing() *UserUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+func (u *UserUpsertOne) DoSelect() *UserUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *UserUpsertOne) Ignore() *UserUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *UserUpsertOne) DoUpdate(set func(*UserUpsert)) *UserUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&UserUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *UserUpsertOne) UpdateNewValues() *UserUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case user.FieldID:
+				update.SetIgnore(column)
+
+			case user.FieldParentID:
+				update.SetIgnore(column)
+
+			}
+		}
+	}))
+	return u
+}
+
+func (u *UserUpsertOne) Where(predicates ...ent.Predicate[entity.User]) *UserUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(user.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *UserUpsertOne) UpdateWhere(predicates ...ent.Predicate[entity.User]) *UserUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(user.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *UserUpsertOne) Save(ctx context.Context) (*User, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for UserCreate.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *UserUpsertOne) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
+func (u *UserUpsertOne) ExecX(ctx context.Context) {
+	if err := u.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+func (u *UserUpsertOne) ID(ctx context.Context) (id int, err error) {
+	node, err := u.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+func (u *UserUpsertOne) IDX(ctx context.Context) int {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
+type UserUpsert struct{ *sql.UpdateSet }
+
+func (u *UserUpsert) Set[T any](column ent.ColumnOf[entity.User, T], value T) *UserUpsert {
+	switch column.Ref().Name {
+
+	case user.FieldSpouseID:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of User is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *UserUpsert) SetExpr[T any](column ent.ColumnOf[entity.User, T], value ent.Expr[T]) *UserUpsert {
+	switch column.Ref().Name {
+
+	case user.FieldSpouseID:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of User is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *UserUpsert) UpdateNewValue[T any](column ent.ColumnOf[entity.User, T]) *UserUpsert {
+	switch column.Ref().Name {
+
+	case user.FieldSpouseID:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of User is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *UserUpsert) Add[T ent.Number](column ent.ColumnOf[entity.User, T], delta T) *UserUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of User does not support addition", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *UserUpsert) Clear[T any](column ent.ColumnOf[entity.User, T]) *UserUpsert {
+	switch column.Ref().Name {
+
+	case user.FieldSpouseID:
+		u.UpdateSet.SetNull(column.Ref().Name)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of User is not nullable", column.Ref().Name)})
+	}
+	return u
+}
+
 type UserCreateBulk struct {
 	config
 	err      error
 	builders []*UserCreate
+
+	conflict []sql.ConflictOption
 }
 
-// Save creates the User entities in the database.
 func (_c *UserCreateBulk) Save(ctx context.Context) ([]*User, error) {
 	if _c.err != nil {
 		return nil, _c.err
 	}
-	specs := make([]*sqlgraph.CreateSpec, len(_c.builders))
 	nodes := make([]*User, len(_c.builders))
-	mutators := make([]Mutator, len(_c.builders))
-	for i := range _c.builders {
-		func(i int, root context.Context) {
-			builder := _c.builders[i]
-			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*UserMutation)
-				if !ok {
-					return nil, fmt.Errorf("unexpected mutation type %T", m)
-				}
-				if err := builder.check(); err != nil {
-					return nil, err
-				}
-				builder.mutation = mutation
-				var err error
-				nodes[i], specs[i] = builder.createSpec()
-				if i < len(mutators)-1 {
-					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
-				} else {
-					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
-					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
-						if sqlgraph.IsConstraintError(err) {
-							err = &ConstraintError{msg: err.Error(), wrap: err}
-						}
-					}
-				}
-				if err != nil {
-					return nil, err
-				}
-				mutation.id = &nodes[i].ID
-				if specs[i].ID.Value != nil && nodes[i].ID == 0 {
-					id := specs[i].ID.Value.(int64)
-					nodes[i].ID = int(id)
-				}
-				mutation.done = true
-				return nodes[i], nil
-			})
-			for i := len(builder.hooks) - 1; i >= 0; i-- {
-				mut = builder.hooks[i](mut)
-			}
-			mutators[i] = mut
-		}(i, ctx)
-	}
-	if len(mutators) > 0 {
-		if _, err := mutators[0].Mutate(ctx, _c.builders[0].mutation); err != nil {
+	specs := make([]*sqlgraph.CreateSpec, len(nodes))
+	for index, builder := range _c.builders {
+		if builder.err != nil {
+			return nil, builder.err
+		}
+		if err := builder.defaults(); err != nil {
+			return nil, err
+		}
+		if err := builder.check(); err != nil {
+			return nil, err
+		}
+		var err error
+		nodes[index], specs[index], err = builder.createSpec()
+		if err != nil {
 			return nil, err
 		}
 	}
-	return nodes, nil
+	if len(specs) == 0 {
+		return nodes, nil
+	}
+	spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+
+	spec.OnConflict = _c.conflict
+
+	if err := sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
+		if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{msg: err.Error(), wrap: err}
+		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
+		return nil, err
+	}
+	result := nodes[:0]
+	for index, builder := range _c.builders {
+		if specs[index].Skipped {
+			continue
+		}
+		builder.mutation.id = &nodes[index].ID
+		result = append(result, nodes[index])
+	}
+	return result, nil
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_c *UserCreateBulk) SaveX(ctx context.Context) []*User {
-	v, err := _c.Save(ctx)
+func (b *UserCreateBulk) SaveX(ctx context.Context) []*User {
+	nodes, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return nodes
 }
 
-// Exec executes the query.
-func (_c *UserCreateBulk) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
+func (b *UserCreateBulk) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
+
+func (b *UserCreateBulk) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+type UserUpsertBulk struct{ create *UserCreateBulk }
+
+func (b *UserCreateBulk) OnConflict(columns ...ent.EntityColumn[entity.User]) *UserUpsertBulk {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
+	}
+	if len(names) == 0 {
+		return b.OnConflictOptions()
+	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
+}
+
+func (b *UserCreateBulk) OnConflictConstraint(name string) *UserUpsertBulk {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
+}
+
+func (b *UserCreateBulk) OnConflictOptions(options ...sql.ConflictOption) *UserUpsertBulk {
+	b.conflict = options
+	return &UserUpsertBulk{create: b}
+}
+
+func (u *UserUpsertBulk) DoNothing() *UserUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+func (u *UserUpsertBulk) DoSelect() *UserUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *UserUpsertBulk) Ignore() *UserUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *UserUpsertBulk) DoUpdate(set func(*UserUpsert)) *UserUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&UserUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *UserUpsertBulk) UpdateNewValues() *UserUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case user.FieldID:
+				update.SetIgnore(column)
+
+			case user.FieldParentID:
+				update.SetIgnore(column)
+
+			}
+		}
+	}))
+	return u
+}
+
+func (u *UserUpsertBulk) Where(predicates ...ent.Predicate[entity.User]) *UserUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(user.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *UserUpsertBulk) UpdateWhere(predicates ...ent.Predicate[entity.User]) *UserUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(user.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *UserUpsertBulk) Save(ctx context.Context) ([]*User, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for UserCreateBulk.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *UserUpsertBulk) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
 	return err
 }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *UserCreateBulk) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (u *UserUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

@@ -6,9 +6,13 @@
 package user
 
 import (
+	"encoding/json"
 	"net/http"
+	"net/url"
 
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/entc/integration/json/ent/entity"
+	schema2 "github.com/neko-sc/ent/entc/integration/json/ent/schema"
 )
 
 const (
@@ -45,6 +49,76 @@ const (
 	// Table holds the table name of the user in the database.
 	Table = "users"
 )
+
+var (
+	ID              = ent.OrderedColumn[entity.User, int]{Table: Table, Name: FieldID}
+	T               = ent.JSONColumn[entity.User, *schema2.T]{Table: Table, Name: FieldT}
+	URL             = ent.JSONColumn[entity.User, *url.URL]{Table: Table, Name: FieldURL}
+	URLs            = ent.JSONColumn[entity.User, []*url.URL]{Table: Table, Name: FieldURLs}
+	Raw             = ent.JSONColumn[entity.User, json.RawMessage]{Table: Table, Name: FieldRaw}
+	Dirs            = ent.JSONColumn[entity.User, []http.Dir]{Table: Table, Name: FieldDirs}
+	Ints            = ent.JSONColumn[entity.User, []int]{Table: Table, Name: FieldInts}
+	Floats          = ent.JSONColumn[entity.User, []float64]{Table: Table, Name: FieldFloats}
+	Strings         = ent.JSONColumn[entity.User, []string]{Table: Table, Name: FieldStrings}
+	IntsValidate    = ent.JSONColumn[entity.User, []int]{Table: Table, Name: FieldIntsValidate}
+	FloatsValidate  = ent.JSONColumn[entity.User, []float64]{Table: Table, Name: FieldFloatsValidate}
+	StringsValidate = ent.JSONColumn[entity.User, []string]{Table: Table, Name: FieldStringsValidate}
+	Addr            = ent.JSONColumn[entity.User, schema2.Addr]{Table: Table, Name: FieldAddr}
+	Unknown         = ent.JSONColumn[entity.User, any]{Table: Table, Name: FieldUnknown}
+)
+
+// Alias returns the columns of the users table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias:      name,
+		ID:              ent.OrderedColumn[entity.User, int]{Table: name, Name: FieldID},
+		T:               ent.JSONColumn[entity.User, *schema2.T]{Table: name, Name: FieldT},
+		URL:             ent.JSONColumn[entity.User, *url.URL]{Table: name, Name: FieldURL},
+		URLs:            ent.JSONColumn[entity.User, []*url.URL]{Table: name, Name: FieldURLs},
+		Raw:             ent.JSONColumn[entity.User, json.RawMessage]{Table: name, Name: FieldRaw},
+		Dirs:            ent.JSONColumn[entity.User, []http.Dir]{Table: name, Name: FieldDirs},
+		Ints:            ent.JSONColumn[entity.User, []int]{Table: name, Name: FieldInts},
+		Floats:          ent.JSONColumn[entity.User, []float64]{Table: name, Name: FieldFloats},
+		Strings:         ent.JSONColumn[entity.User, []string]{Table: name, Name: FieldStrings},
+		IntsValidate:    ent.JSONColumn[entity.User, []int]{Table: name, Name: FieldIntsValidate},
+		FloatsValidate:  ent.JSONColumn[entity.User, []float64]{Table: name, Name: FieldFloatsValidate},
+		StringsValidate: ent.JSONColumn[entity.User, []string]{Table: name, Name: FieldStringsValidate},
+		Addr:            ent.JSONColumn[entity.User, schema2.Addr]{Table: name, Name: FieldAddr},
+		Unknown:         ent.JSONColumn[entity.User, any]{Table: name, Name: FieldUnknown},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias      string
+	ID              ent.OrderedColumn[entity.User, int]
+	T               ent.JSONColumn[entity.User, *schema2.T]
+	URL             ent.JSONColumn[entity.User, *url.URL]
+	URLs            ent.JSONColumn[entity.User, []*url.URL]
+	Raw             ent.JSONColumn[entity.User, json.RawMessage]
+	Dirs            ent.JSONColumn[entity.User, []http.Dir]
+	Ints            ent.JSONColumn[entity.User, []int]
+	Floats          ent.JSONColumn[entity.User, []float64]
+	Strings         ent.JSONColumn[entity.User, []string]
+	IntsValidate    ent.JSONColumn[entity.User, []int]
+	FloatsValidate  ent.JSONColumn[entity.User, []float64]
+	StringsValidate ent.JSONColumn[entity.User, []string]
+	Addr            ent.JSONColumn[entity.User, schema2.Addr]
+	Unknown         ent.JSONColumn[entity.User, any]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.User]) ent.Predicate[entity.User] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.User]) ent.Predicate[entity.User] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.User]) ent.Predicate[entity.User] { return ent.Not(predicate) }
 
 // Columns holds all SQL columns for user fields.
 var Columns = []string{
@@ -86,11 +160,3 @@ var (
 	// StringsValidateValidator is a validator for the "strings_validate" field. It is called by the builders before save.
 	StringsValidateValidator func([]string) error
 )
-
-// OrderOption defines the ordering options for the User queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}

@@ -10,152 +10,153 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/doc"
-	"github.com/neko-sc/ent/entc/integration/customid/ent/schema"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
+	schema2 "github.com/neko-sc/ent/entc/integration/customid/ent/schema"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// DocCreate is the builder for creating a Doc entity.
 type DocCreate struct {
 	config
-	mutation *DocMutation
-	hooks    []Hook
+	mutation    *DocMutation
+	err         error
+	fromBuilder bool
+	present     map[string]struct{}
+
 	conflict []sql.ConflictOption
 }
 
-// SetText sets the "text" field.
-func (_c *DocCreate) SetText(v string) *DocCreate {
-	_c.mutation.SetText(v)
-	return _c
-}
-
-// SetNillableText sets the "text" field if the given value is not nil.
-func (_c *DocCreate) SetNillableText(v *string) *DocCreate {
-	if v != nil {
-		_c.SetText(*v)
+func (b *DocCreate) Set[T any](column ent.ColumnOf[entity.Doc, T], value T) *DocCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.set(column.Ref().Name, value)
 	}
-	return _c
-}
-
-// SetID sets the "id" field.
-func (_c *DocCreate) SetID(v schema.DocID) *DocCreate {
-	_c.mutation.SetID(v)
-	return _c
-}
-
-// SetNillableID sets the "id" field if the given value is not nil.
-func (_c *DocCreate) SetNillableID(v *schema.DocID) *DocCreate {
-	if v != nil {
-		_c.SetID(*v)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
 	}
-	return _c
+	b.present[column.Ref().Name] = struct{}{}
+	return b
 }
-
-// SetParentID sets the "parent" edge to the Doc entity by ID.
-func (_c *DocCreate) SetParentID(id schema.DocID) *DocCreate {
-	_c.mutation.SetParentID(id)
-	return _c
-}
-
-// SetNillableParentID sets the "parent" edge to the Doc entity by ID if the given value is not nil.
-func (_c *DocCreate) SetNillableParentID(id *schema.DocID) *DocCreate {
-	if id != nil {
-		_c = _c.SetParentID(*id)
+func (b *DocCreate) SetOptional[T any](column ent.ColumnOf[entity.Doc, T], value ent.Option[T]) *DocCreate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.insert.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _c
-}
-
-// SetParent sets the "parent" edge to the Doc entity.
-func (_c *DocCreate) SetParent(v *Doc) *DocCreate {
-	return _c.SetParentID(v.ID)
-}
-
-// AddChildIDs adds the "children" edge to the Doc entity by IDs.
-func (_c *DocCreate) AddChildIDs(ids ...schema.DocID) *DocCreate {
-	_c.mutation.AddChildIDs(ids...)
-	return _c
-}
-
-// AddChildren adds the "children" edges to the Doc entity.
-func (_c *DocCreate) AddChildren(v ...*Doc) *DocCreate {
-	ids := make([]schema.DocID, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
 	}
-	return _c.AddChildIDs(ids...)
+	return b
 }
-
-// AddRelatedIDs adds the "related" edge to the Doc entity by IDs.
-func (_c *DocCreate) AddRelatedIDs(ids ...schema.DocID) *DocCreate {
-	_c.mutation.AddRelatedIDs(ids...)
-	return _c
-}
-
-// AddRelated adds the "related" edges to the Doc entity.
-func (_c *DocCreate) AddRelated(v ...*Doc) *DocCreate {
-	ids := make([]schema.DocID, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+func (b *DocCreate) SetExpr[T any](column ent.ColumnOf[entity.Doc, T], value ent.Expr[T]) *DocCreate {
+	if b.err != nil {
+		return b
 	}
-	return _c.AddRelatedIDs(ids...)
-}
+	switch column.Ref().Name {
 
-// Mutation returns the DocMutation object of the builder.
-func (_c *DocCreate) Mutation() *DocMutation {
-	return _c.mutation
-}
+	case doc.FieldID:
 
-// Save creates the Doc in the database.
-func (_c *DocCreate) Save(ctx context.Context) (*Doc, error) {
-	if err := _c.defaults(); err != nil {
+	case doc.FieldText:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Doc is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.insert.setExpr(column.Ref().Name, value.Render)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+
+}
+func (b *DocCreate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Doc, N, K], id K) *DocCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.setEdge(edge.Ref().Name, id)
+	}
+
+	switch edge.Ref().Name {
+
+	}
+
+	return b
+}
+func (b *DocCreate) AddIDs[N, K any](edge ent.Relation[entity.Doc, N, K], ids ...K) *DocCreate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.insert.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *DocCreate) Mutation() *DocMutation { return b.mutation }
+
+func (b *DocCreate) Insert() *DocInsert { return b.mutation.insert }
+
+func (b *DocCreate) Save(ctx context.Context) (*Doc, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
 		return nil, err
 	}
-	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
+	return b.sqlSave(ctx)
 }
 
-// SaveX calls Save and panics if Save returns an error.
-func (_c *DocCreate) SaveX(ctx context.Context) *Doc {
-	v, err := _c.Save(ctx)
+func (b *DocCreate) SaveX(ctx context.Context) *Doc {
+	node, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return node
 }
 
-// Exec executes the query.
-func (_c *DocCreate) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *DocCreate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *DocCreate) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *DocCreate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// defaults sets the default values of the builder before save.
-func (_c *DocCreate) defaults() error {
-	if _, ok := _c.mutation.ID(); !ok {
+func (b *DocCreate) defaults() error {
+
+	if b.mutation.insert.ID.IsUnset() && b.mutation.insert.expressions[doc.FieldID] == nil {
 		if doc.DefaultID == nil {
-			return fmt.Errorf("ent: uninitialized doc.DefaultID (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized doc.DefaultID")
 		}
-		v := doc.DefaultID()
-		_c.mutation.SetID(v)
+		b.mutation.insert.ID = ent.Some(doc.DefaultID())
 	}
+
 	return nil
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_c *DocCreate) check() error {
-	if v, ok := _c.mutation.ID(); ok {
-		if err := doc.IDValidator(v); err != nil {
-			return &ValidationError{Name: "id", err: fmt.Errorf(`ent: validator failed for field "Doc.id": %w`, err)}
+func (b *DocCreate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.insert.ID.IsNull() {
+		return &ValidationError{Name: "id", err: errors.New(`ent: field "Doc.id" is not nullable`)}
+	}
+
+	if b.mutation.insert.expressions[doc.FieldID] == nil {
+		if v, ok := b.mutation.insert.ID.Get(); ok {
+
+			if err := doc.IDValidator(v); err != nil {
+				return &ValidationError{Name: "id", err: fmt.Errorf(`ent: validator failed for field "Doc.id": %w`, err)}
+			}
+
 		}
 	}
+
 	return nil
 }
 
@@ -163,40 +164,43 @@ func (_c *DocCreate) sqlSave(ctx context.Context) (*Doc, error) {
 	if err := _c.check(); err != nil {
 		return nil, err
 	}
-	_node, _spec := _c.createSpec()
-	if err := sqlgraph.CreateNode(ctx, _c.driver, _spec); err != nil {
+	node, spec, err := _c.createSpec()
+	if err != nil {
+		return nil, err
+	}
+	if err := sqlgraph.CreateNode(ctx, _c.driver, spec); err != nil {
 		if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
 		return nil, err
 	}
-	if _spec.ID.Value != nil {
-		if id, ok := _spec.ID.Value.(*schema.DocID); ok {
-			_node.ID = *id
-		} else if err := _node.ID.Scan(_spec.ID.Value); err != nil {
-			return nil, err
-		}
-	}
-	_c.mutation.id = &_node.ID
-	_c.mutation.done = true
-	return _node, nil
+	_c.mutation.id = &node.ID
+	return node, nil
 }
 
-func (_c *DocCreate) createSpec() (*Doc, *sqlgraph.CreateSpec) {
-	var (
-		_node = &Doc{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(doc.Table, sqlgraph.NewFieldSpec(doc.FieldID, field.TypeString))
-	)
+func (_c *DocCreate) createSpec() (*Doc, *sqlgraph.CreateSpec, error) {
+	_node := &Doc{config: _c.config}
+	_spec := sqlgraph.NewCreateSpec(doc.Table, sqlgraph.NewFieldSpec(doc.FieldID, field.TypeString))
+
 	_spec.OnConflict = _c.conflict
-	if id, ok := _c.mutation.ID(); ok {
-		_node.ID = id
-		_spec.ID.Value = &id
+
+	if value, ok := _c.mutation.insert.ID.Get(); ok {
+		_spec.ID.Value = &value
 	}
-	if value, ok := _c.mutation.Text(); ok {
+
+	if value, ok := _c.mutation.insert.Text.Get(); ok {
 		_spec.SetField(doc.FieldText, field.TypeString, value)
-		_node.Text = value
 	}
-	if nodes := _c.mutation.ParentIDs(); len(nodes) > 0 {
+	if _c.mutation.insert.Text.IsNull() {
+		_spec.SetField(doc.FieldText, field.TypeString, nil)
+	}
+
+	_spec.Expressions = _c.mutation.insert.expressions
+
+	if nodes := _c.mutation.insert.parentIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -207,13 +211,18 @@ func (_c *DocCreate) createSpec() (*Doc, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(doc.FieldID, field.TypeString),
 			},
 		}
+		seen := make(map[schema2.DocID]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
-		_node.doc_children = &nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	if nodes := _c.mutation.ChildrenIDs(); len(nodes) > 0 {
+
+	if nodes := _c.mutation.insert.childrenIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -224,12 +233,18 @@ func (_c *DocCreate) createSpec() (*Doc, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(doc.FieldID, field.TypeString),
 			},
 		}
+		seen := make(map[schema2.DocID]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	if nodes := _c.mutation.RelatedIDs(); len(nodes) > 0 {
+
+	if nodes := _c.mutation.insert.relatedIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: false,
@@ -240,176 +255,143 @@ func (_c *DocCreate) createSpec() (*Doc, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(doc.FieldID, field.TypeString),
 			},
 		}
+		seen := make(map[schema2.DocID]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	return _node, _spec
-}
 
-// OnConflict allows configuring the `ON CONFLICT` clause of the `INSERT`
-// statement. For example:
-//
-//	client.Doc.Create().
-//		SetText(v).
-//		OnConflict(
-//			// Update the row with the new values
-//			// the was proposed for insertion.
-//			sql.ResolveWithNewValues(),
-//		).
-//		// Override some of the fields with custom
-//		// update values.
-//		Update(func(u *ent.DocUpsert) {
-//			SetText(v+v).
-//		}).
-//		Exec(ctx)
-func (_c *DocCreate) OnConflict(opts ...sql.ConflictOption) *DocUpsertOne {
-	_c.conflict = opts
-	return &DocUpsertOne{
-		create: _c,
-	}
-}
-
-// OnConflictColumns calls `OnConflict` and configures the columns
-// as conflict target. Using this option is equivalent to using:
-//
-//	client.Doc.Create().
-//		OnConflict(sql.ConflictColumns(columns...)).
-//		Exec(ctx)
-func (_c *DocCreate) OnConflictColumns(columns ...string) *DocUpsertOne {
-	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
-	return &DocUpsertOne{
-		create: _c,
-	}
-}
-
-type (
-	// DocUpsertOne is the builder for "upsert"-ing
-	//  one Doc node.
-	DocUpsertOne struct {
-		create *DocCreate
-	}
-
-	// DocUpsert is the "OnConflict" setter.
-	DocUpsert struct {
-		*sql.UpdateSet
-	}
-)
-
-// SetText sets the "text" field.
-func (u *DocUpsert) SetText(v string) *DocUpsert {
-	u.Set(doc.FieldText, v)
-	return u
-}
-
-// UpdateText sets the "text" field to the value that was provided on create.
-func (u *DocUpsert) UpdateText() *DocUpsert {
-	u.SetExcluded(doc.FieldText)
-	return u
-}
-
-// ClearText clears the value of the "text" field.
-func (u *DocUpsert) ClearText() *DocUpsert {
-	u.SetNull(doc.FieldText)
-	return u
-}
-
-// UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
-// Using this option is equivalent to using:
-//
-//	client.Doc.Create().
-//		OnConflict(
-//			sql.ResolveWithNewValues(),
-//			sql.ResolveWith(func(u *sql.UpdateSet) {
-//				u.SetIgnore(doc.FieldID)
-//			}),
-//		).
-//		Exec(ctx)
-func (u *DocUpsertOne) UpdateNewValues() *DocUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
-		if _, exists := u.create.mutation.ID(); exists {
-			s.SetIgnore(doc.FieldID)
+	_spec.Returning = &sqlgraph.Returning{Columns: doc.Columns, Scan: func(rows dialect.Rows) error {
+		values, err := _node.scanValues(doc.Columns)
+		if err != nil {
+			return err
 		}
-	}))
-	return u
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(doc.Columns, values); err != nil {
+			return err
+		}
+
+		_spec.ID.Value = _node.ID
+
+		return nil
+	}}
+	return _node, _spec, nil
 }
 
-// Ignore sets each column to itself in case of conflict.
-// Using this option is equivalent to using:
-//
-//	client.Doc.Create().
-//	    OnConflict(sql.ResolveWithIgnore()).
-//	    Exec(ctx)
-func (u *DocUpsertOne) Ignore() *DocUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
-	return u
+type DocUpsertOne struct{ create *DocCreate }
+
+func (b *DocCreate) OnConflict(columns ...ent.EntityColumn[entity.Doc]) *DocUpsertOne {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
+	}
+	if len(names) == 0 {
+		return b.OnConflictOptions()
+	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
 }
 
-// DoNothing configures the conflict_action to `DO NOTHING`.
-// Supported only by SQLite and PostgreSQL.
+func (b *DocCreate) OnConflictConstraint(name string) *DocUpsertOne {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
+}
+
+func (b *DocCreate) OnConflictOptions(options ...sql.ConflictOption) *DocUpsertOne {
+	b.conflict = options
+	return &DocUpsertOne{create: b}
+}
+
 func (u *DocUpsertOne) DoNothing() *DocUpsertOne {
 	u.create.conflict = append(u.create.conflict, sql.DoNothing())
 	return u
 }
 
-// Update allows overriding fields `UPDATE` values. See the DocCreate.OnConflict
-// documentation for more info.
-func (u *DocUpsertOne) Update(set func(*DocUpsert)) *DocUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
-		set(&DocUpsert{UpdateSet: update})
+func (u *DocUpsertOne) DoSelect() *DocUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *DocUpsertOne) Ignore() *DocUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *DocUpsertOne) DoUpdate(set func(*DocUpsert)) *DocUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&DocUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *DocUpsertOne) UpdateNewValues() *DocUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case doc.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
 	}))
 	return u
 }
 
-// SetText sets the "text" field.
-func (u *DocUpsertOne) SetText(v string) *DocUpsertOne {
-	return u.Update(func(s *DocUpsert) {
-		s.SetText(v)
-	})
+func (u *DocUpsertOne) Where(predicates ...ent.Predicate[entity.Doc]) *DocUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(doc.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// UpdateText sets the "text" field to the value that was provided on create.
-func (u *DocUpsertOne) UpdateText() *DocUpsertOne {
-	return u.Update(func(s *DocUpsert) {
-		s.UpdateText()
-	})
+func (u *DocUpsertOne) UpdateWhere(predicates ...ent.Predicate[entity.Doc]) *DocUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(doc.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// ClearText clears the value of the "text" field.
-func (u *DocUpsertOne) ClearText() *DocUpsertOne {
-	return u.Update(func(s *DocUpsert) {
-		s.ClearText()
-	})
-}
-
-// Exec executes the query.
-func (u *DocUpsertOne) Exec(ctx context.Context) error {
+func (u *DocUpsertOne) Save(ctx context.Context) (*Doc, error) {
 	if len(u.create.conflict) == 0 {
-		return errors.New("ent: missing options for DocCreate.OnConflict")
+		return nil, errors.New("ent: missing options for DocCreate.OnConflict")
 	}
-	return u.create.Exec(ctx)
+	return u.create.Save(ctx)
 }
 
-// ExecX is like Exec, but panics if an error occurs.
+func (u *DocUpsertOne) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
 func (u *DocUpsertOne) ExecX(ctx context.Context) {
-	if err := u.create.Exec(ctx); err != nil {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// Exec executes the UPSERT query and returns the inserted/updated ID.
-func (u *DocUpsertOne) ID(ctx context.Context) (id schema.DocID, err error) {
-	node, err := u.create.Save(ctx)
+func (u *DocUpsertOne) ID(ctx context.Context) (id schema2.DocID, err error) {
+	node, err := u.Save(ctx)
 	if err != nil {
 		return id, err
 	}
 	return node.ID, nil
 }
 
-// IDX is like ID, but panics if an error occurs.
-func (u *DocUpsertOne) IDX(ctx context.Context) schema.DocID {
+func (u *DocUpsertOne) IDX(ctx context.Context) schema2.DocID {
 	id, err := u.ID(ctx)
 	if err != nil {
 		panic(err)
@@ -417,223 +399,232 @@ func (u *DocUpsertOne) IDX(ctx context.Context) schema.DocID {
 	return id
 }
 
-// DocCreateBulk is the builder for creating many Doc entities in bulk.
+type DocUpsert struct{ *sql.UpdateSet }
+
+func (u *DocUpsert) Set[T any](column ent.ColumnOf[entity.Doc, T], value T) *DocUpsert {
+	switch column.Ref().Name {
+
+	case doc.FieldText:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Doc is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *DocUpsert) SetExpr[T any](column ent.ColumnOf[entity.Doc, T], value ent.Expr[T]) *DocUpsert {
+	switch column.Ref().Name {
+
+	case doc.FieldText:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Doc is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *DocUpsert) UpdateNewValue[T any](column ent.ColumnOf[entity.Doc, T]) *DocUpsert {
+	switch column.Ref().Name {
+
+	case doc.FieldText:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Doc is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *DocUpsert) Add[T ent.Number](column ent.ColumnOf[entity.Doc, T], delta T) *DocUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Doc does not support addition", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *DocUpsert) Clear[T any](column ent.ColumnOf[entity.Doc, T]) *DocUpsert {
+	switch column.Ref().Name {
+
+	case doc.FieldText:
+		u.UpdateSet.SetNull(column.Ref().Name)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Doc is not nullable", column.Ref().Name)})
+	}
+	return u
+}
+
 type DocCreateBulk struct {
 	config
 	err      error
 	builders []*DocCreate
+
 	conflict []sql.ConflictOption
 }
 
-// Save creates the Doc entities in the database.
 func (_c *DocCreateBulk) Save(ctx context.Context) ([]*Doc, error) {
 	if _c.err != nil {
 		return nil, _c.err
 	}
-	specs := make([]*sqlgraph.CreateSpec, len(_c.builders))
 	nodes := make([]*Doc, len(_c.builders))
-	mutators := make([]Mutator, len(_c.builders))
-	for i := range _c.builders {
-		func(i int, root context.Context) {
-			builder := _c.builders[i]
-			builder.defaults()
-			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*DocMutation)
-				if !ok {
-					return nil, fmt.Errorf("unexpected mutation type %T", m)
-				}
-				if err := builder.check(); err != nil {
-					return nil, err
-				}
-				builder.mutation = mutation
-				var err error
-				nodes[i], specs[i] = builder.createSpec()
-				if i < len(mutators)-1 {
-					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
-				} else {
-					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
-					spec.OnConflict = _c.conflict
-					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
-						if sqlgraph.IsConstraintError(err) {
-							err = &ConstraintError{msg: err.Error(), wrap: err}
-						}
-					}
-				}
-				if err != nil {
-					return nil, err
-				}
-				mutation.id = &nodes[i].ID
-				mutation.done = true
-				return nodes[i], nil
-			})
-			for i := len(builder.hooks) - 1; i >= 0; i-- {
-				mut = builder.hooks[i](mut)
-			}
-			mutators[i] = mut
-		}(i, ctx)
-	}
-	if len(mutators) > 0 {
-		if _, err := mutators[0].Mutate(ctx, _c.builders[0].mutation); err != nil {
+	specs := make([]*sqlgraph.CreateSpec, len(nodes))
+	for index, builder := range _c.builders {
+		if builder.err != nil {
+			return nil, builder.err
+		}
+		if err := builder.defaults(); err != nil {
+			return nil, err
+		}
+		if err := builder.check(); err != nil {
+			return nil, err
+		}
+		var err error
+		nodes[index], specs[index], err = builder.createSpec()
+		if err != nil {
 			return nil, err
 		}
 	}
-	return nodes, nil
+	if len(specs) == 0 {
+		return nodes, nil
+	}
+	spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+
+	spec.OnConflict = _c.conflict
+
+	if err := sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
+		if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{msg: err.Error(), wrap: err}
+		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
+		return nil, err
+	}
+	result := nodes[:0]
+	for index, builder := range _c.builders {
+		if specs[index].Skipped {
+			continue
+		}
+		builder.mutation.id = &nodes[index].ID
+		result = append(result, nodes[index])
+	}
+	return result, nil
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_c *DocCreateBulk) SaveX(ctx context.Context) []*Doc {
-	v, err := _c.Save(ctx)
+func (b *DocCreateBulk) SaveX(ctx context.Context) []*Doc {
+	nodes, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return nodes
 }
 
-// Exec executes the query.
-func (_c *DocCreateBulk) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *DocCreateBulk) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *DocCreateBulk) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *DocCreateBulk) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// OnConflict allows configuring the `ON CONFLICT` clause of the `INSERT`
-// statement. For example:
-//
-//	client.Doc.CreateBulk(builders...).
-//		OnConflict(
-//			// Update the row with the new values
-//			// the was proposed for insertion.
-//			sql.ResolveWithNewValues(),
-//		).
-//		// Override some of the fields with custom
-//		// update values.
-//		Update(func(u *ent.DocUpsert) {
-//			SetText(v+v).
-//		}).
-//		Exec(ctx)
-func (_c *DocCreateBulk) OnConflict(opts ...sql.ConflictOption) *DocUpsertBulk {
-	_c.conflict = opts
-	return &DocUpsertBulk{
-		create: _c,
+type DocUpsertBulk struct{ create *DocCreateBulk }
+
+func (b *DocCreateBulk) OnConflict(columns ...ent.EntityColumn[entity.Doc]) *DocUpsertBulk {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
 	}
-}
-
-// OnConflictColumns calls `OnConflict` and configures the columns
-// as conflict target. Using this option is equivalent to using:
-//
-//	client.Doc.Create().
-//		OnConflict(sql.ConflictColumns(columns...)).
-//		Exec(ctx)
-func (_c *DocCreateBulk) OnConflictColumns(columns ...string) *DocUpsertBulk {
-	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
-	return &DocUpsertBulk{
-		create: _c,
+	if len(names) == 0 {
+		return b.OnConflictOptions()
 	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
 }
 
-// DocUpsertBulk is the builder for "upsert"-ing
-// a bulk of Doc nodes.
-type DocUpsertBulk struct {
-	create *DocCreateBulk
+func (b *DocCreateBulk) OnConflictConstraint(name string) *DocUpsertBulk {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
 }
 
-// UpdateNewValues updates the mutable fields using the new values that
-// were set on create. Using this option is equivalent to using:
-//
-//	client.Doc.Create().
-//		OnConflict(
-//			sql.ResolveWithNewValues(),
-//			sql.ResolveWith(func(u *sql.UpdateSet) {
-//				u.SetIgnore(doc.FieldID)
-//			}),
-//		).
-//		Exec(ctx)
-func (u *DocUpsertBulk) UpdateNewValues() *DocUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
-		for _, b := range u.create.builders {
-			if _, exists := b.mutation.ID(); exists {
-				s.SetIgnore(doc.FieldID)
-			}
-		}
-	}))
-	return u
+func (b *DocCreateBulk) OnConflictOptions(options ...sql.ConflictOption) *DocUpsertBulk {
+	b.conflict = options
+	return &DocUpsertBulk{create: b}
 }
 
-// Ignore sets each column to itself in case of conflict.
-// Using this option is equivalent to using:
-//
-//	client.Doc.Create().
-//		OnConflict(sql.ResolveWithIgnore()).
-//		Exec(ctx)
-func (u *DocUpsertBulk) Ignore() *DocUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
-	return u
-}
-
-// DoNothing configures the conflict_action to `DO NOTHING`.
-// Supported only by SQLite and PostgreSQL.
 func (u *DocUpsertBulk) DoNothing() *DocUpsertBulk {
 	u.create.conflict = append(u.create.conflict, sql.DoNothing())
 	return u
 }
 
-// Update allows overriding fields `UPDATE` values. See the DocCreateBulk.OnConflict
-// documentation for more info.
-func (u *DocUpsertBulk) Update(set func(*DocUpsert)) *DocUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
-		set(&DocUpsert{UpdateSet: update})
+func (u *DocUpsertBulk) DoSelect() *DocUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *DocUpsertBulk) Ignore() *DocUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *DocUpsertBulk) DoUpdate(set func(*DocUpsert)) *DocUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&DocUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *DocUpsertBulk) UpdateNewValues() *DocUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case doc.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
 	}))
 	return u
 }
 
-// SetText sets the "text" field.
-func (u *DocUpsertBulk) SetText(v string) *DocUpsertBulk {
-	return u.Update(func(s *DocUpsert) {
-		s.SetText(v)
-	})
-}
-
-// UpdateText sets the "text" field to the value that was provided on create.
-func (u *DocUpsertBulk) UpdateText() *DocUpsertBulk {
-	return u.Update(func(s *DocUpsert) {
-		s.UpdateText()
-	})
-}
-
-// ClearText clears the value of the "text" field.
-func (u *DocUpsertBulk) ClearText() *DocUpsertBulk {
-	return u.Update(func(s *DocUpsert) {
-		s.ClearText()
-	})
-}
-
-// Exec executes the query.
-func (u *DocUpsertBulk) Exec(ctx context.Context) error {
-	if u.create.err != nil {
-		return u.create.err
-	}
-	for i, b := range u.create.builders {
-		if len(b.conflict) != 0 {
-			return fmt.Errorf("ent: OnConflict was set for builder %d. Set it on the DocCreateBulk instead", i)
+func (u *DocUpsertBulk) Where(predicates ...ent.Predicate[entity.Doc]) *DocUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(doc.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
 		}
-	}
-	if len(u.create.conflict) == 0 {
-		return errors.New("ent: missing options for DocCreateBulk.OnConflict")
-	}
-	return u.create.Exec(ctx)
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// ExecX is like Exec, but panics if an error occurs.
+func (u *DocUpsertBulk) UpdateWhere(predicates ...ent.Predicate[entity.Doc]) *DocUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(doc.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *DocUpsertBulk) Save(ctx context.Context) ([]*Doc, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for DocCreateBulk.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *DocUpsertBulk) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
 func (u *DocUpsertBulk) ExecX(ctx context.Context) {
-	if err := u.create.Exec(ctx); err != nil {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

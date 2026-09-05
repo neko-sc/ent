@@ -6,10 +6,13 @@
 package friendship
 
 import (
-	"time"
+	time2 "time"
 
+	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/multischema/versioned/entity"
+	"github.com/neko-sc/ent/entc/integration/multischema/versioned/internal"
 )
 
 const (
@@ -47,6 +50,66 @@ const (
 	FriendColumn = "friend_id"
 )
 
+var (
+	ID        = ent.OrderedColumn[entity.Friendship, int]{Table: Table, Name: FieldID}
+	Weight    = ent.OrderedColumn[entity.Friendship, int]{Table: Table, Name: FieldWeight}
+	CreatedAt = ent.OrderedColumn[entity.Friendship, time2.Time]{Table: Table, Name: FieldCreatedAt}
+	UserID    = ent.OrderedColumn[entity.Friendship, int]{Table: Table, Name: FieldUserID}
+	FriendID  = ent.OrderedColumn[entity.Friendship, int]{Table: Table, Name: FieldFriendID}
+	User      = ent.NewUniqueRelation[entity.Friendship, entity.User, int](EdgeUser, newUserStep)
+	Friend    = ent.NewUniqueRelation[entity.Friendship, entity.User, int](EdgeFriend, newFriendStep)
+)
+
+func init() {
+	User.Configure = func(s *sql.Selector, step *sqlgraph.Step) {
+		schemaConfig := internal.SchemaConfigFromContext(s.Context())
+		step.To.Schema = schemaConfig.User
+		step.Edge.Schema = schemaConfig.Friendship
+	}
+	Friend.Configure = func(s *sql.Selector, step *sqlgraph.Step) {
+		schemaConfig := internal.SchemaConfigFromContext(s.Context())
+		step.To.Schema = schemaConfig.User
+		step.Edge.Schema = schemaConfig.Friendship
+	}
+}
+
+// Alias returns the columns of the friendships table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.Friendship, int]{Table: name, Name: FieldID},
+		Weight:     ent.OrderedColumn[entity.Friendship, int]{Table: name, Name: FieldWeight},
+		CreatedAt:  ent.OrderedColumn[entity.Friendship, time2.Time]{Table: name, Name: FieldCreatedAt},
+		UserID:     ent.OrderedColumn[entity.Friendship, int]{Table: name, Name: FieldUserID},
+		FriendID:   ent.OrderedColumn[entity.Friendship, int]{Table: name, Name: FieldFriendID},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.Friendship, int]
+	Weight     ent.OrderedColumn[entity.Friendship, int]
+	CreatedAt  ent.OrderedColumn[entity.Friendship, time2.Time]
+	UserID     ent.OrderedColumn[entity.Friendship, int]
+	FriendID   ent.OrderedColumn[entity.Friendship, int]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.Friendship]) ent.Predicate[entity.Friendship] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.Friendship]) ent.Predicate[entity.Friendship] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.Friendship]) ent.Predicate[entity.Friendship] {
+	return ent.Not(predicate)
+}
+
 // Columns holds all SQL columns for friendship fields.
 var Columns = []string{
 	FieldID,
@@ -70,50 +133,9 @@ var (
 	// DefaultWeight holds the default value on creation for the "weight" field.
 	DefaultWeight int
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
-	DefaultCreatedAt func() time.Time
+	DefaultCreatedAt func() time2.Time
 )
 
-// OrderOption defines the ordering options for the Friendship queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByWeight orders the results by the weight field.
-func ByWeight(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldWeight, opts...).ToFunc()
-}
-
-// ByCreatedAt orders the results by the created_at field.
-func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldCreatedAt, opts...).ToFunc()
-}
-
-// ByUserID orders the results by the user_id field.
-func ByUserID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldUserID, opts...).ToFunc()
-}
-
-// ByFriendID orders the results by the friend_id field.
-func ByFriendID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldFriendID, opts...).ToFunc()
-}
-
-// ByUserField orders the results by user field.
-func ByUserField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newUserStep(), sql.OrderByField(field, opts...))
-	}
-}
-
-// ByFriendField orders the results by friend field.
-func ByFriendField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newFriendStep(), sql.OrderByField(field, opts...))
-	}
-}
 func newUserStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),

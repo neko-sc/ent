@@ -10,10 +10,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/link"
-	"github.com/neko-sc/ent/entc/integration/customid/ent/schema"
+	schema2 "github.com/neko-sc/ent/entc/integration/customid/ent/schema"
 	uuidc "github.com/neko-sc/ent/entc/integration/customid/uuidcompatible"
 )
 
@@ -23,8 +22,7 @@ type Link struct {
 	// ID of the ent.
 	ID uuidc.UUIDC `json:"id,omitempty"`
 	// LinkInformation holds the value of the "link_information" field.
-	LinkInformation map[string]schema.LinkInformation `json:"link_information,omitempty"`
-	selectValues    sql.SelectValues
+	LinkInformation map[string]schema2.LinkInformation `json:"link_information,omitempty"`
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -65,17 +63,9 @@ func (_m *Link) assignValues(columns []string, values []any) error {
 					return fmt.Errorf("unmarshal field link_information: %w", err)
 				}
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the Link.
-// This includes values selected through modifiers, order, etc.
-func (_m *Link) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // Update returns a builder for updating this Link.

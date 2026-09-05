@@ -26,6 +26,8 @@ func (User) Mixin() []ent.Mixin {
 // Fields of the user.
 func (User) Fields() []ent.Field {
 	return []ent.Field{
+		field.Array[[]string]("tags").Optional(),
+		field.Array[[]int]("scores").Optional(),
 		field.Int("age"),
 		field.String("name").
 			StructTag(`json:"first_name" graphql:"first_name"`),

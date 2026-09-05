@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/neko-sc/ent"
-	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/privacy"
 	"github.com/neko-sc/ent/schema"
 	"github.com/neko-sc/ent/schema/edge"
 	"github.com/neko-sc/ent/schema/field"
@@ -45,17 +44,5 @@ func (TweetLike) Edges() []ent.Edge {
 			Unique().
 			Required().
 			Field("user_id"),
-	}
-}
-
-// Policy defines the privacy policy of the TweetLike.
-func (TweetLike) Policy() ent.Policy {
-	return privacy.Policy{
-		Mutation: privacy.MutationPolicy{
-			privacy.AlwaysAllowRule(),
-		},
-		Query: privacy.QueryPolicy{
-			privacy.AlwaysAllowRule(),
-		},
 	}
 }

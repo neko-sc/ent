@@ -66,11 +66,11 @@ func Diff(ctx context.Context, u, name string, tables []*Table, opts ...MigrateO
 
 // NewMigrate creates a new Atlas form the given dialect.Driver.
 func NewMigrate(drv dialect.Driver, opts ...MigrateOption) (*Atlas, error) {
-	a := &Atlas{driver: drv, withForeignKeys: true, mode: ModeInspect}
+	a := &Atlas{driver: migrationDriver(drv), withForeignKeys: true, mode: ModeInspect}
 	for _, opt := range opts {
 		opt(a)
 	}
-	a.dialect = a.driver.Dialect()
+	a.dialect = string(a.driver.Dialect())
 	if err := a.init(); err != nil {
 		return nil, err
 	}
@@ -146,7 +146,7 @@ func (a *Atlas) NamedDiff(ctx context.Context, name string, tables ...*Table) er
 			return err
 		}
 		defer c.Close()
-		a.sqlDialect, err = a.entDialect(ctx, entsql.OpenDB(a.dialect, c.DB))
+		a.sqlDialect, err = a.entDialect(ctx, entsql.OpenDB(dialect.Dialect(a.dialect), c.DB))
 		if err != nil {
 			return err
 		}
@@ -222,7 +222,7 @@ func (a *Atlas) VerifyTableRange(ctx context.Context, tables []*Table) error {
 			return err
 		}
 		defer c.Close()
-		a.sqlDialect, err = a.entDialect(ctx, entsql.OpenDB(a.dialect, c.DB))
+		a.sqlDialect, err = a.entDialect(ctx, entsql.OpenDB(dialect.Dialect(a.dialect), c.DB))
 		if err != nil {
 			return err
 		}
@@ -602,7 +602,7 @@ func (a *Atlas) create(ctx context.Context, tables ...*Table) (err error) {
 			return err
 		}
 		defer c.Close()
-		a.sqlDialect, err = a.entDialect(ctx, entsql.OpenDB(a.dialect, c.DB))
+		a.sqlDialect, err = a.entDialect(ctx, entsql.OpenDB(dialect.Dialect(a.dialect), c.DB))
 		if err != nil {
 			return err
 		}
@@ -636,7 +636,7 @@ func (a *Atlas) create(ctx context.Context, tables ...*Table) (err error) {
 	// Apply plan (changes).
 	var applier Applier = ApplyFunc(func(ctx context.Context, tx dialect.ExecQuerier, plan *migrate.Plan) error {
 		for _, c := range plan.Changes {
-			if err := tx.Exec(ctx, c.Cmd, c.Args, nil); err != nil {
+			if _, err := tx.Exec(ctx, c.Cmd, c.Args); err != nil {
 				if c.Comment != "" {
 					err = fmt.Errorf("%s: %w", c.Comment, err)
 				}
@@ -806,10 +806,10 @@ func (a *Atlas) loadTypes(ctx context.Context, conn dialect.ExecQuerier) ([]stri
 	if !exists {
 		return nil, errTypeTableNotFound
 	}
-	rows := &entsql.Rows{}
 	query, args := entsql.Dialect(a.dialect).
 		Select("type").From(entsql.Table(TypeTable)).OrderBy(entsql.Asc("id")).Query()
-	if err := conn.Query(ctx, query, args, rows); err != nil {
+	rows, err := conn.Query(ctx, query, args)
+	if err != nil {
 		return nil, fmt.Errorf("query types table: %w", err)
 	}
 	defer rows.Close()
@@ -820,22 +820,55 @@ func (a *Atlas) loadTypes(ctx context.Context, conn dialect.ExecQuerier) ([]stri
 	return types, nil
 }
 
+// migrationDriver returns a driver whose rows are database/sql rows, which the
+// Atlas engine requires. Native drivers expose a database/sql view through DB().
+func migrationDriver(drv dialect.Driver) dialect.Driver {
+	switch driver := drv.(type) {
+	case *entsql.Driver:
+		return driver
+	case *WriteDriver:
+		copy := *driver
+		copy.Driver = migrationDriver(driver.Driver)
+		return &copy
+	case *dialect.DebugDriver:
+		copy := *driver
+		copy.Driver = migrationDriver(driver.Driver)
+		return &copy
+	}
+	if database, ok := drv.(interface{ DB() *sql.DB }); ok && database.DB() != nil {
+		return entsql.OpenDB(drv.Dialect(), database.DB())
+	}
+	return drv
+}
+
 type db struct{ dialect.ExecQuerier }
 
 func (d *db) QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
-	rows := &entsql.Rows{}
-	if err := d.Query(ctx, query, args, rows); err != nil {
+	rows, err := d.Query(ctx, query, args)
+	if err != nil {
 		return nil, err
 	}
-	return rows.ColumnScanner.(*sql.Rows), nil
+	if rows, ok := rows.(*entsql.Rows); ok {
+		if underlying, ok := rows.ColumnScanner.(*sql.Rows); ok {
+			return underlying, nil
+		}
+	}
+	rows.Close()
+	return nil, errors.New("sql/schema: migration requires database/sql rows")
 }
 
 func (d *db) ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error) {
-	var r sql.Result
-	if err := d.Exec(ctx, query, args, &r); err != nil {
+	result, err := d.Exec(ctx, query, args)
+	if err != nil {
 		return nil, err
 	}
-	return r, nil
+	return migrationResult{result}, nil
+}
+
+type migrationResult struct{ dialect.Result }
+
+func (migrationResult) LastInsertId() (int64, error) {
+	return 0, errors.New("sql/schema: LastInsertId is unsupported; use RETURNING")
 }
 
 // tables converts an Ent table slice to an atlas tables.
@@ -1011,7 +1044,7 @@ func (a *Atlas) atDefault(c1 *Column, c2 *schema.Column) error {
 		}
 		c2.SetDefault(&schema.RawExpr{X: string(x)})
 	case map[string]Expr:
-		d, ok := x[a.sqlDialect.Dialect()]
+		d, ok := x[string(a.sqlDialect.Dialect())]
 		if !ok {
 			return nil
 		}
@@ -1115,7 +1148,12 @@ func (a *Atlas) symbol(name string) string {
 }
 
 // entDialect returns the Ent dialect as configured by the dialect option.
+type databaseDriver interface{ DB() *sql.DB }
+
 func (a *Atlas) entDialect(ctx context.Context, drv dialect.Driver) (sqlDialect, error) {
+	if provider, ok := drv.(databaseDriver); ok && provider.DB() != nil {
+		drv = entsql.OpenDB(drv.Dialect(), provider.DB())
+	}
 	var d sqlDialect
 	switch a.dialect {
 	case dialect.SQLite:

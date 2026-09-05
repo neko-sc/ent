@@ -11,7 +11,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
+	"slices"
 	"sort"
 
 	"github.com/neko-sc/ent/dialect"
@@ -51,9 +53,26 @@ func (r Rel) String() (s string) {
 // A ConstraintError represents an error from mutation that violates a specific constraint.
 type ConstraintError struct {
 	msg string
+	Err error
 }
 
-func (e ConstraintError) Error() string { return e.msg }
+func (e *ConstraintError) Error() string {
+	if e.Err != nil {
+		return e.Err.Error()
+	}
+	return e.msg
+}
+func (e *ConstraintError) Unwrap() error { return e.Err }
+
+func constraintError(err error) error {
+	if _, ok := errors.AsType[*ConstraintError](err); ok {
+		return err
+	}
+	if _, ok := errors.AsType[*dialect.ConstraintError](err); ok {
+		return &ConstraintError{Err: err}
+	}
+	return err
+}
 
 // A Step provides a path-step information to the traversal functions.
 type Step struct {
@@ -161,7 +180,7 @@ func (s *Step) ThroughEdgeTable() bool {
 
 // Neighbors returns a Selector for evaluating the path-step
 // and getting the neighbors of one vertex.
-func Neighbors(dialect string, s *Step) (q *sql.Selector) {
+func Neighbors[T ~string](dialect T, s *Step) (q *sql.Selector) {
 	builder := sql.Dialect(dialect)
 	switch {
 	case s.ThroughEdgeTable():
@@ -197,7 +216,7 @@ func Neighbors(dialect string, s *Step) (q *sql.Selector) {
 
 // SetNeighbors returns a Selector for evaluating the path-step
 // and getting the neighbors of set of vertices.
-func SetNeighbors(dialect string, s *Step) (q *sql.Selector) {
+func SetNeighbors[T ~string](dialect T, s *Step) (q *sql.Selector) {
 	set := s.From.V.(*sql.Selector)
 	builder := sql.Dialect(dialect)
 	switch {
@@ -561,13 +580,13 @@ func OrderByNeighborTerms(q *sql.Selector, s *Step, opts ...sql.OrderTerm) {
 // NeighborsLimit provides a modifier function that limits the
 // number of neighbors (rows) loaded per parent row (node).
 type NeighborsLimit struct {
-	// SrcCTE, LimitCTE and RowNumber hold the identifier names
-	// to src query, new limited one (using window function) and
-	// the column for counting rows.
-	SrcCTE, LimitCTE, RowNumber string
+	// RowNumber is the window's output column name.
+	RowNumber string
 	// DefaultOrderField sets the default ordering for
 	// sub-queries in case no order terms were provided.
 	DefaultOrderField string
+	// Offset skips this many neighbors in each partition.
+	Offset int
 }
 
 // LimitNeighbors returns a modifier that limits the number of neighbors (rows) loaded per parent
@@ -579,8 +598,6 @@ type NeighborsLimit struct {
 // have multiple children.
 func LimitNeighbors(partitionBy string, limit int, orderBy ...sql.Querier) func(*sql.Selector) {
 	l := &NeighborsLimit{
-		SrcCTE:            "src_query",
-		LimitCTE:          "limited_query",
 		RowNumber:         "row_number",
 		DefaultOrderField: "id",
 	}
@@ -590,33 +607,36 @@ func LimitNeighbors(partitionBy string, limit int, orderBy ...sql.Querier) func(
 // Modifier returns a modifier function that limits the number of rows of the eager load query.
 func (l *NeighborsLimit) Modifier(partitionBy string, limit int, orderBy ...sql.Querier) func(s *sql.Selector) {
 	return func(s *sql.Selector) {
-		var (
-			d  = sql.Dialect(s.Dialect())
-			rn = sql.RowNumber().PartitionBy(partitionBy)
-		)
+		builder := sql.Dialect(s.Dialect())
+		window := sql.RowNumber().PartitionBy(partitionBy)
+		terms := orderBy
+		if len(terms) == 0 {
+			terms = s.OrderTerms()
+		}
 		switch {
-		case len(orderBy) > 0:
-			rn.OrderExpr(orderBy...)
+		case len(terms) > 0:
+			window.OrderExpr(terms...)
 		case l.DefaultOrderField != "":
-			rn.OrderBy(l.DefaultOrderField)
+			window.OrderBy(sql.Asc(s.C(l.DefaultOrderField)))
 		default:
 			s.AddError(errors.New("no order terms provided for window function"))
 			return
 		}
-		s.SetDistinct(false)
-		with := d.With(l.SrcCTE).
-			As(s.Clone()).
-			With(l.LimitCTE).
-			As(
-				d.Select("*").
-					AppendSelectExprAs(rn, l.RowNumber).
-					From(d.Table(l.SrcCTE)),
-			)
-		t := d.Table(l.LimitCTE).As(s.TableName())
-		*s = *d.Select(s.UnqualifiedColumns()...).
-			From(t).
-			Where(sql.LTE(t.C(l.RowNumber), limit)).
-			Prefix(with)
+		columns := s.UnqualifiedColumns()
+		inner := s.Clone().ClearOrder().SetDistinct(false)
+		inner.AppendSelectExprAs(window, l.RowNumber).As("limited_neighbors")
+		outer := builder.Select().From(inner).WithContext(s.Context())
+		for _, column := range columns {
+			outer.AppendSelect(inner.C(column))
+		}
+		if l.Offset > 0 {
+			outer.Where(sql.GT(inner.C(l.RowNumber), l.Offset))
+		}
+		if limit >= 0 {
+			outer.Where(sql.LTE(inner.C(l.RowNumber), l.Offset+limit))
+		}
+		outer.OrderBy(inner.C(l.RowNumber))
+		*s = *outer
 	}
 }
 
@@ -690,15 +710,40 @@ func (e *EdgeTarget) FieldValues() []any {
 	return vs
 }
 
+// Returning scans each row returned by a mutation. Create callbacks must include
+// the ID column and assign CreateSpec.ID.Value before returning for edge writes.
+type Returning struct {
+	Columns []string
+	Scan    func(rows dialect.Rows) error
+}
+
+func (r *Returning) scan(rows dialect.Rows) (int, error) {
+	defer rows.Close()
+	count := 0
+	for rows.Next() {
+		if err := r.Scan(rows); err != nil {
+			return 0, err
+		}
+		count++
+	}
+	if err := rows.Err(); err != nil {
+		return 0, constraintError(err)
+	}
+	return count, rows.Close()
+}
+
 type (
 	// CreateSpec holds the information for creating
 	// a node in the graph.
 	CreateSpec struct {
-		Table  string
-		Schema string
-		ID     *FieldSpec
-		Fields []*FieldSpec
-		Edges  []*EdgeSpec
+		Expressions map[string]func(*sql.Builder)
+		Skipped     bool
+		Returning   *Returning
+		Table       string
+		Schema      string
+		ID          *FieldSpec
+		Fields      []*FieldSpec
+		Edges       []*EdgeSpec
 
 		// The OnConflict option allows providing on-conflict
 		// options to the INSERT statement.
@@ -747,16 +792,29 @@ func (u *CreateSpec) SetField(column string, t field.Type, value driver.Value) {
 // CreateNode applies the CreateSpec on the graph. The operation creates a new
 // record in the database, and connects it to other nodes specified in spec.Edges.
 func CreateNode(ctx context.Context, drv dialect.Driver, spec *CreateSpec) error {
+	if sql.Insert(spec.Table).OnConflict(spec.OnConflict...).ConflictDoSelect() && !drv.Capabilities().ConflictDoSelect {
+		return &dialect.UnsupportedError{Feature: "ON CONFLICT DO SELECT", Dialect: dialect.Dialect(drv.Dialect())}
+	}
+	spec.Skipped = false
 	gr := graph{tx: drv, builder: sql.Dialect(drv.Dialect())}
 	cr := &creator{CreateSpec: spec, graph: gr}
-	return cr.node(ctx, drv)
+	return constraintError(cr.node(ctx, drv))
 }
 
 // BatchCreate applies the BatchCreateSpec on the graph.
 func BatchCreate(ctx context.Context, drv dialect.Driver, spec *BatchCreateSpec) error {
+	for _, node := range spec.Nodes {
+		options := node.OnConflict
+		if len(spec.OnConflict) > 0 {
+			options = spec.OnConflict
+		}
+		if sql.Insert(node.Table).OnConflict(options...).ConflictDoSelect() && !drv.Capabilities().ConflictDoSelect {
+			return &dialect.UnsupportedError{Feature: "ON CONFLICT DO SELECT", Dialect: dialect.Dialect(drv.Dialect())}
+		}
+	}
 	gr := graph{tx: drv, builder: sql.Dialect(drv.Dialect())}
 	cr := &batchCreator{BatchCreateSpec: spec, graph: gr}
-	return cr.nodes(ctx, drv)
+	return constraintError(cr.nodes(ctx, drv))
 }
 
 type (
@@ -776,14 +834,17 @@ type (
 	// UpdateSpec holds the information for updating one
 	// or more nodes in the graph.
 	UpdateSpec struct {
+		Returning *Returning
 		Node      *NodeSpec
 		Edges     EdgeMut
 		Fields    FieldMut
 		Predicate func(*sql.Selector)
 		Modifiers []func(*sql.UpdateBuilder)
 
-		ScanValues func(columns []string) ([]any, error)
-		Assign     func(columns []string, values []any) error
+		ScanValues    func(columns []string) ([]any, error)
+		Assign        func(columns []string, values []any) error
+		OldScanValues func(columns []string) ([]any, error)
+		OldAssign     func(columns []string, values []any) error
 	}
 )
 
@@ -839,6 +900,9 @@ func (u *UpdateSpec) ClearField(column string, t field.Type) {
 
 // UpdateNode applies the UpdateSpec on one node in the graph.
 func UpdateNode(ctx context.Context, drv dialect.Driver, spec *UpdateSpec) error {
+	if spec.OldScanValues != nil && !drv.Capabilities().ReturningOld {
+		return &dialect.UnsupportedError{Feature: "RETURNING OLD", Dialect: dialect.Dialect(drv.Dialect())}
+	}
 	tx, err := drv.Tx(ctx)
 	if err != nil {
 		return err
@@ -846,16 +910,17 @@ func UpdateNode(ctx context.Context, drv dialect.Driver, spec *UpdateSpec) error
 	gr := graph{tx: tx, builder: sql.Dialect(drv.Dialect())}
 	cr := &updater{UpdateSpec: spec, graph: gr}
 	if err := cr.node(ctx, tx); err != nil {
-		return rollback(tx, err)
+		return constraintError(rollback(tx, err))
 	}
-	return tx.Commit()
+	return constraintError(tx.Commit())
 }
 
 // UpdateNodes applies the UpdateSpec on a set of nodes in the graph.
 func UpdateNodes(ctx context.Context, drv dialect.Driver, spec *UpdateSpec) (int, error) {
 	gr := graph{tx: drv, builder: sql.Dialect(drv.Dialect())}
 	cr := &updater{UpdateSpec: spec, graph: gr}
-	return cr.nodes(ctx, drv)
+	count, err := cr.nodes(ctx, drv)
+	return count, constraintError(err)
 }
 
 // NotFoundError returns when trying to update an
@@ -872,6 +937,7 @@ func (e *NotFoundError) Error() string {
 // DeleteSpec holds the information for delete one
 // or more nodes in the graph.
 type DeleteSpec struct {
+	Returning *Returning
 	Node      *NodeSpec
 	Predicate func(*sql.Selector)
 }
@@ -884,7 +950,6 @@ func NewDeleteSpec(table string, id *FieldSpec) *DeleteSpec {
 // DeleteNodes applies the DeleteSpec on the graph.
 func DeleteNodes(ctx context.Context, drv dialect.Driver, spec *DeleteSpec) (int, error) {
 	var (
-		res     sql.Result
 		builder = sql.Dialect(drv.Dialect())
 	)
 	selector := builder.Select().
@@ -893,9 +958,19 @@ func DeleteNodes(ctx context.Context, drv dialect.Driver, spec *DeleteSpec) (int
 	if pred := spec.Predicate; pred != nil {
 		pred(selector)
 	}
-	query, args := builder.Delete(spec.Node.Table).Schema(spec.Node.Schema).FromSelect(selector).Query()
-	if err := drv.Exec(ctx, query, args, &res); err != nil {
-		return 0, err
+	statement := builder.Delete(spec.Node.Table).Schema(spec.Node.Schema).FromSelect(selector)
+	if spec.Returning != nil {
+		query, args := statement.Returning(spec.Returning.Columns...).Query()
+		rows, err := drv.Query(ctx, query, args)
+		if err != nil {
+			return 0, constraintError(err)
+		}
+		return spec.Returning.scan(rows)
+	}
+	query, args := statement.Query()
+	res, err := drv.Exec(ctx, query, args)
+	if err != nil {
+		return 0, constraintError(err)
 	}
 	affected, err := res.RowsAffected()
 	if err != nil {
@@ -970,9 +1045,9 @@ func QueryEdges(ctx context.Context, drv dialect.Driver, spec *EdgeQuerySpec) er
 	if p := spec.Predicate; p != nil {
 		p(selector)
 	}
-	rows := &sql.Rows{}
 	query, args := selector.Query()
-	if err := drv.Query(ctx, query, args, rows); err != nil {
+	rows, err := drv.Query(ctx, query, args)
+	if err != nil {
 		return err
 	}
 	defer rows.Close()
@@ -994,13 +1069,13 @@ type query struct {
 }
 
 func (q *query) nodes(ctx context.Context, drv dialect.Driver) error {
-	rows := &sql.Rows{}
 	selector, err := q.selector(ctx)
 	if err != nil {
 		return err
 	}
 	query, args := selector.Query()
-	if err := drv.Query(ctx, query, args, rows); err != nil {
+	rows, err := drv.Query(ctx, query, args)
+	if err != nil {
 		return err
 	}
 	defer rows.Close()
@@ -1029,7 +1104,6 @@ func (q *query) nodes(ctx context.Context, drv dialect.Driver) error {
 }
 
 func (q *query) count(ctx context.Context, drv dialect.Driver) (int, error) {
-	rows := &sql.Rows{}
 	selector, err := q.selector(ctx)
 	if err != nil {
 		return 0, err
@@ -1055,7 +1129,8 @@ func (q *query) count(ctx context.Context, drv dialect.Driver) (int, error) {
 		selector.Count(columns...)
 	}
 	query, args := selector.Query()
-	if err := drv.Query(ctx, query, args, rows); err != nil {
+	rows, err := drv.Query(ctx, query, args)
+	if err != nil {
 		return 0, err
 	}
 	defer rows.Close()
@@ -1126,12 +1201,16 @@ func (u *updater) node(ctx context.Context, tx dialect.ExecQuerier) error {
 	default:
 		return fmt.Errorf("sql/sqlgraph: missing node id for update table %q", u.Node.Table)
 	}
-	update := u.builder.Update(u.Node.Table).Schema(u.Node.Schema).Where(idp)
+	selector := u.builder.Select(u.Node.Columns...).From(u.builder.Table(u.Node.Table).Schema(u.Node.Schema))
 	if pred := u.Predicate; pred != nil {
-		selector := u.builder.Select().From(u.builder.Table(u.Node.Table).Schema(u.Node.Schema))
 		pred(selector)
-		update.FromSelect(selector)
 	}
+	if predicate := selector.P(); predicate != nil {
+		selector.SetP(sql.And(idp, predicate))
+	} else {
+		selector.SetP(idp)
+	}
+	update := u.builder.Update(u.Node.Table).Schema(u.Node.Schema).FromSelect(selector)
 	if err := u.setTableColumns(update, addEdges, clearEdges); err != nil {
 		return err
 	}
@@ -1141,47 +1220,51 @@ func (u *updater) node(ctx context.Context, tx dialect.ExecQuerier) error {
 	if err := update.Err(); err != nil {
 		return err
 	}
-	if !update.Empty() {
-		var res sql.Result
-		query, args := update.Query()
-		if err := tx.Exec(ctx, query, args, &res); err != nil {
-			return err
+	if update.Empty() && u.ScanValues != nil {
+		if u.OldScanValues != nil {
+			selector.AppendSelect(u.Node.Columns...)
 		}
-		affected, err := res.RowsAffected()
+		query, args := selector.Query()
+		rows, err := tx.Query(ctx, query, args)
 		if err != nil {
 			return err
 		}
-		// In case there are zero affected rows by this statement, we need to distinguish
-		// between the case of "record was not found" and "record was not changed".
-		if affected == 0 && u.Predicate != nil {
-			if err := u.ensureExists(ctx); err != nil {
+		if err := u.scan(rows); err != nil {
+			return err
+		}
+	} else if !update.Empty() {
+		if u.ScanValues != nil {
+			update.Returning(u.Node.Columns...)
+			if u.OldScanValues != nil {
+				update.ReturningOldNew(u.Node.Columns, u.Node.Columns)
+			}
+			query, args := update.Query()
+			rows, err := tx.Query(ctx, query, args)
+			if err != nil {
 				return err
+			}
+			if err := u.scan(rows); err != nil {
+				return err
+			}
+		} else {
+			query, args := update.Query()
+			result, err := tx.Exec(ctx, query, args)
+			if err != nil {
+				return err
+			}
+			affected, err := result.RowsAffected()
+			if err != nil {
+				return err
+			}
+			if affected == 0 {
+				return &NotFoundError{table: u.Node.Table, id: id}
 			}
 		}
 	}
 	if id != nil {
-		// Not an edge schema.
-		if err := u.setExternalEdges(ctx, []driver.Value{id}, addEdges, clearEdges); err != nil {
-			return err
-		}
+		return u.setExternalEdges(ctx, []driver.Value{id}, addEdges, clearEdges)
 	}
-	// Ignore querying the database when there's nothing
-	// to scan into it.
-	if u.ScanValues == nil {
-		return nil
-	}
-	selector := u.builder.Select(u.Node.Columns...).
-		From(u.builder.Table(u.Node.Table).Schema(u.Node.Schema)).
-		// Skip adding the custom predicates that were attached
-		// to the updater as they may point to columns that were
-		// changed by the UPDATE statement.
-		Where(idp)
-	rows := &sql.Rows{}
-	query, args := selector.Query()
-	if err := tx.Query(ctx, query, args, rows); err != nil {
-		return err
-	}
-	return u.scan(rows)
+	return nil
 }
 
 func (u *updater) nodes(ctx context.Context, drv dialect.Driver) (int, error) {
@@ -1230,10 +1313,10 @@ func (u *updater) nodes(ctx context.Context, drv dialect.Driver) (int, error) {
 	affected, err := func() (int, error) {
 		var (
 			ids         []driver.Value
-			rows        = &sql.Rows{}
 			query, args = selector.Query()
 		)
-		if err := u.tx.Query(ctx, query, args, rows); err != nil {
+		rows, err := u.tx.Query(ctx, query, args)
+		if err != nil {
 			return 0, fmt.Errorf("querying table %s: %w", u.Node.Table, err)
 		}
 		defer rows.Close()
@@ -1271,14 +1354,25 @@ func (u *updater) updateTable(ctx context.Context, stmt *sql.UpdateBuilder) (int
 	if err := stmt.Err(); err != nil {
 		return 0, err
 	}
+	if stmt.Empty() && u.Returning != nil && len(u.Returning.Columns) > 0 {
+		stmt.Set(u.Returning.Columns[0], sql.ExprFunc(func(builder *sql.Builder) { builder.Ident(u.Returning.Columns[0]) }))
+	}
 	if stmt.Empty() {
 		return 0, nil
 	}
+	if u.Returning != nil {
+		query, args := stmt.Returning(u.Returning.Columns...).Query()
+		rows, err := u.tx.Query(ctx, query, args)
+		if err != nil {
+			return 0, constraintError(err)
+		}
+		return u.Returning.scan(rows)
+	}
 	var (
-		res         sql.Result
 		query, args = stmt.Query()
 	)
-	if err := u.tx.Exec(ctx, query, args, &res); err != nil {
+	res, err := u.tx.Exec(ctx, query, args)
+	if err != nil {
 		return 0, err
 	}
 	affected, err := res.RowsAffected()
@@ -1342,7 +1436,7 @@ func (u *updater) setTableColumns(update *sql.UpdateBuilder, addEdges, clearEdge
 	return nil
 }
 
-func (u *updater) scan(rows *sql.Rows) error {
+func (u *updater) scan(rows dialect.Rows) error {
 	defer rows.Close()
 	columns, err := rows.Columns()
 	if err != nil {
@@ -1357,9 +1451,20 @@ func (u *updater) scan(rows *sql.Rows) error {
 		}
 		return &NotFoundError{table: u.Node.Table, id: u.Node.ID.Value}
 	}
+	if u.OldScanValues != nil {
+		columns = u.Node.Columns
+	}
 	values, err := u.ScanValues(columns)
 	if err != nil {
 		return err
+	}
+	var oldValues []any
+	if u.OldScanValues != nil {
+		oldValues, err = u.OldScanValues(columns)
+		if err != nil {
+			return err
+		}
+		values = append(oldValues, values...)
 	}
 	for i, v := range values {
 		if _, ok := v.(*sql.UnknownType); ok {
@@ -1369,29 +1474,22 @@ func (u *updater) scan(rows *sql.Rows) error {
 	if err := rows.Scan(values...); err != nil {
 		return fmt.Errorf("failed scanning rows: %w", err)
 	}
+	if u.OldScanValues != nil {
+		if err := u.OldAssign(columns, values[:len(oldValues)]); err != nil {
+			return err
+		}
+		values = values[len(oldValues):]
+	}
 	if err := u.Assign(columns, values); err != nil {
 		return err
 	}
-	return nil
-}
-
-func (u *updater) ensureExists(ctx context.Context) error {
-	exists := u.builder.Select().From(u.builder.Table(u.Node.Table).Schema(u.Node.Schema)).Where(sql.EQ(u.Node.ID.Column, u.Node.ID.Value))
-	u.Predicate(exists)
-	query, args := u.builder.SelectExpr(sql.Exists(exists)).Query()
-	rows := &sql.Rows{}
-	if err := u.tx.Query(ctx, query, args, rows); err != nil {
+	if rows.Next() {
+		return errors.New("sqlgraph: update returned more than one row")
+	}
+	if err := rows.Err(); err != nil {
 		return err
 	}
-	defer rows.Close()
-	found, err := sql.ScanBool(rows)
-	if err != nil {
-		return err
-	}
-	if !found {
-		return &NotFoundError{table: u.Node.Table, id: u.Node.ID.Value}
-	}
-	return nil
+	return rows.Close()
 }
 
 type creator struct {
@@ -1415,12 +1513,7 @@ func (c *creator) node(ctx context.Context, drv dialect.Driver) error {
 		// In case the spec does not contain an ID field, we assume
 		// we interact with an edge-schema with composite primary key.
 		if c.ID == nil {
-			c.ensureConflict(insert)
-			query, args, err := insert.QueryErr()
-			if err != nil {
-				return err
-			}
-			return c.tx.Exec(ctx, query, args, nil)
+			return c.insert(ctx, insert)
 		}
 		if err := c.insert(ctx, insert); err != nil {
 			return err
@@ -1451,28 +1544,73 @@ func (c *creator) mayTx(ctx context.Context, drv dialect.Driver, edges map[Rel][
 // setTableColumns sets the table columns and foreign_keys used in insert.
 func (c *creator) setTableColumns(insert *sql.InsertBuilder, edges map[Rel][]*EdgeSpec) error {
 	err := setTableColumns(c.Fields, edges, func(column string, value driver.Value) {
-		insert.Set(column, value)
+		if c.Expressions[column] == nil {
+			insert.Set(column, value)
+		}
 	})
+	for _, column := range slices.Sorted(maps.Keys(c.Expressions)) {
+		insert.Set(column, sql.ExprFunc(c.Expressions[column]))
+	}
 	return err
 }
 
 // insert a node to its table and sets its ID if it was not provided by the user.
 func (c *creator) insert(ctx context.Context, insert *sql.InsertBuilder) error {
 	c.ensureConflict(insert)
-	// If the id field was provided by the user.
-	if c.ID.Value != nil {
-		insert.Set(c.ID.Column, c.ID.Value)
-		// In case of "ON CONFLICT", the record may exist in the
-		// database, and we need to get back the database id field.
-		if len(c.OnConflict) == 0 {
-			query, args, err := insert.QueryErr()
+	if c.ID == nil {
+		if c.Returning != nil {
+			query, args, err := insert.Returning(c.Returning.Columns...).QueryErr()
 			if err != nil {
 				return err
 			}
-			return c.tx.Exec(ctx, query, args, nil)
+			rows, err := c.tx.Query(ctx, query, args)
+			if err != nil {
+				return err
+			}
+			count, err := c.Returning.scan(rows)
+			if err == nil && count == 0 {
+				return dialect.ErrNoRows
+			}
+			return err
 		}
+		query, args, err := insert.QueryErr()
+		if err != nil {
+			return err
+		}
+		_, err = c.tx.Exec(ctx, query, args)
+		return err
 	}
-	return c.insertLastID(ctx, insert.Returning(c.ID.Column))
+	if c.ID.Value != nil && c.Expressions[c.ID.Column] == nil {
+		insert.Set(c.ID.Column, c.ID.Value)
+	}
+	if c.Returning == nil {
+		return c.insertID(ctx, insert.Returning(c.ID.Column))
+	}
+	query, args, err := insert.Returning(c.Returning.Columns...).QueryErr()
+	if err != nil {
+		return err
+	}
+	rows, err := c.tx.Query(ctx, query, args)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return err
+		}
+		return dialect.ErrNoRows
+	}
+	if err := c.Returning.Scan(rows); err != nil {
+		return err
+	}
+	if c.ID.Value == nil {
+		return errors.New("sqlgraph: Returning.Scan must assign the ID value")
+	}
+	if rows.Next() {
+		return errors.New("sqlgraph: create returned more than one row")
+	}
+	return rows.Err()
 }
 
 // ensureConflict ensures the ON CONFLICT is added to the insert statement.
@@ -1491,63 +1629,129 @@ func (c *batchCreator) nodes(ctx context.Context, drv dialect.Driver) error {
 	if len(c.Nodes) == 0 {
 		return nil
 	}
+	for index, node := range c.Nodes {
+		if index > 0 && (node.Table != c.Nodes[0].Table || node.Schema != c.Nodes[0].Schema) {
+			return errors.New("sqlgraph: batch nodes must share a table and schema")
+		}
+	}
+	// Every node is inserted with the union of all columns; columns a node did
+	// not set become NULL so that ON CONFLICT ... DO UPDATE with the new values
+	// clears them, on both dialects and on both execution strategies below.
 	columns := make(map[string]struct{})
 	values := make([]map[string]driver.Value, len(c.Nodes))
 	for i, node := range c.Nodes {
-		if i > 0 && node.Table != c.Nodes[i-1].Table {
-			return fmt.Errorf("more than 1 table for batch insert: %q != %q", node.Table, c.Nodes[i-1].Table)
-		}
 		values[i] = make(map[string]driver.Value)
 		if node.ID != nil && node.ID.Value != nil {
 			columns[node.ID.Column] = struct{}{}
 			values[i][node.ID.Column] = node.ID.Value
 		}
-		edges := EdgeSpecs(node.Edges).GroupRel()
-		err := setTableColumns(node.Fields, edges, func(column string, value driver.Value) {
+		err := setTableColumns(node.Fields, EdgeSpecs(node.Edges).GroupRel(), func(column string, value driver.Value) {
 			columns[column] = struct{}{}
 			values[i][column] = value
 		})
+		for column, render := range node.Expressions {
+			columns[column] = struct{}{}
+			values[i][column] = sql.ExprFunc(render)
+		}
 		if err != nil {
 			return err
 		}
 	}
-	for column := range columns {
-		for i := range values {
-			if _, exists := values[i][column]; !exists {
-				if c.Nodes[i].ID != nil && column == c.Nodes[i].ID.Column {
-					// If the ID value was provided to one of the nodes, it should be
-					// provided to all others for consistency.
-					return fmt.Errorf("inconsistent id values for batch insert")
-				}
-				// Assign NULL values for empty placeholders.
-				values[i][column] = nil
-			}
-		}
+	if len(columns) == 0 && c.Nodes[0].ID != nil {
+		columns[c.Nodes[0].ID.Column] = struct{}{}
 	}
 	sorted := keys(columns)
-	insert := c.builder.Insert(c.Nodes[0].Table).Schema(c.Nodes[0].Schema).Default().Columns(sorted...)
-	for i := range values {
-		vs := make([]any, len(sorted))
-		for j, c := range sorted {
-			vs[j] = values[i][c]
-		}
-		insert.Values(vs...)
+	// Unordered or skipped RETURNING rows cannot be correlated with input nodes.
+	individual := !drv.Capabilities().MultiRowReturningOrdered || len(c.OnConflict) > 0
+	for _, node := range c.Nodes {
+		node.Skipped = false
+		individual = individual || len(node.OnConflict) > 0 || node.ID == nil && len(node.Fields) == 0
 	}
-	tx, err := c.mayTx(ctx, drv)
+	if individual {
+		tx, err := drv.Tx(ctx)
+		if err != nil {
+			return err
+		}
+		for index, node := range c.Nodes {
+			spec := *node
+			if len(c.OnConflict) > 0 {
+				spec.OnConflict = c.OnConflict
+			}
+			creator := &creator{graph: graph{tx: tx, builder: c.builder}, CreateSpec: &spec}
+			edges := EdgeSpecs(node.Edges).GroupRel()
+			insert := c.builder.Insert(node.Table).Schema(node.Schema).Default()
+			for _, column := range sorted {
+				// The ID column is set by creator.insert when a value was provided.
+				if node.ID != nil && column == node.ID.Column && node.Expressions[column] == nil {
+					continue
+				}
+				insert.Set(column, values[index][column])
+			}
+			node.Skipped = false
+			if err := creator.insert(ctx, insert); err != nil {
+				if errors.Is(err, dialect.ErrNoRows) {
+					node.Skipped = true
+					continue
+				}
+				return rollback(tx, err)
+			}
+			if node.ID != nil {
+				if err := creator.addM2MEdges(ctx, []driver.Value{node.ID.Value}, edges[M2M]); err != nil {
+					return rollback(tx, err)
+				}
+				if err := creator.addFKEdges(ctx, []driver.Value{node.ID.Value}, append(edges[O2M], edges[O2O]...)); err != nil {
+					return rollback(tx, err)
+				}
+			}
+		}
+		return tx.Commit()
+	}
+	// Keep each callback's exact column layout, including mixed callback/ID-only nodes.
+	var groups [][]int
+	for index, node := range c.Nodes {
+		group := slices.IndexFunc(groups, func(indexes []int) bool {
+			returning := c.Nodes[indexes[0]].Returning
+			return returning == nil && node.Returning == nil || returning != nil && node.Returning != nil && slices.Equal(returning.Columns, node.Returning.Columns)
+		})
+		if group == -1 {
+			groups = append(groups, []int{index})
+		} else {
+			groups[group] = append(groups[group], index)
+		}
+	}
+	var tx dialect.Tx
+	var err error
+	if len(groups) > 1 {
+		tx, err = drv.Tx(ctx)
+	} else {
+		tx, err = c.mayTx(ctx, drv)
+	}
 	if err != nil {
 		return err
 	}
 	c.tx = tx
 	if err := func() error {
-		// In case the spec does not contain an ID field, we assume
-		// we interact with an edge-schema with composite primary key.
-		if c.Nodes[0].ID == nil {
-			c.ensureConflict(insert)
-			query, args := insert.Query()
-			return tx.Exec(ctx, query, args, nil)
+		for _, indexes := range groups {
+			nodes := make([]*CreateSpec, 0, len(indexes))
+			insert := c.builder.Insert(c.Nodes[0].Table).Schema(c.Nodes[0].Schema).Default().Columns(sorted...)
+			for _, index := range indexes {
+				nodes = append(nodes, c.Nodes[index])
+				arguments := make([]any, len(sorted))
+				for position, column := range sorted {
+					arguments[position] = values[index][column]
+					if node := c.Nodes[index]; node.ID != nil && column == node.ID.Column && node.ID.Value == nil && node.Expressions[column] == nil {
+						arguments[position] = sql.Default
+					}
+				}
+				insert.Values(arguments...)
+			}
+			creator := &batchCreator{graph: c.graph, BatchCreateSpec: &BatchCreateSpec{Nodes: nodes}}
+			if err := creator.batchInsert(ctx, tx, insert); err != nil {
+				return fmt.Errorf("insert nodes to table %q: %w", c.Nodes[0].Table, err)
+			}
 		}
-		if err := c.batchInsert(ctx, tx, insert); err != nil {
-			return fmt.Errorf("insert nodes to table %q: %w", c.Nodes[0].Table, err)
+		if c.Nodes[0].ID == nil {
+			return nil
 		}
 		if err := c.batchAddM2M(ctx, c.BatchCreateSpec); err != nil {
 			return err
@@ -1582,7 +1786,47 @@ func (c *batchCreator) mayTx(ctx context.Context, drv dialect.Driver) (dialect.T
 // batchInsert inserts a batch of nodes to their table and sets their ID if it was not provided by the user.
 func (c *batchCreator) batchInsert(ctx context.Context, tx dialect.ExecQuerier, insert *sql.InsertBuilder) error {
 	c.ensureConflict(insert)
-	return c.insertLastIDs(ctx, tx, insert.Returning(c.Nodes[0].ID.Column))
+	if c.Nodes[0].Returning == nil {
+		if c.Nodes[0].ID != nil {
+			return c.insertIDs(ctx, tx, insert.Returning(c.Nodes[0].ID.Column))
+		}
+		query, args, err := insert.QueryErr()
+		if err != nil {
+			return err
+		}
+		_, err = tx.Exec(ctx, query, args)
+		return err
+	}
+	query, args, err := insert.Returning(c.Nodes[0].Returning.Columns...).QueryErr()
+	if err != nil {
+		return err
+	}
+	rows, err := tx.Query(ctx, query, args)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	count := 0
+	for rows.Next() {
+		if count >= len(c.Nodes) {
+			return errors.New("sqlgraph: too many returned rows")
+		}
+		node := c.Nodes[count]
+		if err := node.Returning.Scan(rows); err != nil {
+			return err
+		}
+		if node.ID != nil && node.ID.Value == nil {
+			return errors.New("sqlgraph: Returning.Scan must assign the ID value")
+		}
+		count++
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	if count != len(c.Nodes) {
+		return fmt.Errorf("sqlgraph: expected %d returned rows, got %d", len(c.Nodes), count)
+	}
+	return rows.Close()
 }
 
 // ensureConflict ensures the ON CONFLICT is added to the insert statement.
@@ -1667,7 +1911,7 @@ func (g *graph) clearM2MEdges(ctx context.Context, ids []driver.Value, edges Edg
 			deleter.Schema(edges[0].Schema)
 		}
 		query, args := deleter.Query()
-		if err := g.tx.Exec(ctx, query, args, nil); err != nil {
+		if _, err := g.tx.Exec(ctx, query, args); err != nil {
 			return fmt.Errorf("remove m2m edge for table %s: %w", table, err)
 		}
 	}
@@ -1714,7 +1958,7 @@ func (g *graph) addM2MEdges(ctx context.Context, ids []driver.Value, edges EdgeS
 			insert.OnConflict(sql.DoNothing())
 		}
 		query, args := insert.Query()
-		if err := g.tx.Exec(ctx, query, args, nil); err != nil {
+		if _, err := g.tx.Exec(ctx, query, args); err != nil {
 			return fmt.Errorf("add m2m edge for table %s: %w", table, err)
 		}
 	}
@@ -1764,7 +2008,7 @@ func (g *graph) batchAddM2M(ctx context.Context, spec *BatchCreateSpec) error {
 	}
 	for _, table := range insertKeys(tables) {
 		query, args := tables[table].Query()
-		if err := g.tx.Exec(ctx, query, args, nil); err != nil {
+		if _, err := g.tx.Exec(ctx, query, args); err != nil {
 			return fmt.Errorf("add m2m edge for table %s: %w", table, err)
 		}
 	}
@@ -1787,7 +2031,7 @@ func (g *graph) clearFKEdges(ctx context.Context, ids []driver.Value, edges []*E
 			SetNull(edge.Columns[0]).
 			Where(pred).
 			Query()
-		if err := g.tx.Exec(ctx, query, args, nil); err != nil {
+		if _, err := g.tx.Exec(ctx, query, args); err != nil {
 			return fmt.Errorf("add %s edge for table %s: %w", edge.Rel, edge.Table, err)
 		}
 	}
@@ -1816,8 +2060,8 @@ func (g *graph) addFKEdges(ctx context.Context, ids []driver.Value, edges []*Edg
 			Set(edge.Columns[0], id).
 			Where(sql.And(p, sql.IsNull(edge.Columns[0]))).
 			Query()
-		var res sql.Result
-		if err := g.tx.Exec(ctx, query, args, &res); err != nil {
+		res, err := g.tx.Exec(ctx, query, args)
+		if err != nil {
 			return fmt.Errorf("add %s edge for table %s: %w", edge.Rel, edge.Table, err)
 		}
 		affected, err := res.RowsAffected()
@@ -1882,14 +2126,14 @@ func setTableColumns(fields []*FieldSpec, edges map[Rel][]*EdgeSpec, set func(st
 	return nil
 }
 
-// insertLastID invokes the insert query on the transaction and returns the LastInsertID.
-func (c *creator) insertLastID(ctx context.Context, insert *sql.InsertBuilder) error {
+// insertID invokes the insert query on the transaction and returns the returned ID.
+func (c *creator) insertID(ctx context.Context, insert *sql.InsertBuilder) error {
 	query, args, err := insert.QueryErr()
 	if err != nil {
 		return err
 	}
-	rows := &sql.Rows{}
-	if err := c.tx.Query(ctx, query, args, rows); err != nil {
+	rows, err := c.tx.Query(ctx, query, args)
+	if err != nil {
 		return err
 	}
 	defer rows.Close()
@@ -1908,19 +2152,24 @@ func (c *creator) insertLastID(ctx context.Context, insert *sql.InsertBuilder) e
 	}
 }
 
-// insertLastIDs invokes the batch insert query on the transaction and returns the LastInsertID of all entities.
-func (c *batchCreator) insertLastIDs(ctx context.Context, tx dialect.ExecQuerier, insert *sql.InsertBuilder) error {
+// insertIDs invokes the batch insert query on the transaction and returns the returned ID of all entities.
+func (c *batchCreator) insertIDs(ctx context.Context, tx dialect.ExecQuerier, insert *sql.InsertBuilder) error {
 	query, args, err := insert.QueryErr()
 	if err != nil {
 		return err
 	}
-	rows := &sql.Rows{}
-	if err := tx.Query(ctx, query, args, rows); err != nil {
+	rows, err := tx.Query(ctx, query, args)
+	if err != nil {
 		return err
 	}
 	defer rows.Close()
-	for i := 0; rows.Next(); i++ {
-		node := c.Nodes[i]
+	count := 0
+	for rows.Next() {
+		if count >= len(c.Nodes) {
+			return errors.New("sqlgraph: too many returned IDs")
+		}
+		node := c.Nodes[count]
+		count++
 		switch _, ok := node.ID.Value.(field.ValueScanner); {
 		case ok:
 			if err := rows.Scan(node.ID.Value); err != nil {
@@ -1938,7 +2187,13 @@ func (c *batchCreator) insertLastIDs(ctx context.Context, tx dialect.ExecQuerier
 			}
 		}
 	}
-	return rows.Err()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	if count != len(c.Nodes) {
+		return fmt.Errorf("sqlgraph: expected %d returned IDs, got %d; conflict actions must return every row", len(c.Nodes), count)
+	}
+	return rows.Close()
 }
 
 // rollback calls to tx.Rollback and wraps the given error with the rollback error if occurred.

@@ -11,6 +11,7 @@ import (
 
 	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/entc/integration/multischema/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/multischema/ent/parent"
 	"github.com/neko-sc/ent/entc/integration/multischema/ent/user"
 )
@@ -28,8 +29,7 @@ type Parent struct {
 	ParentID int `json:"parent_id,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the ParentQuery when eager-loading is set.
-	Edges        ParentEdges `json:"edges"`
-	selectValues sql.SelectValues
+	Edges ParentEdges `json:"edges"`
 }
 
 // ParentEdges holds the relations/edges for other nodes in the graph.
@@ -41,6 +41,34 @@ type ParentEdges struct {
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes [2]bool
+	counts      map[string]int
+}
+
+func (e ParentEdges) Loaded[N, K any](edge ent.RelationOf[entity.Parent, N, K]) bool {
+	switch edge.Ref().Name {
+	case "child":
+		return e.loadedTypes[0]
+	case "parent":
+		return e.loadedTypes[1]
+
+	default:
+		return false
+	}
+}
+
+func (e *ParentEdges) SetLoaded[N, K any](edge ent.RelationOf[entity.Parent, N, K], loaded bool) {
+	switch edge.Ref().Name {
+	case "child":
+		e.loadedTypes[0] = loaded
+	case "parent":
+		e.loadedTypes[1] = loaded
+
+	}
+}
+
+func (e ParentEdges) Count[N, K any](edge ent.Relation[entity.Parent, N, K]) (int, bool) {
+	count, loaded := e.counts[edge.Ref().Name]
+	return count, loaded
 }
 
 // ChildOrErr returns the Child value or an error if the edge
@@ -71,9 +99,9 @@ func (*Parent) scanValues(columns []string) ([]any, error) {
 	for i := range columns {
 		switch columns[i] {
 		case parent.FieldByAdoption:
-			values[i] = new(sql.NullBool)
+			values[i] = new(*bool)
 		case parent.FieldID, parent.FieldUserID, parent.FieldParentID:
-			values[i] = new(sql.NullInt64)
+			values[i] = new(*int)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -90,40 +118,36 @@ func (_m *Parent) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case parent.FieldID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field id", values[i])
-			} else if value.Valid {
-				_m.ID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.ID = **value
 			}
 		case parent.FieldByAdoption:
-			if value, ok := values[i].(*sql.NullBool); !ok {
+
+			if value, ok := values[i].(**bool); !ok {
 				return fmt.Errorf("unexpected type %T for field by_adoption", values[i])
-			} else if value.Valid {
-				_m.ByAdoption = bool(value.Bool)
+			} else if value != nil && *value != nil {
+				_m.ByAdoption = **value
 			}
 		case parent.FieldUserID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field user_id", values[i])
-			} else if value.Valid {
-				_m.UserID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.UserID = **value
 			}
 		case parent.FieldParentID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field parent_id", values[i])
-			} else if value.Valid {
-				_m.ParentID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.ParentID = **value
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the Parent.
-// This includes values selected through modifiers, order, etc.
-func (_m *Parent) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // QueryChild queries the "child" edge of the Parent entity.

@@ -6,7 +6,10 @@
 package customtype
 
 import (
-	"github.com/neko-sc/ent/dialect/sql"
+	time2 "time"
+
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/entc/integration/migrate/entv2/entity"
 )
 
 const (
@@ -24,6 +27,48 @@ const (
 	Table = "custom_types"
 )
 
+var (
+	ID     = ent.OrderedColumn[entity.CustomType, int]{Table: Table, Name: FieldID}
+	Custom = ent.StringColumn[entity.CustomType, string]{Table: Table, Name: FieldCustom}
+	Tz0    = ent.OrderedColumn[entity.CustomType, time2.Time]{Table: Table, Name: FieldTz0}
+	Tz3    = ent.OrderedColumn[entity.CustomType, time2.Time]{Table: Table, Name: FieldTz3}
+)
+
+// Alias returns the columns of the custom_types table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.CustomType, int]{Table: name, Name: FieldID},
+		Custom:     ent.StringColumn[entity.CustomType, string]{Table: name, Name: FieldCustom},
+		Tz0:        ent.OrderedColumn[entity.CustomType, time2.Time]{Table: name, Name: FieldTz0},
+		Tz3:        ent.OrderedColumn[entity.CustomType, time2.Time]{Table: name, Name: FieldTz3},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.CustomType, int]
+	Custom     ent.StringColumn[entity.CustomType, string]
+	Tz0        ent.OrderedColumn[entity.CustomType, time2.Time]
+	Tz3        ent.OrderedColumn[entity.CustomType, time2.Time]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.CustomType]) ent.Predicate[entity.CustomType] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.CustomType]) ent.Predicate[entity.CustomType] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.CustomType]) ent.Predicate[entity.CustomType] {
+	return ent.Not(predicate)
+}
+
 // Columns holds all SQL columns for customtype fields.
 var Columns = []string{
 	FieldID,
@@ -40,27 +85,4 @@ func ValidColumn(column string) bool {
 		}
 	}
 	return false
-}
-
-// OrderOption defines the ordering options for the CustomType queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByCustom orders the results by the custom field.
-func ByCustom(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldCustom, opts...).ToFunc()
-}
-
-// ByTz0 orders the results by the tz0 field.
-func ByTz0(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldTz0, opts...).ToFunc()
-}
-
-// ByTz3 orders the results by the tz3 field.
-func ByTz3(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldTz3, opts...).ToFunc()
 }

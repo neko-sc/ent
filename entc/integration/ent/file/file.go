@@ -6,8 +6,11 @@
 package file
 
 import (
-	"github.com/neko-sc/ent/dialect/sql"
+	time2 "time"
+
+	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/ent/entity"
 )
 
 const (
@@ -27,8 +30,8 @@ const (
 	FieldGroup = "group"
 	// FieldOp holds the string denoting the op field in the database.
 	FieldOp = "op"
-	// FieldFieldID holds the string denoting the field_id field in the database.
-	FieldFieldID = "field_id"
+	// FieldExternalFieldID holds the string denoting the external_field_id field in the database.
+	FieldExternalFieldID = "field_id"
 	// FieldCreateTime holds the string denoting the create_time field in the database.
 	FieldCreateTime = "create_time"
 	// EdgeOwner holds the string denoting the owner edge name in mutations.
@@ -62,6 +65,64 @@ const (
 	FieldColumn = "file_field"
 )
 
+var (
+	ID              = ent.OrderedColumn[entity.File, int]{Table: Table, Name: FieldID}
+	SetID           = ent.OrderedColumn[entity.File, int]{Table: Table, Name: FieldSetID}
+	Size            = ent.OrderedColumn[entity.File, int]{Table: Table, Name: FieldSize}
+	Name            = ent.StringColumn[entity.File, string]{Table: Table, Name: FieldName}
+	User            = ent.StringColumn[entity.File, string]{Table: Table, Name: FieldUser}
+	Group           = ent.StringColumn[entity.File, string]{Table: Table, Name: FieldGroup}
+	Op              = ent.Column[entity.File, bool]{Table: Table, Name: FieldOp}
+	ExternalFieldID = ent.OrderedColumn[entity.File, int]{Table: Table, Name: FieldExternalFieldID}
+	CreateTime      = ent.OrderedColumn[entity.File, time2.Time]{Table: Table, Name: FieldCreateTime}
+	Owner           = ent.NewUniqueRelation[entity.File, entity.User, int](EdgeOwner, newOwnerStep)
+	Type            = ent.NewUniqueRelation[entity.File, entity.FileType, int](EdgeType, newTypeStep)
+	Field           = ent.NewRelation[entity.File, entity.FieldType, int](EdgeField, newFieldStep)
+)
+
+// Alias returns the columns of the files table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias:      name,
+		ID:              ent.OrderedColumn[entity.File, int]{Table: name, Name: FieldID},
+		SetID:           ent.OrderedColumn[entity.File, int]{Table: name, Name: FieldSetID},
+		Size:            ent.OrderedColumn[entity.File, int]{Table: name, Name: FieldSize},
+		Name:            ent.StringColumn[entity.File, string]{Table: name, Name: FieldName},
+		User:            ent.StringColumn[entity.File, string]{Table: name, Name: FieldUser},
+		Group:           ent.StringColumn[entity.File, string]{Table: name, Name: FieldGroup},
+		Op:              ent.Column[entity.File, bool]{Table: name, Name: FieldOp},
+		ExternalFieldID: ent.OrderedColumn[entity.File, int]{Table: name, Name: FieldExternalFieldID},
+		CreateTime:      ent.OrderedColumn[entity.File, time2.Time]{Table: name, Name: FieldCreateTime},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias      string
+	ID              ent.OrderedColumn[entity.File, int]
+	SetID           ent.OrderedColumn[entity.File, int]
+	Size            ent.OrderedColumn[entity.File, int]
+	Name            ent.StringColumn[entity.File, string]
+	User            ent.StringColumn[entity.File, string]
+	Group           ent.StringColumn[entity.File, string]
+	Op              ent.Column[entity.File, bool]
+	ExternalFieldID ent.OrderedColumn[entity.File, int]
+	CreateTime      ent.OrderedColumn[entity.File, time2.Time]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.File]) ent.Predicate[entity.File] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.File]) ent.Predicate[entity.File] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.File]) ent.Predicate[entity.File] { return ent.Not(predicate) }
+
 // Columns holds all SQL columns for file fields.
 var Columns = []string{
 	FieldID,
@@ -71,7 +132,7 @@ var Columns = []string{
 	FieldUser,
 	FieldGroup,
 	FieldOp,
-	FieldFieldID,
+	FieldExternalFieldID,
 	FieldCreateTime,
 }
 
@@ -107,81 +168,6 @@ var (
 	SizeValidator func(int) error
 )
 
-// OrderOption defines the ordering options for the File queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// BySetID orders the results by the set_id field.
-func BySetID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldSetID, opts...).ToFunc()
-}
-
-// BySize orders the results by the size field.
-func BySize(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldSize, opts...).ToFunc()
-}
-
-// ByName orders the results by the name field.
-func ByName(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldName, opts...).ToFunc()
-}
-
-// ByUser orders the results by the user field.
-func ByUser(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldUser, opts...).ToFunc()
-}
-
-// ByGroup orders the results by the group field.
-func ByGroup(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldGroup, opts...).ToFunc()
-}
-
-// ByOp orders the results by the op field.
-func ByOp(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldOp, opts...).ToFunc()
-}
-
-// ByFieldID orders the results by the field_id field.
-func ByFieldID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldFieldID, opts...).ToFunc()
-}
-
-// ByCreateTime orders the results by the create_time field.
-func ByCreateTime(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldCreateTime, opts...).ToFunc()
-}
-
-// ByOwnerField orders the results by owner field.
-func ByOwnerField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newOwnerStep(), sql.OrderByField(field, opts...))
-	}
-}
-
-// ByTypeField orders the results by type field.
-func ByTypeField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newTypeStep(), sql.OrderByField(field, opts...))
-	}
-}
-
-// ByFieldCount orders the results by field count.
-func ByFieldCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newFieldStep(), opts...)
-	}
-}
-
-// ByField orders the results by field terms.
-func ByField(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newFieldStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
 func newOwnerStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),

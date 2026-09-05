@@ -156,7 +156,7 @@ func TestSnapshot_ParseSnapshotRejectsSemanticConflict(t *testing.T) {
 
 func TestSnapshot_Restore(t *testing.T) {
 	t.Log("Running snapshot-restore integration test")
-	const testPackage = "../integration/privacy/ent"
+	const testPackage = "../integration/edgeschema/ent"
 	restore, err := addConflicts(testPackage)
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, restore()) })

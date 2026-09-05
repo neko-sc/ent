@@ -3,7 +3,8 @@
 package userauditlog
 
 import (
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/examples/triggers/ent/entity"
 )
 
 const (
@@ -23,6 +24,51 @@ const (
 	Table = "user_audit_logs"
 )
 
+var (
+	ID            = ent.OrderedColumn[entity.UserAuditLog, int]{Table: Table, Name: FieldID}
+	OperationType = ent.StringColumn[entity.UserAuditLog, string]{Table: Table, Name: FieldOperationType}
+	OperationTime = ent.StringColumn[entity.UserAuditLog, string]{Table: Table, Name: FieldOperationTime}
+	OldValue      = ent.StringColumn[entity.UserAuditLog, string]{Table: Table, Name: FieldOldValue}
+	NewValue      = ent.StringColumn[entity.UserAuditLog, string]{Table: Table, Name: FieldNewValue}
+)
+
+// Alias returns the columns of the user_audit_logs table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias:    name,
+		ID:            ent.OrderedColumn[entity.UserAuditLog, int]{Table: name, Name: FieldID},
+		OperationType: ent.StringColumn[entity.UserAuditLog, string]{Table: name, Name: FieldOperationType},
+		OperationTime: ent.StringColumn[entity.UserAuditLog, string]{Table: name, Name: FieldOperationTime},
+		OldValue:      ent.StringColumn[entity.UserAuditLog, string]{Table: name, Name: FieldOldValue},
+		NewValue:      ent.StringColumn[entity.UserAuditLog, string]{Table: name, Name: FieldNewValue},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias    string
+	ID            ent.OrderedColumn[entity.UserAuditLog, int]
+	OperationType ent.StringColumn[entity.UserAuditLog, string]
+	OperationTime ent.StringColumn[entity.UserAuditLog, string]
+	OldValue      ent.StringColumn[entity.UserAuditLog, string]
+	NewValue      ent.StringColumn[entity.UserAuditLog, string]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.UserAuditLog]) ent.Predicate[entity.UserAuditLog] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.UserAuditLog]) ent.Predicate[entity.UserAuditLog] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.UserAuditLog]) ent.Predicate[entity.UserAuditLog] {
+	return ent.Not(predicate)
+}
+
 // Columns holds all SQL columns for userauditlog fields.
 var Columns = []string{
 	FieldID,
@@ -40,32 +86,4 @@ func ValidColumn(column string) bool {
 		}
 	}
 	return false
-}
-
-// OrderOption defines the ordering options for the UserAuditLog queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByOperationType orders the results by the operation_type field.
-func ByOperationType(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldOperationType, opts...).ToFunc()
-}
-
-// ByOperationTime orders the results by the operation_time field.
-func ByOperationTime(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldOperationTime, opts...).ToFunc()
-}
-
-// ByOldValue orders the results by the old_value field.
-func ByOldValue(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldOldValue, opts...).ToFunc()
-}
-
-// ByNewValue orders the results by the new_value field.
-func ByNewValue(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldNewValue, opts...).ToFunc()
 }

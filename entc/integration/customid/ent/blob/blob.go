@@ -7,8 +7,9 @@ package blob
 
 import (
 	"github.com/google/uuid"
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
 )
 
 const (
@@ -42,6 +43,46 @@ const (
 	// BlobLinksColumn is the table column denoting the blob_links relation/edge.
 	BlobLinksColumn = "blob_id"
 )
+
+var (
+	ID        = ent.OrderedColumn[entity.Blob, uuid.UUID]{Table: Table, Name: FieldID}
+	UUID      = ent.OrderedColumn[entity.Blob, uuid.UUID]{Table: Table, Name: FieldUUID}
+	Count     = ent.OrderedColumn[entity.Blob, int]{Table: Table, Name: FieldCount}
+	Parent    = ent.NewUniqueRelation[entity.Blob, entity.Blob, uuid.UUID](EdgeParent, newParentStep)
+	Links     = ent.NewRelation[entity.Blob, entity.Blob, uuid.UUID](EdgeLinks, newLinksStep)
+	BlobLinks = ent.NewRelation[entity.Blob, entity.BlobLink, any](EdgeBlobLinks, newBlobLinksStep)
+)
+
+// Alias returns the columns of the blobs table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.Blob, uuid.UUID]{Table: name, Name: FieldID},
+		UUID:       ent.OrderedColumn[entity.Blob, uuid.UUID]{Table: name, Name: FieldUUID},
+		Count:      ent.OrderedColumn[entity.Blob, int]{Table: name, Name: FieldCount},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.Blob, uuid.UUID]
+	UUID       ent.OrderedColumn[entity.Blob, uuid.UUID]
+	Count      ent.OrderedColumn[entity.Blob, int]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.Blob]) ent.Predicate[entity.Blob] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.Blob]) ent.Predicate[entity.Blob] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.Blob]) ent.Predicate[entity.Blob] { return ent.Not(predicate) }
 
 // Columns holds all SQL columns for blob fields.
 var Columns = []string{
@@ -86,58 +127,6 @@ var (
 	DefaultID func() uuid.UUID
 )
 
-// OrderOption defines the ordering options for the Blob queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByUUID orders the results by the uuid field.
-func ByUUID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldUUID, opts...).ToFunc()
-}
-
-// ByCount orders the results by the count field.
-func ByCount(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldCount, opts...).ToFunc()
-}
-
-// ByParentField orders the results by parent field.
-func ByParentField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newParentStep(), sql.OrderByField(field, opts...))
-	}
-}
-
-// ByLinksCount orders the results by links count.
-func ByLinksCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newLinksStep(), opts...)
-	}
-}
-
-// ByLinks orders the results by links terms.
-func ByLinks(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newLinksStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
-// ByBlobLinksCount orders the results by blob_links count.
-func ByBlobLinksCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newBlobLinksStep(), opts...)
-	}
-}
-
-// ByBlobLinks orders the results by blob_links terms.
-func ByBlobLinks(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newBlobLinksStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
 func newParentStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),

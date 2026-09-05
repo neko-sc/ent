@@ -6,10 +6,12 @@
 package bloblink
 
 import (
-	"time"
+	time2 "time"
 
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/google/uuid"
+	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
 )
 
 const (
@@ -45,6 +47,47 @@ const (
 	LinkColumn = "link_id"
 )
 
+var (
+	CreatedAt = ent.OrderedColumn[entity.BlobLink, time2.Time]{Table: Table, Name: FieldCreatedAt}
+	BlobID    = ent.OrderedColumn[entity.BlobLink, uuid.UUID]{Table: Table, Name: FieldBlobID}
+	LinkID    = ent.OrderedColumn[entity.BlobLink, uuid.UUID]{Table: Table, Name: FieldLinkID}
+	Blob      = ent.NewUniqueRelation[entity.BlobLink, entity.Blob, uuid.UUID](EdgeBlob, newBlobStep)
+	Link      = ent.NewUniqueRelation[entity.BlobLink, entity.Blob, uuid.UUID](EdgeLink, newLinkStep)
+)
+
+// Alias returns the columns of the blob_links table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		CreatedAt:  ent.OrderedColumn[entity.BlobLink, time2.Time]{Table: name, Name: FieldCreatedAt},
+		BlobID:     ent.OrderedColumn[entity.BlobLink, uuid.UUID]{Table: name, Name: FieldBlobID},
+		LinkID:     ent.OrderedColumn[entity.BlobLink, uuid.UUID]{Table: name, Name: FieldLinkID},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	CreatedAt  ent.OrderedColumn[entity.BlobLink, time2.Time]
+	BlobID     ent.OrderedColumn[entity.BlobLink, uuid.UUID]
+	LinkID     ent.OrderedColumn[entity.BlobLink, uuid.UUID]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.BlobLink]) ent.Predicate[entity.BlobLink] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.BlobLink]) ent.Predicate[entity.BlobLink] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.BlobLink]) ent.Predicate[entity.BlobLink] {
+	return ent.Not(predicate)
+}
+
 // Columns holds all SQL columns for bloblink fields.
 var Columns = []string{
 	FieldCreatedAt,
@@ -64,40 +107,9 @@ func ValidColumn(column string) bool {
 
 var (
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
-	DefaultCreatedAt func() time.Time
+	DefaultCreatedAt func() time2.Time
 )
 
-// OrderOption defines the ordering options for the BlobLink queries.
-type OrderOption func(*sql.Selector)
-
-// ByCreatedAt orders the results by the created_at field.
-func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldCreatedAt, opts...).ToFunc()
-}
-
-// ByBlobID orders the results by the blob_id field.
-func ByBlobID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldBlobID, opts...).ToFunc()
-}
-
-// ByLinkID orders the results by the link_id field.
-func ByLinkID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldLinkID, opts...).ToFunc()
-}
-
-// ByBlobField orders the results by blob field.
-func ByBlobField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newBlobStep(), sql.OrderByField(field, opts...))
-	}
-}
-
-// ByLinkField orders the results by link field.
-func ByLinkField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newLinkStep(), sql.OrderByField(field, opts...))
-	}
-}
 func newBlobStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, BlobColumn),

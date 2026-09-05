@@ -47,8 +47,8 @@ func TestTriggersTypes(t *testing.T) {
 	client.User.Delete().ExecX(ctx)
 
 	// Test that the unique index is enforced.
-	client.User.Create().SetName("Ariel").SaveX(ctx)
-	err = client.User.Create().SetName("ariel").Exec(ctx)
+	client.User.Create().Set(user.Name, "Ariel").SaveX(ctx)
+	err = client.User.Create().Set(user.Name, "ariel").Exec(ctx)
 	require.EqualError(t, err, `ent: constraint failed: pq: duplicate key value violates unique constraint "unique_name"`)
 	// Type-assert returned error.
 	var pqerr *pq.Error

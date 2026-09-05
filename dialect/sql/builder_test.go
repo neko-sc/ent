@@ -15,6 +15,31 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestReturningAndDefault(t *testing.T) {
+	postgres := Dialect(dialect.Postgres)
+	query, args, err := postgres.Insert("users").Columns("id", "name").Values(Default, "one").Values(2, Default).Returning("id").QueryErr()
+	require.NoError(t, err)
+	require.Equal(t, `INSERT INTO "users" ("id", "name") VALUES (DEFAULT, $1), ($2, DEFAULT) RETURNING "id"`, query)
+	require.Equal(t, []any{"one", 2}, args)
+	_, _, err = Dialect(dialect.SQLite).Insert("users").Columns("id").Values(Default).QueryErr()
+	require.ErrorContains(t, err, "DEFAULT cell")
+	query, _, err = postgres.Insert("users").Set("id", 1).OnConflict(ConflictColumns("id"), DoSelect()).QueryErr()
+	require.NoError(t, err)
+	require.Equal(t, `INSERT INTO "users" ("id") VALUES ($1) ON CONFLICT ("id") DO SELECT`, query)
+	_, _, err = Dialect(dialect.SQLite).Insert("users").Set("id", 1).OnConflict(DoSelect()).QueryErr()
+	require.ErrorContains(t, err, "DO SELECT")
+	for _, statement := range []Querier{
+		postgres.Insert("users").Set("id", 1).ReturningOldNew([]string{"id"}, []string{"id", "name"}),
+		postgres.Update("users").Set("id", 1).ReturningOldNew([]string{"id"}, []string{"id", "name"}),
+		postgres.Delete("users").ReturningOldNew([]string{"id"}, []string{"id", "name"}),
+	} {
+		query, _ := statement.Query()
+		require.True(t, strings.HasSuffix(query, ` RETURNING WITH (OLD AS old, NEW AS new) old."id", new."id", new."name"`), query)
+	}
+	query, _ = Dialect(dialect.SQLite).Delete("users").Where(EQ("id", 1)).Returning("id").Query()
+	require.Equal(t, "DELETE FROM `users` WHERE `id` = ? RETURNING `id`", query)
+}
+
 func TestBuilder(t *testing.T) {
 	tests := []struct {
 		input     Querier
@@ -325,7 +350,7 @@ func TestBuilder(t *testing.T) {
 				Set("age", 1).
 				Add("age", 2).
 				Where(HasPrefix("nickname", "a8m")),
-			wantQuery: "UPDATE `users` SET `age` = ?, `age` = COALESCE(`users`.`age`, 0) + ? WHERE `nickname` LIKE ?",
+			wantQuery: "UPDATE `users` SET `age` = COALESCE(?, 0) + ? WHERE `nickname` LIKE ?",
 			wantArgs:  []any{1, 2, "a8m%"},
 		},
 		{
@@ -371,7 +396,7 @@ func TestBuilder(t *testing.T) {
 				Set("age", 1).
 				Add("age", 2).
 				Where(HasPrefixFold("nickname", "a8m")),
-			wantQuery: "UPDATE `users` SET `age` = ?, `age` = COALESCE(`users`.`age`, 0) + ? WHERE LOWER(`nickname`) LIKE ?",
+			wantQuery: "UPDATE `users` SET `age` = COALESCE(?, 0) + ? WHERE LOWER(`nickname`) LIKE ?",
 			wantArgs:  []any{1, 2, "a8m%"},
 		},
 		{
@@ -410,7 +435,7 @@ func TestBuilder(t *testing.T) {
 				Set("age", 1).
 				Add("age", 2).
 				Where(HasSuffixFold("nickname", "a8m")),
-			wantQuery: "UPDATE `users` SET `age` = ?, `age` = COALESCE(`users`.`age`, 0) + ? WHERE LOWER(`nickname`) LIKE ?",
+			wantQuery: "UPDATE `users` SET `age` = COALESCE(?, 0) + ? WHERE LOWER(`nickname`) LIKE ?",
 			wantArgs:  []any{1, 2, "%a8m"},
 		},
 		{
@@ -1340,7 +1365,7 @@ func TestBuilder(t *testing.T) {
 				Select("*").
 				From(Table("test")).
 				Where(P(func(b *Builder) {
-					b.WriteString("nlevel(").Ident("path").WriteByte(')').WriteOp(OpGT).Arg(1)
+					b.WriteString("nlevel(").Ident("path").Byte(')').WriteOp(OpGT).Arg(1)
 				})),
 			wantQuery: `SELECT * FROM "test" WHERE nlevel("path") > $1`,
 			wantArgs:  []any{1},
@@ -1350,7 +1375,7 @@ func TestBuilder(t *testing.T) {
 				Select("*").
 				From(Table("test")).
 				Where(P(func(b *Builder) {
-					b.WriteString("nlevel(").Ident("path").WriteByte(')').WriteOp(OpGT).Arg(1)
+					b.WriteString("nlevel(").Ident("path").Byte(')').WriteOp(OpGT).Arg(1)
 				})),
 			wantQuery: `SELECT * FROM "test" WHERE nlevel("path") > $1`,
 			wantArgs:  []any{1},
@@ -1471,10 +1496,15 @@ AND "users"."id1" < "users"."id2") AND "users"."id1" <= "users"."id2"`, "\n", ""
 func TestBuilder_Err(t *testing.T) {
 	b := Select("i-")
 	require.NoError(t, b.Err())
-	b.AddError(errors.New("invalid"))
+	invalid := errors.New("invalid")
+	unexpected := errors.New("unexpected")
+	b.AddError(invalid)
 	require.EqualError(t, b.Err(), "invalid")
-	b.AddError(errors.New("unexpected"))
+	require.ErrorIs(t, b.Err(), invalid)
+	b.AddError(unexpected)
 	require.EqualError(t, b.Err(), "invalid; unexpected")
+	require.ErrorIs(t, b.Err(), invalid)
+	require.ErrorIs(t, b.Err(), unexpected)
 	b.Where(P(func(builder *Builder) {
 		builder.AddError(errors.New("inner"))
 	}))
@@ -1526,7 +1556,7 @@ func TestSelector_SelectExpr(t *testing.T) {
 			b.Ident("first_name").WriteOp(OpAdd).Ident("last_name")
 		}),
 		ExprFunc(func(b *Builder) {
-			b.WriteString("COALESCE(").Ident("age").Comma().Arg(0).WriteByte(')')
+			b.WriteString("COALESCE(").Ident("age").Comma().Arg(0).Byte(')')
 		}),
 		Expr("?", "b"),
 	).From(Table("users")).Query()
@@ -1539,9 +1569,9 @@ func TestSelector_SelectExpr(t *testing.T) {
 			Expr("age + $1", 1),
 			ExprFunc(func(b *Builder) {
 				b.Wrap(func(b *Builder) {
-					b.WriteString("similarity(").Ident("name").Comma().Arg("A").WriteByte(')')
+					b.WriteString("similarity(").Ident("name").Comma().Arg("A").Byte(')')
 					b.WriteOp(OpAdd)
-					b.WriteString("similarity(").Ident("desc").Comma().Arg("D").WriteByte(')')
+					b.WriteString("similarity(").Ident("desc").Comma().Arg("D").Byte(')')
 				})
 				b.WriteString(" AS s")
 			}),
@@ -2111,7 +2141,7 @@ func TestUpdateBuilder_WithPrefix(t *testing.T) {
 	u := Dialect(dialect.SQLite).
 		Update("users").
 		Prefix(ExprFunc(func(b *Builder) {
-			b.WriteString("SET @i = ").Arg(1).WriteByte(';')
+			b.WriteString("SET @i = ").Arg(1).Byte(';')
 		})).
 		Set("id", Expr("(@i:=@i+1)")).
 		OrderBy("id")

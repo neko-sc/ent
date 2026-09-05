@@ -15,7 +15,7 @@ import (
 	"sync"
 	"time"
 	{{- if ne $.Config.Package $.Package }}
-		"{{ $.Config.Package }}/predicate"
+		"{{ $.Config.Package }}/entity"
 		{{- range $import := $.SemanticImports }}
 			{{ if $import.Alias }}{{ $import.Alias }} {{ end }}"{{ $import.Path }}"
 		{{- end }}

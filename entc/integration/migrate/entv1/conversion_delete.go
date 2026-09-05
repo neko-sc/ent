@@ -8,29 +8,56 @@ package entv1
 import (
 	"context"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/entc/integration/migrate/entv1/conversion"
-	"github.com/neko-sc/ent/entc/integration/migrate/entv1/predicate"
+	"github.com/neko-sc/ent/entc/integration/migrate/entv1/entity"
 	"github.com/neko-sc/ent/schema/field"
 )
 
 // ConversionDelete is the builder for deleting a Conversion entity.
 type ConversionDelete struct {
 	config
-	hooks    []Hook
-	mutation *ConversionMutation
+
+	mutation  *ConversionMutation
+	returning *sqlgraph.Returning
 }
 
 // Where appends a list predicates to the ConversionDelete builder.
-func (_d *ConversionDelete) Where(ps ...predicate.Conversion) *ConversionDelete {
-	_d.mutation.Where(ps...)
+func (_d *ConversionDelete) Where(predicates ...ent.Predicate[entity.Conversion]) *ConversionDelete {
+	_d.mutation.Where(predicates...)
 	return _d
 }
 
 // Exec executes the deletion query and returns how many vertices were deleted.
 func (_d *ConversionDelete) Exec(ctx context.Context) (int, error) {
-	return withHooks(ctx, _d.sqlExec, _d.mutation, _d.hooks)
+	return _d.sqlExec(ctx)
+}
+
+func (b *ConversionDelete) Returning(ctx context.Context) ([]*Conversion, error) {
+	nodes := make([]*Conversion, 0)
+	b.returning = &sqlgraph.Returning{Columns: conversion.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Conversion{config: b.config}
+		values, err := _node.scanValues(conversion.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(conversion.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Exec(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
 }
 
 // ExecX is like Exec, but panics if an error occurs.
@@ -51,11 +78,11 @@ func (_d *ConversionDelete) sqlExec(ctx context.Context) (int, error) {
 			}
 		}
 	}
+	_spec.Returning = _d.returning
 	affected, err := sqlgraph.DeleteNodes(ctx, _d.driver, _spec)
 	if err != nil && sqlgraph.IsConstraintError(err) {
 		err = &ConstraintError{msg: err.Error(), wrap: err}
 	}
-	_d.mutation.done = true
 	return affected, err
 }
 
@@ -65,8 +92,8 @@ type ConversionDeleteOne struct {
 }
 
 // Where appends a list predicates to the ConversionDelete builder.
-func (_d *ConversionDeleteOne) Where(ps ...predicate.Conversion) *ConversionDeleteOne {
-	_d._d.mutation.Where(ps...)
+func (_d *ConversionDeleteOne) Where(predicates ...ent.Predicate[entity.Conversion]) *ConversionDeleteOne {
+	_d._d.mutation.Where(predicates...)
 	return _d
 }
 

@@ -10,81 +10,137 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
+	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/examples/edgeindex/ent/city"
+	"github.com/neko-sc/ent/examples/edgeindex/ent/entity"
 	"github.com/neko-sc/ent/examples/edgeindex/ent/street"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// StreetCreate is the builder for creating a Street entity.
 type StreetCreate struct {
 	config
-	mutation *StreetMutation
-	hooks    []Hook
+	mutation    *StreetMutation
+	err         error
+	fromBuilder bool
+	present     map[string]struct{}
+
+	conflict []sql.ConflictOption
 }
 
-// SetName sets the "name" field.
-func (_c *StreetCreate) SetName(v string) *StreetCreate {
-	_c.mutation.SetName(v)
-	return _c
-}
-
-// SetCityID sets the "city" edge to the City entity by ID.
-func (_c *StreetCreate) SetCityID(id int) *StreetCreate {
-	_c.mutation.SetCityID(id)
-	return _c
-}
-
-// SetNillableCityID sets the "city" edge to the City entity by ID if the given value is not nil.
-func (_c *StreetCreate) SetNillableCityID(id *int) *StreetCreate {
-	if id != nil {
-		_c = _c.SetCityID(*id)
+func (b *StreetCreate) Set[T any](column ent.ColumnOf[entity.Street, T], value T) *StreetCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.set(column.Ref().Name, value)
 	}
-	return _c
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+}
+func (b *StreetCreate) SetOptional[T any](column ent.ColumnOf[entity.Street, T], value ent.Option[T]) *StreetCreate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.insert.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *StreetCreate) SetExpr[T any](column ent.ColumnOf[entity.Street, T], value ent.Expr[T]) *StreetCreate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case street.FieldName:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Street is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.insert.setExpr(column.Ref().Name, value.Render)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+
+}
+func (b *StreetCreate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Street, N, K], id K) *StreetCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.setEdge(edge.Ref().Name, id)
+	}
+
+	switch edge.Ref().Name {
+
+	}
+
+	return b
+}
+func (b *StreetCreate) AddIDs[N, K any](edge ent.Relation[entity.Street, N, K], ids ...K) *StreetCreate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.insert.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *StreetCreate) Mutation() *StreetMutation { return b.mutation }
+
+func (b *StreetCreate) Insert() *StreetInsert { return b.mutation.insert }
+
+func (b *StreetCreate) Save(ctx context.Context) (*Street, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// SetCity sets the "city" edge to the City entity.
-func (_c *StreetCreate) SetCity(v *City) *StreetCreate {
-	return _c.SetCityID(v.ID)
-}
-
-// Mutation returns the StreetMutation object of the builder.
-func (_c *StreetCreate) Mutation() *StreetMutation {
-	return _c.mutation
-}
-
-// Save creates the Street in the database.
-func (_c *StreetCreate) Save(ctx context.Context) (*Street, error) {
-	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
-}
-
-// SaveX calls Save and panics if Save returns an error.
-func (_c *StreetCreate) SaveX(ctx context.Context) *Street {
-	v, err := _c.Save(ctx)
+func (b *StreetCreate) SaveX(ctx context.Context) *Street {
+	node, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return node
 }
 
-// Exec executes the query.
-func (_c *StreetCreate) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *StreetCreate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *StreetCreate) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *StreetCreate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_c *StreetCreate) check() error {
-	if _, ok := _c.mutation.Name(); !ok {
-		return &ValidationError{Name: "name", err: errors.New(`ent: missing required field "Street.name"`)}
+func (b *StreetCreate) defaults() error {
+
+	return nil
+}
+
+func (b *StreetCreate) check() error {
+	if b.err != nil {
+		return b.err
 	}
+
+	switch b.driver.Dialect() {
+	case dialect.Postgres, dialect.SQLite:
+		if _, present := b.present[street.FieldName]; b.fromBuilder && !present {
+			return &ValidationError{Name: "name", err: errors.New(`ent: missing required field "Street.name"`)}
+		}
+	}
+
 	return nil
 }
 
@@ -92,30 +148,37 @@ func (_c *StreetCreate) sqlSave(ctx context.Context) (*Street, error) {
 	if err := _c.check(); err != nil {
 		return nil, err
 	}
-	_node, _spec := _c.createSpec()
-	if err := sqlgraph.CreateNode(ctx, _c.driver, _spec); err != nil {
+	node, spec, err := _c.createSpec()
+	if err != nil {
+		return nil, err
+	}
+	if err := sqlgraph.CreateNode(ctx, _c.driver, spec); err != nil {
 		if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
 		return nil, err
 	}
-	id := _spec.ID.Value.(int64)
-	_node.ID = int(id)
-	_c.mutation.id = &_node.ID
-	_c.mutation.done = true
-	return _node, nil
+	_c.mutation.id = &node.ID
+	return node, nil
 }
 
-func (_c *StreetCreate) createSpec() (*Street, *sqlgraph.CreateSpec) {
-	var (
-		_node = &Street{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(street.Table, sqlgraph.NewFieldSpec(street.FieldID, field.TypeInt))
-	)
-	if value, ok := _c.mutation.Name(); ok {
+func (_c *StreetCreate) createSpec() (*Street, *sqlgraph.CreateSpec, error) {
+	_node := &Street{config: _c.config}
+	_spec := sqlgraph.NewCreateSpec(street.Table, sqlgraph.NewFieldSpec(street.FieldID, field.TypeInt))
+
+	_spec.OnConflict = _c.conflict
+
+	if _, present := _c.present[street.FieldName]; !_c.fromBuilder || present {
+		value := _c.mutation.insert.Name
 		_spec.SetField(street.FieldName, field.TypeString, value)
-		_node.Name = value
 	}
-	if nodes := _c.mutation.CityIDs(); len(nodes) > 0 {
+
+	_spec.Expressions = _c.mutation.insert.expressions
+
+	if nodes := _c.mutation.insert.cityIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -126,98 +189,373 @@ func (_c *StreetCreate) createSpec() (*Street, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(city.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
-		_node.city_streets = &nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	return _node, _spec
+
+	_spec.Returning = &sqlgraph.Returning{Columns: street.Columns, Scan: func(rows dialect.Rows) error {
+		values, err := _node.scanValues(street.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(street.Columns, values); err != nil {
+			return err
+		}
+
+		_spec.ID.Value = _node.ID
+
+		return nil
+	}}
+	return _node, _spec, nil
 }
 
-// StreetCreateBulk is the builder for creating many Street entities in bulk.
+type StreetUpsertOne struct{ create *StreetCreate }
+
+func (b *StreetCreate) OnConflict(columns ...ent.EntityColumn[entity.Street]) *StreetUpsertOne {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
+	}
+	if len(names) == 0 {
+		return b.OnConflictOptions()
+	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
+}
+
+func (b *StreetCreate) OnConflictConstraint(name string) *StreetUpsertOne {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
+}
+
+func (b *StreetCreate) OnConflictOptions(options ...sql.ConflictOption) *StreetUpsertOne {
+	b.conflict = options
+	return &StreetUpsertOne{create: b}
+}
+
+func (u *StreetUpsertOne) DoNothing() *StreetUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+func (u *StreetUpsertOne) DoSelect() *StreetUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *StreetUpsertOne) Ignore() *StreetUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *StreetUpsertOne) DoUpdate(set func(*StreetUpsert)) *StreetUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&StreetUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *StreetUpsertOne) UpdateNewValues() *StreetUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case street.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
+	}))
+	return u
+}
+
+func (u *StreetUpsertOne) Where(predicates ...ent.Predicate[entity.Street]) *StreetUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(street.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *StreetUpsertOne) UpdateWhere(predicates ...ent.Predicate[entity.Street]) *StreetUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(street.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *StreetUpsertOne) Save(ctx context.Context) (*Street, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for StreetCreate.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *StreetUpsertOne) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
+func (u *StreetUpsertOne) ExecX(ctx context.Context) {
+	if err := u.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+func (u *StreetUpsertOne) ID(ctx context.Context) (id int, err error) {
+	node, err := u.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+func (u *StreetUpsertOne) IDX(ctx context.Context) int {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
+type StreetUpsert struct{ *sql.UpdateSet }
+
+func (u *StreetUpsert) Set[T any](column ent.ColumnOf[entity.Street, T], value T) *StreetUpsert {
+	switch column.Ref().Name {
+
+	case street.FieldName:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Street is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *StreetUpsert) SetExpr[T any](column ent.ColumnOf[entity.Street, T], value ent.Expr[T]) *StreetUpsert {
+	switch column.Ref().Name {
+
+	case street.FieldName:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Street is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *StreetUpsert) UpdateNewValue[T any](column ent.ColumnOf[entity.Street, T]) *StreetUpsert {
+	switch column.Ref().Name {
+
+	case street.FieldName:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Street is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *StreetUpsert) Add[T ent.Number](column ent.ColumnOf[entity.Street, T], delta T) *StreetUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Street does not support addition", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *StreetUpsert) Clear[T any](column ent.ColumnOf[entity.Street, T]) *StreetUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Street is not nullable", column.Ref().Name)})
+	}
+	return u
+}
+
 type StreetCreateBulk struct {
 	config
 	err      error
 	builders []*StreetCreate
+
+	conflict []sql.ConflictOption
 }
 
-// Save creates the Street entities in the database.
 func (_c *StreetCreateBulk) Save(ctx context.Context) ([]*Street, error) {
 	if _c.err != nil {
 		return nil, _c.err
 	}
-	specs := make([]*sqlgraph.CreateSpec, len(_c.builders))
 	nodes := make([]*Street, len(_c.builders))
-	mutators := make([]Mutator, len(_c.builders))
-	for i := range _c.builders {
-		func(i int, root context.Context) {
-			builder := _c.builders[i]
-			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*StreetMutation)
-				if !ok {
-					return nil, fmt.Errorf("unexpected mutation type %T", m)
-				}
-				if err := builder.check(); err != nil {
-					return nil, err
-				}
-				builder.mutation = mutation
-				var err error
-				nodes[i], specs[i] = builder.createSpec()
-				if i < len(mutators)-1 {
-					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
-				} else {
-					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
-					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
-						if sqlgraph.IsConstraintError(err) {
-							err = &ConstraintError{msg: err.Error(), wrap: err}
-						}
-					}
-				}
-				if err != nil {
-					return nil, err
-				}
-				mutation.id = &nodes[i].ID
-				if specs[i].ID.Value != nil {
-					id := specs[i].ID.Value.(int64)
-					nodes[i].ID = int(id)
-				}
-				mutation.done = true
-				return nodes[i], nil
-			})
-			for i := len(builder.hooks) - 1; i >= 0; i-- {
-				mut = builder.hooks[i](mut)
-			}
-			mutators[i] = mut
-		}(i, ctx)
-	}
-	if len(mutators) > 0 {
-		if _, err := mutators[0].Mutate(ctx, _c.builders[0].mutation); err != nil {
+	specs := make([]*sqlgraph.CreateSpec, len(nodes))
+	for index, builder := range _c.builders {
+		if builder.err != nil {
+			return nil, builder.err
+		}
+		if err := builder.defaults(); err != nil {
+			return nil, err
+		}
+		if err := builder.check(); err != nil {
+			return nil, err
+		}
+		var err error
+		nodes[index], specs[index], err = builder.createSpec()
+		if err != nil {
 			return nil, err
 		}
 	}
-	return nodes, nil
+	if len(specs) == 0 {
+		return nodes, nil
+	}
+	spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+
+	spec.OnConflict = _c.conflict
+
+	if err := sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
+		if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{msg: err.Error(), wrap: err}
+		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
+		return nil, err
+	}
+	result := nodes[:0]
+	for index, builder := range _c.builders {
+		if specs[index].Skipped {
+			continue
+		}
+		builder.mutation.id = &nodes[index].ID
+		result = append(result, nodes[index])
+	}
+	return result, nil
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_c *StreetCreateBulk) SaveX(ctx context.Context) []*Street {
-	v, err := _c.Save(ctx)
+func (b *StreetCreateBulk) SaveX(ctx context.Context) []*Street {
+	nodes, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return nodes
 }
 
-// Exec executes the query.
-func (_c *StreetCreateBulk) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
+func (b *StreetCreateBulk) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
+
+func (b *StreetCreateBulk) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+type StreetUpsertBulk struct{ create *StreetCreateBulk }
+
+func (b *StreetCreateBulk) OnConflict(columns ...ent.EntityColumn[entity.Street]) *StreetUpsertBulk {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
+	}
+	if len(names) == 0 {
+		return b.OnConflictOptions()
+	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
+}
+
+func (b *StreetCreateBulk) OnConflictConstraint(name string) *StreetUpsertBulk {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
+}
+
+func (b *StreetCreateBulk) OnConflictOptions(options ...sql.ConflictOption) *StreetUpsertBulk {
+	b.conflict = options
+	return &StreetUpsertBulk{create: b}
+}
+
+func (u *StreetUpsertBulk) DoNothing() *StreetUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+func (u *StreetUpsertBulk) DoSelect() *StreetUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *StreetUpsertBulk) Ignore() *StreetUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *StreetUpsertBulk) DoUpdate(set func(*StreetUpsert)) *StreetUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&StreetUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *StreetUpsertBulk) UpdateNewValues() *StreetUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case street.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
+	}))
+	return u
+}
+
+func (u *StreetUpsertBulk) Where(predicates ...ent.Predicate[entity.Street]) *StreetUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(street.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *StreetUpsertBulk) UpdateWhere(predicates ...ent.Predicate[entity.Street]) *StreetUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(street.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *StreetUpsertBulk) Save(ctx context.Context) ([]*Street, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for StreetCreateBulk.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *StreetUpsertBulk) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
 	return err
 }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *StreetCreateBulk) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (u *StreetUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

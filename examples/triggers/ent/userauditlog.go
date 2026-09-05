@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/examples/triggers/ent/userauditlog"
 )
@@ -23,8 +22,7 @@ type UserAuditLog struct {
 	// OldValue holds the value of the "old_value" field.
 	OldValue string `json:"old_value,omitempty"`
 	// NewValue holds the value of the "new_value" field.
-	NewValue     string `json:"new_value,omitempty"`
-	selectValues sql.SelectValues
+	NewValue string `json:"new_value,omitempty"`
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -33,9 +31,9 @@ func (*UserAuditLog) scanValues(columns []string) ([]any, error) {
 	for i := range columns {
 		switch columns[i] {
 		case userauditlog.FieldID:
-			values[i] = new(sql.NullInt64)
+			values[i] = new(*int)
 		case userauditlog.FieldOperationType, userauditlog.FieldOperationTime, userauditlog.FieldOldValue, userauditlog.FieldNewValue:
-			values[i] = new(sql.NullString)
+			values[i] = new(*string)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -52,46 +50,43 @@ func (_m *UserAuditLog) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case userauditlog.FieldID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field id", values[i])
-			} else if value.Valid {
-				_m.ID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.ID = **value
 			}
 		case userauditlog.FieldOperationType:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field operation_type", values[i])
-			} else if value.Valid {
-				_m.OperationType = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.OperationType = **value
 			}
 		case userauditlog.FieldOperationTime:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field operation_time", values[i])
-			} else if value.Valid {
-				_m.OperationTime = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.OperationTime = **value
 			}
 		case userauditlog.FieldOldValue:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field old_value", values[i])
-			} else if value.Valid {
-				_m.OldValue = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.OldValue = **value
 			}
 		case userauditlog.FieldNewValue:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field new_value", values[i])
-			} else if value.Valid {
-				_m.NewValue = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.NewValue = **value
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the UserAuditLog.
-// This includes values selected through modifiers, order, etc.
-func (_m *UserAuditLog) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // Update returns a builder for updating this UserAuditLog.

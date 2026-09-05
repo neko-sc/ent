@@ -9,104 +9,64 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
 
 	"github.com/neko-sc/ent"
-	"github.com/neko-sc/ent/examples/edgeindex/ent/city"
-	"github.com/neko-sc/ent/examples/edgeindex/ent/street"
+	"github.com/neko-sc/ent/examples/edgeindex/ent/entity"
 )
 
 const (
-	// Operation types.
 	OpCreate    = ent.OpCreate
-	OpDelete    = ent.OpDelete
-	OpDeleteOne = ent.OpDeleteOne
 	OpUpdate    = ent.OpUpdate
 	OpUpdateOne = ent.OpUpdateOne
+	OpDelete    = ent.OpDelete
+	OpDeleteOne = ent.OpDeleteOne
 
-	// Node types.
-	TypeCity   = "City"
+	TypeCity = "City"
+
 	TypeStreet = "Street"
 )
 
-// CityMutation represents an operation that mutates the City nodes in the graph.
 type CityMutation struct {
-	city.Mutation
 	config
-	id       *int
-	done     bool
-	oldValue func(context.Context) (*City, error)
+	op         ent.Op
+	id         *int
+	insert     *CityInsert
+	patch      *CityPatch
+	predicates []ent.Predicate[entity.City]
 }
 
-var _ ent.Mutation = (*CityMutation)(nil)
-
-// cityOption allows management of the mutation configuration using functional options.
-type cityOption func(*CityMutation)
-
-// newCityMutation creates new mutation for the City entity.
-func newCityMutation(c config, op Op, opts ...cityOption) *CityMutation {
-	m := &CityMutation{
-		Mutation: *city.NewMutation(op),
-		config:   c,
+func newCityMutation(c config, op ent.Op) *CityMutation {
+	m := &CityMutation{config: c, op: op}
+	if op.Is(OpCreate) {
+		m.insert = &CityInsert{}
 	}
-	for _, opt := range opts {
-		opt(m)
+	if op.Is(OpUpdate | OpUpdateOne) {
+		m.patch = &CityPatch{}
 	}
 	return m
 }
 
-// ID returns the ID value in the mutation. Note that the ID is only available
-// if it was provided to the builder or after it was returned from the database.
-func (m *CityMutation) ID() (id int, exists bool) {
-	if m.id == nil {
-		return
-	}
-	return *m.id, true
+func (m *CityMutation) Op() ent.Op { return m.op }
+
+func (m *CityMutation) Type() string { return "City" }
+
+func (m *CityMutation) Insert() *CityInsert { return m.insert }
+
+func (m *CityMutation) Patch() *CityPatch { return m.patch }
+
+func (m *CityMutation) Predicates() []ent.Predicate[entity.City] { return m.predicates }
+
+func (m *CityMutation) Where(predicates ...ent.Predicate[entity.City]) {
+	m.predicates = append(m.predicates, predicates...)
 }
 
-// withCityID sets the ID field of the mutation.
-func withCityID(id int) cityOption {
-	return func(m *CityMutation) {
-		var (
-			err   error
-			once  sync.Once
-			value *City
-		)
-		m.oldValue = func(ctx context.Context) (*City, error) {
-			once.Do(func() {
-				if m.done {
-					err = errors.New("querying old values post mutation is not allowed")
-				} else {
-					value, err = m.Client().City.Get(ctx, id)
-				}
-			})
-			return value, err
-		}
-		m.id = &id
-	}
-}
-
-// withCity sets the old City of the mutation.
-func withCity(node *City) cityOption {
-	return func(m *CityMutation) {
-		m.oldValue = func(context.Context) (*City, error) {
-			return node, nil
-		}
-		m.id = &node.ID
-	}
-}
-
-// Client returns a new `ent.Client` from the mutation. If the mutation was
-// executed in a transaction (ent.Tx), a transactional client is returned.
-func (m CityMutation) Client() *Client {
+func (m *CityMutation) Client() *Client {
 	client := &Client{config: m.config}
 	client.init()
 	return client
 }
 
-// Tx returns an `ent.Tx` for mutations that were executed in transactions;
-// it returns an error otherwise.
-func (m CityMutation) Tx() (*Tx, error) {
+func (m *CityMutation) Tx() (*Tx, error) {
 	if _, ok := m.driver.(*txDriver); !ok {
 		return nil, errors.New("ent: mutation is not running in a transaction")
 	}
@@ -115,131 +75,69 @@ func (m CityMutation) Tx() (*Tx, error) {
 	return tx, nil
 }
 
-// IDs queries the database and returns the entity ids that match the mutation's predicate.
-// That means, if the mutation is applied within a transaction with an isolation level such
-// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
-// or updated by the mutation.
+func (m *CityMutation) ID() (id int, exists bool) {
+	if m.id != nil {
+		return *m.id, true
+	}
+
+	return id, false
+}
+
 func (m *CityMutation) IDs(ctx context.Context) ([]int, error) {
 	switch {
-	case m.Op().Is(OpUpdateOne | OpDeleteOne):
-		id, exists := m.ID()
-		if exists {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		if id, exists := m.ID(); exists {
 			return []int{id}, nil
 		}
 		fallthrough
-	case m.Op().Is(OpUpdate | OpDelete):
-		return m.Client().City.Query().Where(m.Predicates()...).IDs(ctx)
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().City.Query().Where(m.predicates...).IDs(ctx)
 	default:
-		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.Op())
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
 	}
 }
 
-// OldName returns the old "name" field's value of the City entity.
-// If the City object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *CityMutation) OldName(ctx context.Context) (v string, err error) {
-	if !m.Op().Is(OpUpdateOne) {
-		return v, errors.New("OldName is only allowed on UpdateOne operations")
-	}
-	if _, exists := m.ID(); !exists || m.oldValue == nil {
-		return v, errors.New("OldName requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldName: %w", err)
-	}
-	return oldValue.Name, nil
-}
-
-// OldField returns the old value of the field from the database. An error is
-// returned if the mutation operation is not UpdateOne, or the query to the
-// database failed.
-func (m *CityMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
-	switch name {
-	case city.FieldName:
-		return m.OldName(ctx)
-	}
-	return nil, fmt.Errorf("unknown City field %s", name)
-}
-
-// StreetMutation represents an operation that mutates the Street nodes in the graph.
 type StreetMutation struct {
-	street.Mutation
 	config
-	id       *int
-	done     bool
-	oldValue func(context.Context) (*Street, error)
+	op         ent.Op
+	id         *int
+	insert     *StreetInsert
+	patch      *StreetPatch
+	predicates []ent.Predicate[entity.Street]
 }
 
-var _ ent.Mutation = (*StreetMutation)(nil)
-
-// streetOption allows management of the mutation configuration using functional options.
-type streetOption func(*StreetMutation)
-
-// newStreetMutation creates new mutation for the Street entity.
-func newStreetMutation(c config, op Op, opts ...streetOption) *StreetMutation {
-	m := &StreetMutation{
-		Mutation: *street.NewMutation(op),
-		config:   c,
+func newStreetMutation(c config, op ent.Op) *StreetMutation {
+	m := &StreetMutation{config: c, op: op}
+	if op.Is(OpCreate) {
+		m.insert = &StreetInsert{}
 	}
-	for _, opt := range opts {
-		opt(m)
+	if op.Is(OpUpdate | OpUpdateOne) {
+		m.patch = &StreetPatch{}
 	}
 	return m
 }
 
-// ID returns the ID value in the mutation. Note that the ID is only available
-// if it was provided to the builder or after it was returned from the database.
-func (m *StreetMutation) ID() (id int, exists bool) {
-	if m.id == nil {
-		return
-	}
-	return *m.id, true
+func (m *StreetMutation) Op() ent.Op { return m.op }
+
+func (m *StreetMutation) Type() string { return "Street" }
+
+func (m *StreetMutation) Insert() *StreetInsert { return m.insert }
+
+func (m *StreetMutation) Patch() *StreetPatch { return m.patch }
+
+func (m *StreetMutation) Predicates() []ent.Predicate[entity.Street] { return m.predicates }
+
+func (m *StreetMutation) Where(predicates ...ent.Predicate[entity.Street]) {
+	m.predicates = append(m.predicates, predicates...)
 }
 
-// withStreetID sets the ID field of the mutation.
-func withStreetID(id int) streetOption {
-	return func(m *StreetMutation) {
-		var (
-			err   error
-			once  sync.Once
-			value *Street
-		)
-		m.oldValue = func(ctx context.Context) (*Street, error) {
-			once.Do(func() {
-				if m.done {
-					err = errors.New("querying old values post mutation is not allowed")
-				} else {
-					value, err = m.Client().Street.Get(ctx, id)
-				}
-			})
-			return value, err
-		}
-		m.id = &id
-	}
-}
-
-// withStreet sets the old Street of the mutation.
-func withStreet(node *Street) streetOption {
-	return func(m *StreetMutation) {
-		m.oldValue = func(context.Context) (*Street, error) {
-			return node, nil
-		}
-		m.id = &node.ID
-	}
-}
-
-// Client returns a new `ent.Client` from the mutation. If the mutation was
-// executed in a transaction (ent.Tx), a transactional client is returned.
-func (m StreetMutation) Client() *Client {
+func (m *StreetMutation) Client() *Client {
 	client := &Client{config: m.config}
 	client.init()
 	return client
 }
 
-// Tx returns an `ent.Tx` for mutations that were executed in transactions;
-// it returns an error otherwise.
-func (m StreetMutation) Tx() (*Tx, error) {
+func (m *StreetMutation) Tx() (*Tx, error) {
 	if _, ok := m.driver.(*txDriver); !ok {
 		return nil, errors.New("ent: mutation is not running in a transaction")
 	}
@@ -248,49 +146,24 @@ func (m StreetMutation) Tx() (*Tx, error) {
 	return tx, nil
 }
 
-// IDs queries the database and returns the entity ids that match the mutation's predicate.
-// That means, if the mutation is applied within a transaction with an isolation level such
-// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
-// or updated by the mutation.
+func (m *StreetMutation) ID() (id int, exists bool) {
+	if m.id != nil {
+		return *m.id, true
+	}
+
+	return id, false
+}
+
 func (m *StreetMutation) IDs(ctx context.Context) ([]int, error) {
 	switch {
-	case m.Op().Is(OpUpdateOne | OpDeleteOne):
-		id, exists := m.ID()
-		if exists {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		if id, exists := m.ID(); exists {
 			return []int{id}, nil
 		}
 		fallthrough
-	case m.Op().Is(OpUpdate | OpDelete):
-		return m.Client().Street.Query().Where(m.Predicates()...).IDs(ctx)
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().Street.Query().Where(m.predicates...).IDs(ctx)
 	default:
-		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.Op())
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
 	}
-}
-
-// OldName returns the old "name" field's value of the Street entity.
-// If the Street object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *StreetMutation) OldName(ctx context.Context) (v string, err error) {
-	if !m.Op().Is(OpUpdateOne) {
-		return v, errors.New("OldName is only allowed on UpdateOne operations")
-	}
-	if _, exists := m.ID(); !exists || m.oldValue == nil {
-		return v, errors.New("OldName requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldName: %w", err)
-	}
-	return oldValue.Name, nil
-}
-
-// OldField returns the old value of the field from the database. An error is
-// returned if the mutation operation is not UpdateOne, or the query to the
-// database failed.
-func (m *StreetMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
-	switch name {
-	case street.FieldName:
-		return m.OldName(ctx)
-	}
-	return nil, fmt.Errorf("unknown Street field %s", name)
 }

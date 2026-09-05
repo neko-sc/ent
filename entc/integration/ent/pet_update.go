@@ -9,220 +9,207 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
-	"github.com/google/uuid"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/ent/pet"
-	"github.com/neko-sc/ent/entc/integration/ent/predicate"
 	"github.com/neko-sc/ent/entc/integration/ent/user"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// PetUpdate is the builder for updating Pet entities.
 type PetUpdate struct {
 	config
-	hooks     []Hook
 	mutation  *PetMutation
+	err       error
+	returning *sqlgraph.Returning
+
 	modifiers []func(*sql.UpdateBuilder)
 }
 
-// Where appends a list predicates to the PetUpdate builder.
-func (_u *PetUpdate) Where(ps ...predicate.Pet) *PetUpdate {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// SetAge sets the "age" field.
-func (_u *PetUpdate) SetAge(v float64) *PetUpdate {
-	_u.mutation.ResetAge()
-	_u.mutation.SetAge(v)
-	return _u
-}
-
-// SetNillableAge sets the "age" field if the given value is not nil.
-func (_u *PetUpdate) SetNillableAge(v *float64) *PetUpdate {
-	if v != nil {
-		_u.SetAge(*v)
+func (b *PetUpdate) Set[T any](column ent.ColumnOf[entity.Pet, T], value T) *PetUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// AddAge adds value to the "age" field.
-func (_u *PetUpdate) AddAge(v float64) *PetUpdate {
-	_u.mutation.AddAge(v)
-	return _u
+	return b
 }
-
-// SetName sets the "name" field.
-func (_u *PetUpdate) SetName(v string) *PetUpdate {
-	_u.mutation.SetName(v)
-	return _u
-}
-
-// SetNillableName sets the "name" field if the given value is not nil.
-func (_u *PetUpdate) SetNillableName(v *string) *PetUpdate {
-	if v != nil {
-		_u.SetName(*v)
+func (b *PetUpdate) SetOptional[T any](column ent.ColumnOf[entity.Pet, T], value ent.Option[T]) *PetUpdate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u
-}
-
-// SetUUID sets the "uuid" field.
-func (_u *PetUpdate) SetUUID(v uuid.UUID) *PetUpdate {
-	_u.mutation.SetUUID(v)
-	return _u
-}
-
-// SetNillableUUID sets the "uuid" field if the given value is not nil.
-func (_u *PetUpdate) SetNillableUUID(v *uuid.UUID) *PetUpdate {
-	if v != nil {
-		_u.SetUUID(*v)
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
 	}
-	return _u
+	return b
 }
-
-// ClearUUID clears the value of the "uuid" field.
-func (_u *PetUpdate) ClearUUID() *PetUpdate {
-	_u.mutation.ClearUUID()
-	return _u
-}
-
-// SetNickname sets the "nickname" field.
-func (_u *PetUpdate) SetNickname(v string) *PetUpdate {
-	_u.mutation.SetNickname(v)
-	return _u
-}
-
-// SetNillableNickname sets the "nickname" field if the given value is not nil.
-func (_u *PetUpdate) SetNillableNickname(v *string) *PetUpdate {
-	if v != nil {
-		_u.SetNickname(*v)
+func (b *PetUpdate) SetExpr[T any](column ent.ColumnOf[entity.Pet, T], value ent.Expr[T]) *PetUpdate {
+	if b.err != nil {
+		return b
 	}
-	return _u
-}
+	switch column.Ref().Name {
 
-// ClearNickname clears the value of the "nickname" field.
-func (_u *PetUpdate) ClearNickname() *PetUpdate {
-	_u.mutation.ClearNickname()
-	return _u
-}
+	case pet.FieldAge:
 
-// SetTrained sets the "trained" field.
-func (_u *PetUpdate) SetTrained(v bool) *PetUpdate {
-	_u.mutation.SetTrained(v)
-	return _u
-}
+	case pet.FieldName:
 
-// SetNillableTrained sets the "trained" field if the given value is not nil.
-func (_u *PetUpdate) SetNillableTrained(v *bool) *PetUpdate {
-	if v != nil {
-		_u.SetTrained(*v)
+	case pet.FieldUUID:
+
+	case pet.FieldNickname:
+
+	case pet.FieldTrained:
+
+	case pet.FieldOptionalTime:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Pet is not settable", column.Ref().Name)}
+		return b
 	}
-	return _u
-}
 
-// SetOptionalTime sets the "optional_time" field.
-func (_u *PetUpdate) SetOptionalTime(v time.Time) *PetUpdate {
-	_u.mutation.SetOptionalTime(v)
-	return _u
-}
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
 
-// SetNillableOptionalTime sets the "optional_time" field if the given value is not nil.
-func (_u *PetUpdate) SetNillableOptionalTime(v *time.Time) *PetUpdate {
-	if v != nil {
-		_u.SetOptionalTime(*v)
+	return b
+
+}
+func (b *PetUpdate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Pet, N, K], id K) *PetUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
 	}
-	return _u
-}
 
-// ClearOptionalTime clears the value of the "optional_time" field.
-func (_u *PetUpdate) ClearOptionalTime() *PetUpdate {
-	_u.mutation.ClearOptionalTime()
-	return _u
+	return b
 }
-
-// SetTeamID sets the "team" edge to the User entity by ID.
-func (_u *PetUpdate) SetTeamID(id int) *PetUpdate {
-	_u.mutation.SetTeamID(id)
-	return _u
-}
-
-// SetNillableTeamID sets the "team" edge to the User entity by ID if the given value is not nil.
-func (_u *PetUpdate) SetNillableTeamID(id *int) *PetUpdate {
-	if id != nil {
-		_u = _u.SetTeamID(*id)
+func (b *PetUpdate) AddIDs[N, K any](edge ent.Relation[entity.Pet, N, K], ids ...K) *PetUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
 	}
-	return _u
-}
-
-// SetTeam sets the "team" edge to the User entity.
-func (_u *PetUpdate) SetTeam(v *User) *PetUpdate {
-	return _u.SetTeamID(v.ID)
-}
-
-// SetOwnerID sets the "owner" edge to the User entity by ID.
-func (_u *PetUpdate) SetOwnerID(id int) *PetUpdate {
-	_u.mutation.SetOwnerID(id)
-	return _u
-}
-
-// SetNillableOwnerID sets the "owner" edge to the User entity by ID if the given value is not nil.
-func (_u *PetUpdate) SetNillableOwnerID(id *int) *PetUpdate {
-	if id != nil {
-		_u = _u.SetOwnerID(*id)
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
 	}
-	return _u
+	return b
+}
+func (b *PetUpdate) Mutation() *PetMutation { return b.mutation }
+
+func (b *PetUpdate) Patch() *PetPatch            { return b.mutation.patch }
+func (b *PetUpdate) Apply(p PetPatch) *PetUpdate { b.mutation.patch.apply(p); return b }
+func (b *PetUpdate) Add[T ent.Number](column ent.ColumnOf[entity.Pet, T], delta T) *PetUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *PetUpdate) Append[T any](column ent.ColumnOf[entity.Pet, T], values T) *PetUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *PetUpdate) Clear[T any](column ent.ColumnOf[entity.Pet, T]) *PetUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *PetUpdate) RemoveIDs[N, K any](edge ent.Relation[entity.Pet, N, K], ids ...K) *PetUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *PetUpdate) ClearEdge[N, K any](edge ent.RelationOf[entity.Pet, N, K]) *PetUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// SetOwner sets the "owner" edge to the User entity.
-func (_u *PetUpdate) SetOwner(v *User) *PetUpdate {
-	return _u.SetOwnerID(v.ID)
+func (b *PetUpdate) Where(predicates ...ent.Predicate[entity.Pet]) *PetUpdate {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Mutation returns the PetMutation object of the builder.
-func (_u *PetUpdate) Mutation() *PetMutation {
-	return _u.mutation
+func (b *PetUpdate) Save(ctx context.Context) (int, error) {
+	if b.err != nil {
+		return 0, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return 0, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// ClearTeam clears the "team" edge to the User entity.
-func (_u *PetUpdate) ClearTeam() *PetUpdate {
-	_u.mutation.ClearTeam()
-	return _u
-}
-
-// ClearOwner clears the "owner" edge to the User entity.
-func (_u *PetUpdate) ClearOwner() *PetUpdate {
-	_u.mutation.ClearOwner()
-	return _u
-}
-
-// Save executes the query and returns the number of nodes affected by the update operation.
-func (_u *PetUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *PetUpdate) SaveX(ctx context.Context) int {
-	affected, err := _u.Save(ctx)
+func (b *PetUpdate) SaveX(ctx context.Context) int {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return affected
+	return result
 }
 
-// Exec executes the query.
-func (_u *PetUpdate) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *PetUpdate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *PetUpdate) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *PetUpdate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
+}
+
+func (b *PetUpdate) Returning(ctx context.Context) ([]*Pet, error) {
+	nodes := make([]*Pet, 0)
+	b.returning = &sqlgraph.Returning{Columns: pet.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Pet{config: b.config}
+		values, err := _node.scanValues(pet.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(pet.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Save(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
+}
+
+func (b *PetUpdate) defaults() error {
+
+	return nil
+}
+
+func (b *PetUpdate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.Age.IsNull() {
+		return &ValidationError{Name: "age", err: errors.New(`ent: field "Pet.age" is not nullable`)}
+	}
+
+	if b.mutation.patch.Name.IsNull() {
+		return &ValidationError{Name: "name", err: errors.New(`ent: field "Pet.name" is not nullable`)}
+	}
+
+	if b.mutation.patch.Trained.IsNull() {
+		return &ValidationError{Name: "trained", err: errors.New(`ent: field "Pet.trained" is not nullable`)}
+	}
+
+	return nil
 }
 
 // Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
@@ -232,6 +219,9 @@ func (_u *PetUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *PetUpdate 
 }
 
 func (_u *PetUpdate) sqlSave(ctx context.Context) (_node int, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(pet.Table, pet.Columns, sqlgraph.NewFieldSpec(pet.FieldID, field.TypeInt))
 	if ps := _u.mutation.Predicates(); len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -240,37 +230,37 @@ func (_u *PetUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.Age(); ok {
+	if value, ok := _u.mutation.patch.Age.Get(); ok {
 		_spec.SetField(pet.FieldAge, field.TypeFloat64, value)
 	}
-	if value, ok := _u.mutation.AddedAge(); ok {
+	if value, ok := _u.mutation.patch.AgeAdd.Get(); ok {
 		_spec.AddField(pet.FieldAge, field.TypeFloat64, value)
 	}
-	if value, ok := _u.mutation.Name(); ok {
+	if value, ok := _u.mutation.patch.Name.Get(); ok {
 		_spec.SetField(pet.FieldName, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.UUID(); ok {
+	if value, ok := _u.mutation.patch.UUID.Get(); ok {
 		_spec.SetField(pet.FieldUUID, field.TypeUUID, value)
 	}
-	if _u.mutation.UUIDCleared() {
+	if _u.mutation.patch.UUID.IsNull() {
 		_spec.ClearField(pet.FieldUUID, field.TypeUUID)
 	}
-	if value, ok := _u.mutation.Nickname(); ok {
+	if value, ok := _u.mutation.patch.Nickname.Get(); ok {
 		_spec.SetField(pet.FieldNickname, field.TypeString, value)
 	}
-	if _u.mutation.NicknameCleared() {
+	if _u.mutation.patch.Nickname.IsNull() {
 		_spec.ClearField(pet.FieldNickname, field.TypeString)
 	}
-	if value, ok := _u.mutation.Trained(); ok {
+	if value, ok := _u.mutation.patch.Trained.Get(); ok {
 		_spec.SetField(pet.FieldTrained, field.TypeBool, value)
 	}
-	if value, ok := _u.mutation.OptionalTime(); ok {
+	if value, ok := _u.mutation.patch.OptionalTime.Get(); ok {
 		_spec.SetField(pet.FieldOptionalTime, field.TypeTime, value)
 	}
-	if _u.mutation.OptionalTimeCleared() {
+	if _u.mutation.patch.OptionalTime.IsNull() {
 		_spec.ClearField(pet.FieldOptionalTime, field.TypeTime)
 	}
-	if _u.mutation.TeamCleared() {
+	if _u.mutation.patch.TeamID.IsNull() || _u.mutation.patch.clearedEdges[pet.EdgeTeam] {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2O,
 			Inverse: true,
@@ -283,7 +273,7 @@ func (_u *PetUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.TeamIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.teamIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2O,
 			Inverse: true,
@@ -294,12 +284,17 @@ func (_u *PetUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
-	if _u.mutation.OwnerCleared() {
+	if _u.mutation.patch.OwnerID.IsNull() || _u.mutation.patch.clearedEdges[pet.EdgeOwner] {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -312,7 +307,7 @@ func (_u *PetUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.OwnerIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.ownerIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -323,12 +318,22 @@ func (_u *PetUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	_spec.Returning = _u.returning
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
 	}
 	_spec.AddModifiers(_u.modifiers...)
+
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{pet.Label}
@@ -337,221 +342,201 @@ func (_u *PetUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		return 0, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }
 
-// PetUpdateOne is the builder for updating a single Pet entity.
 type PetUpdateOne struct {
 	config
-	fields    []string
-	hooks     []Hook
-	mutation  *PetMutation
+	mutation *PetMutation
+	err      error
+
+	fields []string
+	old    *Pet
+
 	modifiers []func(*sql.UpdateBuilder)
 }
 
-// SetAge sets the "age" field.
-func (_u *PetUpdateOne) SetAge(v float64) *PetUpdateOne {
-	_u.mutation.ResetAge()
-	_u.mutation.SetAge(v)
-	return _u
-}
-
-// SetNillableAge sets the "age" field if the given value is not nil.
-func (_u *PetUpdateOne) SetNillableAge(v *float64) *PetUpdateOne {
-	if v != nil {
-		_u.SetAge(*v)
+func (b *PetUpdateOne) Set[T any](column ent.ColumnOf[entity.Pet, T], value T) *PetUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// AddAge adds value to the "age" field.
-func (_u *PetUpdateOne) AddAge(v float64) *PetUpdateOne {
-	_u.mutation.AddAge(v)
-	return _u
+	return b
 }
-
-// SetName sets the "name" field.
-func (_u *PetUpdateOne) SetName(v string) *PetUpdateOne {
-	_u.mutation.SetName(v)
-	return _u
-}
-
-// SetNillableName sets the "name" field if the given value is not nil.
-func (_u *PetUpdateOne) SetNillableName(v *string) *PetUpdateOne {
-	if v != nil {
-		_u.SetName(*v)
+func (b *PetUpdateOne) SetOptional[T any](column ent.ColumnOf[entity.Pet, T], value ent.Option[T]) *PetUpdateOne {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u
-}
-
-// SetUUID sets the "uuid" field.
-func (_u *PetUpdateOne) SetUUID(v uuid.UUID) *PetUpdateOne {
-	_u.mutation.SetUUID(v)
-	return _u
-}
-
-// SetNillableUUID sets the "uuid" field if the given value is not nil.
-func (_u *PetUpdateOne) SetNillableUUID(v *uuid.UUID) *PetUpdateOne {
-	if v != nil {
-		_u.SetUUID(*v)
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
 	}
-	return _u
+	return b
 }
-
-// ClearUUID clears the value of the "uuid" field.
-func (_u *PetUpdateOne) ClearUUID() *PetUpdateOne {
-	_u.mutation.ClearUUID()
-	return _u
-}
-
-// SetNickname sets the "nickname" field.
-func (_u *PetUpdateOne) SetNickname(v string) *PetUpdateOne {
-	_u.mutation.SetNickname(v)
-	return _u
-}
-
-// SetNillableNickname sets the "nickname" field if the given value is not nil.
-func (_u *PetUpdateOne) SetNillableNickname(v *string) *PetUpdateOne {
-	if v != nil {
-		_u.SetNickname(*v)
+func (b *PetUpdateOne) SetExpr[T any](column ent.ColumnOf[entity.Pet, T], value ent.Expr[T]) *PetUpdateOne {
+	if b.err != nil {
+		return b
 	}
-	return _u
-}
+	switch column.Ref().Name {
 
-// ClearNickname clears the value of the "nickname" field.
-func (_u *PetUpdateOne) ClearNickname() *PetUpdateOne {
-	_u.mutation.ClearNickname()
-	return _u
-}
+	case pet.FieldAge:
 
-// SetTrained sets the "trained" field.
-func (_u *PetUpdateOne) SetTrained(v bool) *PetUpdateOne {
-	_u.mutation.SetTrained(v)
-	return _u
-}
+	case pet.FieldName:
 
-// SetNillableTrained sets the "trained" field if the given value is not nil.
-func (_u *PetUpdateOne) SetNillableTrained(v *bool) *PetUpdateOne {
-	if v != nil {
-		_u.SetTrained(*v)
+	case pet.FieldUUID:
+
+	case pet.FieldNickname:
+
+	case pet.FieldTrained:
+
+	case pet.FieldOptionalTime:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Pet is not settable", column.Ref().Name)}
+		return b
 	}
-	return _u
-}
 
-// SetOptionalTime sets the "optional_time" field.
-func (_u *PetUpdateOne) SetOptionalTime(v time.Time) *PetUpdateOne {
-	_u.mutation.SetOptionalTime(v)
-	return _u
-}
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
 
-// SetNillableOptionalTime sets the "optional_time" field if the given value is not nil.
-func (_u *PetUpdateOne) SetNillableOptionalTime(v *time.Time) *PetUpdateOne {
-	if v != nil {
-		_u.SetOptionalTime(*v)
+	return b
+
+}
+func (b *PetUpdateOne) SetEdge[N, K any](edge ent.UniqueRelation[entity.Pet, N, K], id K) *PetUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
 	}
-	return _u
-}
 
-// ClearOptionalTime clears the value of the "optional_time" field.
-func (_u *PetUpdateOne) ClearOptionalTime() *PetUpdateOne {
-	_u.mutation.ClearOptionalTime()
-	return _u
+	return b
 }
-
-// SetTeamID sets the "team" edge to the User entity by ID.
-func (_u *PetUpdateOne) SetTeamID(id int) *PetUpdateOne {
-	_u.mutation.SetTeamID(id)
-	return _u
-}
-
-// SetNillableTeamID sets the "team" edge to the User entity by ID if the given value is not nil.
-func (_u *PetUpdateOne) SetNillableTeamID(id *int) *PetUpdateOne {
-	if id != nil {
-		_u = _u.SetTeamID(*id)
+func (b *PetUpdateOne) AddIDs[N, K any](edge ent.Relation[entity.Pet, N, K], ids ...K) *PetUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
 	}
-	return _u
-}
-
-// SetTeam sets the "team" edge to the User entity.
-func (_u *PetUpdateOne) SetTeam(v *User) *PetUpdateOne {
-	return _u.SetTeamID(v.ID)
-}
-
-// SetOwnerID sets the "owner" edge to the User entity by ID.
-func (_u *PetUpdateOne) SetOwnerID(id int) *PetUpdateOne {
-	_u.mutation.SetOwnerID(id)
-	return _u
-}
-
-// SetNillableOwnerID sets the "owner" edge to the User entity by ID if the given value is not nil.
-func (_u *PetUpdateOne) SetNillableOwnerID(id *int) *PetUpdateOne {
-	if id != nil {
-		_u = _u.SetOwnerID(*id)
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
 	}
-	return _u
+	return b
+}
+func (b *PetUpdateOne) Mutation() *PetMutation { return b.mutation }
+
+func (b *PetUpdateOne) Patch() *PetPatch               { return b.mutation.patch }
+func (b *PetUpdateOne) Apply(p PetPatch) *PetUpdateOne { b.mutation.patch.apply(p); return b }
+func (b *PetUpdateOne) Add[T ent.Number](column ent.ColumnOf[entity.Pet, T], delta T) *PetUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *PetUpdateOne) Append[T any](column ent.ColumnOf[entity.Pet, T], values T) *PetUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *PetUpdateOne) Clear[T any](column ent.ColumnOf[entity.Pet, T]) *PetUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *PetUpdateOne) RemoveIDs[N, K any](edge ent.Relation[entity.Pet, N, K], ids ...K) *PetUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *PetUpdateOne) ClearEdge[N, K any](edge ent.RelationOf[entity.Pet, N, K]) *PetUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// SetOwner sets the "owner" edge to the User entity.
-func (_u *PetUpdateOne) SetOwner(v *User) *PetUpdateOne {
-	return _u.SetOwnerID(v.ID)
+func (b *PetUpdateOne) Where(predicates ...ent.Predicate[entity.Pet]) *PetUpdateOne {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Mutation returns the PetMutation object of the builder.
-func (_u *PetUpdateOne) Mutation() *PetMutation {
-	return _u.mutation
+func (b *PetUpdateOne) Save(ctx context.Context) (*Pet, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// ClearTeam clears the "team" edge to the User entity.
-func (_u *PetUpdateOne) ClearTeam() *PetUpdateOne {
-	_u.mutation.ClearTeam()
-	return _u
-}
-
-// ClearOwner clears the "owner" edge to the User entity.
-func (_u *PetUpdateOne) ClearOwner() *PetUpdateOne {
-	_u.mutation.ClearOwner()
-	return _u
-}
-
-// Where appends a list predicates to the PetUpdate builder.
-func (_u *PetUpdateOne) Where(ps ...predicate.Pet) *PetUpdateOne {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// Select allows selecting one or more fields (columns) of the returned entity.
-// The default is selecting all fields defined in the entity schema.
-func (_u *PetUpdateOne) Select(field string, fields ...string) *PetUpdateOne {
-	_u.fields = append([]string{field}, fields...)
-	return _u
-}
-
-// Save executes the query and returns the updated Pet entity.
-func (_u *PetUpdateOne) Save(ctx context.Context) (*Pet, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *PetUpdateOne) SaveX(ctx context.Context) *Pet {
-	node, err := _u.Save(ctx)
+func (b *PetUpdateOne) SaveX(ctx context.Context) *Pet {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return node
+	return result
 }
 
-// Exec executes the query on the entity.
-func (_u *PetUpdateOne) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *PetUpdateOne) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *PetUpdateOne) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *PetUpdateOne) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
+}
+
+func (b *PetUpdateOne) Select(columns ...ent.EntityColumn[entity.Pet]) *PetUpdateOne {
+	if len(columns) == 0 {
+		panic("ent: Select requires at least one column")
+	}
+	b.fields = make([]string, len(columns))
+	for index, column := range columns {
+		b.fields[index] = column.Ref().Name
+	}
+	return b
+}
+
+func (b *PetUpdateOne) SaveOld(ctx context.Context) (old *Pet, updated *Pet, err error) {
+	if !b.driver.Capabilities().ReturningOld {
+		return nil, nil, &dialect.UnsupportedError{Feature: "RETURNING OLD", Dialect: dialect.Dialect(b.driver.Dialect())}
+	}
+	b.old = &Pet{config: b.config}
+	defer func() { b.old = nil }()
+	updated, err = b.Save(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return b.old, updated, nil
+}
+
+func (b *PetUpdateOne) defaults() error {
+
+	return nil
+}
+
+func (b *PetUpdateOne) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.Age.IsNull() {
+		return &ValidationError{Name: "age", err: errors.New(`ent: field "Pet.age" is not nullable`)}
+	}
+
+	if b.mutation.patch.Name.IsNull() {
+		return &ValidationError{Name: "name", err: errors.New(`ent: field "Pet.name" is not nullable`)}
+	}
+
+	if b.mutation.patch.Trained.IsNull() {
+		return &ValidationError{Name: "trained", err: errors.New(`ent: field "Pet.trained" is not nullable`)}
+	}
+
+	return nil
 }
 
 // Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
@@ -561,6 +546,9 @@ func (_u *PetUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *PetUpda
 }
 
 func (_u *PetUpdateOne) sqlSave(ctx context.Context) (_node *Pet, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(pet.Table, pet.Columns, sqlgraph.NewFieldSpec(pet.FieldID, field.TypeInt))
 	id, ok := _u.mutation.ID()
 	if !ok {
@@ -586,37 +574,37 @@ func (_u *PetUpdateOne) sqlSave(ctx context.Context) (_node *Pet, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.Age(); ok {
+	if value, ok := _u.mutation.patch.Age.Get(); ok {
 		_spec.SetField(pet.FieldAge, field.TypeFloat64, value)
 	}
-	if value, ok := _u.mutation.AddedAge(); ok {
+	if value, ok := _u.mutation.patch.AgeAdd.Get(); ok {
 		_spec.AddField(pet.FieldAge, field.TypeFloat64, value)
 	}
-	if value, ok := _u.mutation.Name(); ok {
+	if value, ok := _u.mutation.patch.Name.Get(); ok {
 		_spec.SetField(pet.FieldName, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.UUID(); ok {
+	if value, ok := _u.mutation.patch.UUID.Get(); ok {
 		_spec.SetField(pet.FieldUUID, field.TypeUUID, value)
 	}
-	if _u.mutation.UUIDCleared() {
+	if _u.mutation.patch.UUID.IsNull() {
 		_spec.ClearField(pet.FieldUUID, field.TypeUUID)
 	}
-	if value, ok := _u.mutation.Nickname(); ok {
+	if value, ok := _u.mutation.patch.Nickname.Get(); ok {
 		_spec.SetField(pet.FieldNickname, field.TypeString, value)
 	}
-	if _u.mutation.NicknameCleared() {
+	if _u.mutation.patch.Nickname.IsNull() {
 		_spec.ClearField(pet.FieldNickname, field.TypeString)
 	}
-	if value, ok := _u.mutation.Trained(); ok {
+	if value, ok := _u.mutation.patch.Trained.Get(); ok {
 		_spec.SetField(pet.FieldTrained, field.TypeBool, value)
 	}
-	if value, ok := _u.mutation.OptionalTime(); ok {
+	if value, ok := _u.mutation.patch.OptionalTime.Get(); ok {
 		_spec.SetField(pet.FieldOptionalTime, field.TypeTime, value)
 	}
-	if _u.mutation.OptionalTimeCleared() {
+	if _u.mutation.patch.OptionalTime.IsNull() {
 		_spec.ClearField(pet.FieldOptionalTime, field.TypeTime)
 	}
-	if _u.mutation.TeamCleared() {
+	if _u.mutation.patch.TeamID.IsNull() || _u.mutation.patch.clearedEdges[pet.EdgeTeam] {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2O,
 			Inverse: true,
@@ -629,7 +617,7 @@ func (_u *PetUpdateOne) sqlSave(ctx context.Context) (_node *Pet, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.TeamIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.teamIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2O,
 			Inverse: true,
@@ -640,12 +628,17 @@ func (_u *PetUpdateOne) sqlSave(ctx context.Context) (_node *Pet, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
-	if _u.mutation.OwnerCleared() {
+	if _u.mutation.patch.OwnerID.IsNull() || _u.mutation.patch.clearedEdges[pet.EdgeOwner] {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -658,7 +651,7 @@ func (_u *PetUpdateOne) sqlSave(ctx context.Context) (_node *Pet, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.OwnerIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.ownerIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -669,15 +662,28 @@ func (_u *PetUpdateOne) sqlSave(ctx context.Context) (_node *Pet, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
 	}
 	_spec.AddModifiers(_u.modifiers...)
+
 	_node = &Pet{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
+	if _u.old != nil {
+		_spec.OldScanValues = _u.old.scanValues
+		_spec.OldAssign = _u.old.assignValues
+	}
 	if err = sqlgraph.UpdateNode(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{pet.Label}
@@ -686,6 +692,5 @@ func (_u *PetUpdateOne) sqlSave(ctx context.Context) (_node *Pet, err error) {
 		}
 		return nil, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }

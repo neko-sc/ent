@@ -12,6 +12,7 @@ import (
 
 	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/entc/integration/edgefield/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/edgefield/ent/info"
 	"github.com/neko-sc/ent/entc/integration/edgefield/ent/user"
 )
@@ -25,8 +26,7 @@ type Info struct {
 	Content json.RawMessage `json:"content,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the InfoQuery when eager-loading is set.
-	Edges        InfoEdges `json:"edges"`
-	selectValues sql.SelectValues
+	Edges InfoEdges `json:"edges"`
 }
 
 // InfoEdges holds the relations/edges for other nodes in the graph.
@@ -36,6 +36,30 @@ type InfoEdges struct {
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes [1]bool
+	counts      map[string]int
+}
+
+func (e InfoEdges) Loaded[N, K any](edge ent.RelationOf[entity.Info, N, K]) bool {
+	switch edge.Ref().Name {
+	case "user":
+		return e.loadedTypes[0]
+
+	default:
+		return false
+	}
+}
+
+func (e *InfoEdges) SetLoaded[N, K any](edge ent.RelationOf[entity.Info, N, K], loaded bool) {
+	switch edge.Ref().Name {
+	case "user":
+		e.loadedTypes[0] = loaded
+
+	}
+}
+
+func (e InfoEdges) Count[N, K any](edge ent.Relation[entity.Info, N, K]) (int, bool) {
+	count, loaded := e.counts[edge.Ref().Name]
+	return count, loaded
 }
 
 // UserOrErr returns the User value or an error if the edge
@@ -54,10 +78,10 @@ func (*Info) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case info.FieldID:
+			values[i] = new(*int)
 		case info.FieldContent:
 			values[i] = new([]byte)
-		case info.FieldID:
-			values[i] = new(sql.NullInt64)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -74,10 +98,11 @@ func (_m *Info) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case info.FieldID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field id", values[i])
-			} else if value.Valid {
-				_m.ID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.ID = **value
 			}
 		case info.FieldContent:
 			if value, ok := values[i].(*[]byte); !ok {
@@ -87,17 +112,9 @@ func (_m *Info) assignValues(columns []string, values []any) error {
 					return fmt.Errorf("unmarshal field content: %w", err)
 				}
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the Info.
-// This includes values selected through modifiers, order, etc.
-func (_m *Info) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // QueryUser queries the "user" edge of the Info entity.

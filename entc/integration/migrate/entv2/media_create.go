@@ -7,96 +7,136 @@ package entv2
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
+	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/migrate/entv2/entity"
 	"github.com/neko-sc/ent/entc/integration/migrate/entv2/media"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// MediaCreate is the builder for creating a Media entity.
 type MediaCreate struct {
 	config
-	mutation *MediaMutation
-	hooks    []Hook
+	mutation    *MediaMutation
+	err         error
+	fromBuilder bool
+	present     map[string]struct{}
+
+	conflict []sql.ConflictOption
 }
 
-// SetSource sets the "source" field.
-func (_c *MediaCreate) SetSource(v string) *MediaCreate {
-	_c.mutation.SetSource(v)
-	return _c
-}
-
-// SetNillableSource sets the "source" field if the given value is not nil.
-func (_c *MediaCreate) SetNillableSource(v *string) *MediaCreate {
-	if v != nil {
-		_c.SetSource(*v)
+func (b *MediaCreate) Set[T any](column ent.ColumnOf[entity.Media, T], value T) *MediaCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.set(column.Ref().Name, value)
 	}
-	return _c
-}
-
-// SetSourceURI sets the "source_uri" field.
-func (_c *MediaCreate) SetSourceURI(v string) *MediaCreate {
-	_c.mutation.SetSourceURI(v)
-	return _c
-}
-
-// SetNillableSourceURI sets the "source_uri" field if the given value is not nil.
-func (_c *MediaCreate) SetNillableSourceURI(v *string) *MediaCreate {
-	if v != nil {
-		_c.SetSourceURI(*v)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
 	}
-	return _c
+	b.present[column.Ref().Name] = struct{}{}
+	return b
 }
-
-// SetText sets the "text" field.
-func (_c *MediaCreate) SetText(v string) *MediaCreate {
-	_c.mutation.SetText(v)
-	return _c
-}
-
-// SetNillableText sets the "text" field if the given value is not nil.
-func (_c *MediaCreate) SetNillableText(v *string) *MediaCreate {
-	if v != nil {
-		_c.SetText(*v)
+func (b *MediaCreate) SetOptional[T any](column ent.ColumnOf[entity.Media, T], value ent.Option[T]) *MediaCreate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.insert.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _c
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *MediaCreate) SetExpr[T any](column ent.ColumnOf[entity.Media, T], value ent.Expr[T]) *MediaCreate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case media.FieldSource:
+
+	case media.FieldSourceURI:
+
+	case media.FieldText:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Media is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.insert.setExpr(column.Ref().Name, value.Render)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+
+}
+func (b *MediaCreate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Media, N, K], id K) *MediaCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.setEdge(edge.Ref().Name, id)
+	}
+
+	switch edge.Ref().Name {
+
+	}
+
+	return b
+}
+func (b *MediaCreate) AddIDs[N, K any](edge ent.Relation[entity.Media, N, K], ids ...K) *MediaCreate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.insert.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *MediaCreate) Mutation() *MediaMutation { return b.mutation }
+
+func (b *MediaCreate) Insert() *MediaInsert { return b.mutation.insert }
+
+func (b *MediaCreate) Save(ctx context.Context) (*Media, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Mutation returns the MediaMutation object of the builder.
-func (_c *MediaCreate) Mutation() *MediaMutation {
-	return _c.mutation
-}
-
-// Save creates the Media in the database.
-func (_c *MediaCreate) Save(ctx context.Context) (*Media, error) {
-	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
-}
-
-// SaveX calls Save and panics if Save returns an error.
-func (_c *MediaCreate) SaveX(ctx context.Context) *Media {
-	v, err := _c.Save(ctx)
+func (b *MediaCreate) SaveX(ctx context.Context) *Media {
+	node, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return node
 }
 
-// Exec executes the query.
-func (_c *MediaCreate) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *MediaCreate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *MediaCreate) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *MediaCreate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_c *MediaCreate) check() error {
+func (b *MediaCreate) defaults() error {
+
+	return nil
+}
+
+func (b *MediaCreate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
 	return nil
 }
 
@@ -104,123 +144,435 @@ func (_c *MediaCreate) sqlSave(ctx context.Context) (*Media, error) {
 	if err := _c.check(); err != nil {
 		return nil, err
 	}
-	_node, _spec := _c.createSpec()
-	if err := sqlgraph.CreateNode(ctx, _c.driver, _spec); err != nil {
+	node, spec, err := _c.createSpec()
+	if err != nil {
+		return nil, err
+	}
+	if err := sqlgraph.CreateNode(ctx, _c.driver, spec); err != nil {
 		if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
 		return nil, err
 	}
-	id := _spec.ID.Value.(int64)
-	_node.ID = int(id)
-	_c.mutation.id = &_node.ID
-	_c.mutation.done = true
-	return _node, nil
+	_c.mutation.id = &node.ID
+	return node, nil
 }
 
-func (_c *MediaCreate) createSpec() (*Media, *sqlgraph.CreateSpec) {
-	var (
-		_node = &Media{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(media.Table, sqlgraph.NewFieldSpec(media.FieldID, field.TypeInt))
-	)
-	if value, ok := _c.mutation.Source(); ok {
+func (_c *MediaCreate) createSpec() (*Media, *sqlgraph.CreateSpec, error) {
+	_node := &Media{config: _c.config}
+	_spec := sqlgraph.NewCreateSpec(media.Table, sqlgraph.NewFieldSpec(media.FieldID, field.TypeInt))
+
+	_spec.OnConflict = _c.conflict
+
+	if value, ok := _c.mutation.insert.Source.Get(); ok {
 		_spec.SetField(media.FieldSource, field.TypeString, value)
-		_node.Source = value
 	}
-	if value, ok := _c.mutation.SourceURI(); ok {
+	if _c.mutation.insert.Source.IsNull() {
+		_spec.SetField(media.FieldSource, field.TypeString, nil)
+	}
+
+	if value, ok := _c.mutation.insert.SourceURI.Get(); ok {
 		_spec.SetField(media.FieldSourceURI, field.TypeString, value)
-		_node.SourceURI = value
 	}
-	if value, ok := _c.mutation.Text(); ok {
+	if _c.mutation.insert.SourceURI.IsNull() {
+		_spec.SetField(media.FieldSourceURI, field.TypeString, nil)
+	}
+
+	if value, ok := _c.mutation.insert.Text.Get(); ok {
 		_spec.SetField(media.FieldText, field.TypeString, value)
-		_node.Text = value
 	}
-	return _node, _spec
+	if _c.mutation.insert.Text.IsNull() {
+		_spec.SetField(media.FieldText, field.TypeString, nil)
+	}
+
+	_spec.Expressions = _c.mutation.insert.expressions
+
+	_spec.Returning = &sqlgraph.Returning{Columns: media.Columns, Scan: func(rows dialect.Rows) error {
+		values, err := _node.scanValues(media.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(media.Columns, values); err != nil {
+			return err
+		}
+
+		_spec.ID.Value = _node.ID
+
+		return nil
+	}}
+	return _node, _spec, nil
 }
 
-// MediaCreateBulk is the builder for creating many Media entities in bulk.
+type MediaUpsertOne struct{ create *MediaCreate }
+
+func (b *MediaCreate) OnConflict(columns ...ent.EntityColumn[entity.Media]) *MediaUpsertOne {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
+	}
+	if len(names) == 0 {
+		return b.OnConflictOptions()
+	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
+}
+
+func (b *MediaCreate) OnConflictConstraint(name string) *MediaUpsertOne {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
+}
+
+func (b *MediaCreate) OnConflictOptions(options ...sql.ConflictOption) *MediaUpsertOne {
+	b.conflict = options
+	return &MediaUpsertOne{create: b}
+}
+
+func (u *MediaUpsertOne) DoNothing() *MediaUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+func (u *MediaUpsertOne) DoSelect() *MediaUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *MediaUpsertOne) Ignore() *MediaUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *MediaUpsertOne) DoUpdate(set func(*MediaUpsert)) *MediaUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&MediaUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *MediaUpsertOne) UpdateNewValues() *MediaUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case media.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
+	}))
+	return u
+}
+
+func (u *MediaUpsertOne) Where(predicates ...ent.Predicate[entity.Media]) *MediaUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(media.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *MediaUpsertOne) UpdateWhere(predicates ...ent.Predicate[entity.Media]) *MediaUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(media.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *MediaUpsertOne) Save(ctx context.Context) (*Media, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for MediaCreate.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *MediaUpsertOne) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
+func (u *MediaUpsertOne) ExecX(ctx context.Context) {
+	if err := u.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+func (u *MediaUpsertOne) ID(ctx context.Context) (id int, err error) {
+	node, err := u.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+func (u *MediaUpsertOne) IDX(ctx context.Context) int {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
+type MediaUpsert struct{ *sql.UpdateSet }
+
+func (u *MediaUpsert) Set[T any](column ent.ColumnOf[entity.Media, T], value T) *MediaUpsert {
+	switch column.Ref().Name {
+
+	case media.FieldSource:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case media.FieldSourceURI:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case media.FieldText:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Media is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *MediaUpsert) SetExpr[T any](column ent.ColumnOf[entity.Media, T], value ent.Expr[T]) *MediaUpsert {
+	switch column.Ref().Name {
+
+	case media.FieldSource:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case media.FieldSourceURI:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case media.FieldText:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Media is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *MediaUpsert) UpdateNewValue[T any](column ent.ColumnOf[entity.Media, T]) *MediaUpsert {
+	switch column.Ref().Name {
+
+	case media.FieldSource:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case media.FieldSourceURI:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case media.FieldText:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Media is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *MediaUpsert) Add[T ent.Number](column ent.ColumnOf[entity.Media, T], delta T) *MediaUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Media does not support addition", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *MediaUpsert) Clear[T any](column ent.ColumnOf[entity.Media, T]) *MediaUpsert {
+	switch column.Ref().Name {
+
+	case media.FieldSource:
+		u.UpdateSet.SetNull(column.Ref().Name)
+
+	case media.FieldSourceURI:
+		u.UpdateSet.SetNull(column.Ref().Name)
+
+	case media.FieldText:
+		u.UpdateSet.SetNull(column.Ref().Name)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Media is not nullable", column.Ref().Name)})
+	}
+	return u
+}
+
 type MediaCreateBulk struct {
 	config
 	err      error
 	builders []*MediaCreate
+
+	conflict []sql.ConflictOption
 }
 
-// Save creates the Media entities in the database.
 func (_c *MediaCreateBulk) Save(ctx context.Context) ([]*Media, error) {
 	if _c.err != nil {
 		return nil, _c.err
 	}
-	specs := make([]*sqlgraph.CreateSpec, len(_c.builders))
 	nodes := make([]*Media, len(_c.builders))
-	mutators := make([]Mutator, len(_c.builders))
-	for i := range _c.builders {
-		func(i int, root context.Context) {
-			builder := _c.builders[i]
-			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*MediaMutation)
-				if !ok {
-					return nil, fmt.Errorf("unexpected mutation type %T", m)
-				}
-				if err := builder.check(); err != nil {
-					return nil, err
-				}
-				builder.mutation = mutation
-				var err error
-				nodes[i], specs[i] = builder.createSpec()
-				if i < len(mutators)-1 {
-					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
-				} else {
-					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
-					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
-						if sqlgraph.IsConstraintError(err) {
-							err = &ConstraintError{msg: err.Error(), wrap: err}
-						}
-					}
-				}
-				if err != nil {
-					return nil, err
-				}
-				mutation.id = &nodes[i].ID
-				if specs[i].ID.Value != nil {
-					id := specs[i].ID.Value.(int64)
-					nodes[i].ID = int(id)
-				}
-				mutation.done = true
-				return nodes[i], nil
-			})
-			for i := len(builder.hooks) - 1; i >= 0; i-- {
-				mut = builder.hooks[i](mut)
-			}
-			mutators[i] = mut
-		}(i, ctx)
-	}
-	if len(mutators) > 0 {
-		if _, err := mutators[0].Mutate(ctx, _c.builders[0].mutation); err != nil {
+	specs := make([]*sqlgraph.CreateSpec, len(nodes))
+	for index, builder := range _c.builders {
+		if builder.err != nil {
+			return nil, builder.err
+		}
+		if err := builder.defaults(); err != nil {
+			return nil, err
+		}
+		if err := builder.check(); err != nil {
+			return nil, err
+		}
+		var err error
+		nodes[index], specs[index], err = builder.createSpec()
+		if err != nil {
 			return nil, err
 		}
 	}
-	return nodes, nil
+	if len(specs) == 0 {
+		return nodes, nil
+	}
+	spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+
+	spec.OnConflict = _c.conflict
+
+	if err := sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
+		if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{msg: err.Error(), wrap: err}
+		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
+		return nil, err
+	}
+	result := nodes[:0]
+	for index, builder := range _c.builders {
+		if specs[index].Skipped {
+			continue
+		}
+		builder.mutation.id = &nodes[index].ID
+		result = append(result, nodes[index])
+	}
+	return result, nil
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_c *MediaCreateBulk) SaveX(ctx context.Context) []*Media {
-	v, err := _c.Save(ctx)
+func (b *MediaCreateBulk) SaveX(ctx context.Context) []*Media {
+	nodes, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return nodes
 }
 
-// Exec executes the query.
-func (_c *MediaCreateBulk) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
+func (b *MediaCreateBulk) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
+
+func (b *MediaCreateBulk) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+type MediaUpsertBulk struct{ create *MediaCreateBulk }
+
+func (b *MediaCreateBulk) OnConflict(columns ...ent.EntityColumn[entity.Media]) *MediaUpsertBulk {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
+	}
+	if len(names) == 0 {
+		return b.OnConflictOptions()
+	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
+}
+
+func (b *MediaCreateBulk) OnConflictConstraint(name string) *MediaUpsertBulk {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
+}
+
+func (b *MediaCreateBulk) OnConflictOptions(options ...sql.ConflictOption) *MediaUpsertBulk {
+	b.conflict = options
+	return &MediaUpsertBulk{create: b}
+}
+
+func (u *MediaUpsertBulk) DoNothing() *MediaUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+func (u *MediaUpsertBulk) DoSelect() *MediaUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *MediaUpsertBulk) Ignore() *MediaUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *MediaUpsertBulk) DoUpdate(set func(*MediaUpsert)) *MediaUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&MediaUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *MediaUpsertBulk) UpdateNewValues() *MediaUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case media.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
+	}))
+	return u
+}
+
+func (u *MediaUpsertBulk) Where(predicates ...ent.Predicate[entity.Media]) *MediaUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(media.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *MediaUpsertBulk) UpdateWhere(predicates ...ent.Predicate[entity.Media]) *MediaUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(media.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *MediaUpsertBulk) Save(ctx context.Context) ([]*Media, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for MediaCreateBulk.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *MediaUpsertBulk) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
 	return err
 }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *MediaCreateBulk) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (u *MediaUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

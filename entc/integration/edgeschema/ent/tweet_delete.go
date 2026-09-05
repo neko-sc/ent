@@ -8,9 +8,11 @@ package ent
 import (
 	"context"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
-	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/predicate"
+	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/tweet"
 	"github.com/neko-sc/ent/schema/field"
 )
@@ -18,19 +20,44 @@ import (
 // TweetDelete is the builder for deleting a Tweet entity.
 type TweetDelete struct {
 	config
-	hooks    []Hook
-	mutation *TweetMutation
+
+	mutation  *TweetMutation
+	returning *sqlgraph.Returning
 }
 
 // Where appends a list predicates to the TweetDelete builder.
-func (_d *TweetDelete) Where(ps ...predicate.Tweet) *TweetDelete {
-	_d.mutation.Where(ps...)
+func (_d *TweetDelete) Where(predicates ...ent.Predicate[entity.Tweet]) *TweetDelete {
+	_d.mutation.Where(predicates...)
 	return _d
 }
 
 // Exec executes the deletion query and returns how many vertices were deleted.
 func (_d *TweetDelete) Exec(ctx context.Context) (int, error) {
-	return withHooks(ctx, _d.sqlExec, _d.mutation, _d.hooks)
+	return _d.sqlExec(ctx)
+}
+
+func (b *TweetDelete) Returning(ctx context.Context) ([]*Tweet, error) {
+	nodes := make([]*Tweet, 0)
+	b.returning = &sqlgraph.Returning{Columns: tweet.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Tweet{config: b.config}
+		values, err := _node.scanValues(tweet.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(tweet.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Exec(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
 }
 
 // ExecX is like Exec, but panics if an error occurs.
@@ -51,11 +78,11 @@ func (_d *TweetDelete) sqlExec(ctx context.Context) (int, error) {
 			}
 		}
 	}
+	_spec.Returning = _d.returning
 	affected, err := sqlgraph.DeleteNodes(ctx, _d.driver, _spec)
 	if err != nil && sqlgraph.IsConstraintError(err) {
 		err = &ConstraintError{msg: err.Error(), wrap: err}
 	}
-	_d.mutation.done = true
 	return affected, err
 }
 
@@ -65,8 +92,8 @@ type TweetDeleteOne struct {
 }
 
 // Where appends a list predicates to the TweetDelete builder.
-func (_d *TweetDeleteOne) Where(ps ...predicate.Tweet) *TweetDeleteOne {
-	_d._d.mutation.Where(ps...)
+func (_d *TweetDeleteOne) Where(predicates ...ent.Predicate[entity.Tweet]) *TweetDeleteOne {
+	_d._d.mutation.Where(predicates...)
 	return _d
 }
 

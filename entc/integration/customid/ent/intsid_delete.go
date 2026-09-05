@@ -8,29 +8,56 @@ package ent
 import (
 	"context"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/intsid"
-	"github.com/neko-sc/ent/entc/integration/customid/ent/predicate"
 	"github.com/neko-sc/ent/schema/field"
 )
 
 // IntSIDDelete is the builder for deleting a IntSID entity.
 type IntSIDDelete struct {
 	config
-	hooks    []Hook
-	mutation *IntSIDMutation
+
+	mutation  *IntSIDMutation
+	returning *sqlgraph.Returning
 }
 
 // Where appends a list predicates to the IntSIDDelete builder.
-func (_d *IntSIDDelete) Where(ps ...predicate.IntSID) *IntSIDDelete {
-	_d.mutation.Where(ps...)
+func (_d *IntSIDDelete) Where(predicates ...ent.Predicate[entity.IntSID]) *IntSIDDelete {
+	_d.mutation.Where(predicates...)
 	return _d
 }
 
 // Exec executes the deletion query and returns how many vertices were deleted.
 func (_d *IntSIDDelete) Exec(ctx context.Context) (int, error) {
-	return withHooks(ctx, _d.sqlExec, _d.mutation, _d.hooks)
+	return _d.sqlExec(ctx)
+}
+
+func (b *IntSIDDelete) Returning(ctx context.Context) ([]*IntSID, error) {
+	nodes := make([]*IntSID, 0)
+	b.returning = &sqlgraph.Returning{Columns: intsid.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &IntSID{config: b.config}
+		values, err := _node.scanValues(intsid.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(intsid.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Exec(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
 }
 
 // ExecX is like Exec, but panics if an error occurs.
@@ -51,11 +78,11 @@ func (_d *IntSIDDelete) sqlExec(ctx context.Context) (int, error) {
 			}
 		}
 	}
+	_spec.Returning = _d.returning
 	affected, err := sqlgraph.DeleteNodes(ctx, _d.driver, _spec)
 	if err != nil && sqlgraph.IsConstraintError(err) {
 		err = &ConstraintError{msg: err.Error(), wrap: err}
 	}
-	_d.mutation.done = true
 	return affected, err
 }
 
@@ -65,8 +92,8 @@ type IntSIDDeleteOne struct {
 }
 
 // Where appends a list predicates to the IntSIDDelete builder.
-func (_d *IntSIDDeleteOne) Where(ps ...predicate.IntSID) *IntSIDDeleteOne {
-	_d._d.mutation.Where(ps...)
+func (_d *IntSIDDeleteOne) Where(predicates ...ent.Predicate[entity.IntSID]) *IntSIDDeleteOne {
+	_d._d.mutation.Where(predicates...)
 	return _d
 }
 

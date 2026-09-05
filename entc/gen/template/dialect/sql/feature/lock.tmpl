@@ -5,12 +5,10 @@ SPDX-License-Identifier: Apache-2.0
 
 {{/* gotype: github.com/neko-sc/ent/entc/gen.Type */}}
 
-{{/* Templates used by the "sql/lock" feature-flag to add "SELECT ... FOR UPDATE/SHARE" capabilities. */}}
+{{/* Templates for adding "SELECT ... FOR UPDATE/SHARE" capabilities. */}}
 
 {{ define "dialect/sql/query/additional/locking" }}
-    {{ if $.FeatureEnabled "sql/lock" }}
-        {{ template "helper/sqlock" $ }}
-    {{ end }}
+    {{ template "helper/sqlock" $ }}
 {{ end }}
 
 {{ define "helper/sqlock" }}

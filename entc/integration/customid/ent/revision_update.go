@@ -10,59 +10,189 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
-	"github.com/neko-sc/ent/entc/integration/customid/ent/predicate"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/revision"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// RevisionUpdate is the builder for updating Revision entities.
 type RevisionUpdate struct {
 	config
-	hooks    []Hook
-	mutation *RevisionMutation
+	mutation  *RevisionMutation
+	err       error
+	returning *sqlgraph.Returning
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// Where appends a list predicates to the RevisionUpdate builder.
-func (_u *RevisionUpdate) Where(ps ...predicate.Revision) *RevisionUpdate {
-	_u.mutation.Where(ps...)
-	return _u
+func (b *RevisionUpdate) Set[T any](column ent.ColumnOf[entity.Revision, T], value T) *RevisionUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
+	}
+
+	return b
+}
+func (b *RevisionUpdate) SetOptional[T any](column ent.ColumnOf[entity.Revision, T], value ent.Option[T]) *RevisionUpdate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *RevisionUpdate) SetExpr[T any](column ent.ColumnOf[entity.Revision, T], value ent.Expr[T]) *RevisionUpdate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Revision is not settable", column.Ref().Name)}
+		return b
+	}
+
+}
+func (b *RevisionUpdate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Revision, N, K], id K) *RevisionUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *RevisionUpdate) AddIDs[N, K any](edge ent.Relation[entity.Revision, N, K], ids ...K) *RevisionUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *RevisionUpdate) Mutation() *RevisionMutation { return b.mutation }
+
+func (b *RevisionUpdate) Patch() *RevisionPatch                 { return b.mutation.patch }
+func (b *RevisionUpdate) Apply(p RevisionPatch) *RevisionUpdate { b.mutation.patch.apply(p); return b }
+func (b *RevisionUpdate) Add[T ent.Number](column ent.ColumnOf[entity.Revision, T], delta T) *RevisionUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *RevisionUpdate) Append[T any](column ent.ColumnOf[entity.Revision, T], values T) *RevisionUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *RevisionUpdate) Clear[T any](column ent.ColumnOf[entity.Revision, T]) *RevisionUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *RevisionUpdate) RemoveIDs[N, K any](edge ent.Relation[entity.Revision, N, K], ids ...K) *RevisionUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *RevisionUpdate) ClearEdge[N, K any](edge ent.RelationOf[entity.Revision, N, K]) *RevisionUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// Mutation returns the RevisionMutation object of the builder.
-func (_u *RevisionUpdate) Mutation() *RevisionMutation {
-	return _u.mutation
+func (b *RevisionUpdate) Where(predicates ...ent.Predicate[entity.Revision]) *RevisionUpdate {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Save executes the query and returns the number of nodes affected by the update operation.
-func (_u *RevisionUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
+func (b *RevisionUpdate) Save(ctx context.Context) (int, error) {
+	if b.err != nil {
+		return 0, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return 0, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_u *RevisionUpdate) SaveX(ctx context.Context) int {
-	affected, err := _u.Save(ctx)
+func (b *RevisionUpdate) SaveX(ctx context.Context) int {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return affected
+	return result
 }
 
-// Exec executes the query.
-func (_u *RevisionUpdate) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *RevisionUpdate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *RevisionUpdate) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *RevisionUpdate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
+func (b *RevisionUpdate) Returning(ctx context.Context) ([]*Revision, error) {
+	nodes := make([]*Revision, 0)
+	b.returning = &sqlgraph.Returning{Columns: revision.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Revision{config: b.config}
+		values, err := _node.scanValues(revision.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(revision.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Save(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
+}
+
+func (b *RevisionUpdate) defaults() error {
+
+	return nil
+}
+
+func (b *RevisionUpdate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *RevisionUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *RevisionUpdate {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *RevisionUpdate) sqlSave(ctx context.Context) (_node int, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(revision.Table, revision.Columns, sqlgraph.NewFieldSpec(revision.FieldID, field.TypeString))
 	if ps := _u.mutation.Predicates(); len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -71,6 +201,12 @@ func (_u *RevisionUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			}
 		}
 	}
+	_spec.Returning = _u.returning
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{revision.Label}
@@ -79,64 +215,188 @@ func (_u *RevisionUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		return 0, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }
 
-// RevisionUpdateOne is the builder for updating a single Revision entity.
 type RevisionUpdateOne struct {
 	config
-	fields   []string
-	hooks    []Hook
 	mutation *RevisionMutation
+	err      error
+
+	fields []string
+	old    *Revision
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// Mutation returns the RevisionMutation object of the builder.
-func (_u *RevisionUpdateOne) Mutation() *RevisionMutation {
-	return _u.mutation
+func (b *RevisionUpdateOne) Set[T any](column ent.ColumnOf[entity.Revision, T], value T) *RevisionUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
+	}
+
+	return b
+}
+func (b *RevisionUpdateOne) SetOptional[T any](column ent.ColumnOf[entity.Revision, T], value ent.Option[T]) *RevisionUpdateOne {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *RevisionUpdateOne) SetExpr[T any](column ent.ColumnOf[entity.Revision, T], value ent.Expr[T]) *RevisionUpdateOne {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Revision is not settable", column.Ref().Name)}
+		return b
+	}
+
+}
+func (b *RevisionUpdateOne) SetEdge[N, K any](edge ent.UniqueRelation[entity.Revision, N, K], id K) *RevisionUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *RevisionUpdateOne) AddIDs[N, K any](edge ent.Relation[entity.Revision, N, K], ids ...K) *RevisionUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *RevisionUpdateOne) Mutation() *RevisionMutation { return b.mutation }
+
+func (b *RevisionUpdateOne) Patch() *RevisionPatch { return b.mutation.patch }
+func (b *RevisionUpdateOne) Apply(p RevisionPatch) *RevisionUpdateOne {
+	b.mutation.patch.apply(p)
+	return b
+}
+func (b *RevisionUpdateOne) Add[T ent.Number](column ent.ColumnOf[entity.Revision, T], delta T) *RevisionUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *RevisionUpdateOne) Append[T any](column ent.ColumnOf[entity.Revision, T], values T) *RevisionUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *RevisionUpdateOne) Clear[T any](column ent.ColumnOf[entity.Revision, T]) *RevisionUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *RevisionUpdateOne) RemoveIDs[N, K any](edge ent.Relation[entity.Revision, N, K], ids ...K) *RevisionUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *RevisionUpdateOne) ClearEdge[N, K any](edge ent.RelationOf[entity.Revision, N, K]) *RevisionUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// Where appends a list predicates to the RevisionUpdate builder.
-func (_u *RevisionUpdateOne) Where(ps ...predicate.Revision) *RevisionUpdateOne {
-	_u.mutation.Where(ps...)
-	return _u
+func (b *RevisionUpdateOne) Where(predicates ...ent.Predicate[entity.Revision]) *RevisionUpdateOne {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Select allows selecting one or more fields (columns) of the returned entity.
-// The default is selecting all fields defined in the entity schema.
-func (_u *RevisionUpdateOne) Select(field string, fields ...string) *RevisionUpdateOne {
-	_u.fields = append([]string{field}, fields...)
-	return _u
+func (b *RevisionUpdateOne) Save(ctx context.Context) (*Revision, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Save executes the query and returns the updated Revision entity.
-func (_u *RevisionUpdateOne) Save(ctx context.Context) (*Revision, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *RevisionUpdateOne) SaveX(ctx context.Context) *Revision {
-	node, err := _u.Save(ctx)
+func (b *RevisionUpdateOne) SaveX(ctx context.Context) *Revision {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return node
+	return result
 }
 
-// Exec executes the query on the entity.
-func (_u *RevisionUpdateOne) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *RevisionUpdateOne) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *RevisionUpdateOne) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *RevisionUpdateOne) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
+func (b *RevisionUpdateOne) Select(columns ...ent.EntityColumn[entity.Revision]) *RevisionUpdateOne {
+	if len(columns) == 0 {
+		panic("ent: Select requires at least one column")
+	}
+	b.fields = make([]string, len(columns))
+	for index, column := range columns {
+		b.fields[index] = column.Ref().Name
+	}
+	return b
+}
+
+func (b *RevisionUpdateOne) SaveOld(ctx context.Context) (old *Revision, updated *Revision, err error) {
+	if !b.driver.Capabilities().ReturningOld {
+		return nil, nil, &dialect.UnsupportedError{Feature: "RETURNING OLD", Dialect: dialect.Dialect(b.driver.Dialect())}
+	}
+	b.old = &Revision{config: b.config}
+	defer func() { b.old = nil }()
+	updated, err = b.Save(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return b.old, updated, nil
+}
+
+func (b *RevisionUpdateOne) defaults() error {
+
+	return nil
+}
+
+func (b *RevisionUpdateOne) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *RevisionUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *RevisionUpdateOne {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *RevisionUpdateOne) sqlSave(ctx context.Context) (_node *Revision, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(revision.Table, revision.Columns, sqlgraph.NewFieldSpec(revision.FieldID, field.TypeString))
 	id, ok := _u.mutation.ID()
 	if !ok {
@@ -162,9 +422,18 @@ func (_u *RevisionUpdateOne) sqlSave(ctx context.Context) (_node *Revision, err 
 			}
 		}
 	}
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	_node = &Revision{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
+	if _u.old != nil {
+		_spec.OldScanValues = _u.old.scanValues
+		_spec.OldAssign = _u.old.assignValues
+	}
 	if err = sqlgraph.UpdateNode(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{revision.Label}
@@ -173,6 +442,5 @@ func (_u *RevisionUpdateOne) sqlSave(ctx context.Context) (_node *Revision, err 
 		}
 		return nil, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }

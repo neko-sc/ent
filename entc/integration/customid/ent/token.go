@@ -12,6 +12,7 @@ import (
 	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/account"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/token"
 	"github.com/neko-sc/ent/entc/integration/customid/sid"
 )
@@ -27,7 +28,6 @@ type Token struct {
 	// The values are being populated by the TokenQuery when eager-loading is set.
 	Edges         TokenEdges `json:"edges"`
 	account_token *sid.ID
-	selectValues  sql.SelectValues
 }
 
 // TokenEdges holds the relations/edges for other nodes in the graph.
@@ -37,6 +37,30 @@ type TokenEdges struct {
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes [1]bool
+	counts      map[string]int
+}
+
+func (e TokenEdges) Loaded[N, K any](edge ent.RelationOf[entity.Token, N, K]) bool {
+	switch edge.Ref().Name {
+	case "account":
+		return e.loadedTypes[0]
+
+	default:
+		return false
+	}
+}
+
+func (e *TokenEdges) SetLoaded[N, K any](edge ent.RelationOf[entity.Token, N, K], loaded bool) {
+	switch edge.Ref().Name {
+	case "account":
+		e.loadedTypes[0] = loaded
+
+	}
+}
+
+func (e TokenEdges) Count[N, K any](edge ent.Relation[entity.Token, N, K]) (int, bool) {
+	count, loaded := e.counts[edge.Ref().Name]
+	return count, loaded
 }
 
 // AccountOrErr returns the Account value or an error if the edge
@@ -55,10 +79,10 @@ func (*Token) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case token.FieldBody:
+			values[i] = new(*string)
 		case token.FieldID:
 			values[i] = new(sid.ID)
-		case token.FieldBody:
-			values[i] = new(sql.NullString)
 		case token.ForeignKeys[0]: // account_token
 			values[i] = &sql.NullScanner{S: new(sid.ID)}
 		default:
@@ -83,10 +107,11 @@ func (_m *Token) assignValues(columns []string, values []any) error {
 				_m.ID = *value
 			}
 		case token.FieldBody:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field body", values[i])
-			} else if value.Valid {
-				_m.Body = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.Body = **value
 			}
 		case token.ForeignKeys[0]:
 			if value, ok := values[i].(*sql.NullScanner); !ok {
@@ -95,17 +120,9 @@ func (_m *Token) assignValues(columns []string, values []any) error {
 				_m.account_token = new(sid.ID)
 				*_m.account_token = *value.S.(*sid.ID)
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the Token.
-// This includes values selected through modifiers, order, etc.
-func (_m *Token) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // QueryAccount queries the "account" edge of the Token entity.

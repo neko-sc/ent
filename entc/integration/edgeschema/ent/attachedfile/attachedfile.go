@@ -6,10 +6,11 @@
 package attachedfile
 
 import (
-	"time"
+	time2 "time"
 
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/entity"
 )
 
 const (
@@ -45,6 +46,50 @@ const (
 	ProcColumn = "proc_id"
 )
 
+var (
+	ID         = ent.OrderedColumn[entity.AttachedFile, int]{Table: Table, Name: FieldID}
+	AttachTime = ent.OrderedColumn[entity.AttachedFile, time2.Time]{Table: Table, Name: FieldAttachTime}
+	FID        = ent.OrderedColumn[entity.AttachedFile, int]{Table: Table, Name: FieldFID}
+	ProcID     = ent.OrderedColumn[entity.AttachedFile, int]{Table: Table, Name: FieldProcID}
+	Fi         = ent.NewUniqueRelation[entity.AttachedFile, entity.File, int](EdgeFi, newFiStep)
+	Proc       = ent.NewUniqueRelation[entity.AttachedFile, entity.Process, int](EdgeProc, newProcStep)
+)
+
+// Alias returns the columns of the attached_files table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.AttachedFile, int]{Table: name, Name: FieldID},
+		AttachTime: ent.OrderedColumn[entity.AttachedFile, time2.Time]{Table: name, Name: FieldAttachTime},
+		FID:        ent.OrderedColumn[entity.AttachedFile, int]{Table: name, Name: FieldFID},
+		ProcID:     ent.OrderedColumn[entity.AttachedFile, int]{Table: name, Name: FieldProcID},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.AttachedFile, int]
+	AttachTime ent.OrderedColumn[entity.AttachedFile, time2.Time]
+	FID        ent.OrderedColumn[entity.AttachedFile, int]
+	ProcID     ent.OrderedColumn[entity.AttachedFile, int]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.AttachedFile]) ent.Predicate[entity.AttachedFile] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.AttachedFile]) ent.Predicate[entity.AttachedFile] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.AttachedFile]) ent.Predicate[entity.AttachedFile] {
+	return ent.Not(predicate)
+}
+
 // Columns holds all SQL columns for attachedfile fields.
 var Columns = []string{
 	FieldID,
@@ -65,45 +110,9 @@ func ValidColumn(column string) bool {
 
 var (
 	// DefaultAttachTime holds the default value on creation for the "attach_time" field.
-	DefaultAttachTime func() time.Time
+	DefaultAttachTime func() time2.Time
 )
 
-// OrderOption defines the ordering options for the AttachedFile queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByAttachTime orders the results by the attach_time field.
-func ByAttachTime(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldAttachTime, opts...).ToFunc()
-}
-
-// ByFID orders the results by the f_id field.
-func ByFID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldFID, opts...).ToFunc()
-}
-
-// ByProcID orders the results by the proc_id field.
-func ByProcID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldProcID, opts...).ToFunc()
-}
-
-// ByFiField orders the results by fi field.
-func ByFiField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newFiStep(), sql.OrderByField(field, opts...))
-	}
-}
-
-// ByProcField orders the results by proc field.
-func ByProcField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newProcStep(), sql.OrderByField(field, opts...))
-	}
-}
 func newFiStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),

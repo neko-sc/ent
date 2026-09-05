@@ -462,6 +462,9 @@ func FieldTypeOf(logical field.Type, representation *TypeExpression) (*FieldType
 	if representation == nil {
 		return nil, fmt.Errorf("load: logical field type %q has no representation", logical)
 	}
+	if logical == field.TypeArray {
+		base = representation
+	}
 	id, err := representation.ID()
 	if err != nil {
 		return nil, err
@@ -482,6 +485,8 @@ func logicalTypeExpression(fieldType field.Type) *TypeExpression {
 		return basic(BasicKindBool)
 	case field.TypeTime:
 		return &TypeExpression{Kind: TypeKindNamed, Named: &TypeName{Package: Package{Path: "time", Name: "time"}, Name: "Time"}}
+	case field.TypeArray:
+		return &TypeExpression{Kind: TypeKindSlice}
 	case field.TypeJSON:
 		return &TypeExpression{Kind: TypeKindSlice, Element: basic(BasicKindUint8)}
 	case field.TypeOther:

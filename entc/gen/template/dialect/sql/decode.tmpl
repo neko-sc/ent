@@ -11,7 +11,8 @@ SPDX-License-Identifier: Apache-2.0
 {{ $ctypes := dict }}
 {{ if $.HasOneFieldID }}
 	{{- if not $.ID.HasValueScanner }}
-		{{ $idscantype := $.ID.NewScanType }}
+		{{ $idscantype := print "new(*" $.ID.GoType ")" }}
+  {{ if or $.ID.TypeValueScanner $.ID.IsJSON }}{{ $idscantype = $.ID.NewScanType }}{{ end }}
 		{{ $ctypes = set $ctypes $idscantype (list $.ID.Constant) }}
 	{{- end }}
 {{ end }}
@@ -19,12 +20,12 @@ SPDX-License-Identifier: Apache-2.0
 	{{- if $f.HasValueScanner }}
 		{{- continue }}
 	{{- end }}
-	{{ $names := list }}
-	{{ if hasKey $ctypes $f.NewScanType }}
-		{{ $names = get $ctypes $f.NewScanType }}
-	{{ end }}
-	{{ $names = append $names $f.Constant }}
-	{{ $ctypes = set $ctypes $f.NewScanType $names }}
+ {{ $scan := print "new(*" $f.GoType ")" }}
+ {{ if or $f.TypeValueScanner $f.IsJSON }}{{ $scan = $f.NewScanType }}{{ end }}
+ {{ $names := list }}
+ {{ if hasKey $ctypes $scan }}{{ $names = get $ctypes $scan }}{{ end }}
+ {{ $names = append $names $f.Constant }}
+ {{ $ctypes = set $ctypes $scan $names }}
 {{ end }}
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -52,7 +53,7 @@ func (*{{ $.Name }}) scanValues(columns []string) ([]any, error) {
 					{{- if $f.HasValueScanner }}
 					values[i] = {{ $f.ScanValueFunc }}()
 					{{- else }}
-					values[i] = {{ $f.NewScanType }}
+					values[i] = {{ if or $f.TypeValueScanner $f.IsJSON }}{{ $f.NewScanType }}{{ else }}new(*{{ $f.GoType }}){{ end }}
 					{{- end }}
 			{{- end }}
 			default:
@@ -90,19 +91,11 @@ func ({{ $receiver }} *{{ $.Name }}) assignValues(columns []string, values []any
 					{{ template "dialect/sql/decode/field" . }}
 				{{- end }}
 		{{- end }}
-		default:
-			{{- /* In case of no match, allow getting this value by its name. */}}
-			{{ $receiver }}.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
 }
 
-// {{ $.ValueName }} returns the ent.Value that was dynamically selected and assigned to the {{ $.Name }}.
-// This includes values selected through modifiers, order, etc.
-func ({{ $receiver }} *{{ $.Name }}) {{ $.ValueName }}(name string) (ent.Value, error) {
-	return {{ $receiver }}.selectValues.Get(name)
-}
 {{ end }}
 
 {{ define "dialect/sql/decode/field" }}
@@ -124,8 +117,14 @@ func ({{ $receiver }} *{{ $.Name }}) {{ $.ValueName }}(name string) (ent.Value, 
 				return fmt.Errorf("unmarshal field {{ $f.Name }}: %w", err)
 			}
 		}
-	{{- else }}
-		{{- $scantype := $f.ScanType -}}
+	{{- else if not $f.TypeValueScanner }}
+   if value, ok := values[{{ $i }}].(**{{ $f.GoType }}); !ok {
+    return fmt.Errorf("unexpected type %T for field {{ $f.Name }}", values[{{ $i }}])
+   } else if value != nil && *value != nil {
+    {{ $ret }}.{{ $field }} = {{ if not $f.NillableValue }}*{{ end }}*value
+   }
+  {{- else }}
+   {{- $scantype := $f.ScanType -}}
 		if value, ok := values[{{ $i }}].(*{{ $scantype }}); !ok {
 			return fmt.Errorf("unexpected type %T for field {{ $f.Name }}", values[{{ $i }}])
 		{{- if hasPrefix $scantype "sql.Null" }}

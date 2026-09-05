@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/examples/version/ent/user"
 )
@@ -22,8 +21,7 @@ type User struct {
 	// Unix time of when the latest update occurred
 	Version int64 `json:"version,omitempty"`
 	// Status holds the value of the "status" field.
-	Status       user.Status `json:"status,omitempty"`
-	selectValues sql.SelectValues
+	Status user.StatusValue `json:"status,omitempty"`
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -31,10 +29,12 @@ func (*User) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case user.FieldID, user.FieldVersion:
-			values[i] = new(sql.NullInt64)
+		case user.FieldID:
+			values[i] = new(*int)
+		case user.FieldVersion:
+			values[i] = new(*int64)
 		case user.FieldStatus:
-			values[i] = new(sql.NullString)
+			values[i] = new(*user.StatusValue)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -51,34 +51,29 @@ func (_m *User) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case user.FieldID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field id", values[i])
-			} else if value.Valid {
-				_m.ID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.ID = **value
 			}
 		case user.FieldVersion:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int64); !ok {
 				return fmt.Errorf("unexpected type %T for field version", values[i])
-			} else if value.Valid {
-				_m.Version = int64(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.Version = **value
 			}
 		case user.FieldStatus:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**user.StatusValue); !ok {
 				return fmt.Errorf("unexpected type %T for field status", values[i])
-			} else if value.Valid {
-				_m.Status = user.Status(value.String)
+			} else if value != nil && *value != nil {
+				_m.Status = **value
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the User.
-// This includes values selected through modifiers, order, etc.
-func (_m *User) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // Update returns a builder for updating this User.

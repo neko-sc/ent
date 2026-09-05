@@ -8,9 +8,11 @@ package ent
 import (
 	"context"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
-	"github.com/neko-sc/ent/entc/integration/customid/ent/predicate"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/token"
 	"github.com/neko-sc/ent/schema/field"
 )
@@ -18,19 +20,44 @@ import (
 // TokenDelete is the builder for deleting a Token entity.
 type TokenDelete struct {
 	config
-	hooks    []Hook
-	mutation *TokenMutation
+
+	mutation  *TokenMutation
+	returning *sqlgraph.Returning
 }
 
 // Where appends a list predicates to the TokenDelete builder.
-func (_d *TokenDelete) Where(ps ...predicate.Token) *TokenDelete {
-	_d.mutation.Where(ps...)
+func (_d *TokenDelete) Where(predicates ...ent.Predicate[entity.Token]) *TokenDelete {
+	_d.mutation.Where(predicates...)
 	return _d
 }
 
 // Exec executes the deletion query and returns how many vertices were deleted.
 func (_d *TokenDelete) Exec(ctx context.Context) (int, error) {
-	return withHooks(ctx, _d.sqlExec, _d.mutation, _d.hooks)
+	return _d.sqlExec(ctx)
+}
+
+func (b *TokenDelete) Returning(ctx context.Context) ([]*Token, error) {
+	nodes := make([]*Token, 0)
+	b.returning = &sqlgraph.Returning{Columns: token.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Token{config: b.config}
+		values, err := _node.scanValues(token.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(token.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Exec(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
 }
 
 // ExecX is like Exec, but panics if an error occurs.
@@ -51,11 +78,11 @@ func (_d *TokenDelete) sqlExec(ctx context.Context) (int, error) {
 			}
 		}
 	}
+	_spec.Returning = _d.returning
 	affected, err := sqlgraph.DeleteNodes(ctx, _d.driver, _spec)
 	if err != nil && sqlgraph.IsConstraintError(err) {
 		err = &ConstraintError{msg: err.Error(), wrap: err}
 	}
-	_d.mutation.done = true
 	return affected, err
 }
 
@@ -65,8 +92,8 @@ type TokenDeleteOne struct {
 }
 
 // Where appends a list predicates to the TokenDelete builder.
-func (_d *TokenDeleteOne) Where(ps ...predicate.Token) *TokenDeleteOne {
-	_d._d.mutation.Where(ps...)
+func (_d *TokenDeleteOne) Where(predicates ...ent.Predicate[entity.Token]) *TokenDeleteOne {
+	_d._d.mutation.Where(predicates...)
 	return _d
 }
 

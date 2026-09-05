@@ -9,174 +9,216 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/google/uuid"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
-	"github.com/neko-sc/ent/examples/migration/ent/predicate"
+	"github.com/neko-sc/ent/examples/migration/ent/entity"
 	"github.com/neko-sc/ent/examples/migration/ent/session"
 	"github.com/neko-sc/ent/examples/migration/ent/sessiondevice"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// SessionUpdate is the builder for updating Session entities.
 type SessionUpdate struct {
 	config
-	hooks    []Hook
-	mutation *SessionMutation
+	mutation  *SessionMutation
+	err       error
+	returning *sqlgraph.Returning
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// Where appends a list predicates to the SessionUpdate builder.
-func (_u *SessionUpdate) Where(ps ...predicate.Session) *SessionUpdate {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// SetActive sets the "active" field.
-func (_u *SessionUpdate) SetActive(v bool) *SessionUpdate {
-	_u.mutation.SetActive(v)
-	return _u
-}
-
-// SetNillableActive sets the "active" field if the given value is not nil.
-func (_u *SessionUpdate) SetNillableActive(v *bool) *SessionUpdate {
-	if v != nil {
-		_u.SetActive(*v)
+func (b *SessionUpdate) Set[T any](column ent.ColumnOf[entity.Session, T], value T) *SessionUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// SetIssuedAt sets the "issued_at" field.
-func (_u *SessionUpdate) SetIssuedAt(v time.Time) *SessionUpdate {
-	_u.mutation.SetIssuedAt(v)
-	return _u
+	return b
 }
-
-// SetNillableIssuedAt sets the "issued_at" field if the given value is not nil.
-func (_u *SessionUpdate) SetNillableIssuedAt(v *time.Time) *SessionUpdate {
-	if v != nil {
-		_u.SetIssuedAt(*v)
+func (b *SessionUpdate) SetOptional[T any](column ent.ColumnOf[entity.Session, T], value ent.Option[T]) *SessionUpdate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u
-}
-
-// SetExpiresAt sets the "expires_at" field.
-func (_u *SessionUpdate) SetExpiresAt(v time.Time) *SessionUpdate {
-	_u.mutation.SetExpiresAt(v)
-	return _u
-}
-
-// SetNillableExpiresAt sets the "expires_at" field if the given value is not nil.
-func (_u *SessionUpdate) SetNillableExpiresAt(v *time.Time) *SessionUpdate {
-	if v != nil {
-		_u.SetExpiresAt(*v)
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
 	}
-	return _u
+	return b
 }
-
-// ClearExpiresAt clears the value of the "expires_at" field.
-func (_u *SessionUpdate) ClearExpiresAt() *SessionUpdate {
-	_u.mutation.ClearExpiresAt()
-	return _u
-}
-
-// SetToken sets the "token" field.
-func (_u *SessionUpdate) SetToken(v string) *SessionUpdate {
-	_u.mutation.SetToken(v)
-	return _u
-}
-
-// SetNillableToken sets the "token" field if the given value is not nil.
-func (_u *SessionUpdate) SetNillableToken(v *string) *SessionUpdate {
-	if v != nil {
-		_u.SetToken(*v)
+func (b *SessionUpdate) SetExpr[T any](column ent.ColumnOf[entity.Session, T], value ent.Expr[T]) *SessionUpdate {
+	if b.err != nil {
+		return b
 	}
-	return _u
-}
+	switch column.Ref().Name {
 
-// ClearToken clears the value of the "token" field.
-func (_u *SessionUpdate) ClearToken() *SessionUpdate {
-	_u.mutation.ClearToken()
-	return _u
-}
+	case session.FieldActive:
 
-// SetMethod sets the "method" field.
-func (_u *SessionUpdate) SetMethod(v map[string]any) *SessionUpdate {
-	_u.mutation.SetMethod(v)
-	return _u
-}
+	case session.FieldIssuedAt:
 
-// ClearMethod clears the value of the "method" field.
-func (_u *SessionUpdate) ClearMethod() *SessionUpdate {
-	_u.mutation.ClearMethod()
-	return _u
-}
+	case session.FieldExpiresAt:
 
-// SetDeviceID sets the "device_id" field.
-func (_u *SessionUpdate) SetDeviceID(v uuid.UUID) *SessionUpdate {
-	_u.mutation.SetDeviceID(v)
-	return _u
-}
+	case session.FieldToken:
 
-// SetNillableDeviceID sets the "device_id" field if the given value is not nil.
-func (_u *SessionUpdate) SetNillableDeviceID(v *uuid.UUID) *SessionUpdate {
-	if v != nil {
-		_u.SetDeviceID(*v)
+	case session.FieldMethod:
+
+	case session.FieldDeviceID:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Session is not settable", column.Ref().Name)}
+		return b
 	}
-	return _u
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *SessionUpdate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Session, N, K], id K) *SessionUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *SessionUpdate) AddIDs[N, K any](edge ent.Relation[entity.Session, N, K], ids ...K) *SessionUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *SessionUpdate) Mutation() *SessionMutation { return b.mutation }
+
+func (b *SessionUpdate) Patch() *SessionPatch                { return b.mutation.patch }
+func (b *SessionUpdate) Apply(p SessionPatch) *SessionUpdate { b.mutation.patch.apply(p); return b }
+func (b *SessionUpdate) Add[T ent.Number](column ent.ColumnOf[entity.Session, T], delta T) *SessionUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *SessionUpdate) Append[T any](column ent.ColumnOf[entity.Session, T], values T) *SessionUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *SessionUpdate) Clear[T any](column ent.ColumnOf[entity.Session, T]) *SessionUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *SessionUpdate) RemoveIDs[N, K any](edge ent.Relation[entity.Session, N, K], ids ...K) *SessionUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *SessionUpdate) ClearEdge[N, K any](edge ent.RelationOf[entity.Session, N, K]) *SessionUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// ClearDeviceID clears the value of the "device_id" field.
-func (_u *SessionUpdate) ClearDeviceID() *SessionUpdate {
-	_u.mutation.ClearDeviceID()
-	return _u
+func (b *SessionUpdate) Where(predicates ...ent.Predicate[entity.Session]) *SessionUpdate {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// SetDevice sets the "device" edge to the SessionDevice entity.
-func (_u *SessionUpdate) SetDevice(v *SessionDevice) *SessionUpdate {
-	return _u.SetDeviceID(v.ID)
+func (b *SessionUpdate) Save(ctx context.Context) (int, error) {
+	if b.err != nil {
+		return 0, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return 0, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Mutation returns the SessionMutation object of the builder.
-func (_u *SessionUpdate) Mutation() *SessionMutation {
-	return _u.mutation
-}
-
-// ClearDevice clears the "device" edge to the SessionDevice entity.
-func (_u *SessionUpdate) ClearDevice() *SessionUpdate {
-	_u.mutation.ClearDevice()
-	return _u
-}
-
-// Save executes the query and returns the number of nodes affected by the update operation.
-func (_u *SessionUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *SessionUpdate) SaveX(ctx context.Context) int {
-	affected, err := _u.Save(ctx)
+func (b *SessionUpdate) SaveX(ctx context.Context) int {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return affected
+	return result
 }
 
-// Exec executes the query.
-func (_u *SessionUpdate) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *SessionUpdate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *SessionUpdate) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *SessionUpdate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
+func (b *SessionUpdate) Returning(ctx context.Context) ([]*Session, error) {
+	nodes := make([]*Session, 0)
+	b.returning = &sqlgraph.Returning{Columns: session.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Session{config: b.config}
+		values, err := _node.scanValues(session.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(session.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Save(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
+}
+
+func (b *SessionUpdate) defaults() error {
+
+	return nil
+}
+
+func (b *SessionUpdate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.Active.IsNull() {
+		return &ValidationError{Name: "active", err: errors.New(`ent: field "Session.active" is not nullable`)}
+	}
+
+	if b.mutation.patch.IssuedAt.IsNull() {
+		return &ValidationError{Name: "issued_at", err: errors.New(`ent: field "Session.issued_at" is not nullable`)}
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *SessionUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *SessionUpdate {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *SessionUpdate) sqlSave(ctx context.Context) (_node int, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(session.Table, session.Columns, sqlgraph.NewFieldSpec(session.FieldID, field.TypeUUID))
 	if ps := _u.mutation.Predicates(); len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -185,31 +227,31 @@ func (_u *SessionUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.Active(); ok {
+	if value, ok := _u.mutation.patch.Active.Get(); ok {
 		_spec.SetField(session.FieldActive, field.TypeBool, value)
 	}
-	if value, ok := _u.mutation.IssuedAt(); ok {
+	if value, ok := _u.mutation.patch.IssuedAt.Get(); ok {
 		_spec.SetField(session.FieldIssuedAt, field.TypeTime, value)
 	}
-	if value, ok := _u.mutation.ExpiresAt(); ok {
+	if value, ok := _u.mutation.patch.ExpiresAt.Get(); ok {
 		_spec.SetField(session.FieldExpiresAt, field.TypeTime, value)
 	}
-	if _u.mutation.ExpiresAtCleared() {
+	if _u.mutation.patch.ExpiresAt.IsNull() {
 		_spec.ClearField(session.FieldExpiresAt, field.TypeTime)
 	}
-	if value, ok := _u.mutation.Token(); ok {
+	if value, ok := _u.mutation.patch.Token.Get(); ok {
 		_spec.SetField(session.FieldToken, field.TypeString, value)
 	}
-	if _u.mutation.TokenCleared() {
+	if _u.mutation.patch.Token.IsNull() {
 		_spec.ClearField(session.FieldToken, field.TypeString)
 	}
-	if value, ok := _u.mutation.Method(); ok {
+	if value, ok := _u.mutation.patch.Method.Get(); ok {
 		_spec.SetField(session.FieldMethod, field.TypeJSON, value)
 	}
-	if _u.mutation.MethodCleared() {
+	if _u.mutation.patch.Method.IsNull() {
 		_spec.ClearField(session.FieldMethod, field.TypeJSON)
 	}
-	if _u.mutation.DeviceCleared() {
+	if _u.mutation.patch.DeviceID.IsNull() || _u.mutation.patch.clearedEdges[session.EdgeDevice] {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -222,7 +264,7 @@ func (_u *SessionUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.DeviceIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.deviceIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -233,11 +275,22 @@ func (_u *SessionUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(sessiondevice.FieldID, field.TypeUUID),
 			},
 		}
+		seen := make(map[uuid.UUID]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	_spec.Returning = _u.returning
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{session.Label}
@@ -246,175 +299,212 @@ func (_u *SessionUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		return 0, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }
 
-// SessionUpdateOne is the builder for updating a single Session entity.
 type SessionUpdateOne struct {
 	config
-	fields   []string
-	hooks    []Hook
 	mutation *SessionMutation
+	err      error
+
+	fields []string
+	old    *Session
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// SetActive sets the "active" field.
-func (_u *SessionUpdateOne) SetActive(v bool) *SessionUpdateOne {
-	_u.mutation.SetActive(v)
-	return _u
-}
-
-// SetNillableActive sets the "active" field if the given value is not nil.
-func (_u *SessionUpdateOne) SetNillableActive(v *bool) *SessionUpdateOne {
-	if v != nil {
-		_u.SetActive(*v)
+func (b *SessionUpdateOne) Set[T any](column ent.ColumnOf[entity.Session, T], value T) *SessionUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// SetIssuedAt sets the "issued_at" field.
-func (_u *SessionUpdateOne) SetIssuedAt(v time.Time) *SessionUpdateOne {
-	_u.mutation.SetIssuedAt(v)
-	return _u
+	return b
 }
-
-// SetNillableIssuedAt sets the "issued_at" field if the given value is not nil.
-func (_u *SessionUpdateOne) SetNillableIssuedAt(v *time.Time) *SessionUpdateOne {
-	if v != nil {
-		_u.SetIssuedAt(*v)
+func (b *SessionUpdateOne) SetOptional[T any](column ent.ColumnOf[entity.Session, T], value ent.Option[T]) *SessionUpdateOne {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u
-}
-
-// SetExpiresAt sets the "expires_at" field.
-func (_u *SessionUpdateOne) SetExpiresAt(v time.Time) *SessionUpdateOne {
-	_u.mutation.SetExpiresAt(v)
-	return _u
-}
-
-// SetNillableExpiresAt sets the "expires_at" field if the given value is not nil.
-func (_u *SessionUpdateOne) SetNillableExpiresAt(v *time.Time) *SessionUpdateOne {
-	if v != nil {
-		_u.SetExpiresAt(*v)
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
 	}
-	return _u
+	return b
 }
-
-// ClearExpiresAt clears the value of the "expires_at" field.
-func (_u *SessionUpdateOne) ClearExpiresAt() *SessionUpdateOne {
-	_u.mutation.ClearExpiresAt()
-	return _u
-}
-
-// SetToken sets the "token" field.
-func (_u *SessionUpdateOne) SetToken(v string) *SessionUpdateOne {
-	_u.mutation.SetToken(v)
-	return _u
-}
-
-// SetNillableToken sets the "token" field if the given value is not nil.
-func (_u *SessionUpdateOne) SetNillableToken(v *string) *SessionUpdateOne {
-	if v != nil {
-		_u.SetToken(*v)
+func (b *SessionUpdateOne) SetExpr[T any](column ent.ColumnOf[entity.Session, T], value ent.Expr[T]) *SessionUpdateOne {
+	if b.err != nil {
+		return b
 	}
-	return _u
-}
+	switch column.Ref().Name {
 
-// ClearToken clears the value of the "token" field.
-func (_u *SessionUpdateOne) ClearToken() *SessionUpdateOne {
-	_u.mutation.ClearToken()
-	return _u
-}
+	case session.FieldActive:
 
-// SetMethod sets the "method" field.
-func (_u *SessionUpdateOne) SetMethod(v map[string]any) *SessionUpdateOne {
-	_u.mutation.SetMethod(v)
-	return _u
-}
+	case session.FieldIssuedAt:
 
-// ClearMethod clears the value of the "method" field.
-func (_u *SessionUpdateOne) ClearMethod() *SessionUpdateOne {
-	_u.mutation.ClearMethod()
-	return _u
-}
+	case session.FieldExpiresAt:
 
-// SetDeviceID sets the "device_id" field.
-func (_u *SessionUpdateOne) SetDeviceID(v uuid.UUID) *SessionUpdateOne {
-	_u.mutation.SetDeviceID(v)
-	return _u
-}
+	case session.FieldToken:
 
-// SetNillableDeviceID sets the "device_id" field if the given value is not nil.
-func (_u *SessionUpdateOne) SetNillableDeviceID(v *uuid.UUID) *SessionUpdateOne {
-	if v != nil {
-		_u.SetDeviceID(*v)
+	case session.FieldMethod:
+
+	case session.FieldDeviceID:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Session is not settable", column.Ref().Name)}
+		return b
 	}
-	return _u
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *SessionUpdateOne) SetEdge[N, K any](edge ent.UniqueRelation[entity.Session, N, K], id K) *SessionUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *SessionUpdateOne) AddIDs[N, K any](edge ent.Relation[entity.Session, N, K], ids ...K) *SessionUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *SessionUpdateOne) Mutation() *SessionMutation { return b.mutation }
+
+func (b *SessionUpdateOne) Patch() *SessionPatch { return b.mutation.patch }
+func (b *SessionUpdateOne) Apply(p SessionPatch) *SessionUpdateOne {
+	b.mutation.patch.apply(p)
+	return b
+}
+func (b *SessionUpdateOne) Add[T ent.Number](column ent.ColumnOf[entity.Session, T], delta T) *SessionUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *SessionUpdateOne) Append[T any](column ent.ColumnOf[entity.Session, T], values T) *SessionUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *SessionUpdateOne) Clear[T any](column ent.ColumnOf[entity.Session, T]) *SessionUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *SessionUpdateOne) RemoveIDs[N, K any](edge ent.Relation[entity.Session, N, K], ids ...K) *SessionUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *SessionUpdateOne) ClearEdge[N, K any](edge ent.RelationOf[entity.Session, N, K]) *SessionUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// ClearDeviceID clears the value of the "device_id" field.
-func (_u *SessionUpdateOne) ClearDeviceID() *SessionUpdateOne {
-	_u.mutation.ClearDeviceID()
-	return _u
+func (b *SessionUpdateOne) Where(predicates ...ent.Predicate[entity.Session]) *SessionUpdateOne {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// SetDevice sets the "device" edge to the SessionDevice entity.
-func (_u *SessionUpdateOne) SetDevice(v *SessionDevice) *SessionUpdateOne {
-	return _u.SetDeviceID(v.ID)
+func (b *SessionUpdateOne) Save(ctx context.Context) (*Session, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Mutation returns the SessionMutation object of the builder.
-func (_u *SessionUpdateOne) Mutation() *SessionMutation {
-	return _u.mutation
-}
-
-// ClearDevice clears the "device" edge to the SessionDevice entity.
-func (_u *SessionUpdateOne) ClearDevice() *SessionUpdateOne {
-	_u.mutation.ClearDevice()
-	return _u
-}
-
-// Where appends a list predicates to the SessionUpdate builder.
-func (_u *SessionUpdateOne) Where(ps ...predicate.Session) *SessionUpdateOne {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// Select allows selecting one or more fields (columns) of the returned entity.
-// The default is selecting all fields defined in the entity schema.
-func (_u *SessionUpdateOne) Select(field string, fields ...string) *SessionUpdateOne {
-	_u.fields = append([]string{field}, fields...)
-	return _u
-}
-
-// Save executes the query and returns the updated Session entity.
-func (_u *SessionUpdateOne) Save(ctx context.Context) (*Session, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *SessionUpdateOne) SaveX(ctx context.Context) *Session {
-	node, err := _u.Save(ctx)
+func (b *SessionUpdateOne) SaveX(ctx context.Context) *Session {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return node
+	return result
 }
 
-// Exec executes the query on the entity.
-func (_u *SessionUpdateOne) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *SessionUpdateOne) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *SessionUpdateOne) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *SessionUpdateOne) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
+func (b *SessionUpdateOne) Select(columns ...ent.EntityColumn[entity.Session]) *SessionUpdateOne {
+	if len(columns) == 0 {
+		panic("ent: Select requires at least one column")
+	}
+	b.fields = make([]string, len(columns))
+	for index, column := range columns {
+		b.fields[index] = column.Ref().Name
+	}
+	return b
+}
+
+func (b *SessionUpdateOne) SaveOld(ctx context.Context) (old *Session, updated *Session, err error) {
+	if !b.driver.Capabilities().ReturningOld {
+		return nil, nil, &dialect.UnsupportedError{Feature: "RETURNING OLD", Dialect: dialect.Dialect(b.driver.Dialect())}
+	}
+	b.old = &Session{config: b.config}
+	defer func() { b.old = nil }()
+	updated, err = b.Save(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return b.old, updated, nil
+}
+
+func (b *SessionUpdateOne) defaults() error {
+
+	return nil
+}
+
+func (b *SessionUpdateOne) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.Active.IsNull() {
+		return &ValidationError{Name: "active", err: errors.New(`ent: field "Session.active" is not nullable`)}
+	}
+
+	if b.mutation.patch.IssuedAt.IsNull() {
+		return &ValidationError{Name: "issued_at", err: errors.New(`ent: field "Session.issued_at" is not nullable`)}
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *SessionUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *SessionUpdateOne {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *SessionUpdateOne) sqlSave(ctx context.Context) (_node *Session, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(session.Table, session.Columns, sqlgraph.NewFieldSpec(session.FieldID, field.TypeUUID))
 	id, ok := _u.mutation.ID()
 	if !ok {
@@ -440,31 +530,31 @@ func (_u *SessionUpdateOne) sqlSave(ctx context.Context) (_node *Session, err er
 			}
 		}
 	}
-	if value, ok := _u.mutation.Active(); ok {
+	if value, ok := _u.mutation.patch.Active.Get(); ok {
 		_spec.SetField(session.FieldActive, field.TypeBool, value)
 	}
-	if value, ok := _u.mutation.IssuedAt(); ok {
+	if value, ok := _u.mutation.patch.IssuedAt.Get(); ok {
 		_spec.SetField(session.FieldIssuedAt, field.TypeTime, value)
 	}
-	if value, ok := _u.mutation.ExpiresAt(); ok {
+	if value, ok := _u.mutation.patch.ExpiresAt.Get(); ok {
 		_spec.SetField(session.FieldExpiresAt, field.TypeTime, value)
 	}
-	if _u.mutation.ExpiresAtCleared() {
+	if _u.mutation.patch.ExpiresAt.IsNull() {
 		_spec.ClearField(session.FieldExpiresAt, field.TypeTime)
 	}
-	if value, ok := _u.mutation.Token(); ok {
+	if value, ok := _u.mutation.patch.Token.Get(); ok {
 		_spec.SetField(session.FieldToken, field.TypeString, value)
 	}
-	if _u.mutation.TokenCleared() {
+	if _u.mutation.patch.Token.IsNull() {
 		_spec.ClearField(session.FieldToken, field.TypeString)
 	}
-	if value, ok := _u.mutation.Method(); ok {
+	if value, ok := _u.mutation.patch.Method.Get(); ok {
 		_spec.SetField(session.FieldMethod, field.TypeJSON, value)
 	}
-	if _u.mutation.MethodCleared() {
+	if _u.mutation.patch.Method.IsNull() {
 		_spec.ClearField(session.FieldMethod, field.TypeJSON)
 	}
-	if _u.mutation.DeviceCleared() {
+	if _u.mutation.patch.DeviceID.IsNull() || _u.mutation.patch.clearedEdges[session.EdgeDevice] {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -477,7 +567,7 @@ func (_u *SessionUpdateOne) sqlSave(ctx context.Context) (_node *Session, err er
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.DeviceIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.deviceIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -488,14 +578,28 @@ func (_u *SessionUpdateOne) sqlSave(ctx context.Context) (_node *Session, err er
 				IDSpec: sqlgraph.NewFieldSpec(sessiondevice.FieldID, field.TypeUUID),
 			},
 		}
+		seen := make(map[uuid.UUID]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	_node = &Session{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
+	if _u.old != nil {
+		_spec.OldScanValues = _u.old.scanValues
+		_spec.OldAssign = _u.old.assignValues
+	}
 	if err = sqlgraph.UpdateNode(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{session.Label}
@@ -504,6 +608,5 @@ func (_u *SessionUpdateOne) sqlSave(ctx context.Context) (_node *Session, err er
 		}
 		return nil, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }

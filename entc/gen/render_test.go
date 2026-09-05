@@ -21,7 +21,7 @@ func TestTypeRenderer_ImportCollisions(t *testing.T) {
 	require.NoError(t, renderer.Add(typ))
 
 	require.Equal(t, []Import{
-		{Path: "example.com/containers"},
+		{Alias: "container", Path: "example.com/containers"},
 		{Alias: "json2", Path: "example.com/json"},
 		{Alias: "model2", Path: "example.com/one/model"},
 		{Alias: "model3", Path: "example.com/two/model"},
@@ -51,7 +51,7 @@ func TestTypeRenderer_ReservedPredeclaredAndStableOrder(t *testing.T) {
 	renderer := NewTypeRenderer(load.Package{Path: "example.com/generated", Name: "generated"})
 	require.NoError(t, renderer.Add(types...))
 	require.Equal(t, []Import{
-		{Path: "example.com/a"},
+		{Alias: "shared", Path: "example.com/a"},
 		{Alias: "int2", Path: "example.com/int"},
 		{Alias: "map2", Path: "example.com/map"},
 		{Alias: "shared2", Path: "example.com/z"},
@@ -64,7 +64,7 @@ func TestTypeRenderer_FixedTemplateQualifier(t *testing.T) {
 		path      string
 		qualifier string
 	}{
-		{name: "predicate", path: "example.com/predicate", qualifier: "predicate2"},
+		{name: "entity", path: "example.com/entity", qualifier: "entity2"},
 		{name: "sql", path: "example.com/sql", qualifier: "sql2"},
 	}
 	for _, tt := range tests {

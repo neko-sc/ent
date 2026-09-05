@@ -6,6 +6,7 @@ package gen
 import (
 	"fmt"
 	"go/token"
+	"path"
 	"slices"
 	"strconv"
 	"strings"
@@ -98,19 +99,19 @@ func (r *TypeRenderer) allocate() {
 	for name := range r.reserved {
 		used[name] = true
 	}
-	for _, path := range paths {
-		name := identifier(r.packages[path])
+	for _, packagePath := range paths {
+		name := identifier(r.packages[packagePath])
 		qualifier := name
 		for suffix := 2; used[qualifier]; suffix++ {
 			qualifier = name + strconv.Itoa(suffix)
 		}
 		used[qualifier] = true
-		r.qualifiers[path] = qualifier
+		r.qualifiers[packagePath] = qualifier
 		alias := ""
-		if qualifier != r.packages[path] {
+		if qualifier != r.packages[packagePath] || qualifier != path.Base(packagePath) {
 			alias = qualifier
 		}
-		r.imports = append(r.imports, Import{Alias: alias, Path: path})
+		r.imports = append(r.imports, Import{Alias: alias, Path: packagePath})
 	}
 }
 
@@ -444,8 +445,8 @@ func identifier(name string) string {
 // built-in templates. Semantic imports reserve them regardless of which feature
 // templates are enabled so rendering stays deterministic across generated files.
 var templateImportQualifiers = []string{
-	"context", "dialect", "driver", "ent", "entql", "entsql", "errors", "field", "fmt",
-	"log", "math", "predicate", "privacy", "reflect", "schema", "sql", "sqlgraph", "sqljson",
+	"context", "dialect", "driver", "ent", "entsql", "errors", "field", "fmt",
+	"log", "math", "entity", "reflect", "schema", "sql", "sqlgraph", "sqljson",
 	"stdsql", "strings", "sync", "time",
 }
 

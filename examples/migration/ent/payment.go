@@ -9,10 +9,12 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	time2 "time"
 
 	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/examples/migration/ent/card"
+	"github.com/neko-sc/ent/examples/migration/ent/entity"
 	"github.com/neko-sc/ent/examples/migration/ent/payment"
 )
 
@@ -26,17 +28,16 @@ type Payment struct {
 	// Amount holds the value of the "amount" field.
 	Amount float64 `json:"amount,omitempty"`
 	// Currency holds the value of the "currency" field.
-	Currency payment.Currency `json:"currency,omitempty"`
+	Currency payment.CurrencyValue `json:"currency,omitempty"`
 	// Time holds the value of the "time" field.
-	Time time.Time `json:"time,omitempty"`
+	Time time2.Time `json:"time,omitempty"`
 	// Description holds the value of the "description" field.
 	Description string `json:"description,omitempty"`
 	// Status holds the value of the "status" field.
-	Status payment.Status `json:"status,omitempty"`
+	Status payment.StatusValue `json:"status,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the PaymentQuery when eager-loading is set.
-	Edges        PaymentEdges `json:"edges"`
-	selectValues sql.SelectValues
+	Edges PaymentEdges `json:"edges"`
 }
 
 // PaymentEdges holds the relations/edges for other nodes in the graph.
@@ -46,6 +47,30 @@ type PaymentEdges struct {
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes [1]bool
+	counts      map[string]int
+}
+
+func (e PaymentEdges) Loaded[N, K any](edge ent.RelationOf[entity.Payment, N, K]) bool {
+	switch edge.Ref().Name {
+	case "card":
+		return e.loadedTypes[0]
+
+	default:
+		return false
+	}
+}
+
+func (e *PaymentEdges) SetLoaded[N, K any](edge ent.RelationOf[entity.Payment, N, K], loaded bool) {
+	switch edge.Ref().Name {
+	case "card":
+		e.loadedTypes[0] = loaded
+
+	}
+}
+
+func (e PaymentEdges) Count[N, K any](edge ent.Relation[entity.Payment, N, K]) (int, bool) {
+	count, loaded := e.counts[edge.Ref().Name]
+	return count, loaded
 }
 
 // CardOrErr returns the Card value or an error if the edge
@@ -65,13 +90,17 @@ func (*Payment) scanValues(columns []string) ([]any, error) {
 	for i := range columns {
 		switch columns[i] {
 		case payment.FieldAmount:
-			values[i] = new(sql.NullFloat64)
+			values[i] = new(*float64)
 		case payment.FieldID, payment.FieldCardID:
-			values[i] = new(sql.NullInt64)
-		case payment.FieldCurrency, payment.FieldDescription, payment.FieldStatus:
-			values[i] = new(sql.NullString)
+			values[i] = new(*int)
+		case payment.FieldCurrency:
+			values[i] = new(*payment.CurrencyValue)
+		case payment.FieldStatus:
+			values[i] = new(*payment.StatusValue)
+		case payment.FieldDescription:
+			values[i] = new(*string)
 		case payment.FieldTime:
-			values[i] = new(sql.NullTime)
+			values[i] = new(*time2.Time)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -88,58 +117,57 @@ func (_m *Payment) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case payment.FieldID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field id", values[i])
-			} else if value.Valid {
-				_m.ID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.ID = **value
 			}
 		case payment.FieldCardID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field card_id", values[i])
-			} else if value.Valid {
-				_m.CardID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.CardID = **value
 			}
 		case payment.FieldAmount:
-			if value, ok := values[i].(*sql.NullFloat64); !ok {
+
+			if value, ok := values[i].(**float64); !ok {
 				return fmt.Errorf("unexpected type %T for field amount", values[i])
-			} else if value.Valid {
-				_m.Amount = float64(value.Float64)
+			} else if value != nil && *value != nil {
+				_m.Amount = **value
 			}
 		case payment.FieldCurrency:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**payment.CurrencyValue); !ok {
 				return fmt.Errorf("unexpected type %T for field currency", values[i])
-			} else if value.Valid {
-				_m.Currency = payment.Currency(value.String)
+			} else if value != nil && *value != nil {
+				_m.Currency = **value
 			}
 		case payment.FieldTime:
-			if value, ok := values[i].(*sql.NullTime); !ok {
+
+			if value, ok := values[i].(**time2.Time); !ok {
 				return fmt.Errorf("unexpected type %T for field time", values[i])
-			} else if value.Valid {
-				_m.Time = time.Time(value.Time)
+			} else if value != nil && *value != nil {
+				_m.Time = **value
 			}
 		case payment.FieldDescription:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field description", values[i])
-			} else if value.Valid {
-				_m.Description = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.Description = **value
 			}
 		case payment.FieldStatus:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**payment.StatusValue); !ok {
 				return fmt.Errorf("unexpected type %T for field status", values[i])
-			} else if value.Valid {
-				_m.Status = payment.Status(value.String)
+			} else if value != nil && *value != nil {
+				_m.Status = **value
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the Payment.
-// This includes values selected through modifiers, order, etc.
-func (_m *Payment) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // QueryCard queries the "card" edge of the Payment entity.

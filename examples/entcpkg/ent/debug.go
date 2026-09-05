@@ -11,7 +11,7 @@ func (c *UserClient) Debug() *UserClient {
 	if c.debug {
 		return c
 	}
-	cfg := config{driver: dialect.Debug(c.driver, c.log), log: c.log, debug: true, hooks: c.hooks}
+	cfg := config{driver: dialect.Debug(c.driver, c.log), log: c.log, debug: true}
 	return &UserClient{config: cfg}
 }
 
@@ -19,6 +19,6 @@ func (c *UserClient) DebugLog(fn func(...any)) *UserClient {
 	if c.debug {
 		return c
 	}
-	cfg := config{driver: dialect.Debug(c.driver, c.log), log: fn, debug: true, hooks: c.hooks}
+	cfg := config{driver: dialect.Debug(c.driver, c.log), log: fn, debug: true}
 	return &UserClient{config: cfg}
 }

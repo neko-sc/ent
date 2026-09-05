@@ -9,83 +9,194 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
-	"github.com/neko-sc/ent/entc/integration/edgefield/ent/predicate"
+	"github.com/neko-sc/ent/entc/integration/edgefield/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/edgefield/ent/rental"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// RentalUpdate is the builder for updating Rental entities.
 type RentalUpdate struct {
 	config
-	hooks    []Hook
-	mutation *RentalMutation
+	mutation  *RentalMutation
+	err       error
+	returning *sqlgraph.Returning
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// Where appends a list predicates to the RentalUpdate builder.
-func (_u *RentalUpdate) Where(ps ...predicate.Rental) *RentalUpdate {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// SetDate sets the "date" field.
-func (_u *RentalUpdate) SetDate(v time.Time) *RentalUpdate {
-	_u.mutation.SetDate(v)
-	return _u
-}
-
-// SetNillableDate sets the "date" field if the given value is not nil.
-func (_u *RentalUpdate) SetNillableDate(v *time.Time) *RentalUpdate {
-	if v != nil {
-		_u.SetDate(*v)
+func (b *RentalUpdate) Set[T any](column ent.ColumnOf[entity.Rental, T], value T) *RentalUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
+
+	return b
+}
+func (b *RentalUpdate) SetOptional[T any](column ent.ColumnOf[entity.Rental, T], value ent.Option[T]) *RentalUpdate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *RentalUpdate) SetExpr[T any](column ent.ColumnOf[entity.Rental, T], value ent.Expr[T]) *RentalUpdate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case rental.FieldDate:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Rental is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *RentalUpdate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Rental, N, K], id K) *RentalUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *RentalUpdate) AddIDs[N, K any](edge ent.Relation[entity.Rental, N, K], ids ...K) *RentalUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *RentalUpdate) Mutation() *RentalMutation { return b.mutation }
+
+func (b *RentalUpdate) Patch() *RentalPatch               { return b.mutation.patch }
+func (b *RentalUpdate) Apply(p RentalPatch) *RentalUpdate { b.mutation.patch.apply(p); return b }
+func (b *RentalUpdate) Add[T ent.Number](column ent.ColumnOf[entity.Rental, T], delta T) *RentalUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *RentalUpdate) Append[T any](column ent.ColumnOf[entity.Rental, T], values T) *RentalUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *RentalUpdate) Clear[T any](column ent.ColumnOf[entity.Rental, T]) *RentalUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *RentalUpdate) RemoveIDs[N, K any](edge ent.Relation[entity.Rental, N, K], ids ...K) *RentalUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *RentalUpdate) ClearEdge[N, K any](edge ent.RelationOf[entity.Rental, N, K]) *RentalUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// Mutation returns the RentalMutation object of the builder.
-func (_u *RentalUpdate) Mutation() *RentalMutation {
-	return _u.mutation
+func (b *RentalUpdate) Where(predicates ...ent.Predicate[entity.Rental]) *RentalUpdate {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Save executes the query and returns the number of nodes affected by the update operation.
-func (_u *RentalUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
+func (b *RentalUpdate) Save(ctx context.Context) (int, error) {
+	if b.err != nil {
+		return 0, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return 0, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_u *RentalUpdate) SaveX(ctx context.Context) int {
-	affected, err := _u.Save(ctx)
+func (b *RentalUpdate) SaveX(ctx context.Context) int {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return affected
+	return result
 }
 
-// Exec executes the query.
-func (_u *RentalUpdate) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *RentalUpdate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *RentalUpdate) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *RentalUpdate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_u *RentalUpdate) check() error {
-	if _u.mutation.UserCleared() && len(_u.mutation.UserIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "Rental.user"`)
+func (b *RentalUpdate) Returning(ctx context.Context) ([]*Rental, error) {
+	nodes := make([]*Rental, 0)
+	b.returning = &sqlgraph.Returning{Columns: rental.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Rental{config: b.config}
+		values, err := _node.scanValues(rental.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(rental.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Save(ctx); err != nil {
+		return nil, err
 	}
-	if _u.mutation.CarCleared() && len(_u.mutation.CarIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "Rental.car"`)
-	}
+	return nodes, nil
+}
+
+func (b *RentalUpdate) defaults() error {
+
 	return nil
+}
+
+func (b *RentalUpdate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.Date.IsNull() {
+		return &ValidationError{Name: "date", err: errors.New(`ent: field "Rental.date" is not nullable`)}
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *RentalUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *RentalUpdate {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
 }
 
 func (_u *RentalUpdate) sqlSave(ctx context.Context) (_node int, err error) {
@@ -100,9 +211,15 @@ func (_u *RentalUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.Date(); ok {
+	if value, ok := _u.mutation.patch.Date.Get(); ok {
 		_spec.SetField(rental.FieldDate, field.TypeTime, value)
 	}
+	_spec.Returning = _u.returning
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{rental.Label}
@@ -111,86 +228,189 @@ func (_u *RentalUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		return 0, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }
 
-// RentalUpdateOne is the builder for updating a single Rental entity.
 type RentalUpdateOne struct {
 	config
-	fields   []string
-	hooks    []Hook
 	mutation *RentalMutation
+	err      error
+
+	fields []string
+	old    *Rental
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// SetDate sets the "date" field.
-func (_u *RentalUpdateOne) SetDate(v time.Time) *RentalUpdateOne {
-	_u.mutation.SetDate(v)
-	return _u
-}
-
-// SetNillableDate sets the "date" field if the given value is not nil.
-func (_u *RentalUpdateOne) SetNillableDate(v *time.Time) *RentalUpdateOne {
-	if v != nil {
-		_u.SetDate(*v)
+func (b *RentalUpdateOne) Set[T any](column ent.ColumnOf[entity.Rental, T], value T) *RentalUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
+
+	return b
+}
+func (b *RentalUpdateOne) SetOptional[T any](column ent.ColumnOf[entity.Rental, T], value ent.Option[T]) *RentalUpdateOne {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *RentalUpdateOne) SetExpr[T any](column ent.ColumnOf[entity.Rental, T], value ent.Expr[T]) *RentalUpdateOne {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case rental.FieldDate:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Rental is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *RentalUpdateOne) SetEdge[N, K any](edge ent.UniqueRelation[entity.Rental, N, K], id K) *RentalUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *RentalUpdateOne) AddIDs[N, K any](edge ent.Relation[entity.Rental, N, K], ids ...K) *RentalUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *RentalUpdateOne) Mutation() *RentalMutation { return b.mutation }
+
+func (b *RentalUpdateOne) Patch() *RentalPatch                  { return b.mutation.patch }
+func (b *RentalUpdateOne) Apply(p RentalPatch) *RentalUpdateOne { b.mutation.patch.apply(p); return b }
+func (b *RentalUpdateOne) Add[T ent.Number](column ent.ColumnOf[entity.Rental, T], delta T) *RentalUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *RentalUpdateOne) Append[T any](column ent.ColumnOf[entity.Rental, T], values T) *RentalUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *RentalUpdateOne) Clear[T any](column ent.ColumnOf[entity.Rental, T]) *RentalUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *RentalUpdateOne) RemoveIDs[N, K any](edge ent.Relation[entity.Rental, N, K], ids ...K) *RentalUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *RentalUpdateOne) ClearEdge[N, K any](edge ent.RelationOf[entity.Rental, N, K]) *RentalUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// Mutation returns the RentalMutation object of the builder.
-func (_u *RentalUpdateOne) Mutation() *RentalMutation {
-	return _u.mutation
+func (b *RentalUpdateOne) Where(predicates ...ent.Predicate[entity.Rental]) *RentalUpdateOne {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Where appends a list predicates to the RentalUpdate builder.
-func (_u *RentalUpdateOne) Where(ps ...predicate.Rental) *RentalUpdateOne {
-	_u.mutation.Where(ps...)
-	return _u
+func (b *RentalUpdateOne) Save(ctx context.Context) (*Rental, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Select allows selecting one or more fields (columns) of the returned entity.
-// The default is selecting all fields defined in the entity schema.
-func (_u *RentalUpdateOne) Select(field string, fields ...string) *RentalUpdateOne {
-	_u.fields = append([]string{field}, fields...)
-	return _u
-}
-
-// Save executes the query and returns the updated Rental entity.
-func (_u *RentalUpdateOne) Save(ctx context.Context) (*Rental, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *RentalUpdateOne) SaveX(ctx context.Context) *Rental {
-	node, err := _u.Save(ctx)
+func (b *RentalUpdateOne) SaveX(ctx context.Context) *Rental {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return node
+	return result
 }
 
-// Exec executes the query on the entity.
-func (_u *RentalUpdateOne) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *RentalUpdateOne) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *RentalUpdateOne) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *RentalUpdateOne) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_u *RentalUpdateOne) check() error {
-	if _u.mutation.UserCleared() && len(_u.mutation.UserIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "Rental.user"`)
+func (b *RentalUpdateOne) Select(columns ...ent.EntityColumn[entity.Rental]) *RentalUpdateOne {
+	if len(columns) == 0 {
+		panic("ent: Select requires at least one column")
 	}
-	if _u.mutation.CarCleared() && len(_u.mutation.CarIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "Rental.car"`)
+	b.fields = make([]string, len(columns))
+	for index, column := range columns {
+		b.fields[index] = column.Ref().Name
 	}
+	return b
+}
+
+func (b *RentalUpdateOne) SaveOld(ctx context.Context) (old *Rental, updated *Rental, err error) {
+	if !b.driver.Capabilities().ReturningOld {
+		return nil, nil, &dialect.UnsupportedError{Feature: "RETURNING OLD", Dialect: dialect.Dialect(b.driver.Dialect())}
+	}
+	b.old = &Rental{config: b.config}
+	defer func() { b.old = nil }()
+	updated, err = b.Save(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return b.old, updated, nil
+}
+
+func (b *RentalUpdateOne) defaults() error {
+
 	return nil
+}
+
+func (b *RentalUpdateOne) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.Date.IsNull() {
+		return &ValidationError{Name: "date", err: errors.New(`ent: field "Rental.date" is not nullable`)}
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *RentalUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *RentalUpdateOne {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
 }
 
 func (_u *RentalUpdateOne) sqlSave(ctx context.Context) (_node *Rental, err error) {
@@ -222,12 +442,21 @@ func (_u *RentalUpdateOne) sqlSave(ctx context.Context) (_node *Rental, err erro
 			}
 		}
 	}
-	if value, ok := _u.mutation.Date(); ok {
+	if value, ok := _u.mutation.patch.Date.Get(); ok {
 		_spec.SetField(rental.FieldDate, field.TypeTime, value)
 	}
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	_node = &Rental{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
+	if _u.old != nil {
+		_spec.OldScanValues = _u.old.scanValues
+		_spec.OldAssign = _u.old.assignValues
+	}
 	if err = sqlgraph.UpdateNode(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{rental.Label}
@@ -236,6 +465,5 @@ func (_u *RentalUpdateOne) sqlSave(ctx context.Context) (_node *Rental, err erro
 		}
 		return nil, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }

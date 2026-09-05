@@ -9,11 +9,13 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	time2 "time"
 
 	"github.com/google/uuid"
 	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/entc/integration/edgefield/ent/car"
+	"github.com/neko-sc/ent/entc/integration/edgefield/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/edgefield/ent/rental"
 	"github.com/neko-sc/ent/entc/integration/edgefield/ent/user"
 )
@@ -24,15 +26,14 @@ type Rental struct {
 	// ID of the ent.
 	ID int `json:"id,omitempty"`
 	// Date holds the value of the "date" field.
-	Date time.Time `json:"date,omitempty"`
+	Date time2.Time `json:"date,omitempty"`
 	// UserID holds the value of the "user_id" field.
 	UserID int `json:"user_id,omitempty"`
 	// CarID holds the value of the "car_id" field.
 	CarID uuid.UUID `json:"car_id,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the RentalQuery when eager-loading is set.
-	Edges        RentalEdges `json:"edges"`
-	selectValues sql.SelectValues
+	Edges RentalEdges `json:"edges"`
 }
 
 // RentalEdges holds the relations/edges for other nodes in the graph.
@@ -44,6 +45,34 @@ type RentalEdges struct {
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes [2]bool
+	counts      map[string]int
+}
+
+func (e RentalEdges) Loaded[N, K any](edge ent.RelationOf[entity.Rental, N, K]) bool {
+	switch edge.Ref().Name {
+	case "user":
+		return e.loadedTypes[0]
+	case "car":
+		return e.loadedTypes[1]
+
+	default:
+		return false
+	}
+}
+
+func (e *RentalEdges) SetLoaded[N, K any](edge ent.RelationOf[entity.Rental, N, K], loaded bool) {
+	switch edge.Ref().Name {
+	case "user":
+		e.loadedTypes[0] = loaded
+	case "car":
+		e.loadedTypes[1] = loaded
+
+	}
+}
+
+func (e RentalEdges) Count[N, K any](edge ent.Relation[entity.Rental, N, K]) (int, bool) {
+	count, loaded := e.counts[edge.Ref().Name]
+	return count, loaded
 }
 
 // UserOrErr returns the User value or an error if the edge
@@ -74,9 +103,9 @@ func (*Rental) scanValues(columns []string) ([]any, error) {
 	for i := range columns {
 		switch columns[i] {
 		case rental.FieldID, rental.FieldUserID:
-			values[i] = new(sql.NullInt64)
+			values[i] = new(*int)
 		case rental.FieldDate:
-			values[i] = new(sql.NullTime)
+			values[i] = new(*time2.Time)
 		case rental.FieldCarID:
 			values[i] = new(uuid.UUID)
 		default:
@@ -95,22 +124,25 @@ func (_m *Rental) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case rental.FieldID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field id", values[i])
-			} else if value.Valid {
-				_m.ID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.ID = **value
 			}
 		case rental.FieldDate:
-			if value, ok := values[i].(*sql.NullTime); !ok {
+
+			if value, ok := values[i].(**time2.Time); !ok {
 				return fmt.Errorf("unexpected type %T for field date", values[i])
-			} else if value.Valid {
-				_m.Date = time.Time(value.Time)
+			} else if value != nil && *value != nil {
+				_m.Date = **value
 			}
 		case rental.FieldUserID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field user_id", values[i])
-			} else if value.Valid {
-				_m.UserID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.UserID = **value
 			}
 		case rental.FieldCarID:
 			if value, ok := values[i].(*uuid.UUID); !ok {
@@ -118,17 +150,9 @@ func (_m *Rental) assignValues(columns []string, values []any) error {
 			} else if value != nil {
 				_m.CarID = *value
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the Rental.
-// This includes values selected through modifiers, order, etc.
-func (_m *Rental) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // QueryUser queries the "user" edge of the Rental entity.

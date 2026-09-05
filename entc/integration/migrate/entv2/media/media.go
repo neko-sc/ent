@@ -6,7 +6,8 @@
 package media
 
 import (
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/entc/integration/migrate/entv2/entity"
 )
 
 const (
@@ -24,6 +25,48 @@ const (
 	Table = "media"
 )
 
+var (
+	ID        = ent.OrderedColumn[entity.Media, int]{Table: Table, Name: FieldID}
+	Source    = ent.StringColumn[entity.Media, string]{Table: Table, Name: FieldSource}
+	SourceURI = ent.StringColumn[entity.Media, string]{Table: Table, Name: FieldSourceURI}
+	Text      = ent.StringColumn[entity.Media, string]{Table: Table, Name: FieldText}
+)
+
+// Alias returns the columns of the media table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.Media, int]{Table: name, Name: FieldID},
+		Source:     ent.StringColumn[entity.Media, string]{Table: name, Name: FieldSource},
+		SourceURI:  ent.StringColumn[entity.Media, string]{Table: name, Name: FieldSourceURI},
+		Text:       ent.StringColumn[entity.Media, string]{Table: name, Name: FieldText},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.Media, int]
+	Source     ent.StringColumn[entity.Media, string]
+	SourceURI  ent.StringColumn[entity.Media, string]
+	Text       ent.StringColumn[entity.Media, string]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.Media]) ent.Predicate[entity.Media] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.Media]) ent.Predicate[entity.Media] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.Media]) ent.Predicate[entity.Media] {
+	return ent.Not(predicate)
+}
+
 // Columns holds all SQL columns for media fields.
 var Columns = []string{
 	FieldID,
@@ -40,27 +83,4 @@ func ValidColumn(column string) bool {
 		}
 	}
 	return false
-}
-
-// OrderOption defines the ordering options for the Media queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// BySource orders the results by the source field.
-func BySource(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldSource, opts...).ToFunc()
-}
-
-// BySourceURI orders the results by the source_uri field.
-func BySourceURI(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldSourceURI, opts...).ToFunc()
-}
-
-// ByText orders the results by the text field.
-func ByText(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldText, opts...).ToFunc()
 }

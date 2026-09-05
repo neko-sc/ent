@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	time2 "time"
 
-	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/entc/integration/ent/license"
 )
@@ -21,10 +21,9 @@ type License struct {
 	// ID of the ent.
 	ID int `json:"id,omitempty"`
 	// CreateTime holds the value of the "create_time" field.
-	CreateTime time.Time `json:"create_time,omitempty"`
+	CreateTime time2.Time `json:"create_time,omitempty"`
 	// UpdateTime holds the value of the "update_time" field.
-	UpdateTime   time.Time `json:"update_time,omitempty"`
-	selectValues sql.SelectValues
+	UpdateTime time2.Time `json:"update_time,omitempty"`
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -33,9 +32,9 @@ func (*License) scanValues(columns []string) ([]any, error) {
 	for i := range columns {
 		switch columns[i] {
 		case license.FieldID:
-			values[i] = new(sql.NullInt64)
+			values[i] = new(*int)
 		case license.FieldCreateTime, license.FieldUpdateTime:
-			values[i] = new(sql.NullTime)
+			values[i] = new(*time2.Time)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -52,34 +51,29 @@ func (_m *License) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case license.FieldID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field id", values[i])
-			} else if value.Valid {
-				_m.ID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.ID = **value
 			}
 		case license.FieldCreateTime:
-			if value, ok := values[i].(*sql.NullTime); !ok {
+
+			if value, ok := values[i].(**time2.Time); !ok {
 				return fmt.Errorf("unexpected type %T for field create_time", values[i])
-			} else if value.Valid {
-				_m.CreateTime = time.Time(value.Time)
+			} else if value != nil && *value != nil {
+				_m.CreateTime = **value
 			}
 		case license.FieldUpdateTime:
-			if value, ok := values[i].(*sql.NullTime); !ok {
+
+			if value, ok := values[i].(**time2.Time); !ok {
 				return fmt.Errorf("unexpected type %T for field update_time", values[i])
-			} else if value.Valid {
-				_m.UpdateTime = time.Time(value.Time)
+			} else if value != nil && *value != nil {
+				_m.UpdateTime = **value
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the License.
-// This includes values selected through modifiers, order, etc.
-func (_m *License) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // Update returns a builder for updating this License.

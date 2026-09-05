@@ -17,6 +17,7 @@ import (
 	"github.com/neko-sc/ent/entc/integration/config/ent"
 	"github.com/neko-sc/ent/entc/integration/config/ent/migrate"
 	"github.com/neko-sc/ent/entc/integration/config/ent/schema"
+	user "github.com/neko-sc/ent/entc/integration/config/ent/user"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -28,7 +29,7 @@ func TestSchemaConfig(t *testing.T) {
 	ctx := context.Background()
 	client := ent.NewClient(ent.Driver(drv))
 	require.NoError(t, client.Schema.Create(ctx, migrate.WithGlobalUniqueID(true)))
-	client.User.Create().SetID(1).SaveX(ctx)
+	client.User.Create().Set(user.ID, 1).SaveX(ctx)
 
 	// Check that the table was created with the given custom name.
 	table := schema.User{}.Annotations()[0].(entsql.Annotation).Table
@@ -36,8 +37,8 @@ func TestSchemaConfig(t *testing.T) {
 		From(sql.Table("sqlite_master")).
 		Where(sql.And(sql.EQ("type", "table"), sql.EQ("name", table))).
 		Query()
-	rows := &sql.Rows{}
-	require.NoError(t, drv.Query(ctx, query, args, rows))
+	rows, err := drv.Query(ctx, query, args)
+	require.NoError(t, err)
 	defer rows.Close()
 	require.True(t, rows.Next(), "no rows returned")
 	var n int

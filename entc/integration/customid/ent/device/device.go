@@ -6,9 +6,10 @@
 package device
 
 import (
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
-	"github.com/neko-sc/ent/entc/integration/customid/ent/schema"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
+	schema2 "github.com/neko-sc/ent/entc/integration/customid/ent/schema"
 )
 
 const (
@@ -38,6 +39,41 @@ const (
 	SessionsColumn = "device_sessions"
 )
 
+var (
+	ID            = ent.OrderedColumn[entity.Device, schema2.ID]{Table: Table, Name: FieldID}
+	ActiveSession = ent.NewUniqueRelation[entity.Device, entity.Session, schema2.ID](EdgeActiveSession, newActiveSessionStep)
+	Sessions      = ent.NewRelation[entity.Device, entity.Session, schema2.ID](EdgeSessions, newSessionsStep)
+)
+
+// Alias returns the columns of the devices table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.Device, schema2.ID]{Table: name, Name: FieldID},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.Device, schema2.ID]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.Device]) ent.Predicate[entity.Device] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.Device]) ent.Predicate[entity.Device] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.Device]) ent.Predicate[entity.Device] {
+	return ent.Not(predicate)
+}
+
 // Columns holds all SQL columns for device fields.
 var Columns = []string{
 	FieldID,
@@ -66,39 +102,11 @@ func ValidColumn(column string) bool {
 
 var (
 	// DefaultID holds the default value on creation for the "id" field.
-	DefaultID func() schema.ID
+	DefaultID func() schema2.ID
 	// IDValidator is a validator for the "id" field. It is called by the builders before save.
-	IDValidator func(schema.ID) error
+	IDValidator func(schema2.ID) error
 )
 
-// OrderOption defines the ordering options for the Device queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByActiveSessionField orders the results by active_session field.
-func ByActiveSessionField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newActiveSessionStep(), sql.OrderByField(field, opts...))
-	}
-}
-
-// BySessionsCount orders the results by sessions count.
-func BySessionsCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newSessionsStep(), opts...)
-	}
-}
-
-// BySessions orders the results by sessions terms.
-func BySessions(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newSessionsStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
 func newActiveSessionStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),

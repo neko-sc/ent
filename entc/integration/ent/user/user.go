@@ -8,8 +8,9 @@ package user
 import (
 	"fmt"
 
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/ent/entity"
 )
 
 const (
@@ -19,6 +20,10 @@ const (
 	FieldID = "id"
 	// FieldOptionalInt holds the string denoting the optional_int field in the database.
 	FieldOptionalInt = "optional_int"
+	// FieldTags holds the string denoting the tags field in the database.
+	FieldTags = "tags"
+	// FieldScores holds the string denoting the scores field in the database.
+	FieldScores = "scores"
 	// FieldAge holds the string denoting the age field in the database.
 	FieldAge = "age"
 	// FieldName holds the string denoting the name field in the database.
@@ -118,10 +123,96 @@ const (
 	ParentColumn = "user_parent"
 )
 
+var (
+	ID          = ent.OrderedColumn[entity.User, int]{Table: Table, Name: FieldID}
+	OptionalInt = ent.OrderedColumn[entity.User, int]{Table: Table, Name: FieldOptionalInt}
+	Tags        = ent.ArrayColumn[entity.User, []string]{Table: Table, Name: FieldTags}
+	Scores      = ent.ArrayColumn[entity.User, []int]{Table: Table, Name: FieldScores}
+	Age         = ent.OrderedColumn[entity.User, int]{Table: Table, Name: FieldAge}
+	Name        = ent.StringColumn[entity.User, string]{Table: Table, Name: FieldName}
+	Last        = ent.StringColumn[entity.User, string]{Table: Table, Name: FieldLast}
+	Nickname    = ent.StringColumn[entity.User, string]{Table: Table, Name: FieldNickname}
+	Address     = ent.StringColumn[entity.User, string]{Table: Table, Name: FieldAddress}
+	Phone       = ent.StringColumn[entity.User, string]{Table: Table, Name: FieldPhone}
+	Password    = ent.StringColumn[entity.User, string]{Table: Table, Name: FieldPassword}
+	Role        = ent.StringColumn[entity.User, RoleValue]{Table: Table, Name: FieldRole}
+	Employment  = ent.StringColumn[entity.User, EmploymentValue]{Table: Table, Name: FieldEmployment}
+	SSOCert     = ent.StringColumn[entity.User, string]{Table: Table, Name: FieldSSOCert}
+	FilesCount  = ent.OrderedColumn[entity.User, int]{Table: Table, Name: FieldFilesCount}
+	Card        = ent.NewUniqueRelation[entity.User, entity.Card, int](EdgeCard, newCardStep)
+	Pets        = ent.NewRelation[entity.User, entity.Pet, int](EdgePets, newPetsStep)
+	Files       = ent.NewRelation[entity.User, entity.File, int](EdgeFiles, newFilesStep)
+	Groups      = ent.NewRelation[entity.User, entity.Group, int](EdgeGroups, newGroupsStep)
+	Friends     = ent.NewRelation[entity.User, entity.User, int](EdgeFriends, newFriendsStep)
+	Followers   = ent.NewRelation[entity.User, entity.User, int](EdgeFollowers, newFollowersStep)
+	Following   = ent.NewRelation[entity.User, entity.User, int](EdgeFollowing, newFollowingStep)
+	Team        = ent.NewUniqueRelation[entity.User, entity.Pet, int](EdgeTeam, newTeamStep)
+	Spouse      = ent.NewUniqueRelation[entity.User, entity.User, int](EdgeSpouse, newSpouseStep)
+	Children    = ent.NewRelation[entity.User, entity.User, int](EdgeChildren, newChildrenStep)
+	Parent      = ent.NewUniqueRelation[entity.User, entity.User, int](EdgeParent, newParentStep)
+)
+
+// Alias returns the columns of the users table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias:  name,
+		ID:          ent.OrderedColumn[entity.User, int]{Table: name, Name: FieldID},
+		OptionalInt: ent.OrderedColumn[entity.User, int]{Table: name, Name: FieldOptionalInt},
+		Tags:        ent.ArrayColumn[entity.User, []string]{Table: name, Name: FieldTags},
+		Scores:      ent.ArrayColumn[entity.User, []int]{Table: name, Name: FieldScores},
+		Age:         ent.OrderedColumn[entity.User, int]{Table: name, Name: FieldAge},
+		Name:        ent.StringColumn[entity.User, string]{Table: name, Name: FieldName},
+		Last:        ent.StringColumn[entity.User, string]{Table: name, Name: FieldLast},
+		Nickname:    ent.StringColumn[entity.User, string]{Table: name, Name: FieldNickname},
+		Address:     ent.StringColumn[entity.User, string]{Table: name, Name: FieldAddress},
+		Phone:       ent.StringColumn[entity.User, string]{Table: name, Name: FieldPhone},
+		Password:    ent.StringColumn[entity.User, string]{Table: name, Name: FieldPassword},
+		Role:        ent.StringColumn[entity.User, RoleValue]{Table: name, Name: FieldRole},
+		Employment:  ent.StringColumn[entity.User, EmploymentValue]{Table: name, Name: FieldEmployment},
+		SSOCert:     ent.StringColumn[entity.User, string]{Table: name, Name: FieldSSOCert},
+		FilesCount:  ent.OrderedColumn[entity.User, int]{Table: name, Name: FieldFilesCount},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias  string
+	ID          ent.OrderedColumn[entity.User, int]
+	OptionalInt ent.OrderedColumn[entity.User, int]
+	Tags        ent.ArrayColumn[entity.User, []string]
+	Scores      ent.ArrayColumn[entity.User, []int]
+	Age         ent.OrderedColumn[entity.User, int]
+	Name        ent.StringColumn[entity.User, string]
+	Last        ent.StringColumn[entity.User, string]
+	Nickname    ent.StringColumn[entity.User, string]
+	Address     ent.StringColumn[entity.User, string]
+	Phone       ent.StringColumn[entity.User, string]
+	Password    ent.StringColumn[entity.User, string]
+	Role        ent.StringColumn[entity.User, RoleValue]
+	Employment  ent.StringColumn[entity.User, EmploymentValue]
+	SSOCert     ent.StringColumn[entity.User, string]
+	FilesCount  ent.OrderedColumn[entity.User, int]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.User]) ent.Predicate[entity.User] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.User]) ent.Predicate[entity.User] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.User]) ent.Predicate[entity.User] { return ent.Not(predicate) }
+
 // Columns holds all SQL columns for user fields.
 var Columns = []string{
 	FieldID,
 	FieldOptionalInt,
+	FieldTags,
+	FieldScores,
 	FieldAge,
 	FieldName,
 	FieldLast,
@@ -182,26 +273,26 @@ var (
 	DefaultAddress func() string
 )
 
-// Role defines the type for the "role" enum field.
-type Role string
+// RoleValue defines the type for the "role" enum field.
+type RoleValue string
 
-// RoleUser is the default value of the Role enum.
+// RoleUser is the default value of the RoleValue enum.
 const DefaultRole = RoleUser
 
-// Role values.
+// RoleValue values.
 const (
-	RoleUser     Role = "user"
-	RoleAdmin    Role = "admin"
-	RoleFreeUser Role = "free-user"
-	RoleTestUser Role = "test user"
+	RoleUser     RoleValue = "user"
+	RoleAdmin    RoleValue = "admin"
+	RoleFreeUser RoleValue = "free-user"
+	RoleTestUser RoleValue = "test user"
 )
 
-func (r Role) String() string {
+func (r RoleValue) String() string {
 	return string(r)
 }
 
 // RoleValidator is a validator for the "role" field enum values. It is called by the builders before save.
-func RoleValidator(r Role) error {
+func RoleValidator(r RoleValue) error {
 	switch r {
 	case RoleUser, RoleAdmin, RoleFreeUser, RoleTestUser:
 		return nil
@@ -210,25 +301,25 @@ func RoleValidator(r Role) error {
 	}
 }
 
-// Employment defines the type for the "employment" enum field.
-type Employment string
+// EmploymentValue defines the type for the "employment" enum field.
+type EmploymentValue string
 
-// EmploymentFullTime is the default value of the Employment enum.
+// EmploymentFullTime is the default value of the EmploymentValue enum.
 const DefaultEmployment = EmploymentFullTime
 
-// Employment values.
+// EmploymentValue values.
 const (
-	EmploymentFullTime Employment = "Full-Time"
-	EmploymentPartTime Employment = "Part-Time"
-	EmploymentContract Employment = "Contract"
+	EmploymentFullTime EmploymentValue = "Full-Time"
+	EmploymentPartTime EmploymentValue = "Part-Time"
+	EmploymentContract EmploymentValue = "Contract"
 )
 
-func (e Employment) String() string {
+func (e EmploymentValue) String() string {
 	return string(e)
 }
 
 // EmploymentValidator is a validator for the "employment" field enum values. It is called by the builders before save.
-func EmploymentValidator(e Employment) error {
+func EmploymentValidator(e EmploymentValue) error {
 	switch e {
 	case EmploymentFullTime, EmploymentPartTime, EmploymentContract:
 		return nil
@@ -237,199 +328,6 @@ func EmploymentValidator(e Employment) error {
 	}
 }
 
-// OrderOption defines the ordering options for the User queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByOptionalInt orders the results by the optional_int field.
-func ByOptionalInt(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldOptionalInt, opts...).ToFunc()
-}
-
-// ByAge orders the results by the age field.
-func ByAge(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldAge, opts...).ToFunc()
-}
-
-// ByName orders the results by the name field.
-func ByName(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldName, opts...).ToFunc()
-}
-
-// ByLast orders the results by the last field.
-func ByLast(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldLast, opts...).ToFunc()
-}
-
-// ByNickname orders the results by the nickname field.
-func ByNickname(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldNickname, opts...).ToFunc()
-}
-
-// ByAddress orders the results by the address field.
-func ByAddress(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldAddress, opts...).ToFunc()
-}
-
-// ByPhone orders the results by the phone field.
-func ByPhone(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldPhone, opts...).ToFunc()
-}
-
-// ByPassword orders the results by the password field.
-func ByPassword(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldPassword, opts...).ToFunc()
-}
-
-// ByRole orders the results by the role field.
-func ByRole(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldRole, opts...).ToFunc()
-}
-
-// ByEmployment orders the results by the employment field.
-func ByEmployment(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldEmployment, opts...).ToFunc()
-}
-
-// BySSOCert orders the results by the SSOCert field.
-func BySSOCert(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldSSOCert, opts...).ToFunc()
-}
-
-// ByFilesCountField orders the results by the files_count field.
-func ByFilesCountField(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldFilesCount, opts...).ToFunc()
-}
-
-// ByCardField orders the results by card field.
-func ByCardField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newCardStep(), sql.OrderByField(field, opts...))
-	}
-}
-
-// ByPetsCount orders the results by pets count.
-func ByPetsCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newPetsStep(), opts...)
-	}
-}
-
-// ByPets orders the results by pets terms.
-func ByPets(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newPetsStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
-// ByFilesCount orders the results by files count.
-func ByFilesCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newFilesStep(), opts...)
-	}
-}
-
-// ByFiles orders the results by files terms.
-func ByFiles(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newFilesStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
-// ByGroupsCount orders the results by groups count.
-func ByGroupsCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newGroupsStep(), opts...)
-	}
-}
-
-// ByGroups orders the results by groups terms.
-func ByGroups(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newGroupsStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
-// ByFriendsCount orders the results by friends count.
-func ByFriendsCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newFriendsStep(), opts...)
-	}
-}
-
-// ByFriends orders the results by friends terms.
-func ByFriends(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newFriendsStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
-// ByFollowersCount orders the results by followers count.
-func ByFollowersCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newFollowersStep(), opts...)
-	}
-}
-
-// ByFollowers orders the results by followers terms.
-func ByFollowers(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newFollowersStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
-// ByFollowingCount orders the results by following count.
-func ByFollowingCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newFollowingStep(), opts...)
-	}
-}
-
-// ByFollowing orders the results by following terms.
-func ByFollowing(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newFollowingStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
-// ByTeamField orders the results by team field.
-func ByTeamField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newTeamStep(), sql.OrderByField(field, opts...))
-	}
-}
-
-// BySpouseField orders the results by spouse field.
-func BySpouseField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newSpouseStep(), sql.OrderByField(field, opts...))
-	}
-}
-
-// ByChildrenCount orders the results by children count.
-func ByChildrenCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newChildrenStep(), opts...)
-	}
-}
-
-// ByChildren orders the results by children terms.
-func ByChildren(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newChildrenStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
-// ByParentField orders the results by parent field.
-func ByParentField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newParentStep(), sql.OrderByField(field, opts...))
-	}
-}
 func newCardStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -509,12 +407,12 @@ func newParentStep() *sqlgraph.Step {
 }
 
 // Ptr returns a new pointer to the enum value.
-func (r Role) Ptr() *Role {
+func (r RoleValue) Ptr() *RoleValue {
 	return &r
 }
 
 // Ptr returns a new pointer to the enum value.
-func (e Employment) Ptr() *Employment {
+func (e EmploymentValue) Ptr() *EmploymentValue {
 	return &e
 }
 

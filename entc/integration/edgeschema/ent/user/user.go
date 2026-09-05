@@ -7,8 +7,8 @@ package user
 
 import (
 	"github.com/neko-sc/ent"
-	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/entity"
 )
 
 const (
@@ -112,6 +112,52 @@ const (
 	RolesUsersColumn = "user_id"
 )
 
+var (
+	ID           = ent.OrderedColumn[entity.User, int]{Table: Table, Name: FieldID}
+	Name         = ent.StringColumn[entity.User, string]{Table: Table, Name: FieldName}
+	Groups       = ent.NewRelation[entity.User, entity.Group, int](EdgeGroups, newGroupsStep)
+	Friends      = ent.NewRelation[entity.User, entity.User, int](EdgeFriends, newFriendsStep)
+	Relatives    = ent.NewRelation[entity.User, entity.User, int](EdgeRelatives, newRelativesStep)
+	LikedTweets  = ent.NewRelation[entity.User, entity.Tweet, int](EdgeLikedTweets, newLikedTweetsStep)
+	Tweets       = ent.NewRelation[entity.User, entity.Tweet, int](EdgeTweets, newTweetsStep)
+	Roles        = ent.NewRelation[entity.User, entity.Role, int](EdgeRoles, newRolesStep)
+	JoinedGroups = ent.NewRelation[entity.User, entity.UserGroup, int](EdgeJoinedGroups, newJoinedGroupsStep)
+	Friendships  = ent.NewRelation[entity.User, entity.Friendship, int](EdgeFriendships, newFriendshipsStep)
+	Relationship = ent.NewRelation[entity.User, entity.Relationship, any](EdgeRelationship, newRelationshipStep)
+	Likes        = ent.NewRelation[entity.User, entity.TweetLike, any](EdgeLikes, newLikesStep)
+	UserTweets   = ent.NewRelation[entity.User, entity.UserTweet, int](EdgeUserTweets, newUserTweetsStep)
+	RolesUsers   = ent.NewRelation[entity.User, entity.RoleUser, any](EdgeRolesUsers, newRolesUsersStep)
+)
+
+// Alias returns the columns of the users table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.User, int]{Table: name, Name: FieldID},
+		Name:       ent.StringColumn[entity.User, string]{Table: name, Name: FieldName},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.User, int]
+	Name       ent.StringColumn[entity.User, string]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.User]) ent.Predicate[entity.User] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.User]) ent.Predicate[entity.User] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.User]) ent.Predicate[entity.User] { return ent.Not(predicate) }
+
 // Columns holds all SQL columns for user fields.
 var Columns = []string{
 	FieldID,
@@ -149,198 +195,11 @@ func ValidColumn(column string) bool {
 	return false
 }
 
-// Note that the variables below are initialized by the runtime
-// package on the initialization of the application. Therefore,
-// it should be imported in the main as follows:
-//
-//	import _ "github.com/neko-sc/ent/entc/integration/edgeschema/ent/runtime"
 var (
-	Hooks  [1]ent.Hook
-	Policy ent.Policy
 	// DefaultName holds the default value on creation for the "name" field.
 	DefaultName string
 )
 
-// OrderOption defines the ordering options for the User queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByName orders the results by the name field.
-func ByName(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldName, opts...).ToFunc()
-}
-
-// ByGroupsCount orders the results by groups count.
-func ByGroupsCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newGroupsStep(), opts...)
-	}
-}
-
-// ByGroups orders the results by groups terms.
-func ByGroups(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newGroupsStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
-// ByFriendsCount orders the results by friends count.
-func ByFriendsCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newFriendsStep(), opts...)
-	}
-}
-
-// ByFriends orders the results by friends terms.
-func ByFriends(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newFriendsStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
-// ByRelativesCount orders the results by relatives count.
-func ByRelativesCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newRelativesStep(), opts...)
-	}
-}
-
-// ByRelatives orders the results by relatives terms.
-func ByRelatives(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newRelativesStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
-// ByLikedTweetsCount orders the results by liked_tweets count.
-func ByLikedTweetsCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newLikedTweetsStep(), opts...)
-	}
-}
-
-// ByLikedTweets orders the results by liked_tweets terms.
-func ByLikedTweets(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newLikedTweetsStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
-// ByTweetsCount orders the results by tweets count.
-func ByTweetsCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newTweetsStep(), opts...)
-	}
-}
-
-// ByTweets orders the results by tweets terms.
-func ByTweets(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newTweetsStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
-// ByRolesCount orders the results by roles count.
-func ByRolesCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newRolesStep(), opts...)
-	}
-}
-
-// ByRoles orders the results by roles terms.
-func ByRoles(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newRolesStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
-// ByJoinedGroupsCount orders the results by joined_groups count.
-func ByJoinedGroupsCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newJoinedGroupsStep(), opts...)
-	}
-}
-
-// ByJoinedGroups orders the results by joined_groups terms.
-func ByJoinedGroups(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newJoinedGroupsStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
-// ByFriendshipsCount orders the results by friendships count.
-func ByFriendshipsCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newFriendshipsStep(), opts...)
-	}
-}
-
-// ByFriendships orders the results by friendships terms.
-func ByFriendships(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newFriendshipsStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
-// ByRelationshipCount orders the results by relationship count.
-func ByRelationshipCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newRelationshipStep(), opts...)
-	}
-}
-
-// ByRelationship orders the results by relationship terms.
-func ByRelationship(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newRelationshipStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
-// ByLikesCount orders the results by likes count.
-func ByLikesCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newLikesStep(), opts...)
-	}
-}
-
-// ByLikes orders the results by likes terms.
-func ByLikes(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newLikesStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
-// ByUserTweetsCount orders the results by user_tweets count.
-func ByUserTweetsCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newUserTweetsStep(), opts...)
-	}
-}
-
-// ByUserTweets orders the results by user_tweets terms.
-func ByUserTweets(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newUserTweetsStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
-// ByRolesUsersCount orders the results by roles_users count.
-func ByRolesUsersCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newRolesUsersStep(), opts...)
-	}
-}
-
-// ByRolesUsers orders the results by roles_users terms.
-func ByRolesUsers(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newRolesUsersStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
 func newGroupsStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),

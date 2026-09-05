@@ -38,17 +38,17 @@ func Example_o2oBidi() {
 func Do(ctx context.Context, client *ent.Client) error {
 	a8m, err := client.User.
 		Create().
-		SetAge(30).
-		SetName("a8m").
+		Set(user.Age, 30).
+		Set(user.Name, "a8m").
 		Save(ctx)
 	if err != nil {
 		return fmt.Errorf("creating user: %w", err)
 	}
 	nati, err := client.User.
 		Create().
-		SetAge(28).
-		SetName("nati").
-		SetSpouse(a8m).
+		Set(user.Age, 28).
+		Set(user.Name, "nati").
+		SetEdge(user.Spouse, a8m.ID).
 		Save(ctx)
 	if err != nil {
 		return fmt.Errorf("creating user: %w", err)
@@ -68,7 +68,7 @@ func Do(ctx context.Context, client *ent.Client) error {
 	// Unlike `Count`, `CountX` panics if an error occurs.
 	count := client.User.
 		Query().
-		Where(user.HasSpouse()).
+		Where(user.Spouse.Has()).
 		CountX(ctx)
 	fmt.Println(count)
 	// Output: 2
@@ -76,7 +76,7 @@ func Do(ctx context.Context, client *ent.Client) error {
 	// Get the user, that has a spouse with name="a8m".
 	spouse = client.User.
 		Query().
-		Where(user.HasSpouseWith(user.Name("a8m"))).
+		Where(user.Spouse.HasWith(user.Name.EQ("a8m"))).
 		OnlyX(ctx)
 	fmt.Println(spouse.Name)
 	// Output: nati

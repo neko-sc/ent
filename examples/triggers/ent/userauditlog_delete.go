@@ -5,9 +5,11 @@ package ent
 import (
 	"context"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
-	"github.com/neko-sc/ent/examples/triggers/ent/predicate"
+	"github.com/neko-sc/ent/examples/triggers/ent/entity"
 	"github.com/neko-sc/ent/examples/triggers/ent/userauditlog"
 	"github.com/neko-sc/ent/schema/field"
 )
@@ -15,19 +17,44 @@ import (
 // UserAuditLogDelete is the builder for deleting a UserAuditLog entity.
 type UserAuditLogDelete struct {
 	config
-	hooks    []Hook
-	mutation *UserAuditLogMutation
+
+	mutation  *UserAuditLogMutation
+	returning *sqlgraph.Returning
 }
 
 // Where appends a list predicates to the UserAuditLogDelete builder.
-func (_d *UserAuditLogDelete) Where(ps ...predicate.UserAuditLog) *UserAuditLogDelete {
-	_d.mutation.Where(ps...)
+func (_d *UserAuditLogDelete) Where(predicates ...ent.Predicate[entity.UserAuditLog]) *UserAuditLogDelete {
+	_d.mutation.Where(predicates...)
 	return _d
 }
 
 // Exec executes the deletion query and returns how many vertices were deleted.
 func (_d *UserAuditLogDelete) Exec(ctx context.Context) (int, error) {
-	return withHooks(ctx, _d.sqlExec, _d.mutation, _d.hooks)
+	return _d.sqlExec(ctx)
+}
+
+func (b *UserAuditLogDelete) Returning(ctx context.Context) ([]*UserAuditLog, error) {
+	nodes := make([]*UserAuditLog, 0)
+	b.returning = &sqlgraph.Returning{Columns: userauditlog.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &UserAuditLog{config: b.config}
+		values, err := _node.scanValues(userauditlog.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(userauditlog.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Exec(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
 }
 
 // ExecX is like Exec, but panics if an error occurs.
@@ -48,11 +75,11 @@ func (_d *UserAuditLogDelete) sqlExec(ctx context.Context) (int, error) {
 			}
 		}
 	}
+	_spec.Returning = _d.returning
 	affected, err := sqlgraph.DeleteNodes(ctx, _d.driver, _spec)
 	if err != nil && sqlgraph.IsConstraintError(err) {
 		err = &ConstraintError{msg: err.Error(), wrap: err}
 	}
-	_d.mutation.done = true
 	return affected, err
 }
 
@@ -62,8 +89,8 @@ type UserAuditLogDeleteOne struct {
 }
 
 // Where appends a list predicates to the UserAuditLogDelete builder.
-func (_d *UserAuditLogDeleteOne) Where(ps ...predicate.UserAuditLog) *UserAuditLogDeleteOne {
-	_d._d.mutation.Where(ps...)
+func (_d *UserAuditLogDeleteOne) Where(predicates ...ent.Predicate[entity.UserAuditLog]) *UserAuditLogDeleteOne {
+	_d._d.mutation.Where(predicates...)
 	return _d
 }
 

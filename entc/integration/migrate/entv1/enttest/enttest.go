@@ -9,8 +9,6 @@ import (
 	"context"
 
 	"github.com/neko-sc/ent/entc/integration/migrate/entv1"
-	// required by schema hooks.
-	_ "github.com/neko-sc/ent/entc/integration/migrate/entv1/runtime"
 
 	"github.com/neko-sc/ent/dialect/sql/schema"
 	"github.com/neko-sc/ent/entc/integration/migrate/entv1/migrate"
@@ -28,13 +26,13 @@ type (
 	Option func(*options)
 
 	options struct {
-		opts        []entv1.Option
+		opts        []entv1.ClientOption
 		migrateOpts []schema.MigrateOption
 	}
 )
 
 // WithOptions forwards options to client creation.
-func WithOptions(opts ...entv1.Option) Option {
+func WithOptions(opts ...entv1.ClientOption) Option {
 	return func(o *options) {
 		o.opts = append(o.opts, opts...)
 	}

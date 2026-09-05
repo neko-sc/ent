@@ -9,10 +9,12 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	time2 "time"
 
 	"github.com/google/uuid"
 	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/entc/integration/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/ent/pet"
 	"github.com/neko-sc/ent/entc/integration/ent/user"
 )
@@ -33,13 +35,12 @@ type Pet struct {
 	// Trained holds the value of the "trained" field.
 	Trained bool `json:"trained,omitempty"`
 	// OptionalTime holds the value of the "optional_time" field.
-	OptionalTime time.Time `json:"optional_time,omitempty"`
+	OptionalTime time2.Time `json:"optional_time,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the PetQuery when eager-loading is set.
-	Edges        PetEdges `json:"edges"`
-	user_pets    *int
-	user_team    *int
-	selectValues sql.SelectValues
+	Edges     PetEdges `json:"edges"`
+	user_pets *int
+	user_team *int
 }
 
 // PetEdges holds the relations/edges for other nodes in the graph.
@@ -51,6 +52,34 @@ type PetEdges struct {
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes [2]bool
+	counts      map[string]int
+}
+
+func (e PetEdges) Loaded[N, K any](edge ent.RelationOf[entity.Pet, N, K]) bool {
+	switch edge.Ref().Name {
+	case "team":
+		return e.loadedTypes[0]
+	case "owner":
+		return e.loadedTypes[1]
+
+	default:
+		return false
+	}
+}
+
+func (e *PetEdges) SetLoaded[N, K any](edge ent.RelationOf[entity.Pet, N, K], loaded bool) {
+	switch edge.Ref().Name {
+	case "team":
+		e.loadedTypes[0] = loaded
+	case "owner":
+		e.loadedTypes[1] = loaded
+
+	}
+}
+
+func (e PetEdges) Count[N, K any](edge ent.Relation[entity.Pet, N, K]) (int, bool) {
+	count, loaded := e.counts[edge.Ref().Name]
+	return count, loaded
 }
 
 // TeamOrErr returns the Team value or an error if the edge
@@ -81,21 +110,21 @@ func (*Pet) scanValues(columns []string) ([]any, error) {
 	for i := range columns {
 		switch columns[i] {
 		case pet.FieldTrained:
-			values[i] = new(sql.NullBool)
+			values[i] = new(*bool)
 		case pet.FieldAge:
-			values[i] = new(sql.NullFloat64)
+			values[i] = new(*float64)
 		case pet.FieldID:
-			values[i] = new(sql.NullInt64)
+			values[i] = new(*int)
 		case pet.FieldName, pet.FieldNickname:
-			values[i] = new(sql.NullString)
+			values[i] = new(*string)
 		case pet.FieldOptionalTime:
-			values[i] = new(sql.NullTime)
+			values[i] = new(*time2.Time)
 		case pet.FieldUUID:
 			values[i] = new(uuid.UUID)
 		case pet.ForeignKeys[0]: // user_pets
-			values[i] = new(sql.NullInt64)
+			values[i] = new(*int)
 		case pet.ForeignKeys[1]: // user_team
-			values[i] = new(sql.NullInt64)
+			values[i] = new(*int)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -112,22 +141,25 @@ func (_m *Pet) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case pet.FieldID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field id", values[i])
-			} else if value.Valid {
-				_m.ID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.ID = **value
 			}
 		case pet.FieldAge:
-			if value, ok := values[i].(*sql.NullFloat64); !ok {
+
+			if value, ok := values[i].(**float64); !ok {
 				return fmt.Errorf("unexpected type %T for field age", values[i])
-			} else if value.Valid {
-				_m.Age = float64(value.Float64)
+			} else if value != nil && *value != nil {
+				_m.Age = **value
 			}
 		case pet.FieldName:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field name", values[i])
-			} else if value.Valid {
-				_m.Name = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.Name = **value
 			}
 		case pet.FieldUUID:
 			if value, ok := values[i].(*uuid.UUID); !ok {
@@ -136,48 +168,43 @@ func (_m *Pet) assignValues(columns []string, values []any) error {
 				_m.UUID = *value
 			}
 		case pet.FieldNickname:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field nickname", values[i])
-			} else if value.Valid {
-				_m.Nickname = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.Nickname = **value
 			}
 		case pet.FieldTrained:
-			if value, ok := values[i].(*sql.NullBool); !ok {
+
+			if value, ok := values[i].(**bool); !ok {
 				return fmt.Errorf("unexpected type %T for field trained", values[i])
-			} else if value.Valid {
-				_m.Trained = bool(value.Bool)
+			} else if value != nil && *value != nil {
+				_m.Trained = **value
 			}
 		case pet.FieldOptionalTime:
-			if value, ok := values[i].(*sql.NullTime); !ok {
+
+			if value, ok := values[i].(**time2.Time); !ok {
 				return fmt.Errorf("unexpected type %T for field optional_time", values[i])
-			} else if value.Valid {
-				_m.OptionalTime = time.Time(value.Time)
+			} else if value != nil && *value != nil {
+				_m.OptionalTime = **value
 			}
 		case pet.ForeignKeys[0]:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field user_pets", values[i])
-			} else if value.Valid {
-				_m.user_pets = new(int)
-				*_m.user_pets = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.user_pets = *value
 			}
 		case pet.ForeignKeys[1]:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field user_team", values[i])
-			} else if value.Valid {
-				_m.user_team = new(int)
-				*_m.user_team = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.user_team = *value
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the Pet.
-// This includes values selected through modifiers, order, etc.
-func (_m *Pet) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // QueryTeam queries the "team" edge of the Pet entity.

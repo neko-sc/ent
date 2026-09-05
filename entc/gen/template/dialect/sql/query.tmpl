@@ -98,6 +98,42 @@ func ({{ $receiver }} *{{ $builder }}) sqlAll(ctx context.Context, hooks ...quer
 			}
 		}
 	{{- end }}
+	{{ if and $.Edges $.HasOneFieldID }}
+	if len({{ $receiver }}.withCounts) > 0 {
+		ids := make([]any, len(nodes))
+		parents := make(map[{{ $.ID.GoType }}][]*{{ $.Name }}, len(nodes))
+		for index, node := range nodes {
+			{{ if $.ID.HasValueScanner }}
+			value, err := {{ $.ID.ValueFunc }}(node.ID)
+			if err != nil { return nil, err }
+			ids[index] = value
+			{{ else }}ids[index] = node.ID{{ end }}
+			parents[node.ID] = append(parents[node.ID], node)
+			if node.Edges.counts == nil { node.Edges.counts = make(map[string]int) }
+			for _, edge := range {{ $receiver }}.withCounts { node.Edges.counts[edge.Name] = 0 }
+		}
+		selector := sql.Dialect({{ $receiver }}.driver.Dialect()).Select()
+		{{ if $.FeatureEnabled "sql/schemaconfig" }}
+		selector.WithContext(internal.NewSchemaConfigContext(ctx, {{ $receiver }}.schemaConfig))
+		{{ end }}
+		for _, edge := range {{ $receiver }}.withCounts {
+			statement, arguments := edge.CountQuery(selector, ids...).Query()
+			rows, err := {{ $receiver }}.driver.Query(ctx, statement, arguments)
+			if err != nil { return nil, err }
+			for rows.Next() {
+				values, err := (*{{ $.Name }})(nil).scanValues([]string{ {{ $.Package }}.FieldID })
+				if err != nil { rows.Close(); return nil, err }
+				var count int
+				if err := rows.Scan(values[0], &count); err != nil { rows.Close(); return nil, err }
+				decoded := &{{ $.Name }}{}
+				if err := decoded.assignValues([]string{ {{ $.Package }}.FieldID }, values); err != nil { rows.Close(); return nil, err }
+				for _, parent := range parents[decoded.ID] { parent.Edges.counts[edge.Name] = count }
+			}
+			if err := rows.Err(); err != nil { rows.Close(); return nil, err }
+			if err := rows.Close(); err != nil { return nil, err }
+		}
+	}
+	{{ end }}
 	{{- /* Allow extensions to inject code using templates to process nodes before they are returned. */}}
 	{{- with $tmpls := matchTemplate "dialect/sql/query/all/nodes/*" }}
 		{{- range $tmpl := $tmpls }}
@@ -110,10 +146,32 @@ func ({{ $receiver }} *{{ $builder }}) sqlAll(ctx context.Context, hooks ...quer
 {{/* Generate a method to eager-load each edge. */}}
 {{- range $e := $.Edges }}
 	func ({{ $receiver }} *{{ $builder }}) load{{ $e.StructField }}(ctx context.Context, query *{{ $e.Type.QueryName }}, nodes []*{{ $.Name }}, init func(*{{ $.Name }}), assign func(*{{ $.Name }}, *{{ $e.Type.Name }})) error {
+		query = query.Clone()
+		{{ if $e.OwnFK }}
+		query.ctx.Limit, query.ctx.Offset = nil, nil
+		{{ else }}
+		if query.ctx.Limit != nil || query.ctx.Offset != nil {
+			limit, offset := -1, 0
+			if query.ctx.Limit != nil { limit = *query.ctx.Limit }
+			if query.ctx.Offset != nil { offset = *query.ctx.Offset }
+			query.ctx.Limit, query.ctx.Offset = nil, nil
+			query.modifiers = append(query.modifiers, func(selector *sql.Selector) {
+				{{ if $e.M2M }}
+				{{ $parentIndex := 0 }}{{ if $e.IsInverse }}{{ $parentIndex = 1 }}{{ end }}
+				joined, _ := selector.JoinedTable({{ $.Package }}.{{ $e.TableConstant }})
+				partition := joined.C({{ $.Package }}.{{ $e.PKConstant }}[{{ $parentIndex }}])
+				{{ else }}
+				partition := selector.C({{ $.Package }}.{{ $e.ColumnConstant }})
+				{{ end }}
+				(&sqlgraph.NeighborsLimit{RowNumber: "ent_row_number", DefaultOrderField: {{ if $e.Type.HasOneFieldID }}{{ $e.Type.Package }}.FieldID{{ else }}{{ $e.Type.Package }}.Columns[0]{{ end }}, Offset: offset}).Modifier(partition, limit)(selector)
+			})
+		}
+		{{ end }}
 		{{- if $e.M2M }}
 			edgeIDs := make([]driver.Value, len(nodes))
 			byID := make(map[{{ $.ID.GoType }}]*{{ $.Name }})
-			nids := make(map[{{ $e.Type.ID.GoType }}]map[*{{ $.Name }}]struct{})
+			nids := make(map[{{ $e.Type.ID.GoType }}]bool)
+			orderedIDs := make(map[{{ $.ID.GoType }}][]{{ $e.Type.ID.GoType }})
 			for i, node := range nodes {
 				{{- if $.ID.HasValueScanner }}
 					vv, err := {{ $.ID.ValueFunc }}(node.ID)
@@ -150,12 +208,10 @@ func ({{ $receiver }} *{{ $builder }}) sqlAll(ctx context.Context, hooks ...quer
 			if err := query.prepareQuery(ctx); err != nil {
 				return err
 			}
-			qr := QuerierFunc(func(ctx context.Context, q Query) (Value, error) {
-				return query.sqlAll(ctx, func(_ context.Context, spec *sqlgraph.QuerySpec) {
+			neighbors, err := query.sqlAll(ctx, func(_ context.Context, spec *sqlgraph.QuerySpec) {
 					assign := spec.Assign
 					values := spec.ScanValues
-					{{- $out := "sql.NullInt64" }}{{ if $.ID.UserDefined }}{{ $out = $.ID.ScanType }}{{ end }}
-					{{- $in := "sql.NullInt64" }}{{ if $e.Type.ID.UserDefined }}{{ $in = $e.Type.ID.ScanType }}{{ end }}
+					{{- /* values[0] is the join-table column allocated here; values[1] is the neighbor ID allocated by scanValues. Both mirror dialect/sql/decode. */}}
 					spec.ScanValues = func(columns []string) ([]any, error) {
 						values, err := values(columns[1:])
 						if err != nil {
@@ -163,48 +219,36 @@ func ({{ $receiver }} *{{ $builder }}) sqlAll(ctx context.Context, hooks ...quer
 						}
 						{{- if $.ID.HasValueScanner }}
 							return append([]any{ {{ $.ID.ScanValueFunc }}() }, values...), nil
+						{{- else if or $.ID.TypeValueScanner $.ID.IsJSON }}
+							return append([]any{ {{ $.ID.NewScanType }} }, values...), nil
 						{{- else }}
-							return append([]any{new({{ $out }})}, values...), nil
+							return append([]any{new(*{{ $.ID.GoType }})}, values...), nil
 						{{- end }}
 					}
 					spec.Assign = func(columns []string, values []any) error {
-						{{- if $.ID.HasValueScanner }}
-							var outValue {{ $.ID.GoType }}
-							{{- with extend $ "Arg" "values[0]" "Field" $.ID "ScanType" $out "Ident" "outValue" }}
-								{{ template "dialect/sql/query/eagerloading/m2massign" . }}
-							{{- end }}
-						{{- else }}
-							outValue := {{- with extend $ "Arg" "values[0]" "Field" $.ID "ScanType" $out }}{{ template "dialect/sql/query/eagerloading/m2massignexpr" . }}{{- end }}
+						var outValue {{ $.ID.GoType }}
+						{{- with extend $ "Arg" "values[0]" "Field" $.ID "Ident" "outValue" }}
+							{{ template "dialect/sql/query/eagerloading/m2massign" . }}
 						{{- end }}
-						{{- if $e.Type.ID.HasValueScanner }}
-							var inValue {{ $e.Type.ID.GoType }}
-							{{- with extend $ "Arg" "values[1]" "Field" $e.Type.ID "ScanType" $in "Ident" "inValue" }}
-								{{ template "dialect/sql/query/eagerloading/m2massign" . }}
-							{{- end }}
-						{{- else }}
-							inValue := {{- with extend $ "Arg" "values[1]" "Field" $e.Type.ID "ScanType" $in }}{{ template "dialect/sql/query/eagerloading/m2massignexpr" . }}{{- end }}
+						var inValue {{ $e.Type.ID.GoType }}
+						{{- with extend $ "Arg" "values[1]" "Field" $e.Type.ID "Ident" "inValue" }}
+							{{ template "dialect/sql/query/eagerloading/m2massign" . }}
 						{{- end }}
-						if nids[inValue] == nil {
-							nids[inValue] = map[*{{ $.Name }}]struct{}{byID[outValue]: {}}
+						orderedIDs[outValue] = append(orderedIDs[outValue], inValue)
+						if !nids[inValue] {
+							nids[inValue] = true
 							return assign(columns[1:], values[1:])
 						}
-						nids[inValue][byID[outValue]] = struct{}{}
 						return nil
 					}
 				})
-			})
-			neighbors, err :=  withInterceptors[[]*{{ $e.Type.Name }}](ctx, query, qr, query.inters)
 			if err != nil {
 				return err
 			}
-			for _, n := range neighbors {
-				nodes, ok := nids[n.ID]
-				if !ok {
-					return fmt.Errorf(`unexpected "{{ $e.Name }}" node returned %v`, n.ID)
-				}
-				for kn := range nodes {
-					assign(kn, n)
-				}
+			byNeighborID := make(map[{{ $e.Type.ID.GoType }}]*{{ $e.Type.Name }}, len(neighbors))
+			for _, neighbor := range neighbors { byNeighborID[neighbor.ID] = neighbor }
+			for parentID, ids := range orderedIDs {
+				for _, id := range ids { assign(byID[parentID], byNeighborID[id]) }
 			}
 		{{- else if $e.OwnFK }}
 			ids := make([]{{ $e.Type.ID.GoType }}, 0, len(nodes))
@@ -225,7 +269,7 @@ func ({{ $receiver }} *{{ $builder }}) sqlAll(ctx context.Context, hooks ...quer
 			if len(ids) == 0 {
 				return nil
 			}
-			query.Where({{ $e.Type.Package }}.IDIn(ids...))
+			query.Where({{ $e.Type.Package }}.ID.In(ids...))
 			neighbors, err := query.All(ctx)
 			if err != nil {
 				return err
@@ -268,9 +312,9 @@ func ({{ $receiver }} *{{ $builder }}) sqlAll(ctx context.Context, hooks ...quer
 					query.ctx.AppendFieldOnce({{ $e.Type.Package }}.{{ $e.Ref.Field.Constant }})
 				}
 			{{- end }}
-			query.Where(predicate.{{ $e.Type.Name }}(func(s *sql.Selector) {
+			query.Where(func(s *sql.Selector) {
 				s.Where(sql.InValues(s.C({{ $.Package }}.{{ $e.ColumnConstant }}), fks...))
-			}))
+			})
 			neighbors, err := query.All(ctx)
 			if err != nil {
 				return err
@@ -350,10 +394,11 @@ func ({{ $receiver }} *{{ $builder }}) querySpec() *sqlgraph.QuerySpec {
 			}
 		{{- end }}
 	}
-	if ps := {{ $receiver }}.predicates; len(ps) > 0 {
+	if predicates := {{ $receiver }}.predicates; len(predicates) > 0 || len({{ $receiver }}.joins) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
-			for i := range ps {
-				ps[i](selector)
+			for _, join := range {{ $receiver }}.joins { join(selector) }
+			for i := range predicates {
+				predicates[i](selector)
 			}
 		}
 	}
@@ -410,6 +455,7 @@ func ({{ $receiver }} *{{ $builder }}) sqlQuery(ctx context.Context) *sql.Select
 			{{- xtemplate $tmpl $ }}
 		{{- end }}
 	{{- end }}
+	for _, join := range {{ $receiver }}.joins { join(selector) }
 	for _, p := range {{ $receiver }}.predicates {
 		p(selector)
 	}
@@ -424,6 +470,7 @@ func ({{ $receiver }} *{{ $builder }}) sqlQuery(ctx context.Context) *sql.Select
 	if limit := {{ $receiver }}.ctx.Limit; limit != nil {
 		selector.Limit(*limit)
 	}
+	for _, modifier := range {{ $receiver }}.modifiers { modifier(selector) }
 	return selector
 }
 {{ end }}
@@ -497,7 +544,6 @@ func ({{ $receiver }} *{{ $builder }}) sqlQuery(ctx context.Context) *sql.Select
 {{ define "dialect/sql/query/eagerloading/m2massign" -}}
 	{{- $arg := $.Scope.Arg -}}
 	{{- $field := $.Scope.Field -}}
-	{{- $scantype := $.Scope.ScanType -}}
 	{{- $ident := $.Scope.Ident -}}
 	{{- if $field.HasValueScanner }}
 		if value, err := {{ $field.FromValueFunc }}({{ $arg }}); err != nil {
@@ -505,21 +551,18 @@ func ({{ $receiver }} *{{ $builder }}) sqlQuery(ctx context.Context) *sql.Select
 		} else {
 			{{ $ident }} = value
 		}
-	{{- else if hasPrefix $scantype "sql" -}}
-		{{ $ident }} = {{ printf "%s.(*%s)" $arg $scantype | $field.ScanTypeField }}
-	{{- else -}}
-		{{ $ident }} = {{ if not $field.Nillable }}*{{ end }}{{ printf "%s.(*%s)" $arg $scantype }}
-	{{- end }}
-{{- end }}
-
-{{ define "dialect/sql/query/eagerloading/m2massignexpr" -}}
-	{{- $arg := $.Scope.Arg -}}
-	{{- $field := $.Scope.Field -}}
-	{{- $scantype := $.Scope.ScanType -}}
-	{{- if hasPrefix $scantype "sql" -}}
-		{{ printf "%s.(*%s)" $arg $scantype | $field.ScanTypeField -}}
-	{{- else -}}
-		{{ if not $field.Nillable }}*{{ end }}{{ printf "%s.(*%s)" $arg $scantype }}
+	{{- else if or $field.TypeValueScanner $field.IsJSON }}
+		if value, ok := {{ $arg }}.(*{{ $field.ScanType }}); !ok {
+			return fmt.Errorf("unexpected type %T for edge id", {{ $arg }})
+		} else {
+			{{ $ident }} = {{ $field.ScanTypeField "value" }}
+		}
+	{{- else }}
+		if value, ok := {{ $arg }}.(**{{ $field.GoType }}); !ok {
+			return fmt.Errorf("unexpected type %T for edge id", {{ $arg }})
+		} else if value != nil && *value != nil {
+			{{ $ident }} = **value
+		}
 	{{- end }}
 {{- end }}
 

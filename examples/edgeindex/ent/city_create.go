@@ -10,77 +10,137 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
+	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/examples/edgeindex/ent/city"
+	"github.com/neko-sc/ent/examples/edgeindex/ent/entity"
 	"github.com/neko-sc/ent/examples/edgeindex/ent/street"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// CityCreate is the builder for creating a City entity.
 type CityCreate struct {
 	config
-	mutation *CityMutation
-	hooks    []Hook
+	mutation    *CityMutation
+	err         error
+	fromBuilder bool
+	present     map[string]struct{}
+
+	conflict []sql.ConflictOption
 }
 
-// SetName sets the "name" field.
-func (_c *CityCreate) SetName(v string) *CityCreate {
-	_c.mutation.SetName(v)
-	return _c
-}
-
-// AddStreetIDs adds the "streets" edge to the Street entity by IDs.
-func (_c *CityCreate) AddStreetIDs(ids ...int) *CityCreate {
-	_c.mutation.AddStreetIDs(ids...)
-	return _c
-}
-
-// AddStreets adds the "streets" edges to the Street entity.
-func (_c *CityCreate) AddStreets(v ...*Street) *CityCreate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+func (b *CityCreate) Set[T any](column ent.ColumnOf[entity.City, T], value T) *CityCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.set(column.Ref().Name, value)
 	}
-	return _c.AddStreetIDs(ids...)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+}
+func (b *CityCreate) SetOptional[T any](column ent.ColumnOf[entity.City, T], value ent.Option[T]) *CityCreate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.insert.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *CityCreate) SetExpr[T any](column ent.ColumnOf[entity.City, T], value ent.Expr[T]) *CityCreate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case city.FieldName:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of City is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.insert.setExpr(column.Ref().Name, value.Render)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+
+}
+func (b *CityCreate) SetEdge[N, K any](edge ent.UniqueRelation[entity.City, N, K], id K) *CityCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.setEdge(edge.Ref().Name, id)
+	}
+
+	switch edge.Ref().Name {
+
+	}
+
+	return b
+}
+func (b *CityCreate) AddIDs[N, K any](edge ent.Relation[entity.City, N, K], ids ...K) *CityCreate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.insert.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *CityCreate) Mutation() *CityMutation { return b.mutation }
+
+func (b *CityCreate) Insert() *CityInsert { return b.mutation.insert }
+
+func (b *CityCreate) Save(ctx context.Context) (*City, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Mutation returns the CityMutation object of the builder.
-func (_c *CityCreate) Mutation() *CityMutation {
-	return _c.mutation
-}
-
-// Save creates the City in the database.
-func (_c *CityCreate) Save(ctx context.Context) (*City, error) {
-	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
-}
-
-// SaveX calls Save and panics if Save returns an error.
-func (_c *CityCreate) SaveX(ctx context.Context) *City {
-	v, err := _c.Save(ctx)
+func (b *CityCreate) SaveX(ctx context.Context) *City {
+	node, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return node
 }
 
-// Exec executes the query.
-func (_c *CityCreate) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *CityCreate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *CityCreate) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *CityCreate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_c *CityCreate) check() error {
-	if _, ok := _c.mutation.Name(); !ok {
-		return &ValidationError{Name: "name", err: errors.New(`ent: missing required field "City.name"`)}
+func (b *CityCreate) defaults() error {
+
+	return nil
+}
+
+func (b *CityCreate) check() error {
+	if b.err != nil {
+		return b.err
 	}
+
+	switch b.driver.Dialect() {
+	case dialect.Postgres, dialect.SQLite:
+		if _, present := b.present[city.FieldName]; b.fromBuilder && !present {
+			return &ValidationError{Name: "name", err: errors.New(`ent: missing required field "City.name"`)}
+		}
+	}
+
 	return nil
 }
 
@@ -88,30 +148,37 @@ func (_c *CityCreate) sqlSave(ctx context.Context) (*City, error) {
 	if err := _c.check(); err != nil {
 		return nil, err
 	}
-	_node, _spec := _c.createSpec()
-	if err := sqlgraph.CreateNode(ctx, _c.driver, _spec); err != nil {
+	node, spec, err := _c.createSpec()
+	if err != nil {
+		return nil, err
+	}
+	if err := sqlgraph.CreateNode(ctx, _c.driver, spec); err != nil {
 		if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
 		return nil, err
 	}
-	id := _spec.ID.Value.(int64)
-	_node.ID = int(id)
-	_c.mutation.id = &_node.ID
-	_c.mutation.done = true
-	return _node, nil
+	_c.mutation.id = &node.ID
+	return node, nil
 }
 
-func (_c *CityCreate) createSpec() (*City, *sqlgraph.CreateSpec) {
-	var (
-		_node = &City{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(city.Table, sqlgraph.NewFieldSpec(city.FieldID, field.TypeInt))
-	)
-	if value, ok := _c.mutation.Name(); ok {
+func (_c *CityCreate) createSpec() (*City, *sqlgraph.CreateSpec, error) {
+	_node := &City{config: _c.config}
+	_spec := sqlgraph.NewCreateSpec(city.Table, sqlgraph.NewFieldSpec(city.FieldID, field.TypeInt))
+
+	_spec.OnConflict = _c.conflict
+
+	if _, present := _c.present[city.FieldName]; !_c.fromBuilder || present {
+		value := _c.mutation.insert.Name
 		_spec.SetField(city.FieldName, field.TypeString, value)
-		_node.Name = value
 	}
-	if nodes := _c.mutation.StreetsIDs(); len(nodes) > 0 {
+
+	_spec.Expressions = _c.mutation.insert.expressions
+
+	if nodes := _c.mutation.insert.streetsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -122,97 +189,373 @@ func (_c *CityCreate) createSpec() (*City, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(street.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	return _node, _spec
+
+	_spec.Returning = &sqlgraph.Returning{Columns: city.Columns, Scan: func(rows dialect.Rows) error {
+		values, err := _node.scanValues(city.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(city.Columns, values); err != nil {
+			return err
+		}
+
+		_spec.ID.Value = _node.ID
+
+		return nil
+	}}
+	return _node, _spec, nil
 }
 
-// CityCreateBulk is the builder for creating many City entities in bulk.
+type CityUpsertOne struct{ create *CityCreate }
+
+func (b *CityCreate) OnConflict(columns ...ent.EntityColumn[entity.City]) *CityUpsertOne {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
+	}
+	if len(names) == 0 {
+		return b.OnConflictOptions()
+	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
+}
+
+func (b *CityCreate) OnConflictConstraint(name string) *CityUpsertOne {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
+}
+
+func (b *CityCreate) OnConflictOptions(options ...sql.ConflictOption) *CityUpsertOne {
+	b.conflict = options
+	return &CityUpsertOne{create: b}
+}
+
+func (u *CityUpsertOne) DoNothing() *CityUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+func (u *CityUpsertOne) DoSelect() *CityUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *CityUpsertOne) Ignore() *CityUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *CityUpsertOne) DoUpdate(set func(*CityUpsert)) *CityUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&CityUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *CityUpsertOne) UpdateNewValues() *CityUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case city.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
+	}))
+	return u
+}
+
+func (u *CityUpsertOne) Where(predicates ...ent.Predicate[entity.City]) *CityUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(city.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *CityUpsertOne) UpdateWhere(predicates ...ent.Predicate[entity.City]) *CityUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(city.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *CityUpsertOne) Save(ctx context.Context) (*City, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for CityCreate.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *CityUpsertOne) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
+func (u *CityUpsertOne) ExecX(ctx context.Context) {
+	if err := u.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+func (u *CityUpsertOne) ID(ctx context.Context) (id int, err error) {
+	node, err := u.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+func (u *CityUpsertOne) IDX(ctx context.Context) int {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
+type CityUpsert struct{ *sql.UpdateSet }
+
+func (u *CityUpsert) Set[T any](column ent.ColumnOf[entity.City, T], value T) *CityUpsert {
+	switch column.Ref().Name {
+
+	case city.FieldName:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of City is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *CityUpsert) SetExpr[T any](column ent.ColumnOf[entity.City, T], value ent.Expr[T]) *CityUpsert {
+	switch column.Ref().Name {
+
+	case city.FieldName:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of City is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *CityUpsert) UpdateNewValue[T any](column ent.ColumnOf[entity.City, T]) *CityUpsert {
+	switch column.Ref().Name {
+
+	case city.FieldName:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of City is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *CityUpsert) Add[T ent.Number](column ent.ColumnOf[entity.City, T], delta T) *CityUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of City does not support addition", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *CityUpsert) Clear[T any](column ent.ColumnOf[entity.City, T]) *CityUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of City is not nullable", column.Ref().Name)})
+	}
+	return u
+}
+
 type CityCreateBulk struct {
 	config
 	err      error
 	builders []*CityCreate
+
+	conflict []sql.ConflictOption
 }
 
-// Save creates the City entities in the database.
 func (_c *CityCreateBulk) Save(ctx context.Context) ([]*City, error) {
 	if _c.err != nil {
 		return nil, _c.err
 	}
-	specs := make([]*sqlgraph.CreateSpec, len(_c.builders))
 	nodes := make([]*City, len(_c.builders))
-	mutators := make([]Mutator, len(_c.builders))
-	for i := range _c.builders {
-		func(i int, root context.Context) {
-			builder := _c.builders[i]
-			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*CityMutation)
-				if !ok {
-					return nil, fmt.Errorf("unexpected mutation type %T", m)
-				}
-				if err := builder.check(); err != nil {
-					return nil, err
-				}
-				builder.mutation = mutation
-				var err error
-				nodes[i], specs[i] = builder.createSpec()
-				if i < len(mutators)-1 {
-					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
-				} else {
-					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
-					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
-						if sqlgraph.IsConstraintError(err) {
-							err = &ConstraintError{msg: err.Error(), wrap: err}
-						}
-					}
-				}
-				if err != nil {
-					return nil, err
-				}
-				mutation.id = &nodes[i].ID
-				if specs[i].ID.Value != nil {
-					id := specs[i].ID.Value.(int64)
-					nodes[i].ID = int(id)
-				}
-				mutation.done = true
-				return nodes[i], nil
-			})
-			for i := len(builder.hooks) - 1; i >= 0; i-- {
-				mut = builder.hooks[i](mut)
-			}
-			mutators[i] = mut
-		}(i, ctx)
-	}
-	if len(mutators) > 0 {
-		if _, err := mutators[0].Mutate(ctx, _c.builders[0].mutation); err != nil {
+	specs := make([]*sqlgraph.CreateSpec, len(nodes))
+	for index, builder := range _c.builders {
+		if builder.err != nil {
+			return nil, builder.err
+		}
+		if err := builder.defaults(); err != nil {
+			return nil, err
+		}
+		if err := builder.check(); err != nil {
+			return nil, err
+		}
+		var err error
+		nodes[index], specs[index], err = builder.createSpec()
+		if err != nil {
 			return nil, err
 		}
 	}
-	return nodes, nil
+	if len(specs) == 0 {
+		return nodes, nil
+	}
+	spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+
+	spec.OnConflict = _c.conflict
+
+	if err := sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
+		if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{msg: err.Error(), wrap: err}
+		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
+		return nil, err
+	}
+	result := nodes[:0]
+	for index, builder := range _c.builders {
+		if specs[index].Skipped {
+			continue
+		}
+		builder.mutation.id = &nodes[index].ID
+		result = append(result, nodes[index])
+	}
+	return result, nil
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_c *CityCreateBulk) SaveX(ctx context.Context) []*City {
-	v, err := _c.Save(ctx)
+func (b *CityCreateBulk) SaveX(ctx context.Context) []*City {
+	nodes, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return nodes
 }
 
-// Exec executes the query.
-func (_c *CityCreateBulk) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
+func (b *CityCreateBulk) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
+
+func (b *CityCreateBulk) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+type CityUpsertBulk struct{ create *CityCreateBulk }
+
+func (b *CityCreateBulk) OnConflict(columns ...ent.EntityColumn[entity.City]) *CityUpsertBulk {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
+	}
+	if len(names) == 0 {
+		return b.OnConflictOptions()
+	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
+}
+
+func (b *CityCreateBulk) OnConflictConstraint(name string) *CityUpsertBulk {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
+}
+
+func (b *CityCreateBulk) OnConflictOptions(options ...sql.ConflictOption) *CityUpsertBulk {
+	b.conflict = options
+	return &CityUpsertBulk{create: b}
+}
+
+func (u *CityUpsertBulk) DoNothing() *CityUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+func (u *CityUpsertBulk) DoSelect() *CityUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *CityUpsertBulk) Ignore() *CityUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *CityUpsertBulk) DoUpdate(set func(*CityUpsert)) *CityUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&CityUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *CityUpsertBulk) UpdateNewValues() *CityUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case city.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
+	}))
+	return u
+}
+
+func (u *CityUpsertBulk) Where(predicates ...ent.Predicate[entity.City]) *CityUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(city.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *CityUpsertBulk) UpdateWhere(predicates ...ent.Predicate[entity.City]) *CityUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(city.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *CityUpsertBulk) Save(ctx context.Context) ([]*City, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for CityCreateBulk.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *CityUpsertBulk) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
 	return err
 }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *CityCreateBulk) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (u *CityUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

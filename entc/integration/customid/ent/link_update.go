@@ -10,66 +10,199 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/link"
-	"github.com/neko-sc/ent/entc/integration/customid/ent/predicate"
-	"github.com/neko-sc/ent/entc/integration/customid/ent/schema"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// LinkUpdate is the builder for updating Link entities.
 type LinkUpdate struct {
 	config
-	hooks    []Hook
-	mutation *LinkMutation
+	mutation  *LinkMutation
+	err       error
+	returning *sqlgraph.Returning
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// Where appends a list predicates to the LinkUpdate builder.
-func (_u *LinkUpdate) Where(ps ...predicate.Link) *LinkUpdate {
-	_u.mutation.Where(ps...)
-	return _u
+func (b *LinkUpdate) Set[T any](column ent.ColumnOf[entity.Link, T], value T) *LinkUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
+	}
+
+	return b
+}
+func (b *LinkUpdate) SetOptional[T any](column ent.ColumnOf[entity.Link, T], value ent.Option[T]) *LinkUpdate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *LinkUpdate) SetExpr[T any](column ent.ColumnOf[entity.Link, T], value ent.Expr[T]) *LinkUpdate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case link.FieldLinkInformation:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Link is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *LinkUpdate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Link, N, K], id K) *LinkUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *LinkUpdate) AddIDs[N, K any](edge ent.Relation[entity.Link, N, K], ids ...K) *LinkUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *LinkUpdate) Mutation() *LinkMutation { return b.mutation }
+
+func (b *LinkUpdate) Patch() *LinkPatch             { return b.mutation.patch }
+func (b *LinkUpdate) Apply(p LinkPatch) *LinkUpdate { b.mutation.patch.apply(p); return b }
+func (b *LinkUpdate) Add[T ent.Number](column ent.ColumnOf[entity.Link, T], delta T) *LinkUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *LinkUpdate) Append[T any](column ent.ColumnOf[entity.Link, T], values T) *LinkUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *LinkUpdate) Clear[T any](column ent.ColumnOf[entity.Link, T]) *LinkUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *LinkUpdate) RemoveIDs[N, K any](edge ent.Relation[entity.Link, N, K], ids ...K) *LinkUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *LinkUpdate) ClearEdge[N, K any](edge ent.RelationOf[entity.Link, N, K]) *LinkUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// SetLinkInformation sets the "link_information" field.
-func (_u *LinkUpdate) SetLinkInformation(v map[string]schema.LinkInformation) *LinkUpdate {
-	_u.mutation.SetLinkInformation(v)
-	return _u
+func (b *LinkUpdate) Where(predicates ...ent.Predicate[entity.Link]) *LinkUpdate {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Mutation returns the LinkMutation object of the builder.
-func (_u *LinkUpdate) Mutation() *LinkMutation {
-	return _u.mutation
+func (b *LinkUpdate) Save(ctx context.Context) (int, error) {
+	if b.err != nil {
+		return 0, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return 0, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Save executes the query and returns the number of nodes affected by the update operation.
-func (_u *LinkUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *LinkUpdate) SaveX(ctx context.Context) int {
-	affected, err := _u.Save(ctx)
+func (b *LinkUpdate) SaveX(ctx context.Context) int {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return affected
+	return result
 }
 
-// Exec executes the query.
-func (_u *LinkUpdate) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *LinkUpdate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *LinkUpdate) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *LinkUpdate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
+func (b *LinkUpdate) Returning(ctx context.Context) ([]*Link, error) {
+	nodes := make([]*Link, 0)
+	b.returning = &sqlgraph.Returning{Columns: link.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Link{config: b.config}
+		values, err := _node.scanValues(link.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(link.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Save(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
+}
+
+func (b *LinkUpdate) defaults() error {
+
+	return nil
+}
+
+func (b *LinkUpdate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.LinkInformation.IsNull() {
+		return &ValidationError{Name: "link_information", err: errors.New(`ent: field "Link.link_information" is not nullable`)}
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *LinkUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *LinkUpdate {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *LinkUpdate) sqlSave(ctx context.Context) (_node int, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(link.Table, link.Columns, sqlgraph.NewFieldSpec(link.FieldID, field.TypeUUID))
 	if ps := _u.mutation.Predicates(); len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -78,9 +211,15 @@ func (_u *LinkUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.LinkInformation(); ok {
+	if value, ok := _u.mutation.patch.LinkInformation.Get(); ok {
 		_spec.SetField(link.FieldLinkInformation, field.TypeJSON, value)
 	}
+	_spec.Returning = _u.returning
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{link.Label}
@@ -89,70 +228,195 @@ func (_u *LinkUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		return 0, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }
 
-// LinkUpdateOne is the builder for updating a single Link entity.
 type LinkUpdateOne struct {
 	config
-	fields   []string
-	hooks    []Hook
 	mutation *LinkMutation
+	err      error
+
+	fields []string
+	old    *Link
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// SetLinkInformation sets the "link_information" field.
-func (_u *LinkUpdateOne) SetLinkInformation(v map[string]schema.LinkInformation) *LinkUpdateOne {
-	_u.mutation.SetLinkInformation(v)
-	return _u
+func (b *LinkUpdateOne) Set[T any](column ent.ColumnOf[entity.Link, T], value T) *LinkUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
+	}
+
+	return b
+}
+func (b *LinkUpdateOne) SetOptional[T any](column ent.ColumnOf[entity.Link, T], value ent.Option[T]) *LinkUpdateOne {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *LinkUpdateOne) SetExpr[T any](column ent.ColumnOf[entity.Link, T], value ent.Expr[T]) *LinkUpdateOne {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case link.FieldLinkInformation:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Link is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *LinkUpdateOne) SetEdge[N, K any](edge ent.UniqueRelation[entity.Link, N, K], id K) *LinkUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *LinkUpdateOne) AddIDs[N, K any](edge ent.Relation[entity.Link, N, K], ids ...K) *LinkUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *LinkUpdateOne) Mutation() *LinkMutation { return b.mutation }
+
+func (b *LinkUpdateOne) Patch() *LinkPatch                { return b.mutation.patch }
+func (b *LinkUpdateOne) Apply(p LinkPatch) *LinkUpdateOne { b.mutation.patch.apply(p); return b }
+func (b *LinkUpdateOne) Add[T ent.Number](column ent.ColumnOf[entity.Link, T], delta T) *LinkUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *LinkUpdateOne) Append[T any](column ent.ColumnOf[entity.Link, T], values T) *LinkUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *LinkUpdateOne) Clear[T any](column ent.ColumnOf[entity.Link, T]) *LinkUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *LinkUpdateOne) RemoveIDs[N, K any](edge ent.Relation[entity.Link, N, K], ids ...K) *LinkUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *LinkUpdateOne) ClearEdge[N, K any](edge ent.RelationOf[entity.Link, N, K]) *LinkUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// Mutation returns the LinkMutation object of the builder.
-func (_u *LinkUpdateOne) Mutation() *LinkMutation {
-	return _u.mutation
+func (b *LinkUpdateOne) Where(predicates ...ent.Predicate[entity.Link]) *LinkUpdateOne {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Where appends a list predicates to the LinkUpdate builder.
-func (_u *LinkUpdateOne) Where(ps ...predicate.Link) *LinkUpdateOne {
-	_u.mutation.Where(ps...)
-	return _u
+func (b *LinkUpdateOne) Save(ctx context.Context) (*Link, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Select allows selecting one or more fields (columns) of the returned entity.
-// The default is selecting all fields defined in the entity schema.
-func (_u *LinkUpdateOne) Select(field string, fields ...string) *LinkUpdateOne {
-	_u.fields = append([]string{field}, fields...)
-	return _u
-}
-
-// Save executes the query and returns the updated Link entity.
-func (_u *LinkUpdateOne) Save(ctx context.Context) (*Link, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *LinkUpdateOne) SaveX(ctx context.Context) *Link {
-	node, err := _u.Save(ctx)
+func (b *LinkUpdateOne) SaveX(ctx context.Context) *Link {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return node
+	return result
 }
 
-// Exec executes the query on the entity.
-func (_u *LinkUpdateOne) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *LinkUpdateOne) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *LinkUpdateOne) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *LinkUpdateOne) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
+func (b *LinkUpdateOne) Select(columns ...ent.EntityColumn[entity.Link]) *LinkUpdateOne {
+	if len(columns) == 0 {
+		panic("ent: Select requires at least one column")
+	}
+	b.fields = make([]string, len(columns))
+	for index, column := range columns {
+		b.fields[index] = column.Ref().Name
+	}
+	return b
+}
+
+func (b *LinkUpdateOne) SaveOld(ctx context.Context) (old *Link, updated *Link, err error) {
+	if !b.driver.Capabilities().ReturningOld {
+		return nil, nil, &dialect.UnsupportedError{Feature: "RETURNING OLD", Dialect: dialect.Dialect(b.driver.Dialect())}
+	}
+	b.old = &Link{config: b.config}
+	defer func() { b.old = nil }()
+	updated, err = b.Save(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return b.old, updated, nil
+}
+
+func (b *LinkUpdateOne) defaults() error {
+
+	return nil
+}
+
+func (b *LinkUpdateOne) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.LinkInformation.IsNull() {
+		return &ValidationError{Name: "link_information", err: errors.New(`ent: field "Link.link_information" is not nullable`)}
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *LinkUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *LinkUpdateOne {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *LinkUpdateOne) sqlSave(ctx context.Context) (_node *Link, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(link.Table, link.Columns, sqlgraph.NewFieldSpec(link.FieldID, field.TypeUUID))
 	id, ok := _u.mutation.ID()
 	if !ok {
@@ -178,12 +442,21 @@ func (_u *LinkUpdateOne) sqlSave(ctx context.Context) (_node *Link, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.LinkInformation(); ok {
+	if value, ok := _u.mutation.patch.LinkInformation.Get(); ok {
 		_spec.SetField(link.FieldLinkInformation, field.TypeJSON, value)
 	}
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	_node = &Link{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
+	if _u.old != nil {
+		_spec.OldScanValues = _u.old.scanValues
+		_spec.OldAssign = _u.old.assignValues
+	}
 	if err = sqlgraph.UpdateNode(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{link.Label}
@@ -192,6 +465,5 @@ func (_u *LinkUpdateOne) sqlSave(ctx context.Context) (_node *Link, err error) {
 		}
 		return nil, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }

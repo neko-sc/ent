@@ -10,137 +10,153 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/note"
-	"github.com/neko-sc/ent/entc/integration/customid/ent/schema"
+	schema2 "github.com/neko-sc/ent/entc/integration/customid/ent/schema"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// NoteCreate is the builder for creating a Note entity.
 type NoteCreate struct {
 	config
-	mutation *NoteMutation
-	hooks    []Hook
+	mutation    *NoteMutation
+	err         error
+	fromBuilder bool
+	present     map[string]struct{}
+
 	conflict []sql.ConflictOption
 }
 
-// SetText sets the "text" field.
-func (_c *NoteCreate) SetText(v string) *NoteCreate {
-	_c.mutation.SetText(v)
-	return _c
-}
-
-// SetNillableText sets the "text" field if the given value is not nil.
-func (_c *NoteCreate) SetNillableText(v *string) *NoteCreate {
-	if v != nil {
-		_c.SetText(*v)
+func (b *NoteCreate) Set[T any](column ent.ColumnOf[entity.Note, T], value T) *NoteCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.set(column.Ref().Name, value)
 	}
-	return _c
-}
-
-// SetID sets the "id" field.
-func (_c *NoteCreate) SetID(v schema.NoteID) *NoteCreate {
-	_c.mutation.SetID(v)
-	return _c
-}
-
-// SetNillableID sets the "id" field if the given value is not nil.
-func (_c *NoteCreate) SetNillableID(v *schema.NoteID) *NoteCreate {
-	if v != nil {
-		_c.SetID(*v)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
 	}
-	return _c
+	b.present[column.Ref().Name] = struct{}{}
+	return b
 }
-
-// SetParentID sets the "parent" edge to the Note entity by ID.
-func (_c *NoteCreate) SetParentID(id schema.NoteID) *NoteCreate {
-	_c.mutation.SetParentID(id)
-	return _c
-}
-
-// SetNillableParentID sets the "parent" edge to the Note entity by ID if the given value is not nil.
-func (_c *NoteCreate) SetNillableParentID(id *schema.NoteID) *NoteCreate {
-	if id != nil {
-		_c = _c.SetParentID(*id)
+func (b *NoteCreate) SetOptional[T any](column ent.ColumnOf[entity.Note, T], value ent.Option[T]) *NoteCreate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.insert.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _c
-}
-
-// SetParent sets the "parent" edge to the Note entity.
-func (_c *NoteCreate) SetParent(v *Note) *NoteCreate {
-	return _c.SetParentID(v.ID)
-}
-
-// AddChildIDs adds the "children" edge to the Note entity by IDs.
-func (_c *NoteCreate) AddChildIDs(ids ...schema.NoteID) *NoteCreate {
-	_c.mutation.AddChildIDs(ids...)
-	return _c
-}
-
-// AddChildren adds the "children" edges to the Note entity.
-func (_c *NoteCreate) AddChildren(v ...*Note) *NoteCreate {
-	ids := make([]schema.NoteID, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
 	}
-	return _c.AddChildIDs(ids...)
+	return b
 }
+func (b *NoteCreate) SetExpr[T any](column ent.ColumnOf[entity.Note, T], value ent.Expr[T]) *NoteCreate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
 
-// Mutation returns the NoteMutation object of the builder.
-func (_c *NoteCreate) Mutation() *NoteMutation {
-	return _c.mutation
+	case note.FieldID:
+
+	case note.FieldText:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Note is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.insert.setExpr(column.Ref().Name, value.Render)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+
 }
+func (b *NoteCreate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Note, N, K], id K) *NoteCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.setEdge(edge.Ref().Name, id)
+	}
 
-// Save creates the Note in the database.
-func (_c *NoteCreate) Save(ctx context.Context) (*Note, error) {
-	if err := _c.defaults(); err != nil {
+	switch edge.Ref().Name {
+
+	}
+
+	return b
+}
+func (b *NoteCreate) AddIDs[N, K any](edge ent.Relation[entity.Note, N, K], ids ...K) *NoteCreate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.insert.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *NoteCreate) Mutation() *NoteMutation { return b.mutation }
+
+func (b *NoteCreate) Insert() *NoteInsert { return b.mutation.insert }
+
+func (b *NoteCreate) Save(ctx context.Context) (*Note, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
 		return nil, err
 	}
-	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
+	return b.sqlSave(ctx)
 }
 
-// SaveX calls Save and panics if Save returns an error.
-func (_c *NoteCreate) SaveX(ctx context.Context) *Note {
-	v, err := _c.Save(ctx)
+func (b *NoteCreate) SaveX(ctx context.Context) *Note {
+	node, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return node
 }
 
-// Exec executes the query.
-func (_c *NoteCreate) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *NoteCreate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *NoteCreate) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *NoteCreate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// defaults sets the default values of the builder before save.
-func (_c *NoteCreate) defaults() error {
-	if _, ok := _c.mutation.ID(); !ok {
+func (b *NoteCreate) defaults() error {
+
+	if b.mutation.insert.ID.IsUnset() && b.mutation.insert.expressions[note.FieldID] == nil {
 		if note.DefaultID == nil {
-			return fmt.Errorf("ent: uninitialized note.DefaultID (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized note.DefaultID")
 		}
-		v := note.DefaultID()
-		_c.mutation.SetID(v)
+		b.mutation.insert.ID = ent.Some(note.DefaultID())
 	}
+
 	return nil
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_c *NoteCreate) check() error {
-	if v, ok := _c.mutation.ID(); ok {
-		if err := note.IDValidator(v); err != nil {
-			return &ValidationError{Name: "id", err: fmt.Errorf(`ent: validator failed for field "Note.id": %w`, err)}
+func (b *NoteCreate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.insert.ID.IsNull() {
+		return &ValidationError{Name: "id", err: errors.New(`ent: field "Note.id" is not nullable`)}
+	}
+
+	if b.mutation.insert.expressions[note.FieldID] == nil {
+		if v, ok := b.mutation.insert.ID.Get(); ok {
+
+			if err := note.IDValidator(v); err != nil {
+				return &ValidationError{Name: "id", err: fmt.Errorf(`ent: validator failed for field "Note.id": %w`, err)}
+			}
+
 		}
 	}
+
 	return nil
 }
 
@@ -148,40 +164,43 @@ func (_c *NoteCreate) sqlSave(ctx context.Context) (*Note, error) {
 	if err := _c.check(); err != nil {
 		return nil, err
 	}
-	_node, _spec := _c.createSpec()
-	if err := sqlgraph.CreateNode(ctx, _c.driver, _spec); err != nil {
+	node, spec, err := _c.createSpec()
+	if err != nil {
+		return nil, err
+	}
+	if err := sqlgraph.CreateNode(ctx, _c.driver, spec); err != nil {
 		if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
 		return nil, err
 	}
-	if _spec.ID.Value != nil {
-		if id, ok := _spec.ID.Value.(schema.NoteID); ok {
-			_node.ID = id
-		} else {
-			return nil, fmt.Errorf("unexpected Note.ID type: %T", _spec.ID.Value)
-		}
-	}
-	_c.mutation.id = &_node.ID
-	_c.mutation.done = true
-	return _node, nil
+	_c.mutation.id = &node.ID
+	return node, nil
 }
 
-func (_c *NoteCreate) createSpec() (*Note, *sqlgraph.CreateSpec) {
-	var (
-		_node = &Note{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(note.Table, sqlgraph.NewFieldSpec(note.FieldID, field.TypeString))
-	)
+func (_c *NoteCreate) createSpec() (*Note, *sqlgraph.CreateSpec, error) {
+	_node := &Note{config: _c.config}
+	_spec := sqlgraph.NewCreateSpec(note.Table, sqlgraph.NewFieldSpec(note.FieldID, field.TypeString))
+
 	_spec.OnConflict = _c.conflict
-	if id, ok := _c.mutation.ID(); ok {
-		_node.ID = id
-		_spec.ID.Value = id
+
+	if value, ok := _c.mutation.insert.ID.Get(); ok {
+		_spec.ID.Value = value
 	}
-	if value, ok := _c.mutation.Text(); ok {
+
+	if value, ok := _c.mutation.insert.Text.Get(); ok {
 		_spec.SetField(note.FieldText, field.TypeString, value)
-		_node.Text = value
 	}
-	if nodes := _c.mutation.ParentIDs(); len(nodes) > 0 {
+	if _c.mutation.insert.Text.IsNull() {
+		_spec.SetField(note.FieldText, field.TypeString, nil)
+	}
+
+	_spec.Expressions = _c.mutation.insert.expressions
+
+	if nodes := _c.mutation.insert.parentIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
@@ -192,13 +211,18 @@ func (_c *NoteCreate) createSpec() (*Note, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(note.FieldID, field.TypeString),
 			},
 		}
+		seen := make(map[schema2.NoteID]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
-		_node.note_children = &nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	if nodes := _c.mutation.ChildrenIDs(); len(nodes) > 0 {
+
+	if nodes := _c.mutation.insert.childrenIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -209,176 +233,143 @@ func (_c *NoteCreate) createSpec() (*Note, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(note.FieldID, field.TypeString),
 			},
 		}
+		seen := make(map[schema2.NoteID]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	return _node, _spec
-}
 
-// OnConflict allows configuring the `ON CONFLICT` clause of the `INSERT`
-// statement. For example:
-//
-//	client.Note.Create().
-//		SetText(v).
-//		OnConflict(
-//			// Update the row with the new values
-//			// the was proposed for insertion.
-//			sql.ResolveWithNewValues(),
-//		).
-//		// Override some of the fields with custom
-//		// update values.
-//		Update(func(u *ent.NoteUpsert) {
-//			SetText(v+v).
-//		}).
-//		Exec(ctx)
-func (_c *NoteCreate) OnConflict(opts ...sql.ConflictOption) *NoteUpsertOne {
-	_c.conflict = opts
-	return &NoteUpsertOne{
-		create: _c,
-	}
-}
-
-// OnConflictColumns calls `OnConflict` and configures the columns
-// as conflict target. Using this option is equivalent to using:
-//
-//	client.Note.Create().
-//		OnConflict(sql.ConflictColumns(columns...)).
-//		Exec(ctx)
-func (_c *NoteCreate) OnConflictColumns(columns ...string) *NoteUpsertOne {
-	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
-	return &NoteUpsertOne{
-		create: _c,
-	}
-}
-
-type (
-	// NoteUpsertOne is the builder for "upsert"-ing
-	//  one Note node.
-	NoteUpsertOne struct {
-		create *NoteCreate
-	}
-
-	// NoteUpsert is the "OnConflict" setter.
-	NoteUpsert struct {
-		*sql.UpdateSet
-	}
-)
-
-// SetText sets the "text" field.
-func (u *NoteUpsert) SetText(v string) *NoteUpsert {
-	u.Set(note.FieldText, v)
-	return u
-}
-
-// UpdateText sets the "text" field to the value that was provided on create.
-func (u *NoteUpsert) UpdateText() *NoteUpsert {
-	u.SetExcluded(note.FieldText)
-	return u
-}
-
-// ClearText clears the value of the "text" field.
-func (u *NoteUpsert) ClearText() *NoteUpsert {
-	u.SetNull(note.FieldText)
-	return u
-}
-
-// UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
-// Using this option is equivalent to using:
-//
-//	client.Note.Create().
-//		OnConflict(
-//			sql.ResolveWithNewValues(),
-//			sql.ResolveWith(func(u *sql.UpdateSet) {
-//				u.SetIgnore(note.FieldID)
-//			}),
-//		).
-//		Exec(ctx)
-func (u *NoteUpsertOne) UpdateNewValues() *NoteUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
-		if _, exists := u.create.mutation.ID(); exists {
-			s.SetIgnore(note.FieldID)
+	_spec.Returning = &sqlgraph.Returning{Columns: note.Columns, Scan: func(rows dialect.Rows) error {
+		values, err := _node.scanValues(note.Columns)
+		if err != nil {
+			return err
 		}
-	}))
-	return u
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(note.Columns, values); err != nil {
+			return err
+		}
+
+		_spec.ID.Value = _node.ID
+
+		return nil
+	}}
+	return _node, _spec, nil
 }
 
-// Ignore sets each column to itself in case of conflict.
-// Using this option is equivalent to using:
-//
-//	client.Note.Create().
-//	    OnConflict(sql.ResolveWithIgnore()).
-//	    Exec(ctx)
-func (u *NoteUpsertOne) Ignore() *NoteUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
-	return u
+type NoteUpsertOne struct{ create *NoteCreate }
+
+func (b *NoteCreate) OnConflict(columns ...ent.EntityColumn[entity.Note]) *NoteUpsertOne {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
+	}
+	if len(names) == 0 {
+		return b.OnConflictOptions()
+	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
 }
 
-// DoNothing configures the conflict_action to `DO NOTHING`.
-// Supported only by SQLite and PostgreSQL.
+func (b *NoteCreate) OnConflictConstraint(name string) *NoteUpsertOne {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
+}
+
+func (b *NoteCreate) OnConflictOptions(options ...sql.ConflictOption) *NoteUpsertOne {
+	b.conflict = options
+	return &NoteUpsertOne{create: b}
+}
+
 func (u *NoteUpsertOne) DoNothing() *NoteUpsertOne {
 	u.create.conflict = append(u.create.conflict, sql.DoNothing())
 	return u
 }
 
-// Update allows overriding fields `UPDATE` values. See the NoteCreate.OnConflict
-// documentation for more info.
-func (u *NoteUpsertOne) Update(set func(*NoteUpsert)) *NoteUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
-		set(&NoteUpsert{UpdateSet: update})
+func (u *NoteUpsertOne) DoSelect() *NoteUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *NoteUpsertOne) Ignore() *NoteUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *NoteUpsertOne) DoUpdate(set func(*NoteUpsert)) *NoteUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&NoteUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *NoteUpsertOne) UpdateNewValues() *NoteUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case note.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
 	}))
 	return u
 }
 
-// SetText sets the "text" field.
-func (u *NoteUpsertOne) SetText(v string) *NoteUpsertOne {
-	return u.Update(func(s *NoteUpsert) {
-		s.SetText(v)
-	})
+func (u *NoteUpsertOne) Where(predicates ...ent.Predicate[entity.Note]) *NoteUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(note.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// UpdateText sets the "text" field to the value that was provided on create.
-func (u *NoteUpsertOne) UpdateText() *NoteUpsertOne {
-	return u.Update(func(s *NoteUpsert) {
-		s.UpdateText()
-	})
+func (u *NoteUpsertOne) UpdateWhere(predicates ...ent.Predicate[entity.Note]) *NoteUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(note.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// ClearText clears the value of the "text" field.
-func (u *NoteUpsertOne) ClearText() *NoteUpsertOne {
-	return u.Update(func(s *NoteUpsert) {
-		s.ClearText()
-	})
-}
-
-// Exec executes the query.
-func (u *NoteUpsertOne) Exec(ctx context.Context) error {
+func (u *NoteUpsertOne) Save(ctx context.Context) (*Note, error) {
 	if len(u.create.conflict) == 0 {
-		return errors.New("ent: missing options for NoteCreate.OnConflict")
+		return nil, errors.New("ent: missing options for NoteCreate.OnConflict")
 	}
-	return u.create.Exec(ctx)
+	return u.create.Save(ctx)
 }
 
-// ExecX is like Exec, but panics if an error occurs.
+func (u *NoteUpsertOne) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
 func (u *NoteUpsertOne) ExecX(ctx context.Context) {
-	if err := u.create.Exec(ctx); err != nil {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// Exec executes the UPSERT query and returns the inserted/updated ID.
-func (u *NoteUpsertOne) ID(ctx context.Context) (id schema.NoteID, err error) {
-	node, err := u.create.Save(ctx)
+func (u *NoteUpsertOne) ID(ctx context.Context) (id schema2.NoteID, err error) {
+	node, err := u.Save(ctx)
 	if err != nil {
 		return id, err
 	}
 	return node.ID, nil
 }
 
-// IDX is like ID, but panics if an error occurs.
-func (u *NoteUpsertOne) IDX(ctx context.Context) schema.NoteID {
+func (u *NoteUpsertOne) IDX(ctx context.Context) schema2.NoteID {
 	id, err := u.ID(ctx)
 	if err != nil {
 		panic(err)
@@ -386,223 +377,232 @@ func (u *NoteUpsertOne) IDX(ctx context.Context) schema.NoteID {
 	return id
 }
 
-// NoteCreateBulk is the builder for creating many Note entities in bulk.
+type NoteUpsert struct{ *sql.UpdateSet }
+
+func (u *NoteUpsert) Set[T any](column ent.ColumnOf[entity.Note, T], value T) *NoteUpsert {
+	switch column.Ref().Name {
+
+	case note.FieldText:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Note is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *NoteUpsert) SetExpr[T any](column ent.ColumnOf[entity.Note, T], value ent.Expr[T]) *NoteUpsert {
+	switch column.Ref().Name {
+
+	case note.FieldText:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Note is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *NoteUpsert) UpdateNewValue[T any](column ent.ColumnOf[entity.Note, T]) *NoteUpsert {
+	switch column.Ref().Name {
+
+	case note.FieldText:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Note is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *NoteUpsert) Add[T ent.Number](column ent.ColumnOf[entity.Note, T], delta T) *NoteUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Note does not support addition", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *NoteUpsert) Clear[T any](column ent.ColumnOf[entity.Note, T]) *NoteUpsert {
+	switch column.Ref().Name {
+
+	case note.FieldText:
+		u.UpdateSet.SetNull(column.Ref().Name)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Note is not nullable", column.Ref().Name)})
+	}
+	return u
+}
+
 type NoteCreateBulk struct {
 	config
 	err      error
 	builders []*NoteCreate
+
 	conflict []sql.ConflictOption
 }
 
-// Save creates the Note entities in the database.
 func (_c *NoteCreateBulk) Save(ctx context.Context) ([]*Note, error) {
 	if _c.err != nil {
 		return nil, _c.err
 	}
-	specs := make([]*sqlgraph.CreateSpec, len(_c.builders))
 	nodes := make([]*Note, len(_c.builders))
-	mutators := make([]Mutator, len(_c.builders))
-	for i := range _c.builders {
-		func(i int, root context.Context) {
-			builder := _c.builders[i]
-			builder.defaults()
-			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*NoteMutation)
-				if !ok {
-					return nil, fmt.Errorf("unexpected mutation type %T", m)
-				}
-				if err := builder.check(); err != nil {
-					return nil, err
-				}
-				builder.mutation = mutation
-				var err error
-				nodes[i], specs[i] = builder.createSpec()
-				if i < len(mutators)-1 {
-					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
-				} else {
-					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
-					spec.OnConflict = _c.conflict
-					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
-						if sqlgraph.IsConstraintError(err) {
-							err = &ConstraintError{msg: err.Error(), wrap: err}
-						}
-					}
-				}
-				if err != nil {
-					return nil, err
-				}
-				mutation.id = &nodes[i].ID
-				mutation.done = true
-				return nodes[i], nil
-			})
-			for i := len(builder.hooks) - 1; i >= 0; i-- {
-				mut = builder.hooks[i](mut)
-			}
-			mutators[i] = mut
-		}(i, ctx)
-	}
-	if len(mutators) > 0 {
-		if _, err := mutators[0].Mutate(ctx, _c.builders[0].mutation); err != nil {
+	specs := make([]*sqlgraph.CreateSpec, len(nodes))
+	for index, builder := range _c.builders {
+		if builder.err != nil {
+			return nil, builder.err
+		}
+		if err := builder.defaults(); err != nil {
+			return nil, err
+		}
+		if err := builder.check(); err != nil {
+			return nil, err
+		}
+		var err error
+		nodes[index], specs[index], err = builder.createSpec()
+		if err != nil {
 			return nil, err
 		}
 	}
-	return nodes, nil
+	if len(specs) == 0 {
+		return nodes, nil
+	}
+	spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+
+	spec.OnConflict = _c.conflict
+
+	if err := sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
+		if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{msg: err.Error(), wrap: err}
+		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
+		return nil, err
+	}
+	result := nodes[:0]
+	for index, builder := range _c.builders {
+		if specs[index].Skipped {
+			continue
+		}
+		builder.mutation.id = &nodes[index].ID
+		result = append(result, nodes[index])
+	}
+	return result, nil
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_c *NoteCreateBulk) SaveX(ctx context.Context) []*Note {
-	v, err := _c.Save(ctx)
+func (b *NoteCreateBulk) SaveX(ctx context.Context) []*Note {
+	nodes, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return nodes
 }
 
-// Exec executes the query.
-func (_c *NoteCreateBulk) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *NoteCreateBulk) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *NoteCreateBulk) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *NoteCreateBulk) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// OnConflict allows configuring the `ON CONFLICT` clause of the `INSERT`
-// statement. For example:
-//
-//	client.Note.CreateBulk(builders...).
-//		OnConflict(
-//			// Update the row with the new values
-//			// the was proposed for insertion.
-//			sql.ResolveWithNewValues(),
-//		).
-//		// Override some of the fields with custom
-//		// update values.
-//		Update(func(u *ent.NoteUpsert) {
-//			SetText(v+v).
-//		}).
-//		Exec(ctx)
-func (_c *NoteCreateBulk) OnConflict(opts ...sql.ConflictOption) *NoteUpsertBulk {
-	_c.conflict = opts
-	return &NoteUpsertBulk{
-		create: _c,
+type NoteUpsertBulk struct{ create *NoteCreateBulk }
+
+func (b *NoteCreateBulk) OnConflict(columns ...ent.EntityColumn[entity.Note]) *NoteUpsertBulk {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
 	}
-}
-
-// OnConflictColumns calls `OnConflict` and configures the columns
-// as conflict target. Using this option is equivalent to using:
-//
-//	client.Note.Create().
-//		OnConflict(sql.ConflictColumns(columns...)).
-//		Exec(ctx)
-func (_c *NoteCreateBulk) OnConflictColumns(columns ...string) *NoteUpsertBulk {
-	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
-	return &NoteUpsertBulk{
-		create: _c,
+	if len(names) == 0 {
+		return b.OnConflictOptions()
 	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
 }
 
-// NoteUpsertBulk is the builder for "upsert"-ing
-// a bulk of Note nodes.
-type NoteUpsertBulk struct {
-	create *NoteCreateBulk
+func (b *NoteCreateBulk) OnConflictConstraint(name string) *NoteUpsertBulk {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
 }
 
-// UpdateNewValues updates the mutable fields using the new values that
-// were set on create. Using this option is equivalent to using:
-//
-//	client.Note.Create().
-//		OnConflict(
-//			sql.ResolveWithNewValues(),
-//			sql.ResolveWith(func(u *sql.UpdateSet) {
-//				u.SetIgnore(note.FieldID)
-//			}),
-//		).
-//		Exec(ctx)
-func (u *NoteUpsertBulk) UpdateNewValues() *NoteUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
-		for _, b := range u.create.builders {
-			if _, exists := b.mutation.ID(); exists {
-				s.SetIgnore(note.FieldID)
-			}
-		}
-	}))
-	return u
+func (b *NoteCreateBulk) OnConflictOptions(options ...sql.ConflictOption) *NoteUpsertBulk {
+	b.conflict = options
+	return &NoteUpsertBulk{create: b}
 }
 
-// Ignore sets each column to itself in case of conflict.
-// Using this option is equivalent to using:
-//
-//	client.Note.Create().
-//		OnConflict(sql.ResolveWithIgnore()).
-//		Exec(ctx)
-func (u *NoteUpsertBulk) Ignore() *NoteUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
-	return u
-}
-
-// DoNothing configures the conflict_action to `DO NOTHING`.
-// Supported only by SQLite and PostgreSQL.
 func (u *NoteUpsertBulk) DoNothing() *NoteUpsertBulk {
 	u.create.conflict = append(u.create.conflict, sql.DoNothing())
 	return u
 }
 
-// Update allows overriding fields `UPDATE` values. See the NoteCreateBulk.OnConflict
-// documentation for more info.
-func (u *NoteUpsertBulk) Update(set func(*NoteUpsert)) *NoteUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
-		set(&NoteUpsert{UpdateSet: update})
+func (u *NoteUpsertBulk) DoSelect() *NoteUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *NoteUpsertBulk) Ignore() *NoteUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *NoteUpsertBulk) DoUpdate(set func(*NoteUpsert)) *NoteUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&NoteUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *NoteUpsertBulk) UpdateNewValues() *NoteUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case note.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
 	}))
 	return u
 }
 
-// SetText sets the "text" field.
-func (u *NoteUpsertBulk) SetText(v string) *NoteUpsertBulk {
-	return u.Update(func(s *NoteUpsert) {
-		s.SetText(v)
-	})
-}
-
-// UpdateText sets the "text" field to the value that was provided on create.
-func (u *NoteUpsertBulk) UpdateText() *NoteUpsertBulk {
-	return u.Update(func(s *NoteUpsert) {
-		s.UpdateText()
-	})
-}
-
-// ClearText clears the value of the "text" field.
-func (u *NoteUpsertBulk) ClearText() *NoteUpsertBulk {
-	return u.Update(func(s *NoteUpsert) {
-		s.ClearText()
-	})
-}
-
-// Exec executes the query.
-func (u *NoteUpsertBulk) Exec(ctx context.Context) error {
-	if u.create.err != nil {
-		return u.create.err
-	}
-	for i, b := range u.create.builders {
-		if len(b.conflict) != 0 {
-			return fmt.Errorf("ent: OnConflict was set for builder %d. Set it on the NoteCreateBulk instead", i)
+func (u *NoteUpsertBulk) Where(predicates ...ent.Predicate[entity.Note]) *NoteUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(note.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
 		}
-	}
-	if len(u.create.conflict) == 0 {
-		return errors.New("ent: missing options for NoteCreateBulk.OnConflict")
-	}
-	return u.create.Exec(ctx)
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// ExecX is like Exec, but panics if an error occurs.
+func (u *NoteUpsertBulk) UpdateWhere(predicates ...ent.Predicate[entity.Note]) *NoteUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(note.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *NoteUpsertBulk) Save(ctx context.Context) ([]*Note, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for NoteCreateBulk.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *NoteUpsertBulk) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
 func (u *NoteUpsertBulk) ExecX(ctx context.Context) {
-	if err := u.create.Exec(ctx); err != nil {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

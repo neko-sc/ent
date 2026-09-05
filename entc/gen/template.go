@@ -75,13 +75,6 @@ var (
 			Format: pkgf("%s.go"),
 		},
 		{
-			Name:   "where",
-			Format: pkgf("%s/where.go"),
-			ExtendPatterns: []string{
-				"where/additional/*",
-			},
-		},
-		{
 			Name: "meta",
 			Format: func(t *Type) string {
 				return fmt.Sprintf("%[1]s/%[1]s.go", t.PackageDir())
@@ -91,14 +84,9 @@ var (
 			},
 		},
 		{
-			Name: "mutation",
-			Cond: notView,
-			Format: func(t *Type) string {
-				return fmt.Sprintf("%s/mutation.go", t.PackageDir())
-			},
-			ExtendPatterns: []string{
-				"mutation/fields/*",
-			},
+			Name:   "mutation",
+			Cond:   notView,
+			Format: pkgf("%s_mutation.go"),
 		},
 	}
 	// GraphTemplates holds the templates applied on the graph.
@@ -134,33 +122,8 @@ var (
 			Skip:   func(g *Graph) bool { return !g.SupportMigrate() },
 		},
 		{
-			Name:   "predicate",
-			Format: "predicate/predicate.go",
-		},
-		{
-			Name:   "hook",
-			Format: "hook/hook.go",
-		},
-		{
-			Name:   "privacy",
-			Format: "privacy/privacy.go",
-			Skip: func(g *Graph) bool {
-				return !g.featureEnabled(FeaturePrivacy)
-			},
-		},
-		{
-			Name:   "intercept",
-			Format: "intercept/intercept.go",
-			Skip: func(g *Graph) bool {
-				return !g.featureEnabled(FeatureIntercept)
-			},
-		},
-		{
-			Name:   "entql",
-			Format: "entql.go",
-			Skip: func(g *Graph) bool {
-				return !g.featureEnabled(FeatureEntQL)
-			},
+			Name:   "entity",
+			Format: "entity/entity.go",
 		},
 		{
 			Name:   "runtime/ent",
@@ -176,7 +139,7 @@ var (
 		},
 	}
 	// template files that were deleted and should be removed by the codegen.
-	deletedTemplates = []string{"config.go", "context.go"}
+	deletedTemplates = []string{"config.go", "context.go", "predicate/predicate.go", "hook/hook.go", "privacy/privacy.go", "intercept/intercept.go", "entql.go"}
 	// patterns for extending partial-templates (included by other templates).
 	partialPatterns = [...]string{
 		"client/additional/*",
@@ -198,7 +161,6 @@ var (
 		"dialect/sql/model/edges/fields/additional/*",
 		"dialect/sql/model/fields/*",
 		"dialect/sql/select/additional/*",
-		"dialect/sql/predicate/edge/*/*",
 		"dialect/sql/query/additional/*",
 		"dialect/sql/query/all/nodes/*",
 		"dialect/sql/query/from/*",
@@ -212,9 +174,6 @@ var (
 		"tx/additional/*/*",
 		"update/additional/*",
 		"query/additional/*",
-		"privacy/additional/*",
-		"privacy/additional/*/*",
-		"mutation/fields/*",
 	}
 	// templates holds the Go templates for the code generation.
 	templates *Template

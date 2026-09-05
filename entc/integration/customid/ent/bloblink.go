@@ -9,27 +9,28 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	time2 "time"
 
 	"github.com/google/uuid"
 	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/blob"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/bloblink"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
 )
 
 // BlobLink is the model entity for the BlobLink schema.
 type BlobLink struct {
 	config `json:"-"`
 	// CreatedAt holds the value of the "created_at" field.
-	CreatedAt time.Time `json:"created_at,omitempty"`
+	CreatedAt time2.Time `json:"created_at,omitempty"`
 	// BlobID holds the value of the "blob_id" field.
 	BlobID uuid.UUID `json:"blob_id,omitempty"`
 	// LinkID holds the value of the "link_id" field.
 	LinkID uuid.UUID `json:"link_id,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the BlobLinkQuery when eager-loading is set.
-	Edges        BlobLinkEdges `json:"edges"`
-	selectValues sql.SelectValues
+	Edges BlobLinkEdges `json:"edges"`
 }
 
 // BlobLinkEdges holds the relations/edges for other nodes in the graph.
@@ -41,6 +42,34 @@ type BlobLinkEdges struct {
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes [2]bool
+	counts      map[string]int
+}
+
+func (e BlobLinkEdges) Loaded[N, K any](edge ent.RelationOf[entity.BlobLink, N, K]) bool {
+	switch edge.Ref().Name {
+	case "blob":
+		return e.loadedTypes[0]
+	case "link":
+		return e.loadedTypes[1]
+
+	default:
+		return false
+	}
+}
+
+func (e *BlobLinkEdges) SetLoaded[N, K any](edge ent.RelationOf[entity.BlobLink, N, K], loaded bool) {
+	switch edge.Ref().Name {
+	case "blob":
+		e.loadedTypes[0] = loaded
+	case "link":
+		e.loadedTypes[1] = loaded
+
+	}
+}
+
+func (e BlobLinkEdges) Count[N, K any](edge ent.Relation[entity.BlobLink, N, K]) (int, bool) {
+	count, loaded := e.counts[edge.Ref().Name]
+	return count, loaded
 }
 
 // BlobOrErr returns the Blob value or an error if the edge
@@ -71,7 +100,7 @@ func (*BlobLink) scanValues(columns []string) ([]any, error) {
 	for i := range columns {
 		switch columns[i] {
 		case bloblink.FieldCreatedAt:
-			values[i] = new(sql.NullTime)
+			values[i] = new(*time2.Time)
 		case bloblink.FieldBlobID, bloblink.FieldLinkID:
 			values[i] = new(uuid.UUID)
 		default:
@@ -90,10 +119,11 @@ func (_m *BlobLink) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case bloblink.FieldCreatedAt:
-			if value, ok := values[i].(*sql.NullTime); !ok {
+
+			if value, ok := values[i].(**time2.Time); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
-			} else if value.Valid {
-				_m.CreatedAt = time.Time(value.Time)
+			} else if value != nil && *value != nil {
+				_m.CreatedAt = **value
 			}
 		case bloblink.FieldBlobID:
 			if value, ok := values[i].(*uuid.UUID); !ok {
@@ -107,17 +137,9 @@ func (_m *BlobLink) assignValues(columns []string, values []any) error {
 			} else if value != nil {
 				_m.LinkID = *value
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the BlobLink.
-// This includes values selected through modifiers, order, etc.
-func (_m *BlobLink) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // QueryBlob queries the "blob" edge of the BlobLink entity.

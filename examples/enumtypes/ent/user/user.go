@@ -5,7 +5,8 @@ package user
 import (
 	"fmt"
 
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/examples/enumtypes/ent/entity"
 )
 
 const (
@@ -18,6 +19,40 @@ const (
 	// Table holds the table name of the user in the database.
 	Table = "users"
 )
+
+var (
+	ID     = ent.OrderedColumn[entity.User, int]{Table: Table, Name: FieldID}
+	Status = ent.StringColumn[entity.User, StatusValue]{Table: Table, Name: FieldStatus}
+)
+
+// Alias returns the columns of the users table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.User, int]{Table: name, Name: FieldID},
+		Status:     ent.StringColumn[entity.User, StatusValue]{Table: name, Name: FieldStatus},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.User, int]
+	Status     ent.StringColumn[entity.User, StatusValue]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.User]) ent.Predicate[entity.User] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.User]) ent.Predicate[entity.User] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.User]) ent.Predicate[entity.User] { return ent.Not(predicate) }
 
 // Columns holds all SQL columns for user fields.
 var Columns = []string{
@@ -35,39 +70,26 @@ func ValidColumn(column string) bool {
 	return false
 }
 
-// Status defines the type for the "status" enum field.
-type Status string
+// StatusValue defines the type for the "status" enum field.
+type StatusValue string
 
-// Status values.
+// StatusValue values.
 const (
-	StatusActive   Status = "active"
-	StatusInactive Status = "inactive"
-	StatusPending  Status = "pending"
+	StatusActive   StatusValue = "active"
+	StatusInactive StatusValue = "inactive"
+	StatusPending  StatusValue = "pending"
 )
 
-func (s Status) String() string {
+func (s StatusValue) String() string {
 	return string(s)
 }
 
 // StatusValidator is a validator for the "status" field enum values. It is called by the builders before save.
-func StatusValidator(s Status) error {
+func StatusValidator(s StatusValue) error {
 	switch s {
 	case StatusActive, StatusInactive, StatusPending:
 		return nil
 	default:
 		return fmt.Errorf("user: invalid enum value for status field: %q", s)
 	}
-}
-
-// OrderOption defines the ordering options for the User queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByStatus orders the results by the status field.
-func ByStatus(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldStatus, opts...).ToFunc()
 }

@@ -10,82 +10,187 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/multischema/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/multischema/ent/internal"
 	"github.com/neko-sc/ent/entc/integration/multischema/ent/parent"
-	"github.com/neko-sc/ent/entc/integration/multischema/ent/predicate"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// ParentUpdate is the builder for updating Parent entities.
 type ParentUpdate struct {
 	config
-	hooks     []Hook
 	mutation  *ParentMutation
+	err       error
+	returning *sqlgraph.Returning
+
 	modifiers []func(*sql.UpdateBuilder)
 }
 
-// Where appends a list predicates to the ParentUpdate builder.
-func (_u *ParentUpdate) Where(ps ...predicate.Parent) *ParentUpdate {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// SetByAdoption sets the "by_adoption" field.
-func (_u *ParentUpdate) SetByAdoption(v bool) *ParentUpdate {
-	_u.mutation.SetByAdoption(v)
-	return _u
-}
-
-// SetNillableByAdoption sets the "by_adoption" field if the given value is not nil.
-func (_u *ParentUpdate) SetNillableByAdoption(v *bool) *ParentUpdate {
-	if v != nil {
-		_u.SetByAdoption(*v)
+func (b *ParentUpdate) Set[T any](column ent.ColumnOf[entity.Parent, T], value T) *ParentUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
+
+	return b
+}
+func (b *ParentUpdate) SetOptional[T any](column ent.ColumnOf[entity.Parent, T], value ent.Option[T]) *ParentUpdate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *ParentUpdate) SetExpr[T any](column ent.ColumnOf[entity.Parent, T], value ent.Expr[T]) *ParentUpdate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case parent.FieldByAdoption:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Parent is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *ParentUpdate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Parent, N, K], id K) *ParentUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *ParentUpdate) AddIDs[N, K any](edge ent.Relation[entity.Parent, N, K], ids ...K) *ParentUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *ParentUpdate) Mutation() *ParentMutation { return b.mutation }
+
+func (b *ParentUpdate) Patch() *ParentPatch               { return b.mutation.patch }
+func (b *ParentUpdate) Apply(p ParentPatch) *ParentUpdate { b.mutation.patch.apply(p); return b }
+func (b *ParentUpdate) Add[T ent.Number](column ent.ColumnOf[entity.Parent, T], delta T) *ParentUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *ParentUpdate) Append[T any](column ent.ColumnOf[entity.Parent, T], values T) *ParentUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *ParentUpdate) Clear[T any](column ent.ColumnOf[entity.Parent, T]) *ParentUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *ParentUpdate) RemoveIDs[N, K any](edge ent.Relation[entity.Parent, N, K], ids ...K) *ParentUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *ParentUpdate) ClearEdge[N, K any](edge ent.RelationOf[entity.Parent, N, K]) *ParentUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// Mutation returns the ParentMutation object of the builder.
-func (_u *ParentUpdate) Mutation() *ParentMutation {
-	return _u.mutation
+func (b *ParentUpdate) Where(predicates ...ent.Predicate[entity.Parent]) *ParentUpdate {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Save executes the query and returns the number of nodes affected by the update operation.
-func (_u *ParentUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
+func (b *ParentUpdate) Save(ctx context.Context) (int, error) {
+	if b.err != nil {
+		return 0, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return 0, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_u *ParentUpdate) SaveX(ctx context.Context) int {
-	affected, err := _u.Save(ctx)
+func (b *ParentUpdate) SaveX(ctx context.Context) int {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return affected
+	return result
 }
 
-// Exec executes the query.
-func (_u *ParentUpdate) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *ParentUpdate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *ParentUpdate) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *ParentUpdate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_u *ParentUpdate) check() error {
-	if _u.mutation.ChildCleared() && len(_u.mutation.ChildIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "Parent.child"`)
+func (b *ParentUpdate) Returning(ctx context.Context) ([]*Parent, error) {
+	nodes := make([]*Parent, 0)
+	b.returning = &sqlgraph.Returning{Columns: parent.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Parent{config: b.config}
+		values, err := _node.scanValues(parent.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(parent.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Save(ctx); err != nil {
+		return nil, err
 	}
-	if _u.mutation.ParentCleared() && len(_u.mutation.ParentIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "Parent.parent"`)
+	return nodes, nil
+}
+
+func (b *ParentUpdate) defaults() error {
+
+	return nil
+}
+
+func (b *ParentUpdate) check() error {
+	if b.err != nil {
+		return b.err
 	}
+
+	if b.mutation.patch.ByAdoption.IsNull() {
+		return &ValidationError{Name: "by_adoption", err: errors.New(`ent: field "Parent.by_adoption" is not nullable`)}
+	}
+
 	return nil
 }
 
@@ -107,12 +212,17 @@ func (_u *ParentUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.ByAdoption(); ok {
+	if value, ok := _u.mutation.patch.ByAdoption.Get(); ok {
 		_spec.SetField(parent.FieldByAdoption, field.TypeBool, value)
+	}
+	_spec.Returning = _u.returning
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
 	}
 	_spec.Node.Schema = _u.schemaConfig.Parent
 	ctx = internal.NewSchemaConfigContext(ctx, _u.schemaConfig)
 	_spec.AddModifiers(_u.modifiers...)
+
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{parent.Label}
@@ -121,86 +231,182 @@ func (_u *ParentUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		return 0, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }
 
-// ParentUpdateOne is the builder for updating a single Parent entity.
 type ParentUpdateOne struct {
 	config
-	fields    []string
-	hooks     []Hook
-	mutation  *ParentMutation
+	mutation *ParentMutation
+	err      error
+
+	fields []string
+	old    *Parent
+
 	modifiers []func(*sql.UpdateBuilder)
 }
 
-// SetByAdoption sets the "by_adoption" field.
-func (_u *ParentUpdateOne) SetByAdoption(v bool) *ParentUpdateOne {
-	_u.mutation.SetByAdoption(v)
-	return _u
-}
-
-// SetNillableByAdoption sets the "by_adoption" field if the given value is not nil.
-func (_u *ParentUpdateOne) SetNillableByAdoption(v *bool) *ParentUpdateOne {
-	if v != nil {
-		_u.SetByAdoption(*v)
+func (b *ParentUpdateOne) Set[T any](column ent.ColumnOf[entity.Parent, T], value T) *ParentUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
+
+	return b
+}
+func (b *ParentUpdateOne) SetOptional[T any](column ent.ColumnOf[entity.Parent, T], value ent.Option[T]) *ParentUpdateOne {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *ParentUpdateOne) SetExpr[T any](column ent.ColumnOf[entity.Parent, T], value ent.Expr[T]) *ParentUpdateOne {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case parent.FieldByAdoption:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Parent is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *ParentUpdateOne) SetEdge[N, K any](edge ent.UniqueRelation[entity.Parent, N, K], id K) *ParentUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *ParentUpdateOne) AddIDs[N, K any](edge ent.Relation[entity.Parent, N, K], ids ...K) *ParentUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *ParentUpdateOne) Mutation() *ParentMutation { return b.mutation }
+
+func (b *ParentUpdateOne) Patch() *ParentPatch                  { return b.mutation.patch }
+func (b *ParentUpdateOne) Apply(p ParentPatch) *ParentUpdateOne { b.mutation.patch.apply(p); return b }
+func (b *ParentUpdateOne) Add[T ent.Number](column ent.ColumnOf[entity.Parent, T], delta T) *ParentUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *ParentUpdateOne) Append[T any](column ent.ColumnOf[entity.Parent, T], values T) *ParentUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *ParentUpdateOne) Clear[T any](column ent.ColumnOf[entity.Parent, T]) *ParentUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *ParentUpdateOne) RemoveIDs[N, K any](edge ent.Relation[entity.Parent, N, K], ids ...K) *ParentUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *ParentUpdateOne) ClearEdge[N, K any](edge ent.RelationOf[entity.Parent, N, K]) *ParentUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// Mutation returns the ParentMutation object of the builder.
-func (_u *ParentUpdateOne) Mutation() *ParentMutation {
-	return _u.mutation
+func (b *ParentUpdateOne) Where(predicates ...ent.Predicate[entity.Parent]) *ParentUpdateOne {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Where appends a list predicates to the ParentUpdate builder.
-func (_u *ParentUpdateOne) Where(ps ...predicate.Parent) *ParentUpdateOne {
-	_u.mutation.Where(ps...)
-	return _u
+func (b *ParentUpdateOne) Save(ctx context.Context) (*Parent, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Select allows selecting one or more fields (columns) of the returned entity.
-// The default is selecting all fields defined in the entity schema.
-func (_u *ParentUpdateOne) Select(field string, fields ...string) *ParentUpdateOne {
-	_u.fields = append([]string{field}, fields...)
-	return _u
-}
-
-// Save executes the query and returns the updated Parent entity.
-func (_u *ParentUpdateOne) Save(ctx context.Context) (*Parent, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *ParentUpdateOne) SaveX(ctx context.Context) *Parent {
-	node, err := _u.Save(ctx)
+func (b *ParentUpdateOne) SaveX(ctx context.Context) *Parent {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return node
+	return result
 }
 
-// Exec executes the query on the entity.
-func (_u *ParentUpdateOne) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *ParentUpdateOne) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *ParentUpdateOne) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *ParentUpdateOne) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_u *ParentUpdateOne) check() error {
-	if _u.mutation.ChildCleared() && len(_u.mutation.ChildIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "Parent.child"`)
+func (b *ParentUpdateOne) Select(columns ...ent.EntityColumn[entity.Parent]) *ParentUpdateOne {
+	if len(columns) == 0 {
+		panic("ent: Select requires at least one column")
 	}
-	if _u.mutation.ParentCleared() && len(_u.mutation.ParentIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "Parent.parent"`)
+	b.fields = make([]string, len(columns))
+	for index, column := range columns {
+		b.fields[index] = column.Ref().Name
 	}
+	return b
+}
+
+func (b *ParentUpdateOne) SaveOld(ctx context.Context) (old *Parent, updated *Parent, err error) {
+	if !b.driver.Capabilities().ReturningOld {
+		return nil, nil, &dialect.UnsupportedError{Feature: "RETURNING OLD", Dialect: dialect.Dialect(b.driver.Dialect())}
+	}
+	b.old = &Parent{config: b.config}
+	defer func() { b.old = nil }()
+	updated, err = b.Save(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return b.old, updated, nil
+}
+
+func (b *ParentUpdateOne) defaults() error {
+
+	return nil
+}
+
+func (b *ParentUpdateOne) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.ByAdoption.IsNull() {
+		return &ValidationError{Name: "by_adoption", err: errors.New(`ent: field "Parent.by_adoption" is not nullable`)}
+	}
+
 	return nil
 }
 
@@ -239,15 +445,23 @@ func (_u *ParentUpdateOne) sqlSave(ctx context.Context) (_node *Parent, err erro
 			}
 		}
 	}
-	if value, ok := _u.mutation.ByAdoption(); ok {
+	if value, ok := _u.mutation.patch.ByAdoption.Get(); ok {
 		_spec.SetField(parent.FieldByAdoption, field.TypeBool, value)
+	}
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
 	}
 	_spec.Node.Schema = _u.schemaConfig.Parent
 	ctx = internal.NewSchemaConfigContext(ctx, _u.schemaConfig)
 	_spec.AddModifiers(_u.modifiers...)
+
 	_node = &Parent{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
+	if _u.old != nil {
+		_spec.OldScanValues = _u.old.scanValues
+		_spec.OldAssign = _u.old.assignValues
+	}
 	if err = sqlgraph.UpdateNode(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{parent.Label}
@@ -256,6 +470,5 @@ func (_u *ParentUpdateOne) sqlSave(ctx context.Context) (_node *Parent, err erro
 		}
 		return nil, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }

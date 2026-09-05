@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/examples/viewcomposite/ent/cleanuser"
 )
@@ -19,8 +18,7 @@ type CleanUser struct {
 	// Name holds the value of the "name" field.
 	Name string `json:"name,omitempty"`
 	// PublicInfo holds the value of the "public_info" field.
-	PublicInfo   string `json:"public_info,omitempty"`
-	selectValues sql.SelectValues
+	PublicInfo string `json:"public_info,omitempty"`
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -29,9 +27,9 @@ func (*CleanUser) scanValues(columns []string) ([]any, error) {
 	for i := range columns {
 		switch columns[i] {
 		case cleanuser.FieldID:
-			values[i] = new(sql.NullInt64)
+			values[i] = new(*int)
 		case cleanuser.FieldName, cleanuser.FieldPublicInfo:
-			values[i] = new(sql.NullString)
+			values[i] = new(*string)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -48,34 +46,29 @@ func (_m *CleanUser) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case cleanuser.FieldID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field id", values[i])
-			} else if value.Valid {
-				_m.ID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.ID = **value
 			}
 		case cleanuser.FieldName:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field name", values[i])
-			} else if value.Valid {
-				_m.Name = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.Name = **value
 			}
 		case cleanuser.FieldPublicInfo:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field public_info", values[i])
-			} else if value.Valid {
-				_m.PublicInfo = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.PublicInfo = **value
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the CleanUser.
-// This includes values selected through modifiers, order, etc.
-func (_m *CleanUser) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // Unwrap unwraps the CleanUser entity that was returned from a transaction after it was closed,

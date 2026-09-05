@@ -10,90 +10,165 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/group"
 	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/grouptag"
 	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/tag"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// GroupTagCreate is the builder for creating a GroupTag entity.
 type GroupTagCreate struct {
 	config
-	mutation *GroupTagMutation
-	hooks    []Hook
+	mutation    *GroupTagMutation
+	err         error
+	fromBuilder bool
+	present     map[string]struct{}
+
 	conflict []sql.ConflictOption
 }
 
-// SetTagID sets the "tag_id" field.
-func (_c *GroupTagCreate) SetTagID(v int) *GroupTagCreate {
-	_c.mutation.SetTagID(v)
-	return _c
+func (b *GroupTagCreate) Set[T any](column ent.ColumnOf[entity.GroupTag, T], value T) *GroupTagCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.set(column.Ref().Name, value)
+	}
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+}
+func (b *GroupTagCreate) SetOptional[T any](column ent.ColumnOf[entity.GroupTag, T], value ent.Option[T]) *GroupTagCreate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.insert.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *GroupTagCreate) SetExpr[T any](column ent.ColumnOf[entity.GroupTag, T], value ent.Expr[T]) *GroupTagCreate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case grouptag.FieldTagID:
+
+	case grouptag.FieldGroupID:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of GroupTag is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.insert.setExpr(column.Ref().Name, value.Render)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+
+}
+func (b *GroupTagCreate) SetEdge[N, K any](edge ent.UniqueRelation[entity.GroupTag, N, K], id K) *GroupTagCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.setEdge(edge.Ref().Name, id)
+	}
+
+	switch edge.Ref().Name {
+	case grouptag.EdgeTag:
+		if b.present == nil {
+			b.present = make(map[string]struct{})
+		}
+		b.present[grouptag.FieldTagID] = struct{}{}
+	case grouptag.EdgeGroup:
+		if b.present == nil {
+			b.present = make(map[string]struct{})
+		}
+		b.present[grouptag.FieldGroupID] = struct{}{}
+
+	}
+
+	return b
+}
+func (b *GroupTagCreate) AddIDs[N, K any](edge ent.Relation[entity.GroupTag, N, K], ids ...K) *GroupTagCreate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.insert.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *GroupTagCreate) Mutation() *GroupTagMutation { return b.mutation }
+
+func (b *GroupTagCreate) Insert() *GroupTagInsert { return b.mutation.insert }
+
+func (b *GroupTagCreate) Save(ctx context.Context) (*GroupTag, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// SetGroupID sets the "group_id" field.
-func (_c *GroupTagCreate) SetGroupID(v int) *GroupTagCreate {
-	_c.mutation.SetGroupID(v)
-	return _c
-}
-
-// SetTag sets the "tag" edge to the Tag entity.
-func (_c *GroupTagCreate) SetTag(v *Tag) *GroupTagCreate {
-	return _c.SetTagID(v.ID)
-}
-
-// SetGroup sets the "group" edge to the Group entity.
-func (_c *GroupTagCreate) SetGroup(v *Group) *GroupTagCreate {
-	return _c.SetGroupID(v.ID)
-}
-
-// Mutation returns the GroupTagMutation object of the builder.
-func (_c *GroupTagCreate) Mutation() *GroupTagMutation {
-	return _c.mutation
-}
-
-// Save creates the GroupTag in the database.
-func (_c *GroupTagCreate) Save(ctx context.Context) (*GroupTag, error) {
-	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
-}
-
-// SaveX calls Save and panics if Save returns an error.
-func (_c *GroupTagCreate) SaveX(ctx context.Context) *GroupTag {
-	v, err := _c.Save(ctx)
+func (b *GroupTagCreate) SaveX(ctx context.Context) *GroupTag {
+	node, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return node
 }
 
-// Exec executes the query.
-func (_c *GroupTagCreate) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *GroupTagCreate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *GroupTagCreate) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *GroupTagCreate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_c *GroupTagCreate) check() error {
-	if _, ok := _c.mutation.TagID(); !ok {
-		return &ValidationError{Name: "tag_id", err: errors.New(`ent: missing required field "GroupTag.tag_id"`)}
+func (b *GroupTagCreate) defaults() error {
+
+	return nil
+}
+
+func (b *GroupTagCreate) check() error {
+	if b.err != nil {
+		return b.err
 	}
-	if _, ok := _c.mutation.GroupID(); !ok {
-		return &ValidationError{Name: "group_id", err: errors.New(`ent: missing required field "GroupTag.group_id"`)}
+
+	switch b.driver.Dialect() {
+	case dialect.Postgres, dialect.SQLite:
+		if _, present := b.present[grouptag.FieldTagID]; b.fromBuilder && !present {
+			return &ValidationError{Name: "tag_id", err: errors.New(`ent: missing required field "GroupTag.tag_id"`)}
+		}
 	}
-	if len(_c.mutation.TagIDs()) == 0 {
+
+	switch b.driver.Dialect() {
+	case dialect.Postgres, dialect.SQLite:
+		if _, present := b.present[grouptag.FieldGroupID]; b.fromBuilder && !present {
+			return &ValidationError{Name: "group_id", err: errors.New(`ent: missing required field "GroupTag.group_id"`)}
+		}
+	}
+
+	if len(b.mutation.insert.tagIDs()) == 0 {
 		return &ValidationError{Name: "tag", err: errors.New(`ent: missing required edge "GroupTag.tag"`)}
 	}
-	if len(_c.mutation.GroupIDs()) == 0 {
+
+	if len(b.mutation.insert.groupIDs()) == 0 {
 		return &ValidationError{Name: "group", err: errors.New(`ent: missing required edge "GroupTag.group"`)}
 	}
+
 	return nil
 }
 
@@ -101,27 +176,32 @@ func (_c *GroupTagCreate) sqlSave(ctx context.Context) (*GroupTag, error) {
 	if err := _c.check(); err != nil {
 		return nil, err
 	}
-	_node, _spec := _c.createSpec()
-	if err := sqlgraph.CreateNode(ctx, _c.driver, _spec); err != nil {
+	node, spec, err := _c.createSpec()
+	if err != nil {
+		return nil, err
+	}
+	if err := sqlgraph.CreateNode(ctx, _c.driver, spec); err != nil {
 		if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
 		return nil, err
 	}
-	id := _spec.ID.Value.(int64)
-	_node.ID = int(id)
-	_c.mutation.id = &_node.ID
-	_c.mutation.done = true
-	return _node, nil
+	_c.mutation.id = &node.ID
+	return node, nil
 }
 
-func (_c *GroupTagCreate) createSpec() (*GroupTag, *sqlgraph.CreateSpec) {
-	var (
-		_node = &GroupTag{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(grouptag.Table, sqlgraph.NewFieldSpec(grouptag.FieldID, field.TypeInt))
-	)
+func (_c *GroupTagCreate) createSpec() (*GroupTag, *sqlgraph.CreateSpec, error) {
+	_node := &GroupTag{config: _c.config}
+	_spec := sqlgraph.NewCreateSpec(grouptag.Table, sqlgraph.NewFieldSpec(grouptag.FieldID, field.TypeInt))
+
 	_spec.OnConflict = _c.conflict
-	if nodes := _c.mutation.TagIDs(); len(nodes) > 0 {
+
+	_spec.Expressions = _c.mutation.insert.expressions
+
+	if nodes := _c.mutation.insert.tagIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
@@ -132,13 +212,18 @@ func (_c *GroupTagCreate) createSpec() (*GroupTag, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(tag.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
-		_node.TagID = nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	if nodes := _c.mutation.GroupIDs(); len(nodes) > 0 {
+
+	if nodes := _c.mutation.insert.groupIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
@@ -149,181 +234,142 @@ func (_c *GroupTagCreate) createSpec() (*GroupTag, *sqlgraph.CreateSpec) {
 				IDSpec: sqlgraph.NewFieldSpec(group.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
-		_node.GroupID = nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	return _node, _spec
+
+	_spec.Returning = &sqlgraph.Returning{Columns: grouptag.Columns, Scan: func(rows dialect.Rows) error {
+		values, err := _node.scanValues(grouptag.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(grouptag.Columns, values); err != nil {
+			return err
+		}
+
+		_spec.ID.Value = _node.ID
+
+		return nil
+	}}
+	return _node, _spec, nil
 }
 
-// OnConflict allows configuring the `ON CONFLICT` clause of the `INSERT`
-// statement. For example:
-//
-//	client.GroupTag.Create().
-//		SetTagID(v).
-//		OnConflict(
-//			// Update the row with the new values
-//			// the was proposed for insertion.
-//			sql.ResolveWithNewValues(),
-//		).
-//		// Override some of the fields with custom
-//		// update values.
-//		Update(func(u *ent.GroupTagUpsert) {
-//			SetTagID(v+v).
-//		}).
-//		Exec(ctx)
-func (_c *GroupTagCreate) OnConflict(opts ...sql.ConflictOption) *GroupTagUpsertOne {
-	_c.conflict = opts
-	return &GroupTagUpsertOne{
-		create: _c,
+type GroupTagUpsertOne struct{ create *GroupTagCreate }
+
+func (b *GroupTagCreate) OnConflict(columns ...ent.EntityColumn[entity.GroupTag]) *GroupTagUpsertOne {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
 	}
-}
-
-// OnConflictColumns calls `OnConflict` and configures the columns
-// as conflict target. Using this option is equivalent to using:
-//
-//	client.GroupTag.Create().
-//		OnConflict(sql.ConflictColumns(columns...)).
-//		Exec(ctx)
-func (_c *GroupTagCreate) OnConflictColumns(columns ...string) *GroupTagUpsertOne {
-	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
-	return &GroupTagUpsertOne{
-		create: _c,
+	if len(names) == 0 {
+		return b.OnConflictOptions()
 	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
 }
 
-type (
-	// GroupTagUpsertOne is the builder for "upsert"-ing
-	//  one GroupTag node.
-	GroupTagUpsertOne struct {
-		create *GroupTagCreate
-	}
-
-	// GroupTagUpsert is the "OnConflict" setter.
-	GroupTagUpsert struct {
-		*sql.UpdateSet
-	}
-)
-
-// SetTagID sets the "tag_id" field.
-func (u *GroupTagUpsert) SetTagID(v int) *GroupTagUpsert {
-	u.Set(grouptag.FieldTagID, v)
-	return u
+func (b *GroupTagCreate) OnConflictConstraint(name string) *GroupTagUpsertOne {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
 }
 
-// UpdateTagID sets the "tag_id" field to the value that was provided on create.
-func (u *GroupTagUpsert) UpdateTagID() *GroupTagUpsert {
-	u.SetExcluded(grouptag.FieldTagID)
-	return u
+func (b *GroupTagCreate) OnConflictOptions(options ...sql.ConflictOption) *GroupTagUpsertOne {
+	b.conflict = options
+	return &GroupTagUpsertOne{create: b}
 }
 
-// SetGroupID sets the "group_id" field.
-func (u *GroupTagUpsert) SetGroupID(v int) *GroupTagUpsert {
-	u.Set(grouptag.FieldGroupID, v)
-	return u
-}
-
-// UpdateGroupID sets the "group_id" field to the value that was provided on create.
-func (u *GroupTagUpsert) UpdateGroupID() *GroupTagUpsert {
-	u.SetExcluded(grouptag.FieldGroupID)
-	return u
-}
-
-// UpdateNewValues updates the mutable fields using the new values that were set on create.
-// Using this option is equivalent to using:
-//
-//	client.GroupTag.Create().
-//		OnConflict(
-//			sql.ResolveWithNewValues(),
-//		).
-//		Exec(ctx)
-func (u *GroupTagUpsertOne) UpdateNewValues() *GroupTagUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
-	return u
-}
-
-// Ignore sets each column to itself in case of conflict.
-// Using this option is equivalent to using:
-//
-//	client.GroupTag.Create().
-//	    OnConflict(sql.ResolveWithIgnore()).
-//	    Exec(ctx)
-func (u *GroupTagUpsertOne) Ignore() *GroupTagUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
-	return u
-}
-
-// DoNothing configures the conflict_action to `DO NOTHING`.
-// Supported only by SQLite and PostgreSQL.
 func (u *GroupTagUpsertOne) DoNothing() *GroupTagUpsertOne {
 	u.create.conflict = append(u.create.conflict, sql.DoNothing())
 	return u
 }
 
-// Update allows overriding fields `UPDATE` values. See the GroupTagCreate.OnConflict
-// documentation for more info.
-func (u *GroupTagUpsertOne) Update(set func(*GroupTagUpsert)) *GroupTagUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
-		set(&GroupTagUpsert{UpdateSet: update})
+func (u *GroupTagUpsertOne) DoSelect() *GroupTagUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *GroupTagUpsertOne) Ignore() *GroupTagUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *GroupTagUpsertOne) DoUpdate(set func(*GroupTagUpsert)) *GroupTagUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&GroupTagUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *GroupTagUpsertOne) UpdateNewValues() *GroupTagUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case grouptag.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
 	}))
 	return u
 }
 
-// SetTagID sets the "tag_id" field.
-func (u *GroupTagUpsertOne) SetTagID(v int) *GroupTagUpsertOne {
-	return u.Update(func(s *GroupTagUpsert) {
-		s.SetTagID(v)
-	})
+func (u *GroupTagUpsertOne) Where(predicates ...ent.Predicate[entity.GroupTag]) *GroupTagUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(grouptag.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// UpdateTagID sets the "tag_id" field to the value that was provided on create.
-func (u *GroupTagUpsertOne) UpdateTagID() *GroupTagUpsertOne {
-	return u.Update(func(s *GroupTagUpsert) {
-		s.UpdateTagID()
-	})
+func (u *GroupTagUpsertOne) UpdateWhere(predicates ...ent.Predicate[entity.GroupTag]) *GroupTagUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(grouptag.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// SetGroupID sets the "group_id" field.
-func (u *GroupTagUpsertOne) SetGroupID(v int) *GroupTagUpsertOne {
-	return u.Update(func(s *GroupTagUpsert) {
-		s.SetGroupID(v)
-	})
-}
-
-// UpdateGroupID sets the "group_id" field to the value that was provided on create.
-func (u *GroupTagUpsertOne) UpdateGroupID() *GroupTagUpsertOne {
-	return u.Update(func(s *GroupTagUpsert) {
-		s.UpdateGroupID()
-	})
-}
-
-// Exec executes the query.
-func (u *GroupTagUpsertOne) Exec(ctx context.Context) error {
+func (u *GroupTagUpsertOne) Save(ctx context.Context) (*GroupTag, error) {
 	if len(u.create.conflict) == 0 {
-		return errors.New("ent: missing options for GroupTagCreate.OnConflict")
+		return nil, errors.New("ent: missing options for GroupTagCreate.OnConflict")
 	}
-	return u.create.Exec(ctx)
+	return u.create.Save(ctx)
 }
 
-// ExecX is like Exec, but panics if an error occurs.
+func (u *GroupTagUpsertOne) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
 func (u *GroupTagUpsertOne) ExecX(ctx context.Context) {
-	if err := u.create.Exec(ctx); err != nil {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// Exec executes the UPSERT query and returns the inserted/updated ID.
 func (u *GroupTagUpsertOne) ID(ctx context.Context) (id int, err error) {
-	node, err := u.create.Save(ctx)
+	node, err := u.Save(ctx)
 	if err != nil {
 		return id, err
 	}
 	return node.ID, nil
 }
 
-// IDX is like ID, but panics if an error occurs.
 func (u *GroupTagUpsertOne) IDX(ctx context.Context) int {
 	id, err := u.ID(ctx)
 	if err != nil {
@@ -332,223 +378,238 @@ func (u *GroupTagUpsertOne) IDX(ctx context.Context) int {
 	return id
 }
 
-// GroupTagCreateBulk is the builder for creating many GroupTag entities in bulk.
+type GroupTagUpsert struct{ *sql.UpdateSet }
+
+func (u *GroupTagUpsert) Set[T any](column ent.ColumnOf[entity.GroupTag, T], value T) *GroupTagUpsert {
+	switch column.Ref().Name {
+
+	case grouptag.FieldTagID:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	case grouptag.FieldGroupID:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of GroupTag is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *GroupTagUpsert) SetExpr[T any](column ent.ColumnOf[entity.GroupTag, T], value ent.Expr[T]) *GroupTagUpsert {
+	switch column.Ref().Name {
+
+	case grouptag.FieldTagID:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	case grouptag.FieldGroupID:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of GroupTag is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *GroupTagUpsert) UpdateNewValue[T any](column ent.ColumnOf[entity.GroupTag, T]) *GroupTagUpsert {
+	switch column.Ref().Name {
+
+	case grouptag.FieldTagID:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	case grouptag.FieldGroupID:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of GroupTag is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *GroupTagUpsert) Add[T ent.Number](column ent.ColumnOf[entity.GroupTag, T], delta T) *GroupTagUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of GroupTag does not support addition", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *GroupTagUpsert) Clear[T any](column ent.ColumnOf[entity.GroupTag, T]) *GroupTagUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of GroupTag is not nullable", column.Ref().Name)})
+	}
+	return u
+}
+
 type GroupTagCreateBulk struct {
 	config
 	err      error
 	builders []*GroupTagCreate
+
 	conflict []sql.ConflictOption
 }
 
-// Save creates the GroupTag entities in the database.
 func (_c *GroupTagCreateBulk) Save(ctx context.Context) ([]*GroupTag, error) {
 	if _c.err != nil {
 		return nil, _c.err
 	}
-	specs := make([]*sqlgraph.CreateSpec, len(_c.builders))
 	nodes := make([]*GroupTag, len(_c.builders))
-	mutators := make([]Mutator, len(_c.builders))
-	for i := range _c.builders {
-		func(i int, root context.Context) {
-			builder := _c.builders[i]
-			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*GroupTagMutation)
-				if !ok {
-					return nil, fmt.Errorf("unexpected mutation type %T", m)
-				}
-				if err := builder.check(); err != nil {
-					return nil, err
-				}
-				builder.mutation = mutation
-				var err error
-				nodes[i], specs[i] = builder.createSpec()
-				if i < len(mutators)-1 {
-					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
-				} else {
-					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
-					spec.OnConflict = _c.conflict
-					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
-						if sqlgraph.IsConstraintError(err) {
-							err = &ConstraintError{msg: err.Error(), wrap: err}
-						}
-					}
-				}
-				if err != nil {
-					return nil, err
-				}
-				mutation.id = &nodes[i].ID
-				if specs[i].ID.Value != nil {
-					id := specs[i].ID.Value.(int64)
-					nodes[i].ID = int(id)
-				}
-				mutation.done = true
-				return nodes[i], nil
-			})
-			for i := len(builder.hooks) - 1; i >= 0; i-- {
-				mut = builder.hooks[i](mut)
-			}
-			mutators[i] = mut
-		}(i, ctx)
-	}
-	if len(mutators) > 0 {
-		if _, err := mutators[0].Mutate(ctx, _c.builders[0].mutation); err != nil {
+	specs := make([]*sqlgraph.CreateSpec, len(nodes))
+	for index, builder := range _c.builders {
+		if builder.err != nil {
+			return nil, builder.err
+		}
+		if err := builder.defaults(); err != nil {
+			return nil, err
+		}
+		if err := builder.check(); err != nil {
+			return nil, err
+		}
+		var err error
+		nodes[index], specs[index], err = builder.createSpec()
+		if err != nil {
 			return nil, err
 		}
 	}
-	return nodes, nil
+	if len(specs) == 0 {
+		return nodes, nil
+	}
+	spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+
+	spec.OnConflict = _c.conflict
+
+	if err := sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
+		if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{msg: err.Error(), wrap: err}
+		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
+		return nil, err
+	}
+	result := nodes[:0]
+	for index, builder := range _c.builders {
+		if specs[index].Skipped {
+			continue
+		}
+		builder.mutation.id = &nodes[index].ID
+		result = append(result, nodes[index])
+	}
+	return result, nil
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_c *GroupTagCreateBulk) SaveX(ctx context.Context) []*GroupTag {
-	v, err := _c.Save(ctx)
+func (b *GroupTagCreateBulk) SaveX(ctx context.Context) []*GroupTag {
+	nodes, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return nodes
 }
 
-// Exec executes the query.
-func (_c *GroupTagCreateBulk) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *GroupTagCreateBulk) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *GroupTagCreateBulk) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *GroupTagCreateBulk) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// OnConflict allows configuring the `ON CONFLICT` clause of the `INSERT`
-// statement. For example:
-//
-//	client.GroupTag.CreateBulk(builders...).
-//		OnConflict(
-//			// Update the row with the new values
-//			// the was proposed for insertion.
-//			sql.ResolveWithNewValues(),
-//		).
-//		// Override some of the fields with custom
-//		// update values.
-//		Update(func(u *ent.GroupTagUpsert) {
-//			SetTagID(v+v).
-//		}).
-//		Exec(ctx)
-func (_c *GroupTagCreateBulk) OnConflict(opts ...sql.ConflictOption) *GroupTagUpsertBulk {
-	_c.conflict = opts
-	return &GroupTagUpsertBulk{
-		create: _c,
+type GroupTagUpsertBulk struct{ create *GroupTagCreateBulk }
+
+func (b *GroupTagCreateBulk) OnConflict(columns ...ent.EntityColumn[entity.GroupTag]) *GroupTagUpsertBulk {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
 	}
-}
-
-// OnConflictColumns calls `OnConflict` and configures the columns
-// as conflict target. Using this option is equivalent to using:
-//
-//	client.GroupTag.Create().
-//		OnConflict(sql.ConflictColumns(columns...)).
-//		Exec(ctx)
-func (_c *GroupTagCreateBulk) OnConflictColumns(columns ...string) *GroupTagUpsertBulk {
-	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
-	return &GroupTagUpsertBulk{
-		create: _c,
+	if len(names) == 0 {
+		return b.OnConflictOptions()
 	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
 }
 
-// GroupTagUpsertBulk is the builder for "upsert"-ing
-// a bulk of GroupTag nodes.
-type GroupTagUpsertBulk struct {
-	create *GroupTagCreateBulk
+func (b *GroupTagCreateBulk) OnConflictConstraint(name string) *GroupTagUpsertBulk {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
 }
 
-// UpdateNewValues updates the mutable fields using the new values that
-// were set on create. Using this option is equivalent to using:
-//
-//	client.GroupTag.Create().
-//		OnConflict(
-//			sql.ResolveWithNewValues(),
-//		).
-//		Exec(ctx)
-func (u *GroupTagUpsertBulk) UpdateNewValues() *GroupTagUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
-	return u
+func (b *GroupTagCreateBulk) OnConflictOptions(options ...sql.ConflictOption) *GroupTagUpsertBulk {
+	b.conflict = options
+	return &GroupTagUpsertBulk{create: b}
 }
 
-// Ignore sets each column to itself in case of conflict.
-// Using this option is equivalent to using:
-//
-//	client.GroupTag.Create().
-//		OnConflict(sql.ResolveWithIgnore()).
-//		Exec(ctx)
-func (u *GroupTagUpsertBulk) Ignore() *GroupTagUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
-	return u
-}
-
-// DoNothing configures the conflict_action to `DO NOTHING`.
-// Supported only by SQLite and PostgreSQL.
 func (u *GroupTagUpsertBulk) DoNothing() *GroupTagUpsertBulk {
 	u.create.conflict = append(u.create.conflict, sql.DoNothing())
 	return u
 }
 
-// Update allows overriding fields `UPDATE` values. See the GroupTagCreateBulk.OnConflict
-// documentation for more info.
-func (u *GroupTagUpsertBulk) Update(set func(*GroupTagUpsert)) *GroupTagUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
-		set(&GroupTagUpsert{UpdateSet: update})
+func (u *GroupTagUpsertBulk) DoSelect() *GroupTagUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *GroupTagUpsertBulk) Ignore() *GroupTagUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *GroupTagUpsertBulk) DoUpdate(set func(*GroupTagUpsert)) *GroupTagUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&GroupTagUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *GroupTagUpsertBulk) UpdateNewValues() *GroupTagUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case grouptag.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
 	}))
 	return u
 }
 
-// SetTagID sets the "tag_id" field.
-func (u *GroupTagUpsertBulk) SetTagID(v int) *GroupTagUpsertBulk {
-	return u.Update(func(s *GroupTagUpsert) {
-		s.SetTagID(v)
-	})
-}
-
-// UpdateTagID sets the "tag_id" field to the value that was provided on create.
-func (u *GroupTagUpsertBulk) UpdateTagID() *GroupTagUpsertBulk {
-	return u.Update(func(s *GroupTagUpsert) {
-		s.UpdateTagID()
-	})
-}
-
-// SetGroupID sets the "group_id" field.
-func (u *GroupTagUpsertBulk) SetGroupID(v int) *GroupTagUpsertBulk {
-	return u.Update(func(s *GroupTagUpsert) {
-		s.SetGroupID(v)
-	})
-}
-
-// UpdateGroupID sets the "group_id" field to the value that was provided on create.
-func (u *GroupTagUpsertBulk) UpdateGroupID() *GroupTagUpsertBulk {
-	return u.Update(func(s *GroupTagUpsert) {
-		s.UpdateGroupID()
-	})
-}
-
-// Exec executes the query.
-func (u *GroupTagUpsertBulk) Exec(ctx context.Context) error {
-	if u.create.err != nil {
-		return u.create.err
-	}
-	for i, b := range u.create.builders {
-		if len(b.conflict) != 0 {
-			return fmt.Errorf("ent: OnConflict was set for builder %d. Set it on the GroupTagCreateBulk instead", i)
+func (u *GroupTagUpsertBulk) Where(predicates ...ent.Predicate[entity.GroupTag]) *GroupTagUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(grouptag.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
 		}
-	}
-	if len(u.create.conflict) == 0 {
-		return errors.New("ent: missing options for GroupTagCreateBulk.OnConflict")
-	}
-	return u.create.Exec(ctx)
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// ExecX is like Exec, but panics if an error occurs.
+func (u *GroupTagUpsertBulk) UpdateWhere(predicates ...ent.Predicate[entity.GroupTag]) *GroupTagUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(grouptag.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *GroupTagUpsertBulk) Save(ctx context.Context) ([]*GroupTag, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for GroupTagCreateBulk.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *GroupTagUpsertBulk) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
 func (u *GroupTagUpsertBulk) ExecX(ctx context.Context) {
-	if err := u.create.Exec(ctx); err != nil {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

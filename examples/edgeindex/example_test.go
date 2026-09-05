@@ -9,6 +9,8 @@ import (
 	"log"
 
 	"github.com/neko-sc/ent/examples/edgeindex/ent"
+	city "github.com/neko-sc/ent/examples/edgeindex/ent/city"
+	street "github.com/neko-sc/ent/examples/edgeindex/ent/street"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -34,32 +36,32 @@ func Do(ctx context.Context, client *ent.Client) error {
 	// Unlike `Save`, `SaveX` panics if an error occurs.
 	tlv := client.City.
 		Create().
-		SetName("TLV").
+		Set(city.Name, "TLV").
 		SaveX(ctx)
 	nyc := client.City.
 		Create().
-		SetName("NYC").
+		Set(city.Name, "NYC").
 		SaveX(ctx)
 	// Add a street "ST" to "TLV".
 	client.Street.
 		Create().
-		SetName("ST").
-		SetCity(tlv).
+		Set(street.Name, "ST").
+		SetEdge(street.City, tlv.ID).
 		SaveX(ctx)
 	// This operation fails because "ST"
 	// was already created under "TLV".
 	if err := client.Street.
 		Create().
-		SetName("ST").
-		SetCity(tlv).
+		Set(street.Name, "ST").
+		SetEdge(street.City, tlv.ID).
 		Exec(ctx); err == nil {
 		return fmt.Errorf("expecting creation to fail")
 	}
 	// Add a street "ST" to "NYC".
 	client.Street.
 		Create().
-		SetName("ST").
-		SetCity(nyc).
+		Set(street.Name, "ST").
+		SetEdge(street.City, nyc.ID).
 		SaveX(ctx)
 	return nil
 }

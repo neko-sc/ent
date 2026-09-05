@@ -6,8 +6,11 @@
 package valuescan
 
 import (
-	"github.com/neko-sc/ent/dialect/sql"
-	"github.com/neko-sc/ent/entc/integration/customid/ent/schema"
+	"database/sql/driver"
+
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
+	schema2 "github.com/neko-sc/ent/entc/integration/customid/ent/schema"
 	"github.com/neko-sc/ent/schema/field"
 )
 
@@ -21,6 +24,42 @@ const (
 	// Table holds the table name of the valuescan in the database.
 	Table = "value_scans"
 )
+
+var (
+	ID   = ent.OrderedColumn[entity.ValueScan, schema2.ValueScanID]{Table: Table, Name: FieldID, Valuer: func(value schema2.ValueScanID) (driver.Value, error) { return ValueScanner.ID.Value(value) }}
+	Name = ent.StringColumn[entity.ValueScan, string]{Table: Table, Name: FieldName}
+)
+
+// Alias returns the columns of the value_scans table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		ID:         ent.OrderedColumn[entity.ValueScan, schema2.ValueScanID]{Table: name, Name: FieldID, Valuer: func(value schema2.ValueScanID) (driver.Value, error) { return ValueScanner.ID.Value(value) }},
+		Name:       ent.StringColumn[entity.ValueScan, string]{Table: name, Name: FieldName},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	ID         ent.OrderedColumn[entity.ValueScan, schema2.ValueScanID]
+	Name       ent.StringColumn[entity.ValueScan, string]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.ValueScan]) ent.Predicate[entity.ValueScan] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.ValueScan]) ent.Predicate[entity.ValueScan] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.ValueScan]) ent.Predicate[entity.ValueScan] {
+	return ent.Not(predicate)
+}
 
 // Columns holds all SQL columns for valuescan fields.
 var Columns = []string{
@@ -41,19 +80,6 @@ func ValidColumn(column string) bool {
 var (
 	// ValueScanner of all ValueScan fields.
 	ValueScanner struct {
-		ID field.TypeValueScanner[schema.ValueScanID]
+		ID field.TypeValueScanner[schema2.ValueScanID]
 	}
 )
-
-// OrderOption defines the ordering options for the ValueScan queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByName orders the results by the name field.
-func ByName(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldName, opts...).ToFunc()
-}

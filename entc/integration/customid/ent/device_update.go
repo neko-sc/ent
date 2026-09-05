@@ -10,122 +10,191 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/device"
-	"github.com/neko-sc/ent/entc/integration/customid/ent/predicate"
-	"github.com/neko-sc/ent/entc/integration/customid/ent/schema"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
+	schema2 "github.com/neko-sc/ent/entc/integration/customid/ent/schema"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/session"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// DeviceUpdate is the builder for updating Device entities.
 type DeviceUpdate struct {
 	config
-	hooks    []Hook
-	mutation *DeviceMutation
+	mutation  *DeviceMutation
+	err       error
+	returning *sqlgraph.Returning
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// Where appends a list predicates to the DeviceUpdate builder.
-func (_u *DeviceUpdate) Where(ps ...predicate.Device) *DeviceUpdate {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// SetActiveSessionID sets the "active_session" edge to the Session entity by ID.
-func (_u *DeviceUpdate) SetActiveSessionID(id schema.ID) *DeviceUpdate {
-	_u.mutation.SetActiveSessionID(id)
-	return _u
-}
-
-// SetNillableActiveSessionID sets the "active_session" edge to the Session entity by ID if the given value is not nil.
-func (_u *DeviceUpdate) SetNillableActiveSessionID(id *schema.ID) *DeviceUpdate {
-	if id != nil {
-		_u = _u.SetActiveSessionID(*id)
+func (b *DeviceUpdate) Set[T any](column ent.ColumnOf[entity.Device, T], value T) *DeviceUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// SetActiveSession sets the "active_session" edge to the Session entity.
-func (_u *DeviceUpdate) SetActiveSession(v *Session) *DeviceUpdate {
-	return _u.SetActiveSessionID(v.ID)
+	return b
 }
-
-// AddSessionIDs adds the "sessions" edge to the Session entity by IDs.
-func (_u *DeviceUpdate) AddSessionIDs(ids ...schema.ID) *DeviceUpdate {
-	_u.mutation.AddSessionIDs(ids...)
-	return _u
-}
-
-// AddSessions adds the "sessions" edges to the Session entity.
-func (_u *DeviceUpdate) AddSessions(v ...*Session) *DeviceUpdate {
-	ids := make([]schema.ID, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+func (b *DeviceUpdate) SetOptional[T any](column ent.ColumnOf[entity.Device, T], value ent.Option[T]) *DeviceUpdate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u.AddSessionIDs(ids...)
-}
-
-// Mutation returns the DeviceMutation object of the builder.
-func (_u *DeviceUpdate) Mutation() *DeviceMutation {
-	return _u.mutation
-}
-
-// ClearActiveSession clears the "active_session" edge to the Session entity.
-func (_u *DeviceUpdate) ClearActiveSession() *DeviceUpdate {
-	_u.mutation.ClearActiveSession()
-	return _u
-}
-
-// ClearSessions clears all "sessions" edges to the Session entity.
-func (_u *DeviceUpdate) ClearSessions() *DeviceUpdate {
-	_u.mutation.ClearSessions()
-	return _u
-}
-
-// RemoveSessionIDs removes the "sessions" edge to Session entities by IDs.
-func (_u *DeviceUpdate) RemoveSessionIDs(ids ...schema.ID) *DeviceUpdate {
-	_u.mutation.RemoveSessionIDs(ids...)
-	return _u
-}
-
-// RemoveSessions removes "sessions" edges to Session entities.
-func (_u *DeviceUpdate) RemoveSessions(v ...*Session) *DeviceUpdate {
-	ids := make([]schema.ID, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
 	}
-	return _u.RemoveSessionIDs(ids...)
+	return b
+}
+func (b *DeviceUpdate) SetExpr[T any](column ent.ColumnOf[entity.Device, T], value ent.Expr[T]) *DeviceUpdate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Device is not settable", column.Ref().Name)}
+		return b
+	}
+
+}
+func (b *DeviceUpdate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Device, N, K], id K) *DeviceUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *DeviceUpdate) AddIDs[N, K any](edge ent.Relation[entity.Device, N, K], ids ...K) *DeviceUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *DeviceUpdate) Mutation() *DeviceMutation { return b.mutation }
+
+func (b *DeviceUpdate) Patch() *DevicePatch               { return b.mutation.patch }
+func (b *DeviceUpdate) Apply(p DevicePatch) *DeviceUpdate { b.mutation.patch.apply(p); return b }
+func (b *DeviceUpdate) Add[T ent.Number](column ent.ColumnOf[entity.Device, T], delta T) *DeviceUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *DeviceUpdate) Append[T any](column ent.ColumnOf[entity.Device, T], values T) *DeviceUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *DeviceUpdate) Clear[T any](column ent.ColumnOf[entity.Device, T]) *DeviceUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *DeviceUpdate) RemoveIDs[N, K any](edge ent.Relation[entity.Device, N, K], ids ...K) *DeviceUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *DeviceUpdate) ClearEdge[N, K any](edge ent.RelationOf[entity.Device, N, K]) *DeviceUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// Save executes the query and returns the number of nodes affected by the update operation.
-func (_u *DeviceUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
+func (b *DeviceUpdate) Where(predicates ...ent.Predicate[entity.Device]) *DeviceUpdate {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_u *DeviceUpdate) SaveX(ctx context.Context) int {
-	affected, err := _u.Save(ctx)
+func (b *DeviceUpdate) Save(ctx context.Context) (int, error) {
+	if b.err != nil {
+		return 0, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return 0, err
+	}
+	return b.sqlSave(ctx)
+}
+
+func (b *DeviceUpdate) SaveX(ctx context.Context) int {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return affected
+	return result
 }
 
-// Exec executes the query.
-func (_u *DeviceUpdate) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *DeviceUpdate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *DeviceUpdate) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *DeviceUpdate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
+func (b *DeviceUpdate) Returning(ctx context.Context) ([]*Device, error) {
+	nodes := make([]*Device, 0)
+	b.returning = &sqlgraph.Returning{Columns: device.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Device{config: b.config}
+		values, err := _node.scanValues(device.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(device.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Save(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
+}
+
+func (b *DeviceUpdate) defaults() error {
+
+	return nil
+}
+
+func (b *DeviceUpdate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *DeviceUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *DeviceUpdate {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *DeviceUpdate) sqlSave(ctx context.Context) (_node int, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(device.Table, device.Columns, sqlgraph.NewFieldSpec(device.FieldID, field.TypeBytes))
 	if ps := _u.mutation.Predicates(); len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -134,7 +203,7 @@ func (_u *DeviceUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			}
 		}
 	}
-	if _u.mutation.ActiveSessionCleared() {
+	if _u.mutation.patch.ActiveSessionID.IsNull() || _u.mutation.patch.clearedEdges[device.EdgeActiveSession] {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
@@ -147,7 +216,7 @@ func (_u *DeviceUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.ActiveSessionIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.activesessionIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
@@ -158,12 +227,17 @@ func (_u *DeviceUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(session.FieldID, field.TypeBytes),
 			},
 		}
+		seen := make(map[schema2.ID]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
-	if _u.mutation.SessionsCleared() {
+	if _u.mutation.patch.Sessions.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -176,7 +250,7 @@ func (_u *DeviceUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.RemovedSessionsIDs(); len(nodes) > 0 && !_u.mutation.SessionsCleared() {
+	if nodes := _u.mutation.patch.Sessions.Remove; len(nodes) > 0 && !_u.mutation.patch.Sessions.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -187,12 +261,17 @@ func (_u *DeviceUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(session.FieldID, field.TypeBytes),
 			},
 		}
+		seen := make(map[schema2.ID]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.SessionsIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.sessionsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -203,11 +282,22 @@ func (_u *DeviceUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(session.FieldID, field.TypeBytes),
 			},
 		}
+		seen := make(map[schema2.ID]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	_spec.Returning = _u.returning
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{device.Label}
@@ -216,125 +306,185 @@ func (_u *DeviceUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		return 0, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }
 
-// DeviceUpdateOne is the builder for updating a single Device entity.
 type DeviceUpdateOne struct {
 	config
-	fields   []string
-	hooks    []Hook
 	mutation *DeviceMutation
+	err      error
+
+	fields []string
+	old    *Device
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// SetActiveSessionID sets the "active_session" edge to the Session entity by ID.
-func (_u *DeviceUpdateOne) SetActiveSessionID(id schema.ID) *DeviceUpdateOne {
-	_u.mutation.SetActiveSessionID(id)
-	return _u
-}
-
-// SetNillableActiveSessionID sets the "active_session" edge to the Session entity by ID if the given value is not nil.
-func (_u *DeviceUpdateOne) SetNillableActiveSessionID(id *schema.ID) *DeviceUpdateOne {
-	if id != nil {
-		_u = _u.SetActiveSessionID(*id)
+func (b *DeviceUpdateOne) Set[T any](column ent.ColumnOf[entity.Device, T], value T) *DeviceUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// SetActiveSession sets the "active_session" edge to the Session entity.
-func (_u *DeviceUpdateOne) SetActiveSession(v *Session) *DeviceUpdateOne {
-	return _u.SetActiveSessionID(v.ID)
+	return b
 }
-
-// AddSessionIDs adds the "sessions" edge to the Session entity by IDs.
-func (_u *DeviceUpdateOne) AddSessionIDs(ids ...schema.ID) *DeviceUpdateOne {
-	_u.mutation.AddSessionIDs(ids...)
-	return _u
-}
-
-// AddSessions adds the "sessions" edges to the Session entity.
-func (_u *DeviceUpdateOne) AddSessions(v ...*Session) *DeviceUpdateOne {
-	ids := make([]schema.ID, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+func (b *DeviceUpdateOne) SetOptional[T any](column ent.ColumnOf[entity.Device, T], value ent.Option[T]) *DeviceUpdateOne {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u.AddSessionIDs(ids...)
-}
-
-// Mutation returns the DeviceMutation object of the builder.
-func (_u *DeviceUpdateOne) Mutation() *DeviceMutation {
-	return _u.mutation
-}
-
-// ClearActiveSession clears the "active_session" edge to the Session entity.
-func (_u *DeviceUpdateOne) ClearActiveSession() *DeviceUpdateOne {
-	_u.mutation.ClearActiveSession()
-	return _u
-}
-
-// ClearSessions clears all "sessions" edges to the Session entity.
-func (_u *DeviceUpdateOne) ClearSessions() *DeviceUpdateOne {
-	_u.mutation.ClearSessions()
-	return _u
-}
-
-// RemoveSessionIDs removes the "sessions" edge to Session entities by IDs.
-func (_u *DeviceUpdateOne) RemoveSessionIDs(ids ...schema.ID) *DeviceUpdateOne {
-	_u.mutation.RemoveSessionIDs(ids...)
-	return _u
-}
-
-// RemoveSessions removes "sessions" edges to Session entities.
-func (_u *DeviceUpdateOne) RemoveSessions(v ...*Session) *DeviceUpdateOne {
-	ids := make([]schema.ID, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
 	}
-	return _u.RemoveSessionIDs(ids...)
+	return b
+}
+func (b *DeviceUpdateOne) SetExpr[T any](column ent.ColumnOf[entity.Device, T], value ent.Expr[T]) *DeviceUpdateOne {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Device is not settable", column.Ref().Name)}
+		return b
+	}
+
+}
+func (b *DeviceUpdateOne) SetEdge[N, K any](edge ent.UniqueRelation[entity.Device, N, K], id K) *DeviceUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *DeviceUpdateOne) AddIDs[N, K any](edge ent.Relation[entity.Device, N, K], ids ...K) *DeviceUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *DeviceUpdateOne) Mutation() *DeviceMutation { return b.mutation }
+
+func (b *DeviceUpdateOne) Patch() *DevicePatch                  { return b.mutation.patch }
+func (b *DeviceUpdateOne) Apply(p DevicePatch) *DeviceUpdateOne { b.mutation.patch.apply(p); return b }
+func (b *DeviceUpdateOne) Add[T ent.Number](column ent.ColumnOf[entity.Device, T], delta T) *DeviceUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *DeviceUpdateOne) Append[T any](column ent.ColumnOf[entity.Device, T], values T) *DeviceUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *DeviceUpdateOne) Clear[T any](column ent.ColumnOf[entity.Device, T]) *DeviceUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *DeviceUpdateOne) RemoveIDs[N, K any](edge ent.Relation[entity.Device, N, K], ids ...K) *DeviceUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *DeviceUpdateOne) ClearEdge[N, K any](edge ent.RelationOf[entity.Device, N, K]) *DeviceUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// Where appends a list predicates to the DeviceUpdate builder.
-func (_u *DeviceUpdateOne) Where(ps ...predicate.Device) *DeviceUpdateOne {
-	_u.mutation.Where(ps...)
-	return _u
+func (b *DeviceUpdateOne) Where(predicates ...ent.Predicate[entity.Device]) *DeviceUpdateOne {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Select allows selecting one or more fields (columns) of the returned entity.
-// The default is selecting all fields defined in the entity schema.
-func (_u *DeviceUpdateOne) Select(field string, fields ...string) *DeviceUpdateOne {
-	_u.fields = append([]string{field}, fields...)
-	return _u
+func (b *DeviceUpdateOne) Save(ctx context.Context) (*Device, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Save executes the query and returns the updated Device entity.
-func (_u *DeviceUpdateOne) Save(ctx context.Context) (*Device, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *DeviceUpdateOne) SaveX(ctx context.Context) *Device {
-	node, err := _u.Save(ctx)
+func (b *DeviceUpdateOne) SaveX(ctx context.Context) *Device {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return node
+	return result
 }
 
-// Exec executes the query on the entity.
-func (_u *DeviceUpdateOne) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *DeviceUpdateOne) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *DeviceUpdateOne) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *DeviceUpdateOne) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
+func (b *DeviceUpdateOne) Select(columns ...ent.EntityColumn[entity.Device]) *DeviceUpdateOne {
+	if len(columns) == 0 {
+		panic("ent: Select requires at least one column")
+	}
+	b.fields = make([]string, len(columns))
+	for index, column := range columns {
+		b.fields[index] = column.Ref().Name
+	}
+	return b
+}
+
+func (b *DeviceUpdateOne) SaveOld(ctx context.Context) (old *Device, updated *Device, err error) {
+	if !b.driver.Capabilities().ReturningOld {
+		return nil, nil, &dialect.UnsupportedError{Feature: "RETURNING OLD", Dialect: dialect.Dialect(b.driver.Dialect())}
+	}
+	b.old = &Device{config: b.config}
+	defer func() { b.old = nil }()
+	updated, err = b.Save(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return b.old, updated, nil
+}
+
+func (b *DeviceUpdateOne) defaults() error {
+
+	return nil
+}
+
+func (b *DeviceUpdateOne) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *DeviceUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *DeviceUpdateOne {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *DeviceUpdateOne) sqlSave(ctx context.Context) (_node *Device, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(device.Table, device.Columns, sqlgraph.NewFieldSpec(device.FieldID, field.TypeBytes))
 	id, ok := _u.mutation.ID()
 	if !ok {
@@ -360,7 +510,7 @@ func (_u *DeviceUpdateOne) sqlSave(ctx context.Context) (_node *Device, err erro
 			}
 		}
 	}
-	if _u.mutation.ActiveSessionCleared() {
+	if _u.mutation.patch.ActiveSessionID.IsNull() || _u.mutation.patch.clearedEdges[device.EdgeActiveSession] {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
@@ -373,7 +523,7 @@ func (_u *DeviceUpdateOne) sqlSave(ctx context.Context) (_node *Device, err erro
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.ActiveSessionIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.activesessionIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
@@ -384,12 +534,17 @@ func (_u *DeviceUpdateOne) sqlSave(ctx context.Context) (_node *Device, err erro
 				IDSpec: sqlgraph.NewFieldSpec(session.FieldID, field.TypeBytes),
 			},
 		}
+		seen := make(map[schema2.ID]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
-	if _u.mutation.SessionsCleared() {
+	if _u.mutation.patch.Sessions.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -402,7 +557,7 @@ func (_u *DeviceUpdateOne) sqlSave(ctx context.Context) (_node *Device, err erro
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.RemovedSessionsIDs(); len(nodes) > 0 && !_u.mutation.SessionsCleared() {
+	if nodes := _u.mutation.patch.Sessions.Remove; len(nodes) > 0 && !_u.mutation.patch.Sessions.Clear {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -413,12 +568,17 @@ func (_u *DeviceUpdateOne) sqlSave(ctx context.Context) (_node *Device, err erro
 				IDSpec: sqlgraph.NewFieldSpec(session.FieldID, field.TypeBytes),
 			},
 		}
+		seen := make(map[schema2.ID]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.SessionsIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.sessionsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
@@ -429,14 +589,28 @@ func (_u *DeviceUpdateOne) sqlSave(ctx context.Context) (_node *Device, err erro
 				IDSpec: sqlgraph.NewFieldSpec(session.FieldID, field.TypeBytes),
 			},
 		}
+		seen := make(map[schema2.ID]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	_node = &Device{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
+	if _u.old != nil {
+		_spec.OldScanValues = _u.old.scanValues
+		_spec.OldAssign = _u.old.assignValues
+	}
 	if err = sqlgraph.UpdateNode(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{device.Label}
@@ -445,6 +619,5 @@ func (_u *DeviceUpdateOne) sqlSave(ctx context.Context) (_node *Device, err erro
 		}
 		return nil, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }

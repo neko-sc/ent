@@ -10,70 +10,143 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
-	"github.com/neko-sc/ent/entc/integration/customid/ent/schema"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
+	schema2 "github.com/neko-sc/ent/entc/integration/customid/ent/schema"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/valuescan"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// ValueScanCreate is the builder for creating a ValueScan entity.
 type ValueScanCreate struct {
 	config
-	mutation *ValueScanMutation
-	hooks    []Hook
+	mutation    *ValueScanMutation
+	err         error
+	fromBuilder bool
+	present     map[string]struct{}
+
 	conflict []sql.ConflictOption
 }
 
-// SetName sets the "name" field.
-func (_c *ValueScanCreate) SetName(v string) *ValueScanCreate {
-	_c.mutation.SetName(v)
-	return _c
+func (b *ValueScanCreate) Set[T any](column ent.ColumnOf[entity.ValueScan, T], value T) *ValueScanCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.set(column.Ref().Name, value)
+	}
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+}
+func (b *ValueScanCreate) SetOptional[T any](column ent.ColumnOf[entity.ValueScan, T], value ent.Option[T]) *ValueScanCreate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.insert.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *ValueScanCreate) SetExpr[T any](column ent.ColumnOf[entity.ValueScan, T], value ent.Expr[T]) *ValueScanCreate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case valuescan.FieldID:
+
+	case valuescan.FieldName:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of ValueScan is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.insert.setExpr(column.Ref().Name, value.Render)
+	if b.present == nil {
+		b.present = make(map[string]struct{})
+	}
+	b.present[column.Ref().Name] = struct{}{}
+	return b
+
+}
+func (b *ValueScanCreate) SetEdge[N, K any](edge ent.UniqueRelation[entity.ValueScan, N, K], id K) *ValueScanCreate {
+	if b.err == nil {
+		b.err = b.mutation.insert.setEdge(edge.Ref().Name, id)
+	}
+
+	switch edge.Ref().Name {
+
+	}
+
+	return b
+}
+func (b *ValueScanCreate) AddIDs[N, K any](edge ent.Relation[entity.ValueScan, N, K], ids ...K) *ValueScanCreate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.insert.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *ValueScanCreate) Mutation() *ValueScanMutation { return b.mutation }
+
+func (b *ValueScanCreate) Insert() *ValueScanInsert { return b.mutation.insert }
+
+func (b *ValueScanCreate) Save(ctx context.Context) (*ValueScan, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// SetID sets the "id" field.
-func (_c *ValueScanCreate) SetID(v schema.ValueScanID) *ValueScanCreate {
-	_c.mutation.SetID(v)
-	return _c
-}
-
-// Mutation returns the ValueScanMutation object of the builder.
-func (_c *ValueScanCreate) Mutation() *ValueScanMutation {
-	return _c.mutation
-}
-
-// Save creates the ValueScan in the database.
-func (_c *ValueScanCreate) Save(ctx context.Context) (*ValueScan, error) {
-	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
-}
-
-// SaveX calls Save and panics if Save returns an error.
-func (_c *ValueScanCreate) SaveX(ctx context.Context) *ValueScan {
-	v, err := _c.Save(ctx)
+func (b *ValueScanCreate) SaveX(ctx context.Context) *ValueScan {
+	node, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return node
 }
 
-// Exec executes the query.
-func (_c *ValueScanCreate) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *ValueScanCreate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *ValueScanCreate) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *ValueScanCreate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_c *ValueScanCreate) check() error {
-	if _, ok := _c.mutation.Name(); !ok {
-		return &ValidationError{Name: "name", err: errors.New(`ent: missing required field "ValueScan.name"`)}
+func (b *ValueScanCreate) defaults() error {
+
+	return nil
+}
+
+func (b *ValueScanCreate) check() error {
+	if b.err != nil {
+		return b.err
 	}
+
+	if b.mutation.insert.ID.IsNull() {
+		return &ValidationError{Name: "id", err: errors.New(`ent: field "ValueScan.id" is not nullable`)}
+	}
+
+	switch b.driver.Dialect() {
+	case dialect.Postgres, dialect.SQLite:
+		if _, present := b.present[valuescan.FieldName]; b.fromBuilder && !present {
+			return &ValidationError{Name: "name", err: errors.New(`ent: missing required field "ValueScan.name"`)}
+		}
+	}
+
 	return nil
 }
 
@@ -81,205 +154,175 @@ func (_c *ValueScanCreate) sqlSave(ctx context.Context) (*ValueScan, error) {
 	if err := _c.check(); err != nil {
 		return nil, err
 	}
-	_node, _spec, err := _c.createSpec()
+	node, spec, err := _c.createSpec()
 	if err != nil {
 		return nil, err
 	}
-	if err := sqlgraph.CreateNode(ctx, _c.driver, _spec); err != nil {
+	if err := sqlgraph.CreateNode(ctx, _c.driver, spec); err != nil {
 		if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
 		return nil, err
 	}
-	if _spec.ID.Value != nil {
-		sv, ok := _spec.ID.Value.(field.ValueScanner)
-		if !ok {
-			sv = valuescan.ValueScanner.ID.ScanValue()
-			if err := sv.Scan(_spec.ID.Value); err != nil {
-				return nil, err
-			}
-		}
-		if value, err := valuescan.ValueScanner.ID.FromValue(sv); err != nil {
-			return nil, err
-		} else {
-			_node.ID = value
-		}
-	}
-	_c.mutation.id = &_node.ID
-	_c.mutation.done = true
-	return _node, nil
+	_c.mutation.id = &node.ID
+	return node, nil
 }
 
 func (_c *ValueScanCreate) createSpec() (*ValueScan, *sqlgraph.CreateSpec, error) {
-	var (
-		_node = &ValueScan{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(valuescan.Table, sqlgraph.NewFieldSpec(valuescan.FieldID, field.TypeInt))
-	)
+	_node := &ValueScan{config: _c.config}
+	_spec := sqlgraph.NewCreateSpec(valuescan.Table, sqlgraph.NewFieldSpec(valuescan.FieldID, field.TypeInt))
+
 	_spec.OnConflict = _c.conflict
-	if id, ok := _c.mutation.ID(); ok {
-		_node.ID = id
-		vv, err := valuescan.ValueScanner.ID.Value(id)
+
+	if value, ok := _c.mutation.insert.ID.Get(); ok {
+
+		converted, err := valuescan.ValueScanner.ID.Value(value)
 		if err != nil {
 			return nil, nil, err
 		}
-		_spec.ID.Value = vv
+		_spec.ID.Value = converted
+
 	}
-	if value, ok := _c.mutation.Name(); ok {
+
+	if _, present := _c.present[valuescan.FieldName]; !_c.fromBuilder || present {
+		value := _c.mutation.insert.Name
 		_spec.SetField(valuescan.FieldName, field.TypeString, value)
-		_node.Name = value
 	}
+
+	_spec.Expressions = _c.mutation.insert.expressions
+
+	_spec.Returning = &sqlgraph.Returning{Columns: valuescan.Columns, Scan: func(rows dialect.Rows) error {
+		values, err := _node.scanValues(valuescan.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(valuescan.Columns, values); err != nil {
+			return err
+		}
+
+		_spec.ID.Value, err = valuescan.ValueScanner.ID.Value(_node.ID)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}}
 	return _node, _spec, nil
 }
 
-// OnConflict allows configuring the `ON CONFLICT` clause of the `INSERT`
-// statement. For example:
-//
-//	client.ValueScan.Create().
-//		SetName(v).
-//		OnConflict(
-//			// Update the row with the new values
-//			// the was proposed for insertion.
-//			sql.ResolveWithNewValues(),
-//		).
-//		// Override some of the fields with custom
-//		// update values.
-//		Update(func(u *ent.ValueScanUpsert) {
-//			SetName(v+v).
-//		}).
-//		Exec(ctx)
-func (_c *ValueScanCreate) OnConflict(opts ...sql.ConflictOption) *ValueScanUpsertOne {
-	_c.conflict = opts
-	return &ValueScanUpsertOne{
-		create: _c,
+type ValueScanUpsertOne struct{ create *ValueScanCreate }
+
+func (b *ValueScanCreate) OnConflict(columns ...ent.EntityColumn[entity.ValueScan]) *ValueScanUpsertOne {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
 	}
-}
-
-// OnConflictColumns calls `OnConflict` and configures the columns
-// as conflict target. Using this option is equivalent to using:
-//
-//	client.ValueScan.Create().
-//		OnConflict(sql.ConflictColumns(columns...)).
-//		Exec(ctx)
-func (_c *ValueScanCreate) OnConflictColumns(columns ...string) *ValueScanUpsertOne {
-	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
-	return &ValueScanUpsertOne{
-		create: _c,
+	if len(names) == 0 {
+		return b.OnConflictOptions()
 	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
 }
 
-type (
-	// ValueScanUpsertOne is the builder for "upsert"-ing
-	//  one ValueScan node.
-	ValueScanUpsertOne struct {
-		create *ValueScanCreate
-	}
-
-	// ValueScanUpsert is the "OnConflict" setter.
-	ValueScanUpsert struct {
-		*sql.UpdateSet
-	}
-)
-
-// SetName sets the "name" field.
-func (u *ValueScanUpsert) SetName(v string) *ValueScanUpsert {
-	u.Set(valuescan.FieldName, v)
-	return u
+func (b *ValueScanCreate) OnConflictConstraint(name string) *ValueScanUpsertOne {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
 }
 
-// UpdateName sets the "name" field to the value that was provided on create.
-func (u *ValueScanUpsert) UpdateName() *ValueScanUpsert {
-	u.SetExcluded(valuescan.FieldName)
-	return u
+func (b *ValueScanCreate) OnConflictOptions(options ...sql.ConflictOption) *ValueScanUpsertOne {
+	b.conflict = options
+	return &ValueScanUpsertOne{create: b}
 }
 
-// UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
-// Using this option is equivalent to using:
-//
-//	client.ValueScan.Create().
-//		OnConflict(
-//			sql.ResolveWithNewValues(),
-//			sql.ResolveWith(func(u *sql.UpdateSet) {
-//				u.SetIgnore(valuescan.FieldID)
-//			}),
-//		).
-//		Exec(ctx)
-func (u *ValueScanUpsertOne) UpdateNewValues() *ValueScanUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
-		if _, exists := u.create.mutation.ID(); exists {
-			s.SetIgnore(valuescan.FieldID)
-		}
-	}))
-	return u
-}
-
-// Ignore sets each column to itself in case of conflict.
-// Using this option is equivalent to using:
-//
-//	client.ValueScan.Create().
-//	    OnConflict(sql.ResolveWithIgnore()).
-//	    Exec(ctx)
-func (u *ValueScanUpsertOne) Ignore() *ValueScanUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
-	return u
-}
-
-// DoNothing configures the conflict_action to `DO NOTHING`.
-// Supported only by SQLite and PostgreSQL.
 func (u *ValueScanUpsertOne) DoNothing() *ValueScanUpsertOne {
 	u.create.conflict = append(u.create.conflict, sql.DoNothing())
 	return u
 }
 
-// Update allows overriding fields `UPDATE` values. See the ValueScanCreate.OnConflict
-// documentation for more info.
-func (u *ValueScanUpsertOne) Update(set func(*ValueScanUpsert)) *ValueScanUpsertOne {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
-		set(&ValueScanUpsert{UpdateSet: update})
+func (u *ValueScanUpsertOne) DoSelect() *ValueScanUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *ValueScanUpsertOne) Ignore() *ValueScanUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *ValueScanUpsertOne) DoUpdate(set func(*ValueScanUpsert)) *ValueScanUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&ValueScanUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *ValueScanUpsertOne) UpdateNewValues() *ValueScanUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case valuescan.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
 	}))
 	return u
 }
 
-// SetName sets the "name" field.
-func (u *ValueScanUpsertOne) SetName(v string) *ValueScanUpsertOne {
-	return u.Update(func(s *ValueScanUpsert) {
-		s.SetName(v)
-	})
+func (u *ValueScanUpsertOne) Where(predicates ...ent.Predicate[entity.ValueScan]) *ValueScanUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(valuescan.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// UpdateName sets the "name" field to the value that was provided on create.
-func (u *ValueScanUpsertOne) UpdateName() *ValueScanUpsertOne {
-	return u.Update(func(s *ValueScanUpsert) {
-		s.UpdateName()
-	})
+func (u *ValueScanUpsertOne) UpdateWhere(predicates ...ent.Predicate[entity.ValueScan]) *ValueScanUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(valuescan.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// Exec executes the query.
-func (u *ValueScanUpsertOne) Exec(ctx context.Context) error {
+func (u *ValueScanUpsertOne) Save(ctx context.Context) (*ValueScan, error) {
 	if len(u.create.conflict) == 0 {
-		return errors.New("ent: missing options for ValueScanCreate.OnConflict")
+		return nil, errors.New("ent: missing options for ValueScanCreate.OnConflict")
 	}
-	return u.create.Exec(ctx)
+	return u.create.Save(ctx)
 }
 
-// ExecX is like Exec, but panics if an error occurs.
+func (u *ValueScanUpsertOne) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
 func (u *ValueScanUpsertOne) ExecX(ctx context.Context) {
-	if err := u.create.Exec(ctx); err != nil {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// Exec executes the UPSERT query and returns the inserted/updated ID.
-func (u *ValueScanUpsertOne) ID(ctx context.Context) (id schema.ValueScanID, err error) {
-	node, err := u.create.Save(ctx)
+func (u *ValueScanUpsertOne) ID(ctx context.Context) (id schema2.ValueScanID, err error) {
+	node, err := u.Save(ctx)
 	if err != nil {
 		return id, err
 	}
 	return node.ID, nil
 }
 
-// IDX is like ID, but panics if an error occurs.
-func (u *ValueScanUpsertOne) IDX(ctx context.Context) schema.ValueScanID {
+func (u *ValueScanUpsertOne) IDX(ctx context.Context) schema2.ValueScanID {
 	id, err := u.ID(ctx)
 	if err != nil {
 		panic(err)
@@ -287,232 +330,229 @@ func (u *ValueScanUpsertOne) IDX(ctx context.Context) schema.ValueScanID {
 	return id
 }
 
-// ValueScanCreateBulk is the builder for creating many ValueScan entities in bulk.
+type ValueScanUpsert struct{ *sql.UpdateSet }
+
+func (u *ValueScanUpsert) Set[T any](column ent.ColumnOf[entity.ValueScan, T], value T) *ValueScanUpsert {
+	switch column.Ref().Name {
+
+	case valuescan.FieldName:
+		u.UpdateSet.Set(column.Ref().Name, value)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of ValueScan is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *ValueScanUpsert) SetExpr[T any](column ent.ColumnOf[entity.ValueScan, T], value ent.Expr[T]) *ValueScanUpsert {
+	switch column.Ref().Name {
+
+	case valuescan.FieldName:
+		u.UpdateSet.Set(column.Ref().Name, sql.ExprFunc(value.Render))
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of ValueScan is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *ValueScanUpsert) UpdateNewValue[T any](column ent.ColumnOf[entity.ValueScan, T]) *ValueScanUpsert {
+	switch column.Ref().Name {
+
+	case valuescan.FieldName:
+		u.UpdateSet.SetExcluded(column.Ref().Name)
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of ValueScan is not settable", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *ValueScanUpsert) Add[T ent.Number](column ent.ColumnOf[entity.ValueScan, T], delta T) *ValueScanUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of ValueScan does not support addition", column.Ref().Name)})
+	}
+	return u
+}
+
+func (u *ValueScanUpsert) Clear[T any](column ent.ColumnOf[entity.ValueScan, T]) *ValueScanUpsert {
+	switch column.Ref().Name {
+
+	default:
+		u.UpdateSet.AddError(&ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of ValueScan is not nullable", column.Ref().Name)})
+	}
+	return u
+}
+
 type ValueScanCreateBulk struct {
 	config
 	err      error
 	builders []*ValueScanCreate
+
 	conflict []sql.ConflictOption
 }
 
-// Save creates the ValueScan entities in the database.
 func (_c *ValueScanCreateBulk) Save(ctx context.Context) ([]*ValueScan, error) {
 	if _c.err != nil {
 		return nil, _c.err
 	}
-	specs := make([]*sqlgraph.CreateSpec, len(_c.builders))
 	nodes := make([]*ValueScan, len(_c.builders))
-	mutators := make([]Mutator, len(_c.builders))
-	for i := range _c.builders {
-		func(i int, root context.Context) {
-			builder := _c.builders[i]
-			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*ValueScanMutation)
-				if !ok {
-					return nil, fmt.Errorf("unexpected mutation type %T", m)
-				}
-				if err := builder.check(); err != nil {
-					return nil, err
-				}
-				builder.mutation = mutation
-				var err error
-				nodes[i], specs[i], err = builder.createSpec()
-				if err != nil {
-					return nil, err
-				}
-				if i < len(mutators)-1 {
-					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
-				} else {
-					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
-					spec.OnConflict = _c.conflict
-					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
-						if sqlgraph.IsConstraintError(err) {
-							err = &ConstraintError{msg: err.Error(), wrap: err}
-						}
-					}
-				}
-				if err != nil {
-					return nil, err
-				}
-				mutation.id = &nodes[i].ID
-				if specs[i].ID.Value != nil {
-					sv, ok := specs[i].ID.Value.(field.ValueScanner)
-					if !ok {
-						sv = valuescan.ValueScanner.ID.ScanValue()
-						if err := sv.Scan(specs[i].ID.Value); err != nil {
-							return nil, err
-						}
-					}
-					if id, err := valuescan.ValueScanner.ID.FromValue(sv); err != nil {
-						return nil, err
-					} else {
-						nodes[i].ID = id
-					}
-				}
-				mutation.done = true
-				return nodes[i], nil
-			})
-			for i := len(builder.hooks) - 1; i >= 0; i-- {
-				mut = builder.hooks[i](mut)
-			}
-			mutators[i] = mut
-		}(i, ctx)
-	}
-	if len(mutators) > 0 {
-		if _, err := mutators[0].Mutate(ctx, _c.builders[0].mutation); err != nil {
+	specs := make([]*sqlgraph.CreateSpec, len(nodes))
+	for index, builder := range _c.builders {
+		if builder.err != nil {
+			return nil, builder.err
+		}
+		if err := builder.defaults(); err != nil {
+			return nil, err
+		}
+		if err := builder.check(); err != nil {
+			return nil, err
+		}
+		var err error
+		nodes[index], specs[index], err = builder.createSpec()
+		if err != nil {
 			return nil, err
 		}
 	}
-	return nodes, nil
+	if len(specs) == 0 {
+		return nodes, nil
+	}
+	spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+
+	spec.OnConflict = _c.conflict
+
+	if err := sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
+		if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{msg: err.Error(), wrap: err}
+		}
+		if errors.Is(err, dialect.ErrNoRows) {
+			err = ErrConflict
+		}
+		return nil, err
+	}
+	result := nodes[:0]
+	for index, builder := range _c.builders {
+		if specs[index].Skipped {
+			continue
+		}
+		builder.mutation.id = &nodes[index].ID
+		result = append(result, nodes[index])
+	}
+	return result, nil
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_c *ValueScanCreateBulk) SaveX(ctx context.Context) []*ValueScan {
-	v, err := _c.Save(ctx)
+func (b *ValueScanCreateBulk) SaveX(ctx context.Context) []*ValueScan {
+	nodes, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return nodes
 }
 
-// Exec executes the query.
-func (_c *ValueScanCreateBulk) Exec(ctx context.Context) error {
-	_, err := _c.Save(ctx)
-	return err
-}
+func (b *ValueScanCreateBulk) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_c *ValueScanCreateBulk) ExecX(ctx context.Context) {
-	if err := _c.Exec(ctx); err != nil {
+func (b *ValueScanCreateBulk) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// OnConflict allows configuring the `ON CONFLICT` clause of the `INSERT`
-// statement. For example:
-//
-//	client.ValueScan.CreateBulk(builders...).
-//		OnConflict(
-//			// Update the row with the new values
-//			// the was proposed for insertion.
-//			sql.ResolveWithNewValues(),
-//		).
-//		// Override some of the fields with custom
-//		// update values.
-//		Update(func(u *ent.ValueScanUpsert) {
-//			SetName(v+v).
-//		}).
-//		Exec(ctx)
-func (_c *ValueScanCreateBulk) OnConflict(opts ...sql.ConflictOption) *ValueScanUpsertBulk {
-	_c.conflict = opts
-	return &ValueScanUpsertBulk{
-		create: _c,
+type ValueScanUpsertBulk struct{ create *ValueScanCreateBulk }
+
+func (b *ValueScanCreateBulk) OnConflict(columns ...ent.EntityColumn[entity.ValueScan]) *ValueScanUpsertBulk {
+	names := make([]string, len(columns))
+	for index := range columns {
+		names[index] = columns[index].Ref().Name
 	}
-}
-
-// OnConflictColumns calls `OnConflict` and configures the columns
-// as conflict target. Using this option is equivalent to using:
-//
-//	client.ValueScan.Create().
-//		OnConflict(sql.ConflictColumns(columns...)).
-//		Exec(ctx)
-func (_c *ValueScanCreateBulk) OnConflictColumns(columns ...string) *ValueScanUpsertBulk {
-	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
-	return &ValueScanUpsertBulk{
-		create: _c,
+	if len(names) == 0 {
+		return b.OnConflictOptions()
 	}
+	return b.OnConflictOptions(sql.ConflictColumns(names...))
 }
 
-// ValueScanUpsertBulk is the builder for "upsert"-ing
-// a bulk of ValueScan nodes.
-type ValueScanUpsertBulk struct {
-	create *ValueScanCreateBulk
+func (b *ValueScanCreateBulk) OnConflictConstraint(name string) *ValueScanUpsertBulk {
+	return b.OnConflictOptions(sql.ConflictConstraint(name))
 }
 
-// UpdateNewValues updates the mutable fields using the new values that
-// were set on create. Using this option is equivalent to using:
-//
-//	client.ValueScan.Create().
-//		OnConflict(
-//			sql.ResolveWithNewValues(),
-//			sql.ResolveWith(func(u *sql.UpdateSet) {
-//				u.SetIgnore(valuescan.FieldID)
-//			}),
-//		).
-//		Exec(ctx)
-func (u *ValueScanUpsertBulk) UpdateNewValues() *ValueScanUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
-		for _, b := range u.create.builders {
-			if _, exists := b.mutation.ID(); exists {
-				s.SetIgnore(valuescan.FieldID)
-			}
-		}
-	}))
-	return u
+func (b *ValueScanCreateBulk) OnConflictOptions(options ...sql.ConflictOption) *ValueScanUpsertBulk {
+	b.conflict = options
+	return &ValueScanUpsertBulk{create: b}
 }
 
-// Ignore sets each column to itself in case of conflict.
-// Using this option is equivalent to using:
-//
-//	client.ValueScan.Create().
-//		OnConflict(sql.ResolveWithIgnore()).
-//		Exec(ctx)
-func (u *ValueScanUpsertBulk) Ignore() *ValueScanUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
-	return u
-}
-
-// DoNothing configures the conflict_action to `DO NOTHING`.
-// Supported only by SQLite and PostgreSQL.
 func (u *ValueScanUpsertBulk) DoNothing() *ValueScanUpsertBulk {
 	u.create.conflict = append(u.create.conflict, sql.DoNothing())
 	return u
 }
 
-// Update allows overriding fields `UPDATE` values. See the ValueScanCreateBulk.OnConflict
-// documentation for more info.
-func (u *ValueScanUpsertBulk) Update(set func(*ValueScanUpsert)) *ValueScanUpsertBulk {
-	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
-		set(&ValueScanUpsert{UpdateSet: update})
+func (u *ValueScanUpsertBulk) DoSelect() *ValueScanUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoSelect())
+	return u
+}
+
+func (u *ValueScanUpsertBulk) Ignore() *ValueScanUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+func (u *ValueScanUpsertBulk) DoUpdate(set func(*ValueScanUpsert)) *ValueScanUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) { set(&ValueScanUpsert{UpdateSet: update}) }))
+	return u
+}
+
+func (u *ValueScanUpsertBulk) UpdateNewValues() *ValueScanUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues(), sql.ResolveWith(func(update *sql.UpdateSet) {
+		for _, column := range update.Columns() {
+			switch column {
+			case valuescan.FieldID:
+				update.SetIgnore(column)
+
+			}
+		}
 	}))
 	return u
 }
 
-// SetName sets the "name" field.
-func (u *ValueScanUpsertBulk) SetName(v string) *ValueScanUpsertBulk {
-	return u.Update(func(s *ValueScanUpsert) {
-		s.SetName(v)
-	})
-}
-
-// UpdateName sets the "name" field to the value that was provided on create.
-func (u *ValueScanUpsertBulk) UpdateName() *ValueScanUpsertBulk {
-	return u.Update(func(s *ValueScanUpsert) {
-		s.UpdateName()
-	})
-}
-
-// Exec executes the query.
-func (u *ValueScanUpsertBulk) Exec(ctx context.Context) error {
-	if u.create.err != nil {
-		return u.create.err
-	}
-	for i, b := range u.create.builders {
-		if len(b.conflict) != 0 {
-			return fmt.Errorf("ent: OnConflict was set for builder %d. Set it on the ValueScanCreateBulk instead", i)
+func (u *ValueScanUpsertBulk) Where(predicates ...ent.Predicate[entity.ValueScan]) *ValueScanUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ConflictWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(valuescan.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
 		}
-	}
-	if len(u.create.conflict) == 0 {
-		return errors.New("ent: missing options for ValueScanCreateBulk.OnConflict")
-	}
-	return u.create.Exec(ctx)
+		renderer.Join(selector.P())
+	})))
+	return u
 }
 
-// ExecX is like Exec, but panics if an error occurs.
+func (u *ValueScanUpsertBulk) UpdateWhere(predicates ...ent.Predicate[entity.ValueScan]) *ValueScanUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.UpdateWhere(sql.P(func(renderer *sql.Builder) {
+		selector := sql.Dialect(renderer.Dialect()).Select().From(sql.Table(valuescan.Table))
+		for _, predicate := range predicates {
+			predicate(selector)
+		}
+		renderer.Join(selector.P())
+	})))
+	return u
+}
+
+func (u *ValueScanUpsertBulk) Save(ctx context.Context) ([]*ValueScan, error) {
+	if len(u.create.conflict) == 0 {
+		return nil, errors.New("ent: missing options for ValueScanCreateBulk.OnConflict")
+	}
+	return u.create.Save(ctx)
+}
+
+func (u *ValueScanUpsertBulk) Exec(ctx context.Context) error {
+	_, err := u.Save(ctx)
+	if errors.Is(err, ErrConflict) {
+		return nil
+	}
+	return err
+}
+
 func (u *ValueScanUpsertBulk) ExecX(ctx context.Context) {
-	if err := u.create.Exec(ctx); err != nil {
+	if err := u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

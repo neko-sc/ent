@@ -10,73 +10,202 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
-	"github.com/neko-sc/ent/entc/integration/customid/ent/predicate"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/valuescan"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// ValueScanUpdate is the builder for updating ValueScan entities.
 type ValueScanUpdate struct {
 	config
-	hooks    []Hook
-	mutation *ValueScanMutation
+	mutation  *ValueScanMutation
+	err       error
+	returning *sqlgraph.Returning
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// Where appends a list predicates to the ValueScanUpdate builder.
-func (_u *ValueScanUpdate) Where(ps ...predicate.ValueScan) *ValueScanUpdate {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// SetName sets the "name" field.
-func (_u *ValueScanUpdate) SetName(v string) *ValueScanUpdate {
-	_u.mutation.SetName(v)
-	return _u
-}
-
-// SetNillableName sets the "name" field if the given value is not nil.
-func (_u *ValueScanUpdate) SetNillableName(v *string) *ValueScanUpdate {
-	if v != nil {
-		_u.SetName(*v)
+func (b *ValueScanUpdate) Set[T any](column ent.ColumnOf[entity.ValueScan, T], value T) *ValueScanUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
+
+	return b
+}
+func (b *ValueScanUpdate) SetOptional[T any](column ent.ColumnOf[entity.ValueScan, T], value ent.Option[T]) *ValueScanUpdate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *ValueScanUpdate) SetExpr[T any](column ent.ColumnOf[entity.ValueScan, T], value ent.Expr[T]) *ValueScanUpdate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case valuescan.FieldName:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of ValueScan is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *ValueScanUpdate) SetEdge[N, K any](edge ent.UniqueRelation[entity.ValueScan, N, K], id K) *ValueScanUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *ValueScanUpdate) AddIDs[N, K any](edge ent.Relation[entity.ValueScan, N, K], ids ...K) *ValueScanUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *ValueScanUpdate) Mutation() *ValueScanMutation { return b.mutation }
+
+func (b *ValueScanUpdate) Patch() *ValueScanPatch { return b.mutation.patch }
+func (b *ValueScanUpdate) Apply(p ValueScanPatch) *ValueScanUpdate {
+	b.mutation.patch.apply(p)
+	return b
+}
+func (b *ValueScanUpdate) Add[T ent.Number](column ent.ColumnOf[entity.ValueScan, T], delta T) *ValueScanUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *ValueScanUpdate) Append[T any](column ent.ColumnOf[entity.ValueScan, T], values T) *ValueScanUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *ValueScanUpdate) Clear[T any](column ent.ColumnOf[entity.ValueScan, T]) *ValueScanUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *ValueScanUpdate) RemoveIDs[N, K any](edge ent.Relation[entity.ValueScan, N, K], ids ...K) *ValueScanUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *ValueScanUpdate) ClearEdge[N, K any](edge ent.RelationOf[entity.ValueScan, N, K]) *ValueScanUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// Mutation returns the ValueScanMutation object of the builder.
-func (_u *ValueScanUpdate) Mutation() *ValueScanMutation {
-	return _u.mutation
+func (b *ValueScanUpdate) Where(predicates ...ent.Predicate[entity.ValueScan]) *ValueScanUpdate {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Save executes the query and returns the number of nodes affected by the update operation.
-func (_u *ValueScanUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
+func (b *ValueScanUpdate) Save(ctx context.Context) (int, error) {
+	if b.err != nil {
+		return 0, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return 0, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// SaveX is like Save, but panics if an error occurs.
-func (_u *ValueScanUpdate) SaveX(ctx context.Context) int {
-	affected, err := _u.Save(ctx)
+func (b *ValueScanUpdate) SaveX(ctx context.Context) int {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return affected
+	return result
 }
 
-// Exec executes the query.
-func (_u *ValueScanUpdate) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *ValueScanUpdate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *ValueScanUpdate) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *ValueScanUpdate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
+func (b *ValueScanUpdate) Returning(ctx context.Context) ([]*ValueScan, error) {
+	nodes := make([]*ValueScan, 0)
+	b.returning = &sqlgraph.Returning{Columns: valuescan.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &ValueScan{config: b.config}
+		values, err := _node.scanValues(valuescan.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(valuescan.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Save(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
+}
+
+func (b *ValueScanUpdate) defaults() error {
+
+	return nil
+}
+
+func (b *ValueScanUpdate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.Name.IsNull() {
+		return &ValidationError{Name: "name", err: errors.New(`ent: field "ValueScan.name" is not nullable`)}
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *ValueScanUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *ValueScanUpdate {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *ValueScanUpdate) sqlSave(ctx context.Context) (_node int, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(valuescan.Table, valuescan.Columns, sqlgraph.NewFieldSpec(valuescan.FieldID, field.TypeInt))
 	if ps := _u.mutation.Predicates(); len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -85,9 +214,15 @@ func (_u *ValueScanUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.Name(); ok {
+	if value, ok := _u.mutation.patch.Name.Get(); ok {
 		_spec.SetField(valuescan.FieldName, field.TypeString, value)
 	}
+	_spec.Returning = _u.returning
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{valuescan.Label}
@@ -96,78 +231,198 @@ func (_u *ValueScanUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		return 0, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }
 
-// ValueScanUpdateOne is the builder for updating a single ValueScan entity.
 type ValueScanUpdateOne struct {
 	config
-	fields   []string
-	hooks    []Hook
 	mutation *ValueScanMutation
+	err      error
+
+	fields []string
+	old    *ValueScan
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// SetName sets the "name" field.
-func (_u *ValueScanUpdateOne) SetName(v string) *ValueScanUpdateOne {
-	_u.mutation.SetName(v)
-	return _u
-}
-
-// SetNillableName sets the "name" field if the given value is not nil.
-func (_u *ValueScanUpdateOne) SetNillableName(v *string) *ValueScanUpdateOne {
-	if v != nil {
-		_u.SetName(*v)
+func (b *ValueScanUpdateOne) Set[T any](column ent.ColumnOf[entity.ValueScan, T], value T) *ValueScanUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
+
+	return b
+}
+func (b *ValueScanUpdateOne) SetOptional[T any](column ent.ColumnOf[entity.ValueScan, T], value ent.Option[T]) *ValueScanUpdateOne {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
+	}
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *ValueScanUpdateOne) SetExpr[T any](column ent.ColumnOf[entity.ValueScan, T], value ent.Expr[T]) *ValueScanUpdateOne {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case valuescan.FieldName:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of ValueScan is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *ValueScanUpdateOne) SetEdge[N, K any](edge ent.UniqueRelation[entity.ValueScan, N, K], id K) *ValueScanUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *ValueScanUpdateOne) AddIDs[N, K any](edge ent.Relation[entity.ValueScan, N, K], ids ...K) *ValueScanUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *ValueScanUpdateOne) Mutation() *ValueScanMutation { return b.mutation }
+
+func (b *ValueScanUpdateOne) Patch() *ValueScanPatch { return b.mutation.patch }
+func (b *ValueScanUpdateOne) Apply(p ValueScanPatch) *ValueScanUpdateOne {
+	b.mutation.patch.apply(p)
+	return b
+}
+func (b *ValueScanUpdateOne) Add[T ent.Number](column ent.ColumnOf[entity.ValueScan, T], delta T) *ValueScanUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *ValueScanUpdateOne) Append[T any](column ent.ColumnOf[entity.ValueScan, T], values T) *ValueScanUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *ValueScanUpdateOne) Clear[T any](column ent.ColumnOf[entity.ValueScan, T]) *ValueScanUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *ValueScanUpdateOne) RemoveIDs[N, K any](edge ent.Relation[entity.ValueScan, N, K], ids ...K) *ValueScanUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *ValueScanUpdateOne) ClearEdge[N, K any](edge ent.RelationOf[entity.ValueScan, N, K]) *ValueScanUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// Mutation returns the ValueScanMutation object of the builder.
-func (_u *ValueScanUpdateOne) Mutation() *ValueScanMutation {
-	return _u.mutation
+func (b *ValueScanUpdateOne) Where(predicates ...ent.Predicate[entity.ValueScan]) *ValueScanUpdateOne {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// Where appends a list predicates to the ValueScanUpdate builder.
-func (_u *ValueScanUpdateOne) Where(ps ...predicate.ValueScan) *ValueScanUpdateOne {
-	_u.mutation.Where(ps...)
-	return _u
+func (b *ValueScanUpdateOne) Save(ctx context.Context) (*ValueScan, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Select allows selecting one or more fields (columns) of the returned entity.
-// The default is selecting all fields defined in the entity schema.
-func (_u *ValueScanUpdateOne) Select(field string, fields ...string) *ValueScanUpdateOne {
-	_u.fields = append([]string{field}, fields...)
-	return _u
-}
-
-// Save executes the query and returns the updated ValueScan entity.
-func (_u *ValueScanUpdateOne) Save(ctx context.Context) (*ValueScan, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *ValueScanUpdateOne) SaveX(ctx context.Context) *ValueScan {
-	node, err := _u.Save(ctx)
+func (b *ValueScanUpdateOne) SaveX(ctx context.Context) *ValueScan {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return node
+	return result
 }
 
-// Exec executes the query on the entity.
-func (_u *ValueScanUpdateOne) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *ValueScanUpdateOne) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *ValueScanUpdateOne) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *ValueScanUpdateOne) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
+func (b *ValueScanUpdateOne) Select(columns ...ent.EntityColumn[entity.ValueScan]) *ValueScanUpdateOne {
+	if len(columns) == 0 {
+		panic("ent: Select requires at least one column")
+	}
+	b.fields = make([]string, len(columns))
+	for index, column := range columns {
+		b.fields[index] = column.Ref().Name
+	}
+	return b
+}
+
+func (b *ValueScanUpdateOne) SaveOld(ctx context.Context) (old *ValueScan, updated *ValueScan, err error) {
+	if !b.driver.Capabilities().ReturningOld {
+		return nil, nil, &dialect.UnsupportedError{Feature: "RETURNING OLD", Dialect: dialect.Dialect(b.driver.Dialect())}
+	}
+	b.old = &ValueScan{config: b.config}
+	defer func() { b.old = nil }()
+	updated, err = b.Save(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return b.old, updated, nil
+}
+
+func (b *ValueScanUpdateOne) defaults() error {
+
+	return nil
+}
+
+func (b *ValueScanUpdateOne) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.Name.IsNull() {
+		return &ValidationError{Name: "name", err: errors.New(`ent: field "ValueScan.name" is not nullable`)}
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *ValueScanUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *ValueScanUpdateOne {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *ValueScanUpdateOne) sqlSave(ctx context.Context) (_node *ValueScan, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(valuescan.Table, valuescan.Columns, sqlgraph.NewFieldSpec(valuescan.FieldID, field.TypeInt))
 	id, ok := _u.mutation.ID()
 	if !ok {
@@ -197,12 +452,21 @@ func (_u *ValueScanUpdateOne) sqlSave(ctx context.Context) (_node *ValueScan, er
 			}
 		}
 	}
-	if value, ok := _u.mutation.Name(); ok {
+	if value, ok := _u.mutation.patch.Name.Get(); ok {
 		_spec.SetField(valuescan.FieldName, field.TypeString, value)
 	}
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	_node = &ValueScan{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
+	if _u.old != nil {
+		_spec.OldScanValues = _u.old.scanValues
+		_spec.OldAssign = _u.old.assignValues
+	}
 	if err = sqlgraph.UpdateNode(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{valuescan.Label}
@@ -211,6 +475,5 @@ func (_u *ValueScanUpdateOne) sqlSave(ctx context.Context) (_node *ValueScan, er
 		}
 		return nil, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }

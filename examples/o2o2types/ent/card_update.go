@@ -9,112 +9,205 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/examples/o2o2types/ent/card"
-	"github.com/neko-sc/ent/examples/o2o2types/ent/predicate"
+	"github.com/neko-sc/ent/examples/o2o2types/ent/entity"
 	"github.com/neko-sc/ent/examples/o2o2types/ent/user"
 	"github.com/neko-sc/ent/schema/field"
 )
 
-// CardUpdate is the builder for updating Card entities.
 type CardUpdate struct {
 	config
-	hooks    []Hook
-	mutation *CardMutation
+	mutation  *CardMutation
+	err       error
+	returning *sqlgraph.Returning
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// Where appends a list predicates to the CardUpdate builder.
-func (_u *CardUpdate) Where(ps ...predicate.Card) *CardUpdate {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// SetExpired sets the "expired" field.
-func (_u *CardUpdate) SetExpired(v time.Time) *CardUpdate {
-	_u.mutation.SetExpired(v)
-	return _u
-}
-
-// SetNillableExpired sets the "expired" field if the given value is not nil.
-func (_u *CardUpdate) SetNillableExpired(v *time.Time) *CardUpdate {
-	if v != nil {
-		_u.SetExpired(*v)
+func (b *CardUpdate) Set[T any](column ent.ColumnOf[entity.Card, T], value T) *CardUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// SetNumber sets the "number" field.
-func (_u *CardUpdate) SetNumber(v string) *CardUpdate {
-	_u.mutation.SetNumber(v)
-	return _u
+	return b
 }
-
-// SetNillableNumber sets the "number" field if the given value is not nil.
-func (_u *CardUpdate) SetNillableNumber(v *string) *CardUpdate {
-	if v != nil {
-		_u.SetNumber(*v)
+func (b *CardUpdate) SetOptional[T any](column ent.ColumnOf[entity.Card, T], value ent.Option[T]) *CardUpdate {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *CardUpdate) SetExpr[T any](column ent.ColumnOf[entity.Card, T], value ent.Expr[T]) *CardUpdate {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case card.FieldExpired:
+
+	case card.FieldNumber:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Card is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *CardUpdate) SetEdge[N, K any](edge ent.UniqueRelation[entity.Card, N, K], id K) *CardUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *CardUpdate) AddIDs[N, K any](edge ent.Relation[entity.Card, N, K], ids ...K) *CardUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *CardUpdate) Mutation() *CardMutation { return b.mutation }
+
+func (b *CardUpdate) Patch() *CardPatch             { return b.mutation.patch }
+func (b *CardUpdate) Apply(p CardPatch) *CardUpdate { b.mutation.patch.apply(p); return b }
+func (b *CardUpdate) Add[T ent.Number](column ent.ColumnOf[entity.Card, T], delta T) *CardUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *CardUpdate) Append[T any](column ent.ColumnOf[entity.Card, T], values T) *CardUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *CardUpdate) Clear[T any](column ent.ColumnOf[entity.Card, T]) *CardUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *CardUpdate) RemoveIDs[N, K any](edge ent.Relation[entity.Card, N, K], ids ...K) *CardUpdate {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *CardUpdate) ClearEdge[N, K any](edge ent.RelationOf[entity.Card, N, K]) *CardUpdate {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// SetOwnerID sets the "owner" edge to the User entity by ID.
-func (_u *CardUpdate) SetOwnerID(id int) *CardUpdate {
-	_u.mutation.SetOwnerID(id)
-	return _u
+func (b *CardUpdate) Where(predicates ...ent.Predicate[entity.Card]) *CardUpdate {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// SetOwner sets the "owner" edge to the User entity.
-func (_u *CardUpdate) SetOwner(v *User) *CardUpdate {
-	return _u.SetOwnerID(v.ID)
+func (b *CardUpdate) Save(ctx context.Context) (int, error) {
+	if b.err != nil {
+		return 0, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return 0, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Mutation returns the CardMutation object of the builder.
-func (_u *CardUpdate) Mutation() *CardMutation {
-	return _u.mutation
-}
-
-// ClearOwner clears the "owner" edge to the User entity.
-func (_u *CardUpdate) ClearOwner() *CardUpdate {
-	_u.mutation.ClearOwner()
-	return _u
-}
-
-// Save executes the query and returns the number of nodes affected by the update operation.
-func (_u *CardUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *CardUpdate) SaveX(ctx context.Context) int {
-	affected, err := _u.Save(ctx)
+func (b *CardUpdate) SaveX(ctx context.Context) int {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return affected
+	return result
 }
 
-// Exec executes the query.
-func (_u *CardUpdate) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *CardUpdate) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *CardUpdate) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *CardUpdate) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_u *CardUpdate) check() error {
-	if _u.mutation.OwnerCleared() && len(_u.mutation.OwnerIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "Card.owner"`)
+func (b *CardUpdate) Returning(ctx context.Context) ([]*Card, error) {
+	nodes := make([]*Card, 0)
+	b.returning = &sqlgraph.Returning{Columns: card.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Card{config: b.config}
+		values, err := _node.scanValues(card.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(card.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Save(ctx); err != nil {
+		return nil, err
 	}
+	return nodes, nil
+}
+
+func (b *CardUpdate) defaults() error {
+
 	return nil
+}
+
+func (b *CardUpdate) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.Expired.IsNull() {
+		return &ValidationError{Name: "expired", err: errors.New(`ent: field "Card.expired" is not nullable`)}
+	}
+
+	if b.mutation.patch.Number.IsNull() {
+		return &ValidationError{Name: "number", err: errors.New(`ent: field "Card.number" is not nullable`)}
+	}
+
+	if b.mutation.patch.OwnerID.IsNull() {
+		return &ValidationError{Name: "owner", err: errors.New(`ent: clearing required edge "Card.owner"`)}
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *CardUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *CardUpdate {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
 }
 
 func (_u *CardUpdate) sqlSave(ctx context.Context) (_node int, err error) {
@@ -129,13 +222,13 @@ func (_u *CardUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.Expired(); ok {
+	if value, ok := _u.mutation.patch.Expired.Get(); ok {
 		_spec.SetField(card.FieldExpired, field.TypeTime, value)
 	}
-	if value, ok := _u.mutation.Number(); ok {
+	if value, ok := _u.mutation.patch.Number.Get(); ok {
 		_spec.SetField(card.FieldNumber, field.TypeString, value)
 	}
-	if _u.mutation.OwnerCleared() {
+	if _u.mutation.patch.OwnerID.IsNull() || _u.mutation.patch.clearedEdges[card.EdgeOwner] {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2O,
 			Inverse: true,
@@ -148,7 +241,7 @@ func (_u *CardUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.OwnerIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.ownerIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2O,
 			Inverse: true,
@@ -159,11 +252,22 @@ func (_u *CardUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	_spec.Returning = _u.returning
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{card.Label}
@@ -172,114 +276,199 @@ func (_u *CardUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		return 0, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }
 
-// CardUpdateOne is the builder for updating a single Card entity.
 type CardUpdateOne struct {
 	config
-	fields   []string
-	hooks    []Hook
 	mutation *CardMutation
+	err      error
+
+	fields []string
+	old    *Card
+
+	modifiers []func(*sql.UpdateBuilder)
 }
 
-// SetExpired sets the "expired" field.
-func (_u *CardUpdateOne) SetExpired(v time.Time) *CardUpdateOne {
-	_u.mutation.SetExpired(v)
-	return _u
-}
-
-// SetNillableExpired sets the "expired" field if the given value is not nil.
-func (_u *CardUpdateOne) SetNillableExpired(v *time.Time) *CardUpdateOne {
-	if v != nil {
-		_u.SetExpired(*v)
+func (b *CardUpdateOne) Set[T any](column ent.ColumnOf[entity.Card, T], value T) *CardUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.set(column.Ref().Name, value)
 	}
-	return _u
-}
 
-// SetNumber sets the "number" field.
-func (_u *CardUpdateOne) SetNumber(v string) *CardUpdateOne {
-	_u.mutation.SetNumber(v)
-	return _u
+	return b
 }
-
-// SetNillableNumber sets the "number" field if the given value is not nil.
-func (_u *CardUpdateOne) SetNillableNumber(v *string) *CardUpdateOne {
-	if v != nil {
-		_u.SetNumber(*v)
+func (b *CardUpdateOne) SetOptional[T any](column ent.ColumnOf[entity.Card, T], value ent.Option[T]) *CardUpdateOne {
+	if value.IsNull() {
+		if b.err == nil {
+			b.err = b.mutation.patch.setNull(column.Ref().Name)
+		}
+		return b
 	}
-	return _u
+	if value, ok := value.Get(); ok {
+		return b.Set(column, value)
+	}
+	return b
+}
+func (b *CardUpdateOne) SetExpr[T any](column ent.ColumnOf[entity.Card, T], value ent.Expr[T]) *CardUpdateOne {
+	if b.err != nil {
+		return b
+	}
+	switch column.Ref().Name {
+
+	case card.FieldExpired:
+
+	case card.FieldNumber:
+
+	default:
+		b.err = &ValidationError{Name: column.Ref().Name, err: fmt.Errorf("ent: field %q of Card is not settable", column.Ref().Name)}
+		return b
+	}
+
+	b.mutation.patch.setExpr(column.Ref().Name, value.Render)
+
+	return b
+
+}
+func (b *CardUpdateOne) SetEdge[N, K any](edge ent.UniqueRelation[entity.Card, N, K], id K) *CardUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setEdge(edge.Ref().Name, id)
+	}
+
+	return b
+}
+func (b *CardUpdateOne) AddIDs[N, K any](edge ent.Relation[entity.Card, N, K], ids ...K) *CardUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.addIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *CardUpdateOne) Mutation() *CardMutation { return b.mutation }
+
+func (b *CardUpdateOne) Patch() *CardPatch                { return b.mutation.patch }
+func (b *CardUpdateOne) Apply(p CardPatch) *CardUpdateOne { b.mutation.patch.apply(p); return b }
+func (b *CardUpdateOne) Add[T ent.Number](column ent.ColumnOf[entity.Card, T], delta T) *CardUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.add(column.Ref().Name, delta)
+	}
+	return b
+}
+func (b *CardUpdateOne) Append[T any](column ent.ColumnOf[entity.Card, T], values T) *CardUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.appendValues(column.Ref().Name, values)
+	}
+	return b
+}
+func (b *CardUpdateOne) Clear[T any](column ent.ColumnOf[entity.Card, T]) *CardUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.setNull(column.Ref().Name)
+	}
+	return b
+}
+func (b *CardUpdateOne) RemoveIDs[N, K any](edge ent.Relation[entity.Card, N, K], ids ...K) *CardUpdateOne {
+	values := make([]any, len(ids))
+	for index := range ids {
+		values[index] = ids[index]
+	}
+	if b.err == nil {
+		b.err = b.mutation.patch.removeIDs(edge.Ref().Name, values...)
+	}
+	return b
+}
+func (b *CardUpdateOne) ClearEdge[N, K any](edge ent.RelationOf[entity.Card, N, K]) *CardUpdateOne {
+	if b.err == nil {
+		b.err = b.mutation.patch.clearEdge(edge.Ref().Name)
+	}
+	return b
 }
 
-// SetOwnerID sets the "owner" edge to the User entity by ID.
-func (_u *CardUpdateOne) SetOwnerID(id int) *CardUpdateOne {
-	_u.mutation.SetOwnerID(id)
-	return _u
+func (b *CardUpdateOne) Where(predicates ...ent.Predicate[entity.Card]) *CardUpdateOne {
+	b.mutation.Where(predicates...)
+	return b
 }
 
-// SetOwner sets the "owner" edge to the User entity.
-func (_u *CardUpdateOne) SetOwner(v *User) *CardUpdateOne {
-	return _u.SetOwnerID(v.ID)
+func (b *CardUpdateOne) Save(ctx context.Context) (*Card, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if err := b.defaults(); err != nil {
+		return nil, err
+	}
+	return b.sqlSave(ctx)
 }
 
-// Mutation returns the CardMutation object of the builder.
-func (_u *CardUpdateOne) Mutation() *CardMutation {
-	return _u.mutation
-}
-
-// ClearOwner clears the "owner" edge to the User entity.
-func (_u *CardUpdateOne) ClearOwner() *CardUpdateOne {
-	_u.mutation.ClearOwner()
-	return _u
-}
-
-// Where appends a list predicates to the CardUpdate builder.
-func (_u *CardUpdateOne) Where(ps ...predicate.Card) *CardUpdateOne {
-	_u.mutation.Where(ps...)
-	return _u
-}
-
-// Select allows selecting one or more fields (columns) of the returned entity.
-// The default is selecting all fields defined in the entity schema.
-func (_u *CardUpdateOne) Select(field string, fields ...string) *CardUpdateOne {
-	_u.fields = append([]string{field}, fields...)
-	return _u
-}
-
-// Save executes the query and returns the updated Card entity.
-func (_u *CardUpdateOne) Save(ctx context.Context) (*Card, error) {
-	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
-}
-
-// SaveX is like Save, but panics if an error occurs.
-func (_u *CardUpdateOne) SaveX(ctx context.Context) *Card {
-	node, err := _u.Save(ctx)
+func (b *CardUpdateOne) SaveX(ctx context.Context) *Card {
+	result, err := b.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return node
+	return result
 }
 
-// Exec executes the query on the entity.
-func (_u *CardUpdateOne) Exec(ctx context.Context) error {
-	_, err := _u.Save(ctx)
-	return err
-}
+func (b *CardUpdateOne) Exec(ctx context.Context) error { _, err := b.Save(ctx); return err }
 
-// ExecX is like Exec, but panics if an error occurs.
-func (_u *CardUpdateOne) ExecX(ctx context.Context) {
-	if err := _u.Exec(ctx); err != nil {
+func (b *CardUpdateOne) ExecX(ctx context.Context) {
+	if err := b.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_u *CardUpdateOne) check() error {
-	if _u.mutation.OwnerCleared() && len(_u.mutation.OwnerIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "Card.owner"`)
+func (b *CardUpdateOne) Select(columns ...ent.EntityColumn[entity.Card]) *CardUpdateOne {
+	if len(columns) == 0 {
+		panic("ent: Select requires at least one column")
 	}
+	b.fields = make([]string, len(columns))
+	for index, column := range columns {
+		b.fields[index] = column.Ref().Name
+	}
+	return b
+}
+
+func (b *CardUpdateOne) SaveOld(ctx context.Context) (old *Card, updated *Card, err error) {
+	if !b.driver.Capabilities().ReturningOld {
+		return nil, nil, &dialect.UnsupportedError{Feature: "RETURNING OLD", Dialect: dialect.Dialect(b.driver.Dialect())}
+	}
+	b.old = &Card{config: b.config}
+	defer func() { b.old = nil }()
+	updated, err = b.Save(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return b.old, updated, nil
+}
+
+func (b *CardUpdateOne) defaults() error {
+
 	return nil
+}
+
+func (b *CardUpdateOne) check() error {
+	if b.err != nil {
+		return b.err
+	}
+
+	if b.mutation.patch.Expired.IsNull() {
+		return &ValidationError{Name: "expired", err: errors.New(`ent: field "Card.expired" is not nullable`)}
+	}
+
+	if b.mutation.patch.Number.IsNull() {
+		return &ValidationError{Name: "number", err: errors.New(`ent: field "Card.number" is not nullable`)}
+	}
+
+	if b.mutation.patch.OwnerID.IsNull() {
+		return &ValidationError{Name: "owner", err: errors.New(`ent: clearing required edge "Card.owner"`)}
+	}
+
+	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *CardUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *CardUpdateOne {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
 }
 
 func (_u *CardUpdateOne) sqlSave(ctx context.Context) (_node *Card, err error) {
@@ -311,13 +500,13 @@ func (_u *CardUpdateOne) sqlSave(ctx context.Context) (_node *Card, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.Expired(); ok {
+	if value, ok := _u.mutation.patch.Expired.Get(); ok {
 		_spec.SetField(card.FieldExpired, field.TypeTime, value)
 	}
-	if value, ok := _u.mutation.Number(); ok {
+	if value, ok := _u.mutation.patch.Number.Get(); ok {
 		_spec.SetField(card.FieldNumber, field.TypeString, value)
 	}
-	if _u.mutation.OwnerCleared() {
+	if _u.mutation.patch.OwnerID.IsNull() || _u.mutation.patch.clearedEdges[card.EdgeOwner] {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2O,
 			Inverse: true,
@@ -330,7 +519,7 @@ func (_u *CardUpdateOne) sqlSave(ctx context.Context) (_node *Card, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.OwnerIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.patch.ownerIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2O,
 			Inverse: true,
@@ -341,14 +530,28 @@ func (_u *CardUpdateOne) sqlSave(ctx context.Context) (_node *Card, err error) {
 				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
 			},
 		}
+		seen := make(map[int]struct{}, len(nodes))
 		for _, k := range nodes {
+			if _, exists := seen[k]; exists {
+				continue
+			}
+			seen[k] = struct{}{}
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	for column, render := range _u.mutation.patch.expressions {
+		_spec.AddModifier(func(update *sql.UpdateBuilder) { update.Set(column, sql.ExprFunc(render)) })
+	}
+	_spec.AddModifiers(_u.modifiers...)
+
 	_node = &Card{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
+	if _u.old != nil {
+		_spec.OldScanValues = _u.old.scanValues
+		_spec.OldAssign = _u.old.assignValues
+	}
 	if err = sqlgraph.UpdateNode(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{card.Label}
@@ -357,6 +560,5 @@ func (_u *CardUpdateOne) sqlSave(ctx context.Context) (_node *Card, err error) {
 		}
 		return nil, err
 	}
-	_u.mutation.done = true
 	return _node, nil
 }

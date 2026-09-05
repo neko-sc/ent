@@ -8,29 +8,56 @@ package ent
 import (
 	"context"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/customid/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/note"
-	"github.com/neko-sc/ent/entc/integration/customid/ent/predicate"
 	"github.com/neko-sc/ent/schema/field"
 )
 
 // NoteDelete is the builder for deleting a Note entity.
 type NoteDelete struct {
 	config
-	hooks    []Hook
-	mutation *NoteMutation
+
+	mutation  *NoteMutation
+	returning *sqlgraph.Returning
 }
 
 // Where appends a list predicates to the NoteDelete builder.
-func (_d *NoteDelete) Where(ps ...predicate.Note) *NoteDelete {
-	_d.mutation.Where(ps...)
+func (_d *NoteDelete) Where(predicates ...ent.Predicate[entity.Note]) *NoteDelete {
+	_d.mutation.Where(predicates...)
 	return _d
 }
 
 // Exec executes the deletion query and returns how many vertices were deleted.
 func (_d *NoteDelete) Exec(ctx context.Context) (int, error) {
-	return withHooks(ctx, _d.sqlExec, _d.mutation, _d.hooks)
+	return _d.sqlExec(ctx)
+}
+
+func (b *NoteDelete) Returning(ctx context.Context) ([]*Note, error) {
+	nodes := make([]*Note, 0)
+	b.returning = &sqlgraph.Returning{Columns: note.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Note{config: b.config}
+		values, err := _node.scanValues(note.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(note.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Exec(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
 }
 
 // ExecX is like Exec, but panics if an error occurs.
@@ -51,11 +78,11 @@ func (_d *NoteDelete) sqlExec(ctx context.Context) (int, error) {
 			}
 		}
 	}
+	_spec.Returning = _d.returning
 	affected, err := sqlgraph.DeleteNodes(ctx, _d.driver, _spec)
 	if err != nil && sqlgraph.IsConstraintError(err) {
 		err = &ConstraintError{msg: err.Error(), wrap: err}
 	}
-	_d.mutation.done = true
 	return affected, err
 }
 
@@ -65,8 +92,8 @@ type NoteDeleteOne struct {
 }
 
 // Where appends a list predicates to the NoteDelete builder.
-func (_d *NoteDeleteOne) Where(ps ...predicate.Note) *NoteDeleteOne {
-	_d._d.mutation.Where(ps...)
+func (_d *NoteDeleteOne) Where(predicates ...ent.Predicate[entity.Note]) *NoteDeleteOne {
+	_d._d.mutation.Where(predicates...)
 	return _d
 }
 

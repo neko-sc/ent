@@ -38,7 +38,7 @@ func BackfillUserTags(dir *migrate.LocalDir) error {
 				),
 			)
 		}).
-		SetTags([]string{"foo", "bar"}).
+		Set(user.Tags, []string{"foo", "bar"}).
 		Exec(context.Background())
 	if err != nil {
 		return fmt.Errorf("failed generating backfill statement: %w", err)
@@ -51,8 +51,8 @@ func BackfillUserTags(dir *migrate.LocalDir) error {
 		Update().
 		Where(
 			user.Or(
-				user.NameHasPrefix("org-"),
-				user.NameHasSuffix("-org"),
+				user.Name.HasPrefix("org-"),
+				user.Name.HasSuffix("-org"),
 			),
 			// Append to only those without this tag.
 			func(s *sql.Selector) {
@@ -61,7 +61,7 @@ func BackfillUserTags(dir *migrate.LocalDir) error {
 				)
 			},
 		).
-		AppendTags([]string{"org"}).
+		Append(user.Tags, []string{"org"}).
 		Exec(context.Background())
 	if err != nil {
 		return fmt.Errorf("failed generating backfill statement: %w", err)
@@ -82,9 +82,9 @@ func BackfillUnknown(dir *migrate.LocalDir) error {
 	err := client.User.
 		Update().
 		Where(
-			user.NameEQ(""),
+			user.Name.EQ(""),
 		).
-		SetName("Unknown").
+		Set(user.Name, "Unknown").
 		Exec(context.Background())
 	if err != nil {
 		return fmt.Errorf("failed generating statement: %w", err)
@@ -104,8 +104,8 @@ func SeedUsers(dir *migrate.LocalDir) error {
 
 	// The statement that generates the INSERT statement.
 	err := client.User.CreateBulk(
-		client.User.Create().SetName("a8m").SetAge(1).SetTags([]string{"foo"}),
-		client.User.Create().SetName("nati").SetAge(1).SetTags([]string{"bar"}),
+		client.User.Create().Set(user.Name, "a8m").Set(user.Age, 1).Set(user.Tags, []string{"foo"}),
+		client.User.Create().Set(user.Name, "nati").Set(user.Age, 1).Set(user.Tags, []string{"bar"}),
 	).Exec(context.Background())
 	if err != nil {
 		return fmt.Errorf("failed generating statement: %w", err)

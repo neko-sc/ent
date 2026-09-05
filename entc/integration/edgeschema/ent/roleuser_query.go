@@ -7,13 +7,15 @@ package ent
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 
 	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
-	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/predicate"
+	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/role"
 	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/roleuser"
 	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/user"
@@ -23,19 +25,90 @@ import (
 type RoleUserQuery struct {
 	config
 	ctx        *QueryContext
-	order      []roleuser.OrderOption
-	inters     []Interceptor
-	predicates []predicate.RoleUser
+	order      []ent.OrderOption[entity.RoleUser]
+	joins      []func(*sql.Selector)
+	withCounts []ent.RelationRef
+
+	predicates []ent.Predicate[entity.RoleUser]
 	withRole   *RoleQuery
 	withUser   *UserQuery
+	modifiers  []func(*sql.Selector)
+
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
 }
 
 // Where adds a new predicate for the RoleUserQuery builder.
-func (_q *RoleUserQuery) Where(ps ...predicate.RoleUser) *RoleUserQuery {
-	_q.predicates = append(_q.predicates, ps...)
+func (_q *RoleUserQuery) Where(predicates ...ent.Predicate[entity.RoleUser]) *RoleUserQuery {
+	_q.predicates = append(_q.predicates, predicates...)
+	return _q
+}
+
+func (_q *RoleUserQuery) WhereP(predicates ...func(*sql.Selector)) *RoleUserQuery {
+	for _, predicate := range predicates {
+		_q.predicates = append(_q.predicates, predicate)
+	}
+	return _q
+}
+
+func (_q *RoleUserQuery) Join(table string, on ...func(*sql.Selector)) *RoleUserQuery {
+	return _q.JoinAs(table, "", on...)
+}
+
+func (_q *RoleUserQuery) JoinAs(table, alias string, on ...func(*sql.Selector)) *RoleUserQuery {
+	on = append([]func(*sql.Selector){}, on...)
+	_q.joins = append(_q.joins, func(selector *sql.Selector) {
+		joined := sql.Dialect(selector.Dialect()).Table(table)
+		if alias != "" {
+			joined.As(alias)
+		} else {
+			joined.As(table)
+		}
+		condition := sql.Dialect(selector.Dialect()).Select().From(selector.Table())
+		for _, predicate := range on {
+			predicate(condition)
+		}
+		if err := condition.Err(); err != nil {
+			selector.AddError(err)
+		}
+		selector.Join(joined).OnP(condition.P())
+	})
+	return _q
+}
+
+func (_q *RoleUserQuery) LeftJoin(table string, on ...func(*sql.Selector)) *RoleUserQuery {
+	return _q.LeftJoinAs(table, "", on...)
+}
+
+func (_q *RoleUserQuery) LeftJoinAs(table, alias string, on ...func(*sql.Selector)) *RoleUserQuery {
+	on = append([]func(*sql.Selector){}, on...)
+	_q.joins = append(_q.joins, func(selector *sql.Selector) {
+		joined := sql.Dialect(selector.Dialect()).Table(table)
+		if alias != "" {
+			joined.As(alias)
+		} else {
+			joined.As(table)
+		}
+		condition := sql.Dialect(selector.Dialect()).Select().From(selector.Table())
+		for _, predicate := range on {
+			predicate(condition)
+		}
+		if err := condition.Err(); err != nil {
+			selector.AddError(err)
+		}
+		selector.LeftJoin(joined).OnP(condition.P())
+	})
+	return _q
+}
+
+func (_q *RoleUserQuery) WithCount[N, K any](edge ent.Relation[entity.RoleUser, N, K]) *RoleUserQuery {
+	for _, requested := range _q.withCounts {
+		if requested.Name == edge.Ref().Name {
+			return _q
+		}
+	}
+	_q.withCounts = append(_q.withCounts, edge.Ref())
 	return _q
 }
 
@@ -59,7 +132,7 @@ func (_q *RoleUserQuery) Unique(unique bool) *RoleUserQuery {
 }
 
 // Order specifies how the records should be ordered.
-func (_q *RoleUserQuery) Order(o ...roleuser.OrderOption) *RoleUserQuery {
+func (_q *RoleUserQuery) Order(o ...ent.OrderOption[entity.RoleUser]) *RoleUserQuery {
 	_q.order = append(_q.order, o...)
 	return _q
 }
@@ -111,7 +184,7 @@ func (_q *RoleUserQuery) QueryUser() *UserQuery {
 // First returns the first RoleUser entity from the query.
 // Returns a *NotFoundError when no RoleUser was found.
 func (_q *RoleUserQuery) First(ctx context.Context) (*RoleUser, error) {
-	nodes, err := _q.Limit(1).All(setContextOp(ctx, _q.ctx, ent.OpQueryFirst))
+	nodes, err := _q.Limit(1).All(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +207,7 @@ func (_q *RoleUserQuery) FirstX(ctx context.Context) *RoleUser {
 // Returns a *NotSingularError when more than one RoleUser entity is found.
 // Returns a *NotFoundError when no RoleUser entities are found.
 func (_q *RoleUserQuery) Only(ctx context.Context) (*RoleUser, error) {
-	nodes, err := _q.Limit(2).All(setContextOp(ctx, _q.ctx, ent.OpQueryOnly))
+	nodes, err := _q.Limit(2).All(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -159,12 +232,10 @@ func (_q *RoleUserQuery) OnlyX(ctx context.Context) *RoleUser {
 
 // All executes the query and returns a list of RoleUsers.
 func (_q *RoleUserQuery) All(ctx context.Context) ([]*RoleUser, error) {
-	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryAll)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
-	qr := querierAll[[]*RoleUser, *RoleUserQuery]()
-	return withInterceptors[[]*RoleUser](ctx, _q, qr, _q.inters)
+	return _q.sqlAll(ctx)
 }
 
 // AllX is like All, but panics if an error occurs.
@@ -178,11 +249,10 @@ func (_q *RoleUserQuery) AllX(ctx context.Context) []*RoleUser {
 
 // Count returns the count of the given query.
 func (_q *RoleUserQuery) Count(ctx context.Context) (int, error) {
-	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryCount)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
-	return withInterceptors[int](ctx, _q, querierCount[*RoleUserQuery](), _q.inters)
+	return _q.sqlCount(ctx)
 }
 
 // CountX is like Count, but panics if an error occurs.
@@ -196,7 +266,6 @@ func (_q *RoleUserQuery) CountX(ctx context.Context) int {
 
 // Exist returns true if the query has elements in the graph.
 func (_q *RoleUserQuery) Exist(ctx context.Context) (bool, error) {
-	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryExist)
 	switch _, err := _q.First(ctx); {
 	case IsNotFound(err):
 		return false, nil
@@ -222,18 +291,23 @@ func (_q *RoleUserQuery) Clone() *RoleUserQuery {
 	if _q == nil {
 		return nil
 	}
-	return &RoleUserQuery{
+	cloned := &RoleUserQuery{
 		config:     _q.config,
 		ctx:        _q.ctx.Clone(),
-		order:      append([]roleuser.OrderOption{}, _q.order...),
-		inters:     append([]Interceptor{}, _q.inters...),
-		predicates: append([]predicate.RoleUser{}, _q.predicates...),
-		withRole:   _q.withRole.Clone(),
-		withUser:   _q.withUser.Clone(),
+		order:      append([]ent.OrderOption[entity.RoleUser]{}, _q.order...),
+		predicates: append([]ent.Predicate[entity.RoleUser]{}, _q.predicates...),
+		joins:      append([]func(*sql.Selector){}, _q.joins...),
+		withCounts: append([]ent.RelationRef{}, _q.withCounts...),
+
+		withRole: _q.withRole.Clone(),
+		withUser: _q.withUser.Clone(),
 		// clone intermediate query.
-		sql:  _q.sql.Clone(),
-		path: _q.path,
+		sql:       _q.sql.Clone(),
+		path:      _q.path,
+		modifiers: append([]func(*sql.Selector){}, _q.modifiers...),
 	}
+
+	return cloned
 }
 
 // WithRole tells the query-builder to eager-load the nodes that are connected to
@@ -259,26 +333,24 @@ func (_q *RoleUserQuery) WithUser(opts ...func(*UserQuery)) *RoleUserQuery {
 }
 
 // GroupBy is used to group vertices by one or more fields/columns.
-// It is often used with aggregate functions, like: count, max, mean, min, sum.
+// It can be combined with typed aggregate selections.
 //
 // Example:
 //
 //	var v []struct {
-//		CreatedAt time.Time `json:"created_at,omitempty"`
+//		CreatedAt time2.Time `json:"created_at,omitempty"`
 //		Count int `json:"count,omitempty"`
 //	}
 //
 //	client.RoleUser.Query().
-//		GroupBy(roleuser.FieldCreatedAt).
+//		GroupBy(roleuser.CreatedAt).
 //		Aggregate(ent.Count()).
 //		Scan(ctx, &v)
-func (_q *RoleUserQuery) GroupBy(field string, fields ...string) *RoleUserGroupBy {
-	_q.ctx.Fields = append([]string{field}, fields...)
-	grbuild := &RoleUserGroupBy{build: _q}
-	grbuild.flds = &_q.ctx.Fields
-	grbuild.label = roleuser.Label
-	grbuild.scan = grbuild.Scan
-	return grbuild
+func (_q *RoleUserQuery) GroupBy(columns ...ent.EntityColumn[entity.RoleUser]) *RoleUserGroupBy {
+	if len(columns) == 0 {
+		panic("ent: GroupBy requires at least one column")
+	}
+	return &RoleUserGroupBy{query: _q, columns: append([]ent.EntityColumn[entity.RoleUser](nil), columns...)}
 }
 
 // Select allows the selection one or more fields/columns for the given query,
@@ -287,36 +359,22 @@ func (_q *RoleUserQuery) GroupBy(field string, fields ...string) *RoleUserGroupB
 // Example:
 //
 //	var v []struct {
-//		CreatedAt time.Time `json:"created_at,omitempty"`
+//		CreatedAt time2.Time `json:"created_at,omitempty"`
 //	}
 //
 //	client.RoleUser.Query().
-//		Select(roleuser.FieldCreatedAt).
+//		Select(roleuser.CreatedAt).
 //		Scan(ctx, &v)
-func (_q *RoleUserQuery) Select(fields ...string) *RoleUserSelect {
-	_q.ctx.Fields = append(_q.ctx.Fields, fields...)
-	sbuild := &RoleUserSelect{RoleUserQuery: _q}
-	sbuild.label = roleuser.Label
-	sbuild.flds, sbuild.scan = &_q.ctx.Fields, sbuild.Scan
-	return sbuild
+func (_q *RoleUserQuery) Select(selections ...ent.Selection) *RoleUserSelect {
+	return &RoleUserSelect{query: _q, selections: append([]ent.Selection(nil), selections...)}
 }
 
 // Aggregate returns a RoleUserSelect configured with the given aggregations.
-func (_q *RoleUserQuery) Aggregate(fns ...AggregateFunc) *RoleUserSelect {
-	return _q.Select().Aggregate(fns...)
+func (_q *RoleUserQuery) Aggregate(selections ...ent.Selection) *RoleUserSelect {
+	return _q.Select(selections...)
 }
 
 func (_q *RoleUserQuery) prepareQuery(ctx context.Context) error {
-	for _, inter := range _q.inters {
-		if inter == nil {
-			return fmt.Errorf("ent: uninitialized interceptor (forgotten import ent/runtime?)")
-		}
-		if trv, ok := inter.(Traverser); ok {
-			if err := trv.Traverse(ctx, _q); err != nil {
-				return err
-			}
-		}
-	}
 	for _, f := range _q.ctx.Fields {
 		if !roleuser.ValidColumn(f) {
 			return &ValidationError{Name: f, err: fmt.Errorf("ent: invalid field %q for query", f)}
@@ -350,6 +408,10 @@ func (_q *RoleUserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Rol
 		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
+	if len(_q.modifiers) > 0 {
+		_spec.Modifiers = _q.modifiers
+	}
+
 	for i := range hooks {
 		hooks[i](ctx, _spec)
 	}
@@ -371,10 +433,15 @@ func (_q *RoleUserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Rol
 			return nil, err
 		}
 	}
+
 	return nodes, nil
 }
 
 func (_q *RoleUserQuery) loadRole(ctx context.Context, query *RoleQuery, nodes []*RoleUser, init func(*RoleUser), assign func(*RoleUser, *Role)) error {
+	query = query.Clone()
+
+	query.ctx.Limit, query.ctx.Offset = nil, nil
+
 	ids := make([]int, 0, len(nodes))
 	nodeids := make(map[int][]*RoleUser)
 	for i := range nodes {
@@ -387,7 +454,7 @@ func (_q *RoleUserQuery) loadRole(ctx context.Context, query *RoleQuery, nodes [
 	if len(ids) == 0 {
 		return nil
 	}
-	query.Where(role.IDIn(ids...))
+	query.Where(role.ID.In(ids...))
 	neighbors, err := query.All(ctx)
 	if err != nil {
 		return err
@@ -404,6 +471,10 @@ func (_q *RoleUserQuery) loadRole(ctx context.Context, query *RoleQuery, nodes [
 	return nil
 }
 func (_q *RoleUserQuery) loadUser(ctx context.Context, query *UserQuery, nodes []*RoleUser, init func(*RoleUser), assign func(*RoleUser, *User)) error {
+	query = query.Clone()
+
+	query.ctx.Limit, query.ctx.Offset = nil, nil
+
 	ids := make([]int, 0, len(nodes))
 	nodeids := make(map[int][]*RoleUser)
 	for i := range nodes {
@@ -416,7 +487,7 @@ func (_q *RoleUserQuery) loadUser(ctx context.Context, query *UserQuery, nodes [
 	if len(ids) == 0 {
 		return nil
 	}
-	query.Where(user.IDIn(ids...))
+	query.Where(user.ID.In(ids...))
 	neighbors, err := query.All(ctx)
 	if err != nil {
 		return err
@@ -435,6 +506,10 @@ func (_q *RoleUserQuery) loadUser(ctx context.Context, query *UserQuery, nodes [
 
 func (_q *RoleUserQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := _q.querySpec()
+	if len(_q.modifiers) > 0 {
+		_spec.Modifiers = _q.modifiers
+	}
+
 	_spec.Unique = false
 	_spec.Node.Columns = nil
 	return sqlgraph.CountNodes(ctx, _q.driver, _spec)
@@ -460,10 +535,13 @@ func (_q *RoleUserQuery) querySpec() *sqlgraph.QuerySpec {
 			_spec.Node.AddColumnOnce(roleuser.FieldUserID)
 		}
 	}
-	if ps := _q.predicates; len(ps) > 0 {
+	if predicates := _q.predicates; len(predicates) > 0 || len(_q.joins) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
-			for i := range ps {
-				ps[i](selector)
+			for _, join := range _q.joins {
+				join(selector)
+			}
+			for i := range predicates {
+				predicates[i](selector)
 			}
 		}
 	}
@@ -498,6 +576,9 @@ func (_q *RoleUserQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	if _q.ctx.Unique != nil && *_q.ctx.Unique {
 		selector.Distinct()
 	}
+	for _, join := range _q.joins {
+		join(selector)
+	}
 	for _, p := range _q.predicates {
 		p(selector)
 	}
@@ -512,95 +593,188 @@ func (_q *RoleUserQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	if limit := _q.ctx.Limit; limit != nil {
 		selector.Limit(*limit)
 	}
+	for _, modifier := range _q.modifiers {
+		modifier(selector)
+	}
 	return selector
+}
+
+// ForUpdate locks the selected rows against concurrent updates, and prevent them from being
+// updated, deleted or "selected ... for update" by other sessions, until the transaction is
+// either committed or rolled-back.
+func (_q *RoleUserQuery) ForUpdate(opts ...sql.LockOption) *RoleUserQuery {
+	if _q.driver.Dialect() == dialect.Postgres {
+		_q.Unique(false)
+	}
+	_q.modifiers = append(_q.modifiers, func(s *sql.Selector) {
+		s.ForUpdate(opts...)
+	})
+	return _q
+}
+
+// ForShare behaves similarly to ForUpdate, except that it acquires a shared mode lock
+// on any rows that are read. Other sessions can read the rows, but cannot modify them
+// until your transaction commits.
+func (_q *RoleUserQuery) ForShare(opts ...sql.LockOption) *RoleUserQuery {
+	if _q.driver.Dialect() == dialect.Postgres {
+		_q.Unique(false)
+	}
+	_q.modifiers = append(_q.modifiers, func(s *sql.Selector) {
+		s.ForShare(opts...)
+	})
+	return _q
+}
+
+// Modify adds a query modifier for attaching custom logic to queries.
+func (_q *RoleUserQuery) Modify(modifiers ...func(s *sql.Selector)) *RoleUserSelect {
+	_q.modifiers = append(_q.modifiers, modifiers...)
+	return _q.Select()
 }
 
 // RoleUserGroupBy is the group-by builder for RoleUser entities.
 type RoleUserGroupBy struct {
-	selector
-	build *RoleUserQuery
+	query      *RoleUserQuery
+	columns    []ent.EntityColumn[entity.RoleUser]
+	aggregates []ent.Selection
 }
 
-// Aggregate adds the given aggregation functions to the group-by query.
-func (_g *RoleUserGroupBy) Aggregate(fns ...AggregateFunc) *RoleUserGroupBy {
-	_g.fns = append(_g.fns, fns...)
+func (_g *RoleUserGroupBy) Aggregate(selections ...ent.Selection) *RoleUserGroupBy {
+	_g.aggregates = append(_g.aggregates, selections...)
 	return _g
 }
 
-// Scan applies the selector query and scans the result into the given value.
 func (_g *RoleUserGroupBy) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, _g.build.ctx, ent.OpQueryGroupBy)
-	if err := _g.build.prepareQuery(ctx); err != nil {
-		return err
-	}
-	return scanWithInterceptors[*RoleUserQuery, *RoleUserGroupBy](ctx, _g.build, _g, _g.build.inters, v)
+	return _g.selectQuery().Scan(ctx, v)
 }
 
-func (_g *RoleUserGroupBy) sqlScan(ctx context.Context, root *RoleUserQuery, v any) error {
-	selector := root.sqlQuery(ctx).Select()
-	aggregation := make([]string, 0, len(_g.fns))
-	for _, fn := range _g.fns {
-		aggregation = append(aggregation, fn(selector))
+func (_g *RoleUserGroupBy) Rows(ctx context.Context) ([]*ent.Row, error) {
+	return _g.selectQuery().Rows(ctx)
+}
+
+func (_g *RoleUserGroupBy) selectQuery() *RoleUserSelect {
+	selections := make([]ent.Selection, 0, len(_g.columns)+len(_g.aggregates))
+	for _, column := range _g.columns {
+		selections = append(selections, column)
 	}
-	if len(selector.SelectedColumns()) == 0 {
-		columns := make([]string, 0, len(*_g.flds)+len(_g.fns))
-		for _, f := range *_g.flds {
-			columns = append(columns, selector.C(f))
-		}
-		columns = append(columns, aggregation...)
-		selector.Select(columns...)
-	}
-	selector.GroupBy(selector.Columns(*_g.flds...)...)
-	if err := selector.Err(); err != nil {
-		return err
-	}
-	rows := &sql.Rows{}
-	query, args := selector.Query()
-	if err := _g.build.driver.Query(ctx, query, args, rows); err != nil {
-		return err
-	}
-	defer rows.Close()
-	return sql.ScanSlice(rows, v)
+	selected := _g.query.Select(append(selections, _g.aggregates...)...)
+	selected.groups = _g.columns
+	return selected
 }
 
 // RoleUserSelect is the builder for selecting fields of RoleUser entities.
 type RoleUserSelect struct {
-	*RoleUserQuery
-	selector
+	query      *RoleUserQuery
+	selections []ent.Selection
+	groups     []ent.EntityColumn[entity.RoleUser]
 }
 
-// Aggregate adds the given aggregation functions to the selector query.
-func (_s *RoleUserSelect) Aggregate(fns ...AggregateFunc) *RoleUserSelect {
-	_s.fns = append(_s.fns, fns...)
+func (_s *RoleUserSelect) Aggregate(selections ...ent.Selection) *RoleUserSelect {
+	_s.selections = append(_s.selections, selections...)
 	return _s
 }
 
-// Scan applies the selector query and scans the result into the given value.
-func (_s *RoleUserSelect) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, _s.ctx, ent.OpQuerySelect)
-	if err := _s.prepareQuery(ctx); err != nil {
-		return err
+func (_s *RoleUserSelect) Row(ctx context.Context) (*ent.Row, error) {
+	rows, err := _s.Rows(ctx)
+	if err != nil {
+		return nil, err
 	}
-	return scanWithInterceptors[*RoleUserQuery, *RoleUserSelect](ctx, _s.RoleUserQuery, _s, _s.inters, v)
+	switch len(rows) {
+	case 0:
+		return nil, &NotFoundError{roleuser.Label}
+	case 1:
+		return rows[0], nil
+	default:
+		return nil, &NotSingularError{roleuser.Label}
+	}
 }
 
-func (_s *RoleUserSelect) sqlScan(ctx context.Context, root *RoleUserQuery, v any) error {
+func (_s *RoleUserSelect) sqlQuery(ctx context.Context) (*sql.Selector, error) {
+	root := _s.query.Clone()
+	root.ctx.Fields = nil
+	for _, selection := range _s.selections {
+		if column := selection.Ref(); column.Name != "" && (column.Table == "" || column.Table == roleuser.Table) {
+			root.ctx.AppendFieldOnce(column.Name)
+		}
+	}
+	if err := root.prepareQuery(ctx); err != nil {
+		return nil, err
+	}
+	root.modifiers = nil
 	selector := root.sqlQuery(ctx)
-	aggregation := make([]string, 0, len(_s.fns))
-	for _, fn := range _s.fns {
-		aggregation = append(aggregation, fn(selector))
+	if len(_s.selections) > 0 {
+		ent.SelectColumns(selector, _s.selections...)
 	}
-	switch n := len(*_s.selector.flds); {
-	case n == 0 && len(aggregation) > 0:
-		selector.Select(aggregation...)
-	case n != 0 && len(aggregation) > 0:
-		selector.AppendSelect(aggregation...)
+	for _, column := range _s.groups {
+		reference := column.Ref()
+		if reference.Table == "" || reference.Table == selector.TableName() {
+			selector.GroupBy(selector.C(reference.Name))
+		} else {
+			selector.GroupBy(sql.Dialect(selector.Dialect()).Table(reference.Table).C(reference.Name))
+		}
 	}
-	rows := &sql.Rows{}
-	query, args := selector.Query()
-	if err := _s.driver.Query(ctx, query, args, rows); err != nil {
+	for _, modifier := range _s.query.modifiers {
+		modifier(selector)
+	}
+	return selector, selector.Err()
+}
+
+func (_s *RoleUserSelect) Scan(ctx context.Context, value any) error {
+	selector, err := _s.sqlQuery(ctx)
+	if err != nil {
+		return err
+	}
+	query, arguments := selector.Query()
+	if err := selector.Err(); err != nil {
+		return err
+	}
+	rows, err := _s.query.driver.Query(ctx, query, arguments)
+	if err != nil {
 		return err
 	}
 	defer rows.Close()
-	return sql.ScanSlice(rows, v)
+	return sql.ScanSlice(rows, value)
+}
+
+func (_s *RoleUserSelect) Rows(ctx context.Context) ([]*ent.Row, error) {
+	if len(_s.selections) == 0 {
+		return nil, errors.New("ent: Rows requires explicit selections")
+	}
+	selector, err := _s.sqlQuery(ctx)
+	if err != nil {
+		return nil, err
+	}
+	query, arguments := selector.Query()
+	if err := selector.Err(); err != nil {
+		return nil, err
+	}
+	rows, err := _s.query.driver.Query(ctx, query, arguments)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	columns, err := rows.Columns()
+	if err != nil {
+		return nil, err
+	}
+	if len(columns) != len(_s.selections) {
+		return nil, fmt.Errorf("ent: projection column count %d differs from selection count %d", len(columns), len(_s.selections))
+	}
+	result := make([]*ent.Row, 0)
+	for rows.Next() {
+		row, destinations := ent.NewRow(_s.selections)
+		if err := rows.Scan(destinations...); err != nil {
+			return nil, err
+		}
+		result = append(result, row)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+// Modify adds a query modifier for attaching custom logic to queries.
+func (_s *RoleUserSelect) Modify(modifiers ...func(s *sql.Selector)) *RoleUserSelect {
+	_s.query.modifiers = append(_s.query.modifiers, modifiers...)
+	return _s
 }

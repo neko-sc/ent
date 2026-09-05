@@ -9,102 +9,62 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
 
 	"github.com/neko-sc/ent"
-	"github.com/neko-sc/ent/examples/o2orecur/ent/node"
+	"github.com/neko-sc/ent/examples/o2orecur/ent/entity"
 )
 
 const (
-	// Operation types.
 	OpCreate    = ent.OpCreate
-	OpDelete    = ent.OpDelete
-	OpDeleteOne = ent.OpDeleteOne
 	OpUpdate    = ent.OpUpdate
 	OpUpdateOne = ent.OpUpdateOne
+	OpDelete    = ent.OpDelete
+	OpDeleteOne = ent.OpDeleteOne
 
-	// Node types.
 	TypeNode = "Node"
 )
 
-// NodeMutation represents an operation that mutates the Node nodes in the graph.
 type NodeMutation struct {
-	node.Mutation
 	config
-	id       *int
-	done     bool
-	oldValue func(context.Context) (*Node, error)
+	op         ent.Op
+	id         *int
+	insert     *NodeInsert
+	patch      *NodePatch
+	predicates []ent.Predicate[entity.Node]
 }
 
-var _ ent.Mutation = (*NodeMutation)(nil)
-
-// nodeOption allows management of the mutation configuration using functional options.
-type nodeOption func(*NodeMutation)
-
-// newNodeMutation creates new mutation for the Node entity.
-func newNodeMutation(c config, op Op, opts ...nodeOption) *NodeMutation {
-	m := &NodeMutation{
-		Mutation: *node.NewMutation(op),
-		config:   c,
+func newNodeMutation(c config, op ent.Op) *NodeMutation {
+	m := &NodeMutation{config: c, op: op}
+	if op.Is(OpCreate) {
+		m.insert = &NodeInsert{}
 	}
-	for _, opt := range opts {
-		opt(m)
+	if op.Is(OpUpdate | OpUpdateOne) {
+		m.patch = &NodePatch{}
 	}
 	return m
 }
 
-// ID returns the ID value in the mutation. Note that the ID is only available
-// if it was provided to the builder or after it was returned from the database.
-func (m *NodeMutation) ID() (id int, exists bool) {
-	if m.id == nil {
-		return
-	}
-	return *m.id, true
+func (m *NodeMutation) Op() ent.Op { return m.op }
+
+func (m *NodeMutation) Type() string { return "Node" }
+
+func (m *NodeMutation) Insert() *NodeInsert { return m.insert }
+
+func (m *NodeMutation) Patch() *NodePatch { return m.patch }
+
+func (m *NodeMutation) Predicates() []ent.Predicate[entity.Node] { return m.predicates }
+
+func (m *NodeMutation) Where(predicates ...ent.Predicate[entity.Node]) {
+	m.predicates = append(m.predicates, predicates...)
 }
 
-// withNodeID sets the ID field of the mutation.
-func withNodeID(id int) nodeOption {
-	return func(m *NodeMutation) {
-		var (
-			err   error
-			once  sync.Once
-			value *Node
-		)
-		m.oldValue = func(ctx context.Context) (*Node, error) {
-			once.Do(func() {
-				if m.done {
-					err = errors.New("querying old values post mutation is not allowed")
-				} else {
-					value, err = m.Client().Node.Get(ctx, id)
-				}
-			})
-			return value, err
-		}
-		m.id = &id
-	}
-}
-
-// withNode sets the old Node of the mutation.
-func withNode(node *Node) nodeOption {
-	return func(m *NodeMutation) {
-		m.oldValue = func(context.Context) (*Node, error) {
-			return node, nil
-		}
-		m.id = &node.ID
-	}
-}
-
-// Client returns a new `ent.Client` from the mutation. If the mutation was
-// executed in a transaction (ent.Tx), a transactional client is returned.
-func (m NodeMutation) Client() *Client {
+func (m *NodeMutation) Client() *Client {
 	client := &Client{config: m.config}
 	client.init()
 	return client
 }
 
-// Tx returns an `ent.Tx` for mutations that were executed in transactions;
-// it returns an error otherwise.
-func (m NodeMutation) Tx() (*Tx, error) {
+func (m *NodeMutation) Tx() (*Tx, error) {
 	if _, ok := m.driver.(*txDriver); !ok {
 		return nil, errors.New("ent: mutation is not running in a transaction")
 	}
@@ -113,68 +73,24 @@ func (m NodeMutation) Tx() (*Tx, error) {
 	return tx, nil
 }
 
-// IDs queries the database and returns the entity ids that match the mutation's predicate.
-// That means, if the mutation is applied within a transaction with an isolation level such
-// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
-// or updated by the mutation.
+func (m *NodeMutation) ID() (id int, exists bool) {
+	if m.id != nil {
+		return *m.id, true
+	}
+
+	return id, false
+}
+
 func (m *NodeMutation) IDs(ctx context.Context) ([]int, error) {
 	switch {
-	case m.Op().Is(OpUpdateOne | OpDeleteOne):
-		id, exists := m.ID()
-		if exists {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		if id, exists := m.ID(); exists {
 			return []int{id}, nil
 		}
 		fallthrough
-	case m.Op().Is(OpUpdate | OpDelete):
-		return m.Client().Node.Query().Where(m.Predicates()...).IDs(ctx)
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().Node.Query().Where(m.predicates...).IDs(ctx)
 	default:
-		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.Op())
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
 	}
-}
-
-// OldValue returns the old "value" field's value of the Node entity.
-// If the Node object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *NodeMutation) OldValue(ctx context.Context) (v int, err error) {
-	if !m.Op().Is(OpUpdateOne) {
-		return v, errors.New("OldValue is only allowed on UpdateOne operations")
-	}
-	if _, exists := m.ID(); !exists || m.oldValue == nil {
-		return v, errors.New("OldValue requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldValue: %w", err)
-	}
-	return oldValue.Value, nil
-}
-
-// OldPrevID returns the old "prev_id" field's value of the Node entity.
-// If the Node object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *NodeMutation) OldPrevID(ctx context.Context) (v int, err error) {
-	if !m.Op().Is(OpUpdateOne) {
-		return v, errors.New("OldPrevID is only allowed on UpdateOne operations")
-	}
-	if _, exists := m.ID(); !exists || m.oldValue == nil {
-		return v, errors.New("OldPrevID requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldPrevID: %w", err)
-	}
-	return oldValue.PrevID, nil
-}
-
-// OldField returns the old value of the field from the database. An error is
-// returned if the mutation operation is not UpdateOne, or the query to the
-// database failed.
-func (m *NodeMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
-	switch name {
-	case node.FieldValue:
-		return m.OldValue(ctx)
-	case node.FieldPrevID:
-		return m.OldPrevID(ctx)
-	}
-	return nil, fmt.Errorf("unknown Node field %s", name)
 }

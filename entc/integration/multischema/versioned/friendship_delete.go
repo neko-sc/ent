@@ -8,30 +8,57 @@ package versioned
 import (
 	"context"
 
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/multischema/versioned/entity"
 	"github.com/neko-sc/ent/entc/integration/multischema/versioned/friendship"
 	"github.com/neko-sc/ent/entc/integration/multischema/versioned/internal"
-	"github.com/neko-sc/ent/entc/integration/multischema/versioned/predicate"
 	"github.com/neko-sc/ent/schema/field"
 )
 
 // FriendshipDelete is the builder for deleting a Friendship entity.
 type FriendshipDelete struct {
 	config
-	hooks    []Hook
-	mutation *FriendshipMutation
+
+	mutation  *FriendshipMutation
+	returning *sqlgraph.Returning
 }
 
 // Where appends a list predicates to the FriendshipDelete builder.
-func (_d *FriendshipDelete) Where(ps ...predicate.Friendship) *FriendshipDelete {
-	_d.mutation.Where(ps...)
+func (_d *FriendshipDelete) Where(predicates ...ent.Predicate[entity.Friendship]) *FriendshipDelete {
+	_d.mutation.Where(predicates...)
 	return _d
 }
 
 // Exec executes the deletion query and returns how many vertices were deleted.
 func (_d *FriendshipDelete) Exec(ctx context.Context) (int, error) {
-	return withHooks(ctx, _d.sqlExec, _d.mutation, _d.hooks)
+	return _d.sqlExec(ctx)
+}
+
+func (b *FriendshipDelete) Returning(ctx context.Context) ([]*Friendship, error) {
+	nodes := make([]*Friendship, 0)
+	b.returning = &sqlgraph.Returning{Columns: friendship.Columns, Scan: func(rows dialect.Rows) error {
+		_node := &Friendship{config: b.config}
+		values, err := _node.scanValues(friendship.Columns)
+		if err != nil {
+			return err
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		if err := _node.assignValues(friendship.Columns, values); err != nil {
+			return err
+		}
+		nodes = append(nodes, _node)
+		return nil
+	}}
+	defer func() { b.returning = nil }()
+	if _, err := b.Exec(ctx); err != nil {
+		return nil, err
+	}
+	return nodes, nil
 }
 
 // ExecX is like Exec, but panics if an error occurs.
@@ -54,11 +81,11 @@ func (_d *FriendshipDelete) sqlExec(ctx context.Context) (int, error) {
 			}
 		}
 	}
+	_spec.Returning = _d.returning
 	affected, err := sqlgraph.DeleteNodes(ctx, _d.driver, _spec)
 	if err != nil && sqlgraph.IsConstraintError(err) {
 		err = &ConstraintError{msg: err.Error(), wrap: err}
 	}
-	_d.mutation.done = true
 	return affected, err
 }
 
@@ -68,8 +95,8 @@ type FriendshipDeleteOne struct {
 }
 
 // Where appends a list predicates to the FriendshipDelete builder.
-func (_d *FriendshipDeleteOne) Where(ps ...predicate.Friendship) *FriendshipDeleteOne {
-	_d._d.mutation.Where(ps...)
+func (_d *FriendshipDeleteOne) Where(predicates ...ent.Predicate[entity.Friendship]) *FriendshipDeleteOne {
+	_d._d.mutation.Where(predicates...)
 	return _d
 }
 

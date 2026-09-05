@@ -3,7 +3,8 @@
 package user
 
 import (
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/examples/viewcomposite/ent/entity"
 )
 
 const (
@@ -21,6 +22,46 @@ const (
 	Table = "users"
 )
 
+var (
+	ID          = ent.OrderedColumn[entity.User, int]{Table: Table, Name: FieldID}
+	Name        = ent.StringColumn[entity.User, string]{Table: Table, Name: FieldName}
+	PublicInfo  = ent.StringColumn[entity.User, string]{Table: Table, Name: FieldPublicInfo}
+	PrivateInfo = ent.StringColumn[entity.User, string]{Table: Table, Name: FieldPrivateInfo}
+)
+
+// Alias returns the columns of the users table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias:  name,
+		ID:          ent.OrderedColumn[entity.User, int]{Table: name, Name: FieldID},
+		Name:        ent.StringColumn[entity.User, string]{Table: name, Name: FieldName},
+		PublicInfo:  ent.StringColumn[entity.User, string]{Table: name, Name: FieldPublicInfo},
+		PrivateInfo: ent.StringColumn[entity.User, string]{Table: name, Name: FieldPrivateInfo},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias  string
+	ID          ent.OrderedColumn[entity.User, int]
+	Name        ent.StringColumn[entity.User, string]
+	PublicInfo  ent.StringColumn[entity.User, string]
+	PrivateInfo ent.StringColumn[entity.User, string]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.User]) ent.Predicate[entity.User] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.User]) ent.Predicate[entity.User] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.User]) ent.Predicate[entity.User] { return ent.Not(predicate) }
+
 // Columns holds all SQL columns for user fields.
 var Columns = []string{
 	FieldID,
@@ -37,27 +78,4 @@ func ValidColumn(column string) bool {
 		}
 	}
 	return false
-}
-
-// OrderOption defines the ordering options for the User queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByName orders the results by the name field.
-func ByName(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldName, opts...).ToFunc()
-}
-
-// ByPublicInfo orders the results by the public_info field.
-func ByPublicInfo(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldPublicInfo, opts...).ToFunc()
-}
-
-// ByPrivateInfo orders the results by the private_info field.
-func ByPrivateInfo(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldPrivateInfo, opts...).ToFunc()
 }

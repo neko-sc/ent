@@ -4,7 +4,6 @@
 package load
 
 import (
-	"context"
 	"database/sql"
 	"database/sql/driver"
 	"encoding/json"
@@ -498,48 +497,28 @@ func (TimeMixin) Fields() []ent.Field {
 	}
 }
 
-type HooksMixin struct {
+type FieldsMixin struct {
 	mixin.Schema
 }
 
-func (HooksMixin) Fields() []ent.Field {
+func (FieldsMixin) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("boring"),
 	}
 }
 
-func (HooksMixin) Edges() []ent.Edge {
+func (FieldsMixin) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.To("user", User.Type).
 			Unique(),
 	}
 }
 
-func (HooksMixin) Indexes() []ent.Index {
+func (FieldsMixin) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("boring").
 			Edges("user"),
 	}
-}
-
-func (HooksMixin) Hooks() []ent.Hook {
-	return []ent.Hook{
-		func(ent.Mutator) ent.Mutator { return nil },
-		func(ent.Mutator) ent.Mutator { return nil },
-	}
-}
-
-type BoringPolicy struct{}
-
-func (BoringPolicy) EvalMutation(context.Context, ent.Mutation) error { return nil }
-func (BoringPolicy) EvalQuery(context.Context, ent.Query) error       { return nil }
-
-type PrivacyMixin struct {
-	mixin.Schema
-}
-
-func (PrivacyMixin) Policy() ent.Policy {
-	return BoringPolicy{}
 }
 
 type WithMixin struct {
@@ -549,8 +528,7 @@ type WithMixin struct {
 func (WithMixin) Mixin() []ent.Mixin {
 	return []ent.Mixin{
 		TimeMixin{},
-		HooksMixin{},
-		PrivacyMixin{},
+		FieldsMixin{},
 	}
 }
 
@@ -572,16 +550,6 @@ func (WithMixin) Indexes() []ent.Index {
 			Edges("owner").
 			Unique(),
 	}
-}
-
-func (WithMixin) Hooks() []ent.Hook {
-	return []ent.Hook{
-		func(ent.Mutator) ent.Mutator { return nil },
-	}
-}
-
-func (WithMixin) Policy() ent.Policy {
-	return BoringPolicy{}
 }
 
 func TestMarshalMixin(t *testing.T) {
@@ -621,20 +589,6 @@ func TestMarshalMixin(t *testing.T) {
 		require.Equal(t, 0, schema.Fields[3].Position.Index)
 	})
 
-	t.Run("Hooks", func(t *testing.T) {
-		require.True(t, schema.Hooks[0].MixedIn)
-		require.True(t, schema.Hooks[1].MixedIn)
-
-		require.Equal(t, 1, schema.Hooks[0].MixinIndex)
-		require.Equal(t, 1, schema.Hooks[1].MixinIndex)
-		require.Equal(t, 0, schema.Hooks[0].Index)
-		require.Equal(t, 1, schema.Hooks[1].Index)
-
-		require.False(t, schema.Hooks[2].MixedIn)
-		require.Equal(t, 0, schema.Hooks[2].Index)
-		require.Equal(t, 0, schema.Hooks[2].MixinIndex)
-	})
-
 	t.Run("Edges", func(t *testing.T) {
 		require.Len(t, schema.Edges, 2)
 		require.Equal(t, "user", schema.Edges[0].Name)
@@ -657,9 +611,4 @@ func TestMarshalMixin(t *testing.T) {
 		require.True(t, schema.Indexes[1].Unique)
 	})
 
-	t.Run("Policy", func(t *testing.T) {
-		require.Len(t, schema.Policy, 2)
-		require.True(t, schema.Policy[0].MixedIn)
-		require.False(t, schema.Policy[1].MixedIn)
-	})
 }

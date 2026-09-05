@@ -6,9 +6,11 @@
 package task
 
 import (
-	"time"
+	"database/sql/driver"
+	time2 "time"
 
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/entc/integration/ent/entity"
 	task2 "github.com/neko-sc/ent/entc/integration/ent/schema/task"
 )
 
@@ -29,13 +31,68 @@ const (
 	FieldOwner = "owner"
 	// FieldOrder holds the string denoting the order field in the database.
 	FieldOrder = "order"
-	// FieldOrderOption holds the string denoting the order_option field in the database.
-	FieldOrderOption = "order_option"
+	// FieldOrderingOption holds the string denoting the ordering_option field in the database.
+	FieldOrderingOption = "order_option"
 	// FieldOp holds the string denoting the op field in the database.
 	FieldOp = "op"
 	// Table holds the table name of the task in the database.
 	Table = "tasks"
 )
+
+var (
+	ID             = ent.OrderedColumn[entity.Task, int]{Table: Table, Name: FieldID}
+	Priority       = ent.OrderedColumn[entity.Task, task2.Priority]{Table: Table, Name: FieldPriority, Valuer: func(value task2.Priority) (driver.Value, error) { return int(value), nil }}
+	Priorities     = ent.JSONColumn[entity.Task, map[string]task2.Priority]{Table: Table, Name: FieldPriorities}
+	CreatedAt      = ent.OrderedColumn[entity.Task, time2.Time]{Table: Table, Name: FieldCreatedAt}
+	Name           = ent.StringColumn[entity.Task, string]{Table: Table, Name: FieldName}
+	Owner          = ent.StringColumn[entity.Task, string]{Table: Table, Name: FieldOwner}
+	Order          = ent.OrderedColumn[entity.Task, int]{Table: Table, Name: FieldOrder}
+	OrderingOption = ent.OrderedColumn[entity.Task, int]{Table: Table, Name: FieldOrderingOption}
+	Op             = ent.StringColumn[entity.Task, string]{Table: Table, Name: FieldOp}
+)
+
+// Alias returns the columns of the tasks table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias:     name,
+		ID:             ent.OrderedColumn[entity.Task, int]{Table: name, Name: FieldID},
+		Priority:       ent.OrderedColumn[entity.Task, task2.Priority]{Table: name, Name: FieldPriority, Valuer: func(value task2.Priority) (driver.Value, error) { return int(value), nil }},
+		Priorities:     ent.JSONColumn[entity.Task, map[string]task2.Priority]{Table: name, Name: FieldPriorities},
+		CreatedAt:      ent.OrderedColumn[entity.Task, time2.Time]{Table: name, Name: FieldCreatedAt},
+		Name:           ent.StringColumn[entity.Task, string]{Table: name, Name: FieldName},
+		Owner:          ent.StringColumn[entity.Task, string]{Table: name, Name: FieldOwner},
+		Order:          ent.OrderedColumn[entity.Task, int]{Table: name, Name: FieldOrder},
+		OrderingOption: ent.OrderedColumn[entity.Task, int]{Table: name, Name: FieldOrderingOption},
+		Op:             ent.StringColumn[entity.Task, string]{Table: name, Name: FieldOp},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias     string
+	ID             ent.OrderedColumn[entity.Task, int]
+	Priority       ent.OrderedColumn[entity.Task, task2.Priority]
+	Priorities     ent.JSONColumn[entity.Task, map[string]task2.Priority]
+	CreatedAt      ent.OrderedColumn[entity.Task, time2.Time]
+	Name           ent.StringColumn[entity.Task, string]
+	Owner          ent.StringColumn[entity.Task, string]
+	Order          ent.OrderedColumn[entity.Task, int]
+	OrderingOption ent.OrderedColumn[entity.Task, int]
+	Op             ent.StringColumn[entity.Task, string]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.Task]) ent.Predicate[entity.Task] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.Task]) ent.Predicate[entity.Task] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.Task]) ent.Predicate[entity.Task] { return ent.Not(predicate) }
 
 // Columns holds all SQL columns for task fields.
 var Columns = []string{
@@ -45,7 +102,7 @@ var Columns = []string{
 	FieldCreatedAt,
 	FieldOwner,
 	FieldOrder,
-	FieldOrderOption,
+	FieldOrderingOption,
 	FieldOp,
 }
 
@@ -68,54 +125,11 @@ var (
 	// DefaultPriority holds the default value on creation for the "priority" field.
 	DefaultPriority task2.Priority
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
-	DefaultCreatedAt func() time.Time
+	DefaultCreatedAt func() time2.Time
 	// DefaultOp holds the default value on creation for the "op" field.
 	DefaultOp string
 	// OpValidator is a validator for the "op" field. It is called by the builders before save.
 	OpValidator func(string) error
 )
-
-// OrderOption defines the ordering options for the Task queries.
-type OrderOption func(*sql.Selector)
-
-// ByID orders the results by the id field.
-func ByID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldID, opts...).ToFunc()
-}
-
-// ByPriority orders the results by the priority field.
-func ByPriority(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldPriority, opts...).ToFunc()
-}
-
-// ByCreatedAt orders the results by the created_at field.
-func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldCreatedAt, opts...).ToFunc()
-}
-
-// ByName orders the results by the name field.
-func ByName(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldName, opts...).ToFunc()
-}
-
-// ByOwner orders the results by the owner field.
-func ByOwner(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldOwner, opts...).ToFunc()
-}
-
-// ByOrder orders the results by the order field.
-func ByOrder(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldOrder, opts...).ToFunc()
-}
-
-// ByOrderOption orders the results by the order_option field.
-func ByOrderOption(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldOrderOption, opts...).ToFunc()
-}
-
-// ByOp orders the results by the op field.
-func ByOp(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldOp, opts...).ToFunc()
-}
 
 // comment from another template.

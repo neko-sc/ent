@@ -9,9 +9,11 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	time2 "time"
 
 	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/entc/integration/ent/entity"
 	"github.com/neko-sc/ent/entc/integration/ent/group"
 	"github.com/neko-sc/ent/entc/integration/ent/groupinfo"
 )
@@ -24,7 +26,7 @@ type Group struct {
 	// Active holds the value of the "active" field.
 	Active bool `json:"active,omitempty"`
 	// Expire holds the value of the "expire" field.
-	Expire time.Time `json:"expire,omitempty"`
+	Expire time2.Time `json:"expire,omitempty"`
 	// Type holds the value of the "type" field.
 	Type *string `json:"type,omitempty"`
 	// MaxUsers holds the value of the "max_users" field.
@@ -33,9 +35,8 @@ type Group struct {
 	Name string `json:"name,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the GroupQuery when eager-loading is set.
-	Edges        GroupEdges `json:"edges"`
-	group_info   *int
-	selectValues sql.SelectValues
+	Edges      GroupEdges `json:"edges"`
+	group_info *int
 }
 
 // GroupEdges holds the relations/edges for other nodes in the graph.
@@ -51,9 +52,45 @@ type GroupEdges struct {
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes  [4]bool
+	counts       map[string]int
 	namedFiles   map[string][]*File
 	namedBlocked map[string][]*User
 	namedUsers   map[string][]*User
+}
+
+func (e GroupEdges) Loaded[N, K any](edge ent.RelationOf[entity.Group, N, K]) bool {
+	switch edge.Ref().Name {
+	case "files":
+		return e.loadedTypes[0]
+	case "blocked":
+		return e.loadedTypes[1]
+	case "users":
+		return e.loadedTypes[2]
+	case "info":
+		return e.loadedTypes[3]
+
+	default:
+		return false
+	}
+}
+
+func (e *GroupEdges) SetLoaded[N, K any](edge ent.RelationOf[entity.Group, N, K], loaded bool) {
+	switch edge.Ref().Name {
+	case "files":
+		e.loadedTypes[0] = loaded
+	case "blocked":
+		e.loadedTypes[1] = loaded
+	case "users":
+		e.loadedTypes[2] = loaded
+	case "info":
+		e.loadedTypes[3] = loaded
+
+	}
+}
+
+func (e GroupEdges) Count[N, K any](edge ent.Relation[entity.Group, N, K]) (int, bool) {
+	count, loaded := e.counts[edge.Ref().Name]
+	return count, loaded
 }
 
 // FilesOrErr returns the Files value or an error if the edge
@@ -100,15 +137,15 @@ func (*Group) scanValues(columns []string) ([]any, error) {
 	for i := range columns {
 		switch columns[i] {
 		case group.FieldActive:
-			values[i] = new(sql.NullBool)
+			values[i] = new(*bool)
 		case group.FieldID, group.FieldMaxUsers:
-			values[i] = new(sql.NullInt64)
+			values[i] = new(*int)
 		case group.FieldType, group.FieldName:
-			values[i] = new(sql.NullString)
+			values[i] = new(*string)
 		case group.FieldExpire:
-			values[i] = new(sql.NullTime)
+			values[i] = new(*time2.Time)
 		case group.ForeignKeys[0]: // group_info
-			values[i] = new(sql.NullInt64)
+			values[i] = new(*int)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -125,60 +162,57 @@ func (_m *Group) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case group.FieldID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field id", values[i])
-			} else if value.Valid {
-				_m.ID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.ID = **value
 			}
 		case group.FieldActive:
-			if value, ok := values[i].(*sql.NullBool); !ok {
+
+			if value, ok := values[i].(**bool); !ok {
 				return fmt.Errorf("unexpected type %T for field active", values[i])
-			} else if value.Valid {
-				_m.Active = bool(value.Bool)
+			} else if value != nil && *value != nil {
+				_m.Active = **value
 			}
 		case group.FieldExpire:
-			if value, ok := values[i].(*sql.NullTime); !ok {
+
+			if value, ok := values[i].(**time2.Time); !ok {
 				return fmt.Errorf("unexpected type %T for field expire", values[i])
-			} else if value.Valid {
-				_m.Expire = time.Time(value.Time)
+			} else if value != nil && *value != nil {
+				_m.Expire = **value
 			}
 		case group.FieldType:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field type", values[i])
-			} else if value.Valid {
-				_m.Type = new(string)
-				*_m.Type = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.Type = *value
 			}
 		case group.FieldMaxUsers:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field max_users", values[i])
-			} else if value.Valid {
-				_m.MaxUsers = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.MaxUsers = **value
 			}
 		case group.FieldName:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field name", values[i])
-			} else if value.Valid {
-				_m.Name = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.Name = **value
 			}
 		case group.ForeignKeys[0]:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field group_info", values[i])
-			} else if value.Valid {
-				_m.group_info = new(int)
-				*_m.group_info = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.group_info = *value
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the Group.
-// This includes values selected through modifiers, order, etc.
-func (_m *Group) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // QueryFiles queries the "files" edge of the Group entity.

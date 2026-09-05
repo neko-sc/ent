@@ -11,6 +11,7 @@ import (
 
 	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/examples/fs/ent/entity"
 	"github.com/neko-sc/ent/examples/fs/ent/file"
 )
 
@@ -27,8 +28,7 @@ type File struct {
 	ParentID int `json:"parent_id,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the FileQuery when eager-loading is set.
-	Edges        FileEdges `json:"edges"`
-	selectValues sql.SelectValues
+	Edges FileEdges `json:"edges"`
 }
 
 // FileEdges holds the relations/edges for other nodes in the graph.
@@ -40,6 +40,34 @@ type FileEdges struct {
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes [2]bool
+	counts      map[string]int
+}
+
+func (e FileEdges) Loaded[N, K any](edge ent.RelationOf[entity.File, N, K]) bool {
+	switch edge.Ref().Name {
+	case "parent":
+		return e.loadedTypes[0]
+	case "children":
+		return e.loadedTypes[1]
+
+	default:
+		return false
+	}
+}
+
+func (e *FileEdges) SetLoaded[N, K any](edge ent.RelationOf[entity.File, N, K], loaded bool) {
+	switch edge.Ref().Name {
+	case "parent":
+		e.loadedTypes[0] = loaded
+	case "children":
+		e.loadedTypes[1] = loaded
+
+	}
+}
+
+func (e FileEdges) Count[N, K any](edge ent.Relation[entity.File, N, K]) (int, bool) {
+	count, loaded := e.counts[edge.Ref().Name]
+	return count, loaded
 }
 
 // ParentOrErr returns the Parent value or an error if the edge
@@ -68,11 +96,11 @@ func (*File) scanValues(columns []string) ([]any, error) {
 	for i := range columns {
 		switch columns[i] {
 		case file.FieldDeleted:
-			values[i] = new(sql.NullBool)
+			values[i] = new(*bool)
 		case file.FieldID, file.FieldParentID:
-			values[i] = new(sql.NullInt64)
+			values[i] = new(*int)
 		case file.FieldName:
-			values[i] = new(sql.NullString)
+			values[i] = new(*string)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -89,40 +117,36 @@ func (_m *File) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case file.FieldID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field id", values[i])
-			} else if value.Valid {
-				_m.ID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.ID = **value
 			}
 		case file.FieldName:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field name", values[i])
-			} else if value.Valid {
-				_m.Name = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.Name = **value
 			}
 		case file.FieldDeleted:
-			if value, ok := values[i].(*sql.NullBool); !ok {
+
+			if value, ok := values[i].(**bool); !ok {
 				return fmt.Errorf("unexpected type %T for field deleted", values[i])
-			} else if value.Valid {
-				_m.Deleted = bool(value.Bool)
+			} else if value != nil && *value != nil {
+				_m.Deleted = **value
 			}
 		case file.FieldParentID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+
+			if value, ok := values[i].(**int); !ok {
 				return fmt.Errorf("unexpected type %T for field parent_id", values[i])
-			} else if value.Valid {
-				_m.ParentID = int(value.Int64)
+			} else if value != nil && *value != nil {
+				_m.ParentID = **value
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the File.
-// This includes values selected through modifiers, order, etc.
-func (_m *File) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // QueryParent queries the "parent" edge of the File entity.

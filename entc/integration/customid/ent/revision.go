@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/entc/integration/customid/ent/revision"
 )
@@ -18,8 +17,7 @@ import (
 type Revision struct {
 	config
 	// ID of the ent.
-	ID           string `json:"id,omitempty"`
-	selectValues sql.SelectValues
+	ID string `json:"id,omitempty"`
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -28,7 +26,7 @@ func (*Revision) scanValues(columns []string) ([]any, error) {
 	for i := range columns {
 		switch columns[i] {
 		case revision.FieldID:
-			values[i] = new(sql.NullString)
+			values[i] = new(*string)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -45,22 +43,15 @@ func (_m *Revision) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case revision.FieldID:
-			if value, ok := values[i].(*sql.NullString); !ok {
+
+			if value, ok := values[i].(**string); !ok {
 				return fmt.Errorf("unexpected type %T for field id", values[i])
-			} else if value.Valid {
-				_m.ID = string(value.String)
+			} else if value != nil && *value != nil {
+				_m.ID = **value
 			}
-		default:
-			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
-}
-
-// Value returns the ent.Value that was dynamically selected and assigned to the Revision.
-// This includes values selected through modifiers, order, etc.
-func (_m *Revision) Value(name string) (ent.Value, error) {
-	return _m.selectValues.Get(name)
 }
 
 // Update returns a builder for updating this Revision.

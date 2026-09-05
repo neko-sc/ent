@@ -6,10 +6,11 @@
 package roleuser
 
 import (
-	"time"
+	time2 "time"
 
-	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
+	"github.com/neko-sc/ent/entc/integration/edgeschema/ent/entity"
 )
 
 const (
@@ -47,6 +48,47 @@ const (
 	UserColumn = "user_id"
 )
 
+var (
+	CreatedAt = ent.OrderedColumn[entity.RoleUser, time2.Time]{Table: Table, Name: FieldCreatedAt}
+	RoleID    = ent.OrderedColumn[entity.RoleUser, int]{Table: Table, Name: FieldRoleID}
+	UserID    = ent.OrderedColumn[entity.RoleUser, int]{Table: Table, Name: FieldUserID}
+	Role      = ent.NewUniqueRelation[entity.RoleUser, entity.Role, int](EdgeRole, newRoleStep)
+	User      = ent.NewUniqueRelation[entity.RoleUser, entity.User, int](EdgeUser, newUserStep)
+)
+
+// Alias returns the columns of the role_users table under a different table alias.
+func Alias(name string) AliasedTable {
+	return AliasedTable{
+		TableAlias: name,
+		CreatedAt:  ent.OrderedColumn[entity.RoleUser, time2.Time]{Table: name, Name: FieldCreatedAt},
+		RoleID:     ent.OrderedColumn[entity.RoleUser, int]{Table: name, Name: FieldRoleID},
+		UserID:     ent.OrderedColumn[entity.RoleUser, int]{Table: name, Name: FieldUserID},
+	}
+}
+
+// AliasedTable holds typed columns qualified by TableAlias.
+type AliasedTable struct {
+	TableAlias string
+	CreatedAt  ent.OrderedColumn[entity.RoleUser, time2.Time]
+	RoleID     ent.OrderedColumn[entity.RoleUser, int]
+	UserID     ent.OrderedColumn[entity.RoleUser, int]
+}
+
+// And joins predicates with AND.
+func And(predicates ...ent.Predicate[entity.RoleUser]) ent.Predicate[entity.RoleUser] {
+	return ent.And(predicates...)
+}
+
+// Or joins predicates with OR.
+func Or(predicates ...ent.Predicate[entity.RoleUser]) ent.Predicate[entity.RoleUser] {
+	return ent.Or(predicates...)
+}
+
+// Not negates a predicate.
+func Not(predicate ent.Predicate[entity.RoleUser]) ent.Predicate[entity.RoleUser] {
+	return ent.Not(predicate)
+}
+
 // Columns holds all SQL columns for roleuser fields.
 var Columns = []string{
 	FieldCreatedAt,
@@ -66,40 +108,9 @@ func ValidColumn(column string) bool {
 
 var (
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
-	DefaultCreatedAt func() time.Time
+	DefaultCreatedAt func() time2.Time
 )
 
-// OrderOption defines the ordering options for the RoleUser queries.
-type OrderOption func(*sql.Selector)
-
-// ByCreatedAt orders the results by the created_at field.
-func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldCreatedAt, opts...).ToFunc()
-}
-
-// ByRoleID orders the results by the role_id field.
-func ByRoleID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldRoleID, opts...).ToFunc()
-}
-
-// ByUserID orders the results by the user_id field.
-func ByUserID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldUserID, opts...).ToFunc()
-}
-
-// ByRoleField orders the results by role field.
-func ByRoleField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newRoleStep(), sql.OrderByField(field, opts...))
-	}
-}
-
-// ByUserField orders the results by user field.
-func ByUserField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newUserStep(), sql.OrderByField(field, opts...))
-	}
-}
 func newRoleStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, RoleColumn),
