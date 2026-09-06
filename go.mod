@@ -7,7 +7,7 @@ require (
 	github.com/go-openapi/inflect v0.19.0
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.10.0
-	github.com/mattn/go-sqlite3 v1.14.28
+	github.com/mattn/go-sqlite3 v1.14.50
 	github.com/ncruces/go-sqlite3 v0.35.4
 	github.com/neko-sc/atlas v0.1.0
 	github.com/olekukonko/tablewriter v1.1.3
