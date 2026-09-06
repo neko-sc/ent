@@ -3,7 +3,7 @@ module github.com/neko-sc/ent
 go 1.27.0
 
 require (
-	github.com/DATA-DOG/go-sqlmock v1.5.0
+	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/go-openapi/inflect v0.19.0
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.10.0
