@@ -750,6 +750,44 @@ func (t *Type) AddIndex(idx *load.Index) error {
 	return nil
 }
 
+// UniqueColumnSets returns database column sets that identify rows independently
+// of the primary key, for read statement metadata.
+func (t Type) UniqueColumnSets() [][]string {
+	var primary []string
+	if t.HasOneFieldID() {
+		primary = []string{t.ID.StorageKey()}
+	} else if t.HasCompositeID() {
+		for _, field := range t.EdgeSchema.ID {
+			primary = append(primary, field.StorageKey())
+		}
+	}
+	var unique [][]string
+	for _, field := range t.Fields {
+		if field.Unique && (len(primary) != 1 || primary[0] != field.StorageKey()) {
+			unique = append(unique, []string{field.StorageKey()})
+		}
+	}
+	for _, index := range t.Indexes {
+		columns := index.Columns
+		if !index.Unique {
+			continue
+		}
+		// A unique index over exactly the primary key adds nothing.
+		if len(columns) == len(primary) && !slices.ContainsFunc(columns, func(column string) bool {
+			return !slices.Contains(primary, column)
+		}) {
+			continue
+		}
+		// Partial indexes do not guarantee uniqueness outside their predicate.
+		if annotation := sqlIndexAnnotate(index.Annotations); annotation != nil && annotation.Where != "" {
+			continue
+		}
+		// AddIndex resolves both field storage keys and edge foreign keys.
+		unique = append(unique, columns)
+	}
+	return unique
+}
+
 // setupFKs makes sure all edge-fks are created for the edges.
 func (t *Type) setupFKs() error {
 	for _, e := range t.Edges {

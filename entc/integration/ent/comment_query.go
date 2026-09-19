@@ -435,6 +435,10 @@ func (_q *CommentQuery) sqlCount(ctx context.Context) (int, error) {
 
 func (_q *CommentQuery) querySpec() *sqlgraph.QuerySpec {
 	_spec := sqlgraph.NewQuerySpec(comment.Table, comment.Columns, sqlgraph.NewFieldSpec(comment.FieldID, field.TypeInt))
+	_spec.Node.Unique = [][]string{
+		{"unique_int"},
+		{"unique_float"},
+	}
 	_spec.From = _q.sql
 	if unique := _q.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
@@ -638,11 +642,7 @@ func (_s *CommentSelect) Scan(ctx context.Context, value any) error {
 	if err != nil {
 		return err
 	}
-	query, arguments := selector.Query()
-	if err := selector.Err(); err != nil {
-		return err
-	}
-	rows, err := _s.query.driver.Query(ctx, query, arguments)
+	rows, err := sqlgraph.QuerySelector(ctx, _s.query.driver, selector)
 	if err != nil {
 		return err
 	}
@@ -658,11 +658,7 @@ func (_s *CommentSelect) Rows(ctx context.Context) ([]*ent.Row, error) {
 	if err != nil {
 		return nil, err
 	}
-	query, arguments := selector.Query()
-	if err := selector.Err(); err != nil {
-		return nil, err
-	}
-	rows, err := _s.query.driver.Query(ctx, query, arguments)
+	rows, err := sqlgraph.QuerySelector(ctx, _s.query.driver, selector)
 	if err != nil {
 		return nil, err
 	}

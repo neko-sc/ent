@@ -117,8 +117,7 @@ func ({{ $receiver }} *{{ $builder }}) sqlAll(ctx context.Context, hooks ...quer
 		selector.WithContext(internal.NewSchemaConfigContext(ctx, {{ $receiver }}.schemaConfig))
 		{{ end }}
 		for _, edge := range {{ $receiver }}.withCounts {
-			statement, arguments := edge.CountQuery(selector, ids...).Query()
-			rows, err := {{ $receiver }}.driver.Query(ctx, statement, arguments)
+			rows, err := sqlgraph.QuerySelector(ctx, {{ $receiver }}.driver, edge.CountQuery(selector, ids...))
 			if err != nil { return nil, err }
 			for rows.Next() {
 				values, err := (*{{ $.Name }})(nil).scanValues([]string{ {{ $.Package }}.FieldID })
@@ -362,6 +361,13 @@ func ({{ $receiver }} *{{ $builder }}) sqlCount(ctx context.Context) (int, error
 
 func ({{ $receiver }} *{{ $builder }}) querySpec() *sqlgraph.QuerySpec {
 	_spec := sqlgraph.NewQuerySpec({{ $.Package }}.Table, {{ $.Package }}.Columns, {{ if $.HasOneFieldID }}sqlgraph.NewFieldSpec({{ $.Package }}.{{ $.ID.Constant }}, field.{{ $.ID.TypeConst }}){{ else }}nil{{ end }})
+	{{- with $.UniqueColumnSets }}
+		_spec.Node.Unique = [][]string{
+			{{- range . }}
+				{ {{ range . }}{{ printf "%q" . }},{{ end }} },
+			{{- end }}
+		}
+	{{- end }}
 	{{- /* Setup any intermediate queries if exist (traversal path). */}}
 	_spec.From = {{ $receiver }}.sql
 	if unique := {{ $receiver }}.ctx.Unique; unique != nil {

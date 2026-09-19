@@ -435,6 +435,9 @@ func (_q *MediaQuery) sqlCount(ctx context.Context) (int, error) {
 
 func (_q *MediaQuery) querySpec() *sqlgraph.QuerySpec {
 	_spec := sqlgraph.NewQuerySpec(media.Table, media.Columns, sqlgraph.NewFieldSpec(media.FieldID, field.TypeInt))
+	_spec.Node.Unique = [][]string{
+		{"source", "source_uri"},
+	}
 	_spec.From = _q.sql
 	if unique := _q.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
@@ -638,11 +641,7 @@ func (_s *MediaSelect) Scan(ctx context.Context, value any) error {
 	if err != nil {
 		return err
 	}
-	query, arguments := selector.Query()
-	if err := selector.Err(); err != nil {
-		return err
-	}
-	rows, err := _s.query.driver.Query(ctx, query, arguments)
+	rows, err := sqlgraph.QuerySelector(ctx, _s.query.driver, selector)
 	if err != nil {
 		return err
 	}
@@ -658,11 +657,7 @@ func (_s *MediaSelect) Rows(ctx context.Context) ([]*ent.Row, error) {
 	if err != nil {
 		return nil, err
 	}
-	query, arguments := selector.Query()
-	if err := selector.Err(); err != nil {
-		return nil, err
-	}
-	rows, err := _s.query.driver.Query(ctx, query, arguments)
+	rows, err := sqlgraph.QuerySelector(ctx, _s.query.driver, selector)
 	if err != nil {
 		return nil, err
 	}

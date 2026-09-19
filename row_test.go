@@ -5,8 +5,9 @@ import (
 	"database/sql"
 	"errors"
 
-	entsql "github.com/neko-sc/ent/dialect/sql"
 	"testing"
+
+	entsql "github.com/neko-sc/ent/dialect/sql"
 
 	"github.com/neko-sc/ent"
 	"github.com/stretchr/testify/require"

@@ -592,6 +592,9 @@ func (_q *RelationshipQuery) sqlCount(ctx context.Context) (int, error) {
 
 func (_q *RelationshipQuery) querySpec() *sqlgraph.QuerySpec {
 	_spec := sqlgraph.NewQuerySpec(relationship.Table, relationship.Columns, nil)
+	_spec.Node.Unique = [][]string{
+		{"info_id"},
+	}
 	_spec.From = _q.sql
 	if unique := _q.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
@@ -801,11 +804,7 @@ func (_s *RelationshipSelect) Scan(ctx context.Context, value any) error {
 	if err != nil {
 		return err
 	}
-	query, arguments := selector.Query()
-	if err := selector.Err(); err != nil {
-		return err
-	}
-	rows, err := _s.query.driver.Query(ctx, query, arguments)
+	rows, err := sqlgraph.QuerySelector(ctx, _s.query.driver, selector)
 	if err != nil {
 		return err
 	}
@@ -821,11 +820,7 @@ func (_s *RelationshipSelect) Rows(ctx context.Context) ([]*ent.Row, error) {
 	if err != nil {
 		return nil, err
 	}
-	query, arguments := selector.Query()
-	if err := selector.Err(); err != nil {
-		return nil, err
-	}
-	rows, err := _s.query.driver.Query(ctx, query, arguments)
+	rows, err := sqlgraph.QuerySelector(ctx, _s.query.driver, selector)
 	if err != nil {
 		return nil, err
 	}

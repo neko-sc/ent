@@ -82,6 +82,7 @@ func TestWithVars(t *testing.T) {
 		[]any{},
 	)
 	require.NoError(t, err)
+	require.NotNil(t, rows)
 	require.NoError(t, tx.Commit())
 	require.NoError(t, mock.ExpectationsWereMet())
 	// Rows should not be closed to release the session,

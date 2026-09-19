@@ -435,6 +435,9 @@ func (_q *TaskQuery) sqlCount(ctx context.Context) (int, error) {
 
 func (_q *TaskQuery) querySpec() *sqlgraph.QuerySpec {
 	_spec := sqlgraph.NewQuerySpec(task.Table, task.Columns, sqlgraph.NewFieldSpec(task.FieldID, field.TypeInt))
+	_spec.Node.Unique = [][]string{
+		{"name", "owner"},
+	}
 	_spec.From = _q.sql
 	if unique := _q.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
@@ -638,11 +641,7 @@ func (_s *TaskSelect) Scan(ctx context.Context, value any) error {
 	if err != nil {
 		return err
 	}
-	query, arguments := selector.Query()
-	if err := selector.Err(); err != nil {
-		return err
-	}
-	rows, err := _s.query.driver.Query(ctx, query, arguments)
+	rows, err := sqlgraph.QuerySelector(ctx, _s.query.driver, selector)
 	if err != nil {
 		return err
 	}
@@ -658,11 +657,7 @@ func (_s *TaskSelect) Rows(ctx context.Context) ([]*ent.Row, error) {
 	if err != nil {
 		return nil, err
 	}
-	query, arguments := selector.Query()
-	if err := selector.Err(); err != nil {
-		return nil, err
-	}
-	rows, err := _s.query.driver.Query(ctx, query, arguments)
+	rows, err := sqlgraph.QuerySelector(ctx, _s.query.driver, selector)
 	if err != nil {
 		return nil, err
 	}

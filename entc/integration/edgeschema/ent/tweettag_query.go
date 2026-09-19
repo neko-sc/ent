@@ -523,8 +523,7 @@ func (_q *TweetTagQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Twe
 		selector := sql.Dialect(_q.driver.Dialect()).Select()
 
 		for _, edge := range _q.withCounts {
-			statement, arguments := edge.CountQuery(selector, ids...).Query()
-			rows, err := _q.driver.Query(ctx, statement, arguments)
+			rows, err := sqlgraph.QuerySelector(ctx, _q.driver, edge.CountQuery(selector, ids...))
 			if err != nil {
 				return nil, err
 			}
@@ -643,6 +642,9 @@ func (_q *TweetTagQuery) sqlCount(ctx context.Context) (int, error) {
 
 func (_q *TweetTagQuery) querySpec() *sqlgraph.QuerySpec {
 	_spec := sqlgraph.NewQuerySpec(tweettag.Table, tweettag.Columns, sqlgraph.NewFieldSpec(tweettag.FieldID, field.TypeUUID))
+	_spec.Node.Unique = [][]string{
+		{"tag_id", "tweet_id"},
+	}
 	_spec.From = _q.sql
 	if unique := _q.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
@@ -852,11 +854,7 @@ func (_s *TweetTagSelect) Scan(ctx context.Context, value any) error {
 	if err != nil {
 		return err
 	}
-	query, arguments := selector.Query()
-	if err := selector.Err(); err != nil {
-		return err
-	}
-	rows, err := _s.query.driver.Query(ctx, query, arguments)
+	rows, err := sqlgraph.QuerySelector(ctx, _s.query.driver, selector)
 	if err != nil {
 		return err
 	}
@@ -872,11 +870,7 @@ func (_s *TweetTagSelect) Rows(ctx context.Context) ([]*ent.Row, error) {
 	if err != nil {
 		return nil, err
 	}
-	query, arguments := selector.Query()
-	if err := selector.Err(); err != nil {
-		return nil, err
-	}
-	rows, err := _s.query.driver.Query(ctx, query, arguments)
+	rows, err := sqlgraph.QuerySelector(ctx, _s.query.driver, selector)
 	if err != nil {
 		return nil, err
 	}

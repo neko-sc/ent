@@ -481,8 +481,7 @@ func (_q *BlogQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Blog, e
 		selector := sql.Dialect(_q.driver.Dialect()).Select()
 
 		for _, edge := range _q.withCounts {
-			statement, arguments := edge.CountQuery(selector, ids...).Query()
-			rows, err := _q.driver.Query(ctx, statement, arguments)
+			rows, err := sqlgraph.QuerySelector(ctx, _q.driver, edge.CountQuery(selector, ids...))
 			if err != nil {
 				return nil, err
 			}
@@ -788,11 +787,7 @@ func (_s *BlogSelect) Scan(ctx context.Context, value any) error {
 	if err != nil {
 		return err
 	}
-	query, arguments := selector.Query()
-	if err := selector.Err(); err != nil {
-		return err
-	}
-	rows, err := _s.query.driver.Query(ctx, query, arguments)
+	rows, err := sqlgraph.QuerySelector(ctx, _s.query.driver, selector)
 	if err != nil {
 		return err
 	}
@@ -808,11 +803,7 @@ func (_s *BlogSelect) Rows(ctx context.Context) ([]*ent.Row, error) {
 	if err != nil {
 		return nil, err
 	}
-	query, arguments := selector.Query()
-	if err := selector.Err(); err != nil {
-		return nil, err
-	}
-	rows, err := _s.query.driver.Query(ctx, query, arguments)
+	rows, err := sqlgraph.QuerySelector(ctx, _s.query.driver, selector)
 	if err != nil {
 		return nil, err
 	}

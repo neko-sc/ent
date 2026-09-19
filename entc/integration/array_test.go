@@ -1,10 +1,11 @@
 package integration
 
 import (
+	"testing"
+
 	"github.com/neko-sc/ent/entc/integration/ent"
 	"github.com/neko-sc/ent/entc/integration/ent/user"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func Arrays(t *testing.T, client *ent.Client) {

@@ -1,13 +1,17 @@
+// Copyright 2026 Neko Works LLC
+// SPDX-License-Identifier: Apache-2.0
+
 package schema
 
 import (
+	"testing"
+
 	"github.com/neko-sc/atlas/sql/postgres"
 	atlas "github.com/neko-sc/atlas/sql/schema"
 	"github.com/neko-sc/atlas/sql/sqlite"
 	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/schema/field"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestArrayColumnType(t *testing.T) {

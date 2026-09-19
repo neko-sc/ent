@@ -27,8 +27,11 @@ linters:
       lines: 200
       statements: 200
     goheader:
+      values:
+        regexp:
+          COPYRIGHT: 'Copyright (2019-2026 Facebook Inc\.|2026 Neko Works LLC)'
       template: |-
-        Copyright 2019-2026 Facebook Inc.
+        {{ COPYRIGHT }}
         SPDX-License-Identifier: Apache-2.0
     errcheck:
       exclude-functions:

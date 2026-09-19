@@ -1,9 +1,10 @@
 package pg
 
 import (
+	"testing"
+
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestIntegerArrayScan(t *testing.T) {

@@ -583,8 +583,7 @@ func (_q *FileQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*File, e
 		selector := sql.Dialect(_q.driver.Dialect()).Select()
 
 		for _, edge := range _q.withCounts {
-			statement, arguments := edge.CountQuery(selector, ids...).Query()
-			rows, err := _q.driver.Query(ctx, statement, arguments)
+			rows, err := sqlgraph.QuerySelector(ctx, _q.driver, edge.CountQuery(selector, ids...))
 			if err != nil {
 				return nil, err
 			}
@@ -766,6 +765,11 @@ func (_q *FileQuery) sqlCount(ctx context.Context) (int, error) {
 
 func (_q *FileQuery) querySpec() *sqlgraph.QuerySpec {
 	_spec := sqlgraph.NewQuerySpec(file.Table, file.Columns, sqlgraph.NewFieldSpec(file.FieldID, field.TypeInt))
+	_spec.Node.Unique = [][]string{
+		{"create_time"},
+		{"name", "user"},
+		{"name", "user_files", "file_type_files"},
+	}
 	_spec.From = _q.sql
 	if unique := _q.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
@@ -983,11 +987,7 @@ func (_s *FileSelect) Scan(ctx context.Context, value any) error {
 	if err != nil {
 		return err
 	}
-	query, arguments := selector.Query()
-	if err := selector.Err(); err != nil {
-		return err
-	}
-	rows, err := _s.query.driver.Query(ctx, query, arguments)
+	rows, err := sqlgraph.QuerySelector(ctx, _s.query.driver, selector)
 	if err != nil {
 		return err
 	}
@@ -1003,11 +1003,7 @@ func (_s *FileSelect) Rows(ctx context.Context) ([]*ent.Row, error) {
 	if err != nil {
 		return nil, err
 	}
-	query, arguments := selector.Query()
-	if err := selector.Err(); err != nil {
-		return nil, err
-	}
-	rows, err := _s.query.driver.Query(ctx, query, arguments)
+	rows, err := sqlgraph.QuerySelector(ctx, _s.query.driver, selector)
 	if err != nil {
 		return nil, err
 	}

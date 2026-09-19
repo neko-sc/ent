@@ -687,7 +687,18 @@ func (u *UpdateBuilder) Query() (string, []any) {
 	return query, args
 }
 
+// Equalities returns the top-level WHERE equalities. Valid after Query or QueryErr.
+func (u *UpdateBuilder) Equalities() []Equality {
+	return u.statementInfo().equalities
+}
+
+// Conjunctive reports whether the WHERE clause is a pure conjunction. Valid after Query or QueryErr.
+func (u *UpdateBuilder) Conjunctive() bool {
+	return !u.statementInfo().disjunctive
+}
+
 func (u *UpdateBuilder) QueryErr() (string, []any, error) {
+	u.statement = nil
 	b := u.clone()
 	b.AddError(u.Err())
 	if len(u.prefix) > 0 {
@@ -700,8 +711,11 @@ func (u *UpdateBuilder) QueryErr() (string, []any, error) {
 	u.writeSetter(&b)
 	if u.where != nil {
 		b.WriteString(" WHERE ")
+		b.collectPredicates = true
 		b.Join(u.where)
+		b.collectPredicates = false
 	}
+	u.statement = b.statement
 	if len(u.returningOld)+len(u.returningNew) > 0 {
 		joinReturningOldNew(u.returningOld, u.returningNew, &b)
 	} else {
@@ -840,21 +854,43 @@ func (d *DeleteBuilder) Query() (string, []any) {
 	return query, args
 }
 
+// Equalities returns the top-level WHERE equalities. Valid after Query or QueryErr.
+func (d *DeleteBuilder) Equalities() []Equality {
+	return d.statementInfo().equalities
+}
+
+// Conjunctive reports whether the WHERE clause is a pure conjunction. Valid after Query or QueryErr.
+func (d *DeleteBuilder) Conjunctive() bool {
+	return !d.statementInfo().disjunctive
+}
+
 func (d *DeleteBuilder) QueryErr() (string, []any, error) {
+	d.statement = nil
 	b := d.clone()
 	b.AddError(d.Err())
 	b.WriteString("DELETE FROM ")
 	b.writeSchema(d.schema)
 	b.Ident(d.table)
 	if d.where != nil {
-		b.WriteString(" WHERE ").Join(d.where)
+		b.WriteString(" WHERE ")
+		b.collectPredicates = true
+		b.Join(d.where)
+		b.collectPredicates = false
 	}
+	d.statement = b.statement
 	if len(d.returningOld)+len(d.returningNew) > 0 {
 		joinReturningOldNew(d.returningOld, d.returningNew, &b)
 	} else {
 		joinReturning(d.returning, &b)
 	}
 	return b.String(), b.args, b.Err()
+}
+
+// Equality is a column = value or column IN (values...) predicate that
+// restricts the top-level WHERE of a selector.
+type Equality struct {
+	Column string // Exactly as passed to EQ or In, including qualification and quoting.
+	Values []any  // One value for EQ, all values for In.
 }
 
 // Predicate is a where predicate.
@@ -886,6 +922,7 @@ func ExprP(exr string, args ...any) *Predicate {
 func Or(preds ...*Predicate) *Predicate {
 	p := P()
 	return p.Append(func(b *Builder) {
+		b.statementInfo().disjunctive = true
 		p.mayWrap(preds, b, "OR")
 	})
 }
@@ -918,6 +955,7 @@ func Not(pred *Predicate) *Predicate {
 // Not appends NOT to the predicate.
 func (p *Predicate) Not() *Predicate {
 	return p.Append(func(b *Builder) {
+		b.statementInfo().disjunctive = true
 		b.WriteString("NOT ")
 	})
 }
@@ -964,6 +1002,7 @@ func IsFalse(col string) *Predicate {
 // IsFalse appends a predicate that checks if the column value is falsey.
 func (p *Predicate) IsFalse(col string) *Predicate {
 	return p.Append(func(b *Builder) {
+		b.statementInfo().disjunctive = true
 		b.WriteString("NOT ").Ident(col)
 	})
 }
@@ -979,12 +1018,17 @@ func (p *Predicate) EQ(col string, arg any) *Predicate {
 	// arguments when it can be avoided.
 	switch arg := arg.(type) {
 	case bool:
-		if arg {
-			return IsTrue(col)
-		}
-		return IsFalse(col)
+		return P(func(b *Builder) {
+			b.recordEquality(col, arg)
+			if !arg {
+				b.statementInfo().disjunctive = true
+				b.WriteString("NOT ")
+			}
+			b.Ident(col)
+		})
 	default:
 		return p.Append(func(b *Builder) {
+			b.recordEquality(col, arg)
 			b.Ident(col)
 			b.WriteOp(OpEQ)
 			p.arg(b, arg)
@@ -1140,6 +1184,7 @@ func NotNull(col string) *Predicate {
 // NotNull appends the `IS NOT NULL` predicate.
 func (p *Predicate) NotNull(col string) *Predicate {
 	return p.Append(func(b *Builder) {
+		b.statementInfo().disjunctive = true
 		b.Ident(col).WriteString(" IS NOT NULL")
 	})
 }
@@ -1169,6 +1214,7 @@ func (p *Predicate) In(col string, args ...any) *Predicate {
 		return p.False()
 	}
 	return p.Append(func(b *Builder) {
+		b.recordEquality(col, args...)
 		b.Ident(col).WriteOp(OpIn)
 		b.Wrap(func(b *Builder) {
 			if s, ok := args[0].(*Selector); ok {
@@ -1221,6 +1267,7 @@ func (p *Predicate) NotIn(col string, args ...any) *Predicate {
 		return Not(p.False())
 	}
 	return p.Append(func(b *Builder) {
+		b.statementInfo().disjunctive = true
 		b.Ident(col).WriteOp(OpNotIn)
 		b.Wrap(func(b *Builder) {
 			if s, ok := args[0].(*Selector); ok {
@@ -1255,6 +1302,7 @@ func NotExists(query Querier) *Predicate {
 // NotExists appends the `NOT EXISTS` predicate with the given query.
 func (p *Predicate) NotExists(query Querier) *Predicate {
 	return p.Append(func(b *Builder) {
+		b.statementInfo().disjunctive = true
 		b.WriteString("NOT EXISTS ")
 		b.Wrap(func(b *Builder) {
 			b.Join(query)
@@ -1471,6 +1519,8 @@ func (p *Predicate) Append(f func(*Builder)) *Predicate {
 
 // Query returns query representation of a predicate.
 func (p *Predicate) Query() (string, []any) {
+	p.statement = nil
+	p.collectPredicates = true
 	if p.Len() > 0 || len(p.args) > 0 {
 		p.Reset()
 		p.args = nil
@@ -1789,6 +1839,36 @@ type Selector struct {
 	setOps    []setOp
 	prefix    Queries
 	lock      *LockOptions
+}
+
+// Tables returns every table the selector references, in order of first appearance.
+// Valid after Query has been called.
+func (s *Selector) Tables() []string {
+	return s.statementInfo().tables
+}
+
+// TableReferences returns reference counts for each schema-qualified table,
+// including joins and subqueries. Valid after Query.
+func (s *Selector) TableReferences() map[string]int {
+	return s.statementInfo().tableReferences
+}
+
+// Equalities returns the top-level WHERE equalities. Valid after Query.
+func (s *Selector) Equalities() []Equality {
+	return s.statementInfo().equalities
+}
+
+// Conjunctive reports whether the top-level WHERE is a pure conjunction, so
+// every Equality restricts every result row. Valid after Query. Set operations
+// and a first FROM source other than a SelectTable also make it false, because
+// their result rows cannot be pinned to the outer WHERE equalities alone.
+func (s *Selector) Conjunctive() bool {
+	return !s.statementInfo().disjunctive
+}
+
+// Locked reports whether the selector carries a row-locking clause.
+func (s *Selector) Locked() bool {
+	return s.lock != nil
 }
 
 // New returns a new Selector with the same dialect and context.
@@ -2361,6 +2441,7 @@ func (q *setOpQuerier) Query() (string, []any) {
 			b.WriteString(")")
 		}
 	}
+	q.statement = b.statement
 	return b.String(), b.args
 }
 
@@ -2688,7 +2769,15 @@ func (s *Selector) Having(p *Predicate) *Selector {
 
 // Query returns query representation of a `SELECT` statement.
 func (s *Selector) Query() (string, []any) {
+	s.statement = nil
 	b := s.clone()
+	disjunctive := s.or || s.not || len(s.setOps) > 0
+	if len(s.from) > 0 {
+		// A first FROM source other than a table hides the rows the outer WHERE restricts.
+		_, table := s.from[0].(*SelectTable)
+		disjunctive = disjunctive || !table
+	}
+	b.statementInfo().disjunctive = disjunctive
 	s.joinPrefix(&b)
 	b.WriteString("SELECT ")
 	if s.distinct {
@@ -2709,6 +2798,7 @@ func (s *Selector) Query() (string, []any) {
 		switch t := from.(type) {
 		case *SelectTable:
 			t.SetDialect(s.dialect)
+			b.statementInfo().addTable(dialect.QualifiedTable(t.schema, t.name), 1)
 			b.WriteString(t.ref())
 		case *Selector:
 			t.SetDialect(s.dialect)
@@ -2731,6 +2821,7 @@ func (s *Selector) Query() (string, []any) {
 		switch view := join.table.(type) {
 		case *SelectTable:
 			view.SetDialect(s.dialect)
+			b.statementInfo().addTable(dialect.QualifiedTable(view.schema, view.name), 1)
 			b.WriteString(view.ref())
 		case *Selector:
 			view.SetDialect(s.dialect)
@@ -2750,7 +2841,9 @@ func (s *Selector) Query() (string, []any) {
 	}
 	if s.where != nil {
 		b.WriteString(" WHERE ")
+		b.collectPredicates = true
 		b.Join(s.where)
+		b.collectPredicates = false
 	}
 	if len(s.group) > 0 {
 		b.WriteString(" GROUP BY ")
@@ -2773,6 +2866,7 @@ func (s *Selector) Query() (string, []any) {
 		b.WriteString(strconv.Itoa(*s.offset))
 	}
 	s.joinLock(&b)
+	s.statement = b.statement
 	s.total = b.total
 	s.AddError(b.Err())
 	return b.String(), b.args
@@ -2812,6 +2906,7 @@ func (s *Selector) joinSetOps(b *Builder) {
 		switch view := op.TableView.(type) {
 		case *SelectTable:
 			view.SetDialect(s.dialect)
+			b.statementInfo().addTable(dialect.QualifiedTable(view.schema, view.name), 1)
 			b.WriteString(view.ref())
 		case *Selector:
 			view.SetDialect(s.dialect)
@@ -2941,6 +3036,7 @@ func (w *WithBuilder) C(column string) string {
 
 // Query returns query representation of a `WITH` clause.
 func (w *WithBuilder) Query() (string, []any) {
+	w.statement = nil
 	w.WriteString("WITH ")
 	if w.recursive {
 		w.WriteString("RECURSIVE ")
@@ -3032,6 +3128,7 @@ func (w *WindowBuilder) OrderExpr(exprs ...Querier) *WindowBuilder {
 
 // Query returns query representation of the window function.
 func (w *WindowBuilder) Query() (string, []any) {
+	w.statement = nil
 	w.fn(&w.Builder)
 	w.WriteString(" OVER ")
 	w.Wrap(func(b *Builder) {
@@ -3125,6 +3222,7 @@ type exprFunc struct {
 func (e *exprFunc) Query() (string, []any) {
 	b := e.clone()
 	e.fn(&b)
+	e.statement = b.statement
 	e.AddError(b.Err())
 	return b.Query()
 }
@@ -3148,12 +3246,64 @@ func (n Queries) Query() (string, []any) {
 
 // Builder is the base query builder for the sql dsl.
 type Builder struct {
-	sb        *strings.Builder // underlying builder.
-	dialect   string           // configured dialect.
-	args      []any            // query parameters.
-	total     int              // total number of parameters in query tree.
-	errs      []error          // errors that added during the query construction.
-	qualifier string           // qualifier to prefix identifiers (e.g. table name).
+	sb                *strings.Builder // underlying builder.
+	dialect           string           // configured dialect.
+	args              []any            // query parameters.
+	total             int              // total number of parameters in query tree.
+	errs              []error          // errors that added during the query construction.
+	qualifier         string           // qualifier to prefix identifiers (e.g. table name).
+	statement         *statementInfo
+	collectPredicates bool // Only WHERE fragments may contribute row restrictions.
+}
+
+type statementInfo struct {
+	tables          []string
+	tableReferences map[string]int
+	equalities      []Equality
+	disjunctive     bool
+}
+
+func (information *statementInfo) addTable(table string, references int) {
+	if information.tableReferences == nil {
+		information.tableReferences = make(map[string]int)
+	}
+	if information.tableReferences[table] == 0 {
+		information.tables = append(information.tables, table)
+	}
+	information.tableReferences[table] += references
+}
+
+func (b *Builder) statementInfo() *statementInfo {
+	if b.statement == nil {
+		b.statement = &statementInfo{}
+	}
+	return b.statement
+}
+
+func (b *Builder) recordEquality(column string, values ...any) {
+	for _, value := range values {
+		if _, expression := value.(Querier); expression {
+			return
+		}
+	}
+	information := b.statementInfo()
+	information.equalities = append(information.equalities, Equality{Column: column, Values: slices.Clone(values)})
+}
+
+func (b *Builder) collectTables(query Querier) {
+	switch query := query.(type) {
+	case *Wrapper:
+		b.collectTables(query.wrapped)
+	case Queries:
+		for _, child := range query {
+			b.collectTables(child)
+		}
+	case interface{ statementInfo() *statementInfo }:
+		information := query.statementInfo()
+		for _, table := range information.tables {
+			b.statementInfo().addTable(table, information.tableReferences[table])
+		}
+	}
 }
 
 // Quote quotes the given identifier with the characters based
@@ -3447,6 +3597,12 @@ func (b *Builder) join(qs []Querier, sep string) *Builder {
 			st.SetTotal(b.total)
 		}
 		query, args := q.Query()
+		b.collectTables(q)
+		if predicate, ok := q.(*Predicate); ok && b.collectPredicates {
+			information, nested := b.statementInfo(), predicate.statementInfo()
+			information.equalities = append(information.equalities, nested.equalities...)
+			information.disjunctive = information.disjunctive || nested.disjunctive
+		}
 		b.WriteString(query)
 		b.args = append(b.args, args...)
 		b.total += len(args)
@@ -3461,7 +3617,7 @@ func (b *Builder) join(qs []Querier, sep string) *Builder {
 
 // Wrap gets a callback, and wraps its result with parentheses.
 func (b *Builder) Wrap(f func(*Builder)) *Builder {
-	nb := &Builder{dialect: b.dialect, total: b.total, sb: &strings.Builder{}}
+	nb := &Builder{dialect: b.dialect, total: b.total, sb: &strings.Builder{}, statement: b.statementInfo(), collectPredicates: b.collectPredicates}
 	nb.Byte('(')
 	f(nb)
 	nb.Byte(')')

@@ -6,6 +6,7 @@ package gen
 import (
 	"testing"
 
+	"github.com/neko-sc/ent/dialect/entsql"
 	"github.com/neko-sc/ent/entc/load"
 	"github.com/neko-sc/ent/schema/field"
 
@@ -104,6 +105,57 @@ func TestNewType_AcceptsDefinedBytesForFamilyValidators(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestTypeUniqueColumnSets(t *testing.T) {
+	t.Run("unique fields and unique indexes", func(t *testing.T) {
+		typeInfo, err := NewType(&Config{}, &load.Schema{Name: "User", Fields: []*load.Field{
+			{Name: "id", StorageKey: "user_id", Unique: true, Type: field.TypeInt, Semantic: builtinFieldType(field.TypeInt)},
+			{Name: "email", StorageKey: "email_address", Unique: true, Type: field.TypeString, Semantic: builtinFieldType(field.TypeString)},
+			{Name: "name", StorageKey: "display_name", Type: field.TypeString, Semantic: builtinFieldType(field.TypeString)},
+		}})
+		require.NoError(t, err)
+		typeInfo.Edges = []*Edge{{Name: "tenant", Rel: Relation{Type: M2O, Columns: []string{"tenant_id"}}}}
+		for _, index := range []*load.Index{
+			{Fields: []string{"id"}, Unique: true},
+			{Fields: []string{"name"}},
+			{Fields: []string{"name"}, Edges: []string{"tenant"}, Unique: true},
+		} {
+			require.NoError(t, typeInfo.AddIndex(index))
+		}
+		require.Equal(t, [][]string{{"email_address"}, {"display_name", "tenant_id"}}, typeInfo.UniqueColumnSets())
+	})
+	t.Run("no unique columns", func(t *testing.T) {
+		typeInfo, err := NewType(&Config{}, &load.Schema{Name: "User"})
+		require.NoError(t, err)
+		require.NoError(t, typeInfo.AddIndex(&load.Index{Fields: []string{"id"}, Unique: true}))
+		require.Nil(t, typeInfo.UniqueColumnSets())
+	})
+	t.Run("partial unique index", func(t *testing.T) {
+		typeInfo, err := NewType(&Config{}, &load.Schema{Name: "User", Fields: []*load.Field{
+			{Name: "email", Type: field.TypeString, Semantic: builtinFieldType(field.TypeString)},
+		}})
+		require.NoError(t, err)
+		annotation := entsql.IndexWhere("active")
+		require.NoError(t, typeInfo.AddIndex(&load.Index{
+			Fields:      []string{"email"},
+			Unique:      true,
+			Annotations: map[string]any{annotation.Name(): annotation},
+		}))
+		require.Nil(t, typeInfo.UniqueColumnSets())
+	})
+	t.Run("composite primary key", func(t *testing.T) {
+		typeInfo := Type{
+			Fields: []*Field{{Name: "user_id", Unique: true}, {Name: "group_id"}},
+			Indexes: []*Index{
+				{Unique: true, Columns: []string{"group_id", "user_id"}},
+				{Unique: true, Columns: []string{"group_id", "name"}},
+			},
+		}
+		typeInfo.EdgeSchema.To = &Edge{}
+		typeInfo.EdgeSchema.ID = typeInfo.Fields
+		require.Equal(t, [][]string{{"user_id"}, {"group_id", "name"}}, typeInfo.UniqueColumnSets())
+	})
+}
+
 func TestFieldColumnKind(t *testing.T) {
 	for _, test := range []struct {
 		logical field.Type
@@ -113,7 +165,9 @@ func TestFieldColumnKind(t *testing.T) {
 		{field.TypeEnum, "StringColumn"}, {field.TypeTime, "OrderedColumn"}, {field.TypeInt, "OrderedColumn"},
 		{field.TypeUUID, "OrderedColumn"}, {field.TypeBytes, "OrderedColumn"},
 	} {
-		require.Equal(t, test.kind, (Field{Type: test.logical, Semantic: builtinFieldType(test.logical)}).ColumnKind())
+		t.Run(test.logical.String(), func(t *testing.T) {
+			require.Equal(t, test.kind, (Field{Type: test.logical, Semantic: builtinFieldType(test.logical)}).ColumnKind())
+		})
 	}
 }
 

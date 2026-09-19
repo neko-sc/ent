@@ -682,6 +682,9 @@ type (
 		Columns     []string
 		ID          *FieldSpec   // primary key.
 		CompositeID []*FieldSpec // composite id (edge schema).
+		// Unique contains unique column sets besides the primary key, in database
+		// column names; generated code fills it.
+		Unique [][]string
 	}
 )
 
@@ -793,7 +796,7 @@ func (u *CreateSpec) SetField(column string, t field.Type, value driver.Value) {
 // record in the database, and connects it to other nodes specified in spec.Edges.
 func CreateNode(ctx context.Context, drv dialect.Driver, spec *CreateSpec) error {
 	if sql.Insert(spec.Table).OnConflict(spec.OnConflict...).ConflictDoSelect() && !drv.Capabilities().ConflictDoSelect {
-		return &dialect.UnsupportedError{Feature: "ON CONFLICT DO SELECT", Dialect: dialect.Dialect(drv.Dialect())}
+		return &dialect.UnsupportedError{Feature: "ON CONFLICT DO SELECT", Dialect: drv.Dialect()}
 	}
 	spec.Skipped = false
 	gr := graph{tx: drv, builder: sql.Dialect(drv.Dialect())}
@@ -809,7 +812,7 @@ func BatchCreate(ctx context.Context, drv dialect.Driver, spec *BatchCreateSpec)
 			options = spec.OnConflict
 		}
 		if sql.Insert(node.Table).OnConflict(options...).ConflictDoSelect() && !drv.Capabilities().ConflictDoSelect {
-			return &dialect.UnsupportedError{Feature: "ON CONFLICT DO SELECT", Dialect: dialect.Dialect(drv.Dialect())}
+			return &dialect.UnsupportedError{Feature: "ON CONFLICT DO SELECT", Dialect: drv.Dialect()}
 		}
 	}
 	gr := graph{tx: drv, builder: sql.Dialect(drv.Dialect())}
@@ -901,7 +904,7 @@ func (u *UpdateSpec) ClearField(column string, t field.Type) {
 // UpdateNode applies the UpdateSpec on one node in the graph.
 func UpdateNode(ctx context.Context, drv dialect.Driver, spec *UpdateSpec) error {
 	if spec.OldScanValues != nil && !drv.Capabilities().ReturningOld {
-		return &dialect.UnsupportedError{Feature: "RETURNING OLD", Dialect: dialect.Dialect(drv.Dialect())}
+		return &dialect.UnsupportedError{Feature: "RETURNING OLD", Dialect: drv.Dialect()}
 	}
 	tx, err := drv.Tx(ctx)
 	if err != nil {
@@ -961,14 +964,14 @@ func DeleteNodes(ctx context.Context, drv dialect.Driver, spec *DeleteSpec) (int
 	statement := builder.Delete(spec.Node.Table).Schema(spec.Node.Schema).FromSelect(selector)
 	if spec.Returning != nil {
 		query, args := statement.Returning(spec.Returning.Columns...).Query()
-		rows, err := drv.Query(ctx, query, args)
+		rows, err := drv.Query(dialect.WithStatement(ctx, spec.Node.writeStatement(statement)), query, args)
 		if err != nil {
 			return 0, constraintError(err)
 		}
 		return spec.Returning.scan(rows)
 	}
 	query, args := statement.Query()
-	res, err := drv.Exec(ctx, query, args)
+	res, err := drv.Exec(dialect.WithStatement(ctx, spec.Node.writeStatement(statement)), query, args)
 	if err != nil {
 		return 0, constraintError(err)
 	}
@@ -1046,7 +1049,7 @@ func QueryEdges(ctx context.Context, drv dialect.Driver, spec *EdgeQuerySpec) er
 		p(selector)
 	}
 	query, args := selector.Query()
-	rows, err := drv.Query(ctx, query, args)
+	rows, err := drv.Query(dialect.WithStatement(ctx, readStatement(selector, dialect.QualifiedTable(spec.Edge.Schema, spec.Edge.Table))), query, args)
 	if err != nil {
 		return err
 	}
@@ -1074,7 +1077,7 @@ func (q *query) nodes(ctx context.Context, drv dialect.Driver) error {
 		return err
 	}
 	query, args := selector.Query()
-	rows, err := drv.Query(ctx, query, args)
+	rows, err := drv.Query(dialect.WithStatement(ctx, q.Node.readStatement(selector)), query, args)
 	if err != nil {
 		return err
 	}
@@ -1129,7 +1132,7 @@ func (q *query) count(ctx context.Context, drv dialect.Driver) (int, error) {
 		selector.Count(columns...)
 	}
 	query, args := selector.Query()
-	rows, err := drv.Query(ctx, query, args)
+	rows, err := drv.Query(dialect.WithStatement(ctx, readStatement(selector, dialect.QualifiedTable(q.Node.Schema, q.Node.Table))), query, args)
 	if err != nil {
 		return 0, err
 	}
@@ -1225,7 +1228,7 @@ func (u *updater) node(ctx context.Context, tx dialect.ExecQuerier) error {
 			selector.AppendSelect(u.Node.Columns...)
 		}
 		query, args := selector.Query()
-		rows, err := tx.Query(ctx, query, args)
+		rows, err := tx.Query(dialect.WithStatement(ctx, u.Node.readStatement(selector)), query, args)
 		if err != nil {
 			return err
 		}
@@ -1239,7 +1242,7 @@ func (u *updater) node(ctx context.Context, tx dialect.ExecQuerier) error {
 				update.ReturningOldNew(u.Node.Columns, u.Node.Columns)
 			}
 			query, args := update.Query()
-			rows, err := tx.Query(ctx, query, args)
+			rows, err := tx.Query(dialect.WithStatement(ctx, u.Node.writeStatement(update)), query, args)
 			if err != nil {
 				return err
 			}
@@ -1248,7 +1251,7 @@ func (u *updater) node(ctx context.Context, tx dialect.ExecQuerier) error {
 			}
 		} else {
 			query, args := update.Query()
-			result, err := tx.Exec(ctx, query, args)
+			result, err := tx.Exec(dialect.WithStatement(ctx, u.Node.writeStatement(update)), query, args)
 			if err != nil {
 				return err
 			}
@@ -1315,7 +1318,7 @@ func (u *updater) nodes(ctx context.Context, drv dialect.Driver) (int, error) {
 			ids         []driver.Value
 			query, args = selector.Query()
 		)
-		rows, err := u.tx.Query(ctx, query, args)
+		rows, err := u.tx.Query(dialect.WithStatement(ctx, u.Node.readStatement(selector)), query, args)
 		if err != nil {
 			return 0, fmt.Errorf("querying table %s: %w", u.Node.Table, err)
 		}
@@ -1362,7 +1365,7 @@ func (u *updater) updateTable(ctx context.Context, stmt *sql.UpdateBuilder) (int
 	}
 	if u.Returning != nil {
 		query, args := stmt.Returning(u.Returning.Columns...).Query()
-		rows, err := u.tx.Query(ctx, query, args)
+		rows, err := u.tx.Query(dialect.WithStatement(ctx, u.Node.writeStatement(stmt)), query, args)
 		if err != nil {
 			return 0, constraintError(err)
 		}
@@ -1371,7 +1374,7 @@ func (u *updater) updateTable(ctx context.Context, stmt *sql.UpdateBuilder) (int
 	var (
 		query, args = stmt.Query()
 	)
-	res, err := u.tx.Exec(ctx, query, args)
+	res, err := u.tx.Exec(dialect.WithStatement(ctx, u.Node.writeStatement(stmt)), query, args)
 	if err != nil {
 		return 0, err
 	}
@@ -1558,12 +1561,13 @@ func (c *creator) setTableColumns(insert *sql.InsertBuilder, edges map[Rel][]*Ed
 func (c *creator) insert(ctx context.Context, insert *sql.InsertBuilder) error {
 	c.ensureConflict(insert)
 	if c.ID == nil {
+		statement := bulkWrite(dialect.QualifiedTable(c.Schema, c.Table))
 		if c.Returning != nil {
 			query, args, err := insert.Returning(c.Returning.Columns...).QueryErr()
 			if err != nil {
 				return err
 			}
-			rows, err := c.tx.Query(ctx, query, args)
+			rows, err := c.tx.Query(dialect.WithStatement(ctx, statement), query, args)
 			if err != nil {
 				return err
 			}
@@ -1577,7 +1581,7 @@ func (c *creator) insert(ctx context.Context, insert *sql.InsertBuilder) error {
 		if err != nil {
 			return err
 		}
-		_, err = c.tx.Exec(ctx, query, args)
+		_, err = c.tx.Exec(dialect.WithStatement(ctx, statement), query, args)
 		return err
 	}
 	if c.ID.Value != nil && c.Expressions[c.ID.Column] == nil {
@@ -1590,7 +1594,10 @@ func (c *creator) insert(ctx context.Context, insert *sql.InsertBuilder) error {
 	if err != nil {
 		return err
 	}
-	rows, err := c.tx.Query(ctx, query, args)
+	table := dialect.QualifiedTable(c.Schema, c.Table)
+	// Keep bulk invalidation until every returned row has been identified.
+	statement := bulkWrite(table)
+	rows, err := c.tx.Query(dialect.WithStatement(ctx, statement), query, args)
 	if err != nil {
 		return err
 	}
@@ -1607,10 +1614,16 @@ func (c *creator) insert(ctx context.Context, insert *sql.InsertBuilder) error {
 	if c.ID.Value == nil {
 		return errors.New("sqlgraph: Returning.Scan must assign the ID value")
 	}
+	// Publish the assigned ID before Close lets driver wrappers invalidate rows.
+	statement.Rows = append(statement.Rows, dialect.RowRef{Table: table, ID: c.ID.Value})
 	if rows.Next() {
 		return errors.New("sqlgraph: create returned more than one row")
 	}
-	return rows.Err()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	statement.Bulk = nil
+	return nil
 }
 
 // ensureConflict ensures the ON CONFLICT is added to the insert statement.
@@ -1786,6 +1799,9 @@ func (c *batchCreator) mayTx(ctx context.Context, drv dialect.Driver) (dialect.T
 // batchInsert inserts a batch of nodes to their table and sets their ID if it was not provided by the user.
 func (c *batchCreator) batchInsert(ctx context.Context, tx dialect.ExecQuerier, insert *sql.InsertBuilder) error {
 	c.ensureConflict(insert)
+	table := dialect.QualifiedTable(c.Nodes[0].Schema, c.Nodes[0].Table)
+	// Keep bulk invalidation until every returned row has been identified.
+	statement := bulkWrite(table)
 	if c.Nodes[0].Returning == nil {
 		if c.Nodes[0].ID != nil {
 			return c.insertIDs(ctx, tx, insert.Returning(c.Nodes[0].ID.Column))
@@ -1794,14 +1810,14 @@ func (c *batchCreator) batchInsert(ctx context.Context, tx dialect.ExecQuerier, 
 		if err != nil {
 			return err
 		}
-		_, err = tx.Exec(ctx, query, args)
+		_, err = tx.Exec(dialect.WithStatement(ctx, statement), query, args)
 		return err
 	}
 	query, args, err := insert.Returning(c.Nodes[0].Returning.Columns...).QueryErr()
 	if err != nil {
 		return err
 	}
-	rows, err := tx.Query(ctx, query, args)
+	rows, err := tx.Query(dialect.WithStatement(ctx, statement), query, args)
 	if err != nil {
 		return err
 	}
@@ -1815,8 +1831,12 @@ func (c *batchCreator) batchInsert(ctx context.Context, tx dialect.ExecQuerier, 
 		if err := node.Returning.Scan(rows); err != nil {
 			return err
 		}
-		if node.ID != nil && node.ID.Value == nil {
-			return errors.New("sqlgraph: Returning.Scan must assign the ID value")
+		if node.ID != nil {
+			if node.ID.Value == nil {
+				return errors.New("sqlgraph: Returning.Scan must assign the ID value")
+			}
+			// Every assigned ID must be visible to driver wrappers before rows.Close.
+			statement.Rows = append(statement.Rows, dialect.RowRef{Table: table, ID: node.ID.Value})
 		}
 		count++
 	}
@@ -1825,6 +1845,9 @@ func (c *batchCreator) batchInsert(ctx context.Context, tx dialect.ExecQuerier, 
 	}
 	if count != len(c.Nodes) {
 		return fmt.Errorf("sqlgraph: expected %d returned rows, got %d", len(c.Nodes), count)
+	}
+	if c.Nodes[0].ID != nil {
+		statement.Bulk = nil
 	}
 	return rows.Close()
 }
@@ -1911,7 +1934,8 @@ func (g *graph) clearM2MEdges(ctx context.Context, ids []driver.Value, edges Edg
 			deleter.Schema(edges[0].Schema)
 		}
 		query, args := deleter.Query()
-		if _, err := g.tx.Exec(ctx, query, args); err != nil {
+		statement := bulkWrite(dialect.QualifiedTable(edges[0].Schema, table))
+		if _, err := g.tx.Exec(dialect.WithStatement(ctx, statement), query, args); err != nil {
 			return fmt.Errorf("remove m2m edge for table %s: %w", table, err)
 		}
 	}
@@ -1958,7 +1982,8 @@ func (g *graph) addM2MEdges(ctx context.Context, ids []driver.Value, edges EdgeS
 			insert.OnConflict(sql.DoNothing())
 		}
 		query, args := insert.Query()
-		if _, err := g.tx.Exec(ctx, query, args); err != nil {
+		statement := bulkWrite(dialect.QualifiedTable(edges[0].Schema, table))
+		if _, err := g.tx.Exec(dialect.WithStatement(ctx, statement), query, args); err != nil {
 			return fmt.Errorf("add m2m edge for table %s: %w", table, err)
 		}
 	}
@@ -1974,7 +1999,8 @@ func (g *graph) batchAddM2M(ctx context.Context, spec *BatchCreateSpec) error {
 				return fmt.Errorf("expect exactly 1 edge-spec per table, but got %d", len(edges))
 			}
 			edge := edges[0]
-			insert, ok := tables[name]
+			table := dialect.QualifiedTable(edge.Schema, name)
+			insert, ok := tables[table]
 			if !ok {
 				columns := edge.Columns
 				// Additional fields, such as edge-schema fields.
@@ -1993,7 +2019,7 @@ func (g *graph) batchAddM2M(ctx context.Context, spec *BatchCreateSpec) error {
 					insert.OnConflict(sql.DoNothing())
 				}
 			}
-			tables[name] = insert
+			tables[table] = insert
 			pk1, pk2 := []driver.Value{node.ID.Value}, edge.Target.Nodes
 			if edge.Inverse {
 				pk1, pk2 = pk2, pk1
@@ -2008,7 +2034,8 @@ func (g *graph) batchAddM2M(ctx context.Context, spec *BatchCreateSpec) error {
 	}
 	for _, table := range insertKeys(tables) {
 		query, args := tables[table].Query()
-		if _, err := g.tx.Exec(ctx, query, args); err != nil {
+		statement := bulkWrite(table)
+		if _, err := g.tx.Exec(dialect.WithStatement(ctx, statement), query, args); err != nil {
 			return fmt.Errorf("add m2m edge for table %s: %w", table, err)
 		}
 	}
@@ -2031,7 +2058,7 @@ func (g *graph) clearFKEdges(ctx context.Context, ids []driver.Value, edges []*E
 			SetNull(edge.Columns[0]).
 			Where(pred).
 			Query()
-		if _, err := g.tx.Exec(ctx, query, args); err != nil {
+		if _, err := g.tx.Exec(dialect.WithStatement(ctx, edge.writeStatement()), query, args); err != nil {
 			return fmt.Errorf("add %s edge for table %s: %w", edge.Rel, edge.Table, err)
 		}
 	}
@@ -2060,7 +2087,7 @@ func (g *graph) addFKEdges(ctx context.Context, ids []driver.Value, edges []*Edg
 			Set(edge.Columns[0], id).
 			Where(sql.And(p, sql.IsNull(edge.Columns[0]))).
 			Query()
-		res, err := g.tx.Exec(ctx, query, args)
+		res, err := g.tx.Exec(dialect.WithStatement(ctx, edge.writeStatement()), query, args)
 		if err != nil {
 			return fmt.Errorf("add %s edge for table %s: %w", edge.Rel, edge.Table, err)
 		}
@@ -2132,24 +2159,34 @@ func (c *creator) insertID(ctx context.Context, insert *sql.InsertBuilder) error
 	if err != nil {
 		return err
 	}
-	rows, err := c.tx.Query(ctx, query, args)
+	table := dialect.QualifiedTable(c.Schema, c.Table)
+	// Keep bulk invalidation until every returned row has been identified.
+	statement := bulkWrite(table)
+	rows, err := c.tx.Query(dialect.WithStatement(ctx, statement), query, args)
 	if err != nil {
 		return err
 	}
 	defer rows.Close()
 	switch _, ok := c.ID.Value.(field.ValueScanner); {
 	case ok:
-		return sql.ScanOne(rows, c.ID.Value)
+		if err := sql.ScanOne(rows, c.ID.Value); err != nil {
+			return err
+		}
 	case c.ID.Type.Numeric():
 		id, err := sql.ScanInt64(rows)
 		if err != nil {
 			return err
 		}
 		c.ID.Value = id
-		return nil
 	default:
-		return sql.ScanOne(rows, &c.ID.Value)
+		if err := sql.ScanOne(rows, &c.ID.Value); err != nil {
+			return err
+		}
 	}
+	// The deferred Close must see the assigned ID before wrappers invalidate rows.
+	statement.Rows = append(statement.Rows, dialect.RowRef{Table: table, ID: c.ID.Value})
+	statement.Bulk = nil
+	return nil
 }
 
 // insertIDs invokes the batch insert query on the transaction and returns the returned ID of all entities.
@@ -2158,7 +2195,10 @@ func (c *batchCreator) insertIDs(ctx context.Context, tx dialect.ExecQuerier, in
 	if err != nil {
 		return err
 	}
-	rows, err := tx.Query(ctx, query, args)
+	table := dialect.QualifiedTable(c.Nodes[0].Schema, c.Nodes[0].Table)
+	// Keep bulk invalidation until every returned row has been identified.
+	statement := bulkWrite(table)
+	rows, err := tx.Query(dialect.WithStatement(ctx, statement), query, args)
 	if err != nil {
 		return err
 	}
@@ -2186,6 +2226,8 @@ func (c *batchCreator) insertIDs(ctx context.Context, tx dialect.ExecQuerier, in
 				return err
 			}
 		}
+		// Publish each assigned ID before the explicit or deferred rows.Close.
+		statement.Rows = append(statement.Rows, dialect.RowRef{Table: table, ID: node.ID.Value})
 	}
 	if err := rows.Err(); err != nil {
 		return err
@@ -2193,6 +2235,7 @@ func (c *batchCreator) insertIDs(ctx context.Context, tx dialect.ExecQuerier, in
 	if count != len(c.Nodes) {
 		return fmt.Errorf("sqlgraph: expected %d returned IDs, got %d; conflict actions must return every row", len(c.Nodes), count)
 	}
+	statement.Bulk = nil
 	return rows.Close()
 }
 

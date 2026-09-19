@@ -27,9 +27,7 @@ func ({{ $receiver }} *{{ $builder }}) sqlQuery(ctx context.Context) (*sql.Selec
 func ({{ $receiver }} *{{ $builder }}) Scan(ctx context.Context, value any) error {
 	selector, err := {{ $receiver }}.sqlQuery(ctx)
 	if err != nil { return err }
-	query, arguments := selector.Query()
-	if err := selector.Err(); err != nil { return err }
-	rows, err := {{ $receiver }}.query.driver.Query(ctx, query, arguments)
+	rows, err := sqlgraph.QuerySelector(ctx, {{ $receiver }}.query.driver, selector)
 	if err != nil { return err }
 	defer rows.Close()
 	return sql.ScanSlice(rows, value)
@@ -39,9 +37,7 @@ func ({{ $receiver }} *{{ $builder }}) Rows(ctx context.Context) ([]*ent.Row, er
 	if len({{ $receiver }}.selections) == 0 { return nil, errors.New("ent: Rows requires explicit selections") }
 	selector, err := {{ $receiver }}.sqlQuery(ctx)
 	if err != nil { return nil, err }
-	query, arguments := selector.Query()
-	if err := selector.Err(); err != nil { return nil, err }
-	rows, err := {{ $receiver }}.query.driver.Query(ctx, query, arguments)
+	rows, err := sqlgraph.QuerySelector(ctx, {{ $receiver }}.query.driver, selector)
 	if err != nil { return nil, err }
 	defer rows.Close()
 	columns, err := rows.Columns()

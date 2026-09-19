@@ -43,7 +43,7 @@ func (d *Driver) Capabilities() dialect.Capabilities {
 func NewDriver(name dialect.Dialect, c Conn, opts ...Option) *Driver {
 	c.dialect = name
 	d := &Driver{Conn: c}
-	d.Conn.dialect = d.Dialect()
+	d.dialect = d.Dialect()
 	for _, opt := range opts {
 		opt(d)
 	}
@@ -213,6 +213,15 @@ func (c Conn) Query(ctx context.Context, query string, args []any) (dialect.Rows
 	return result, nil
 }
 
+// sessionVariableRune reports whether a character may appear in a session
+// variable name, which is an ASCII identifier optionally namespaced with a dot.
+func sessionVariableRune(character rune) bool {
+	return character == '_' || character == '.' ||
+		character >= 'a' && character <= 'z' ||
+		character >= 'A' && character <= 'Z' ||
+		character >= '0' && character <= '9'
+}
+
 // maySetVars sets the session variables before executing a query.
 func (c Conn) maySetVars(ctx context.Context) (ExecQuerier, func() error, error) {
 	variables := VarsFromContext(ctx)
@@ -248,37 +257,35 @@ func (c Conn) maySetVars(ctx context.Context) (ExecQuerier, func() error, error)
 		}
 		if err != nil {
 			if connection, ok := executor.(*sql.Conn); ok {
-				connection.Raw(func(any) error { return driver.ErrBadConn })
+				_ = connection.Raw(func(any) error { return driver.ErrBadConn })
 			}
 		}
 		return errors.Join(err, closeConnection())
 	}
+	// Releasing the acquired connection is part of reporting a failure.
+	fail := func(err error) (ExecQuerier, func() error, error) {
+		if closeConnection != nil {
+			err = errors.Join(err, cleanup())
+		}
+		return nil, nil, err
+	}
 	seen := make(map[string]bool, len(variables))
 	for _, variable := range variables {
 		name := variable[0]
-		for _, character := range name {
-			if character != '_' && character != '.' && !(character >= 'a' && character <= 'z' || character >= 'A' && character <= 'Z' || character >= '0' && character <= '9') {
-				if closeConnection != nil {
-					cleanup()
-				}
-				return nil, nil, fmt.Errorf("dialect/sql: invalid session variable %q", name)
-			}
-		}
 		if name == "" {
-			if closeConnection != nil {
-				cleanup()
+			return fail(errors.New("dialect/sql: empty session variable"))
+		}
+		for _, character := range name {
+			if !sessionVariableRune(character) {
+				return fail(fmt.Errorf("dialect/sql: invalid session variable %q", name))
 			}
-			return nil, nil, errors.New("dialect/sql: empty session variable")
 		}
 		prefix := "SET "
 		if local {
 			prefix = "SET LOCAL "
 		}
 		if _, err := executor.ExecContext(ctx, prefix+name+" = '"+strings.ReplaceAll(variable[1], "'", "''")+"'"); err != nil {
-			if closeConnection != nil {
-				err = errors.Join(err, cleanup())
-			}
-			return nil, nil, mapError(err)
+			return fail(mapError(err))
 		}
 		if !local && !seen[name] {
 			reset = append(reset, "RESET "+name)
@@ -355,7 +362,7 @@ func (r *rowsWithCloser) Next() bool {
 	if r.ColumnScanner.Next() {
 		return true
 	}
-	r.Close()
+	_ = r.Close() // Err exposes the stored close error after iteration ends.
 	return false
 }
 

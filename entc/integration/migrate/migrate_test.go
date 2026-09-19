@@ -9,7 +9,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	entgo "github.com/neko-sc/ent"
 	"io/fs"
 	"math"
 	"os"
@@ -19,6 +18,8 @@ import (
 	"testing"
 	"text/template"
 	"time"
+
+	entgo "github.com/neko-sc/ent"
 
 	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
