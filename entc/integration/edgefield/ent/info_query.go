@@ -27,7 +27,7 @@ type InfoQuery struct {
 	ctx        *QueryContext
 	order      []ent.OrderOption[entity.Info]
 	joins      []func(*sql.Selector)
-	withCounts []ent.RelationRef
+	withCounts []ent.EdgeCount
 
 	predicates []ent.Predicate[entity.Info]
 	withUser   *UserQuery
@@ -101,13 +101,17 @@ func (_q *InfoQuery) LeftJoinAs(table, alias string, on ...func(*sql.Selector)) 
 	return _q
 }
 
-func (_q *InfoQuery) WithCount[N, K any](edge ent.Relation[entity.Info, N, K]) *InfoQuery {
+// WithCount loads the number of neighbors of a non-unique edge into each returned
+// Info, readable with Edges.Count. Only neighbors matching all predicates are
+// counted, and a parent with no matching neighbor reports a present count of zero.
+// At most one count is kept per edge: a later call for the same edge is ignored.
+func (_q *InfoQuery) WithCount[N, K any](edge ent.Relation[entity.Info, N, K], predicates ...ent.Predicate[N]) *InfoQuery {
 	for _, requested := range _q.withCounts {
 		if requested.Name == edge.Ref().Name {
 			return _q
 		}
 	}
-	_q.withCounts = append(_q.withCounts, edge.Ref())
+	_q.withCounts = append(_q.withCounts, ent.CountEdge(edge, predicates...))
 	return _q
 }
 
@@ -358,7 +362,7 @@ func (_q *InfoQuery) Clone() *InfoQuery {
 		order:      append([]ent.OrderOption[entity.Info]{}, _q.order...),
 		predicates: append([]ent.Predicate[entity.Info]{}, _q.predicates...),
 		joins:      append([]func(*sql.Selector){}, _q.joins...),
-		withCounts: append([]ent.RelationRef{}, _q.withCounts...),
+		withCounts: append([]ent.EdgeCount{}, _q.withCounts...),
 
 		withUser: _q.withUser.Clone(),
 		// clone intermediate query.

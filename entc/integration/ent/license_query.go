@@ -26,7 +26,7 @@ type LicenseQuery struct {
 	ctx        *QueryContext
 	order      []ent.OrderOption[entity.License]
 	joins      []func(*sql.Selector)
-	withCounts []ent.RelationRef
+	withCounts []ent.EdgeCount
 
 	predicates []ent.Predicate[entity.License]
 	modifiers  []func(*sql.Selector)
@@ -99,13 +99,17 @@ func (_q *LicenseQuery) LeftJoinAs(table, alias string, on ...func(*sql.Selector
 	return _q
 }
 
-func (_q *LicenseQuery) WithCount[N, K any](edge ent.Relation[entity.License, N, K]) *LicenseQuery {
+// WithCount loads the number of neighbors of a non-unique edge into each returned
+// License, readable with Edges.Count. Only neighbors matching all predicates are
+// counted, and a parent with no matching neighbor reports a present count of zero.
+// At most one count is kept per edge: a later call for the same edge is ignored.
+func (_q *LicenseQuery) WithCount[N, K any](edge ent.Relation[entity.License, N, K], predicates ...ent.Predicate[N]) *LicenseQuery {
 	for _, requested := range _q.withCounts {
 		if requested.Name == edge.Ref().Name {
 			return _q
 		}
 	}
-	_q.withCounts = append(_q.withCounts, edge.Ref())
+	_q.withCounts = append(_q.withCounts, ent.CountEdge(edge, predicates...))
 	return _q
 }
 
@@ -334,7 +338,7 @@ func (_q *LicenseQuery) Clone() *LicenseQuery {
 		order:      append([]ent.OrderOption[entity.License]{}, _q.order...),
 		predicates: append([]ent.Predicate[entity.License]{}, _q.predicates...),
 		joins:      append([]func(*sql.Selector){}, _q.joins...),
-		withCounts: append([]ent.RelationRef{}, _q.withCounts...),
+		withCounts: append([]ent.EdgeCount{}, _q.withCounts...),
 
 		// clone intermediate query.
 		sql:       _q.sql.Clone(),

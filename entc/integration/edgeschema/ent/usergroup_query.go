@@ -28,7 +28,7 @@ type UserGroupQuery struct {
 	ctx        *QueryContext
 	order      []ent.OrderOption[entity.UserGroup]
 	joins      []func(*sql.Selector)
-	withCounts []ent.RelationRef
+	withCounts []ent.EdgeCount
 
 	predicates []ent.Predicate[entity.UserGroup]
 	withUser   *UserQuery
@@ -103,13 +103,17 @@ func (_q *UserGroupQuery) LeftJoinAs(table, alias string, on ...func(*sql.Select
 	return _q
 }
 
-func (_q *UserGroupQuery) WithCount[N, K any](edge ent.Relation[entity.UserGroup, N, K]) *UserGroupQuery {
+// WithCount loads the number of neighbors of a non-unique edge into each returned
+// UserGroup, readable with Edges.Count. Only neighbors matching all predicates are
+// counted, and a parent with no matching neighbor reports a present count of zero.
+// At most one count is kept per edge: a later call for the same edge is ignored.
+func (_q *UserGroupQuery) WithCount[N, K any](edge ent.Relation[entity.UserGroup, N, K], predicates ...ent.Predicate[N]) *UserGroupQuery {
 	for _, requested := range _q.withCounts {
 		if requested.Name == edge.Ref().Name {
 			return _q
 		}
 	}
-	_q.withCounts = append(_q.withCounts, edge.Ref())
+	_q.withCounts = append(_q.withCounts, ent.CountEdge(edge, predicates...))
 	return _q
 }
 
@@ -382,7 +386,7 @@ func (_q *UserGroupQuery) Clone() *UserGroupQuery {
 		order:      append([]ent.OrderOption[entity.UserGroup]{}, _q.order...),
 		predicates: append([]ent.Predicate[entity.UserGroup]{}, _q.predicates...),
 		joins:      append([]func(*sql.Selector){}, _q.joins...),
-		withCounts: append([]ent.RelationRef{}, _q.withCounts...),
+		withCounts: append([]ent.EdgeCount{}, _q.withCounts...),
 
 		withUser:  _q.withUser.Clone(),
 		withGroup: _q.withGroup.Clone(),

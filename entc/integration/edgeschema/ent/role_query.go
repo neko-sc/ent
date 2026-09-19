@@ -29,7 +29,7 @@ type RoleQuery struct {
 	ctx        *QueryContext
 	order      []ent.OrderOption[entity.Role]
 	joins      []func(*sql.Selector)
-	withCounts []ent.RelationRef
+	withCounts []ent.EdgeCount
 
 	predicates     []ent.Predicate[entity.Role]
 	withUser       *UserQuery
@@ -104,13 +104,17 @@ func (_q *RoleQuery) LeftJoinAs(table, alias string, on ...func(*sql.Selector)) 
 	return _q
 }
 
-func (_q *RoleQuery) WithCount[N, K any](edge ent.Relation[entity.Role, N, K]) *RoleQuery {
+// WithCount loads the number of neighbors of a non-unique edge into each returned
+// Role, readable with Edges.Count. Only neighbors matching all predicates are
+// counted, and a parent with no matching neighbor reports a present count of zero.
+// At most one count is kept per edge: a later call for the same edge is ignored.
+func (_q *RoleQuery) WithCount[N, K any](edge ent.Relation[entity.Role, N, K], predicates ...ent.Predicate[N]) *RoleQuery {
 	for _, requested := range _q.withCounts {
 		if requested.Name == edge.Ref().Name {
 			return _q
 		}
 	}
-	_q.withCounts = append(_q.withCounts, edge.Ref())
+	_q.withCounts = append(_q.withCounts, ent.CountEdge(edge, predicates...))
 	return _q
 }
 
@@ -383,7 +387,7 @@ func (_q *RoleQuery) Clone() *RoleQuery {
 		order:      append([]ent.OrderOption[entity.Role]{}, _q.order...),
 		predicates: append([]ent.Predicate[entity.Role]{}, _q.predicates...),
 		joins:      append([]func(*sql.Selector){}, _q.joins...),
-		withCounts: append([]ent.RelationRef{}, _q.withCounts...),
+		withCounts: append([]ent.EdgeCount{}, _q.withCounts...),
 
 		withUser:       _q.withUser.Clone(),
 		withRolesUsers: _q.withRolesUsers.Clone(),

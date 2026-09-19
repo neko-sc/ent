@@ -27,7 +27,7 @@ type FileQuery struct {
 	ctx        *QueryContext
 	order      []ent.OrderOption[entity.File]
 	joins      []func(*sql.Selector)
-	withCounts []ent.RelationRef
+	withCounts []ent.EdgeCount
 
 	predicates   []ent.Predicate[entity.File]
 	withParent   *FileQuery
@@ -102,13 +102,17 @@ func (_q *FileQuery) LeftJoinAs(table, alias string, on ...func(*sql.Selector)) 
 	return _q
 }
 
-func (_q *FileQuery) WithCount[N, K any](edge ent.Relation[entity.File, N, K]) *FileQuery {
+// WithCount loads the number of neighbors of a non-unique edge into each returned
+// File, readable with Edges.Count. Only neighbors matching all predicates are
+// counted, and a parent with no matching neighbor reports a present count of zero.
+// At most one count is kept per edge: a later call for the same edge is ignored.
+func (_q *FileQuery) WithCount[N, K any](edge ent.Relation[entity.File, N, K], predicates ...ent.Predicate[N]) *FileQuery {
 	for _, requested := range _q.withCounts {
 		if requested.Name == edge.Ref().Name {
 			return _q
 		}
 	}
-	_q.withCounts = append(_q.withCounts, edge.Ref())
+	_q.withCounts = append(_q.withCounts, ent.CountEdge(edge, predicates...))
 	return _q
 }
 
@@ -381,7 +385,7 @@ func (_q *FileQuery) Clone() *FileQuery {
 		order:      append([]ent.OrderOption[entity.File]{}, _q.order...),
 		predicates: append([]ent.Predicate[entity.File]{}, _q.predicates...),
 		joins:      append([]func(*sql.Selector){}, _q.joins...),
-		withCounts: append([]ent.RelationRef{}, _q.withCounts...),
+		withCounts: append([]ent.EdgeCount{}, _q.withCounts...),
 
 		withParent:   _q.withParent.Clone(),
 		withChildren: _q.withChildren.Clone(),

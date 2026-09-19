@@ -29,7 +29,7 @@ type BlobQuery struct {
 	ctx        *QueryContext
 	order      []ent.OrderOption[entity.Blob]
 	joins      []func(*sql.Selector)
-	withCounts []ent.RelationRef
+	withCounts []ent.EdgeCount
 
 	predicates    []ent.Predicate[entity.Blob]
 	withParent    *BlobQuery
@@ -106,13 +106,17 @@ func (_q *BlobQuery) LeftJoinAs(table, alias string, on ...func(*sql.Selector)) 
 	return _q
 }
 
-func (_q *BlobQuery) WithCount[N, K any](edge ent.Relation[entity.Blob, N, K]) *BlobQuery {
+// WithCount loads the number of neighbors of a non-unique edge into each returned
+// Blob, readable with Edges.Count. Only neighbors matching all predicates are
+// counted, and a parent with no matching neighbor reports a present count of zero.
+// At most one count is kept per edge: a later call for the same edge is ignored.
+func (_q *BlobQuery) WithCount[N, K any](edge ent.Relation[entity.Blob, N, K], predicates ...ent.Predicate[N]) *BlobQuery {
 	for _, requested := range _q.withCounts {
 		if requested.Name == edge.Ref().Name {
 			return _q
 		}
 	}
-	_q.withCounts = append(_q.withCounts, edge.Ref())
+	_q.withCounts = append(_q.withCounts, ent.CountEdge(edge, predicates...))
 	return _q
 }
 
@@ -407,7 +411,7 @@ func (_q *BlobQuery) Clone() *BlobQuery {
 		order:         append([]ent.OrderOption[entity.Blob]{}, _q.order...),
 		predicates:    append([]ent.Predicate[entity.Blob]{}, _q.predicates...),
 		joins:         append([]func(*sql.Selector){}, _q.joins...),
-		withCounts:    append([]ent.RelationRef{}, _q.withCounts...),
+		withCounts:    append([]ent.EdgeCount{}, _q.withCounts...),
 		withFKs:       _q.withFKs,
 		withParent:    _q.withParent.Clone(),
 		withLinks:     _q.withLinks.Clone(),

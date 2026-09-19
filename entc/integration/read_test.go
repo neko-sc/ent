@@ -62,6 +62,23 @@ func ReadPath(t *testing.T, client *ent.Client) {
 				require.Equal(t, []int{groups[index+1].ID, groups[index+2].ID}, []int{parent.Edges.Groups[0].ID, parent.Edges.Groups[1].ID})
 			}
 		}
+		counted := client.User.Query().Order(user.ID.Asc()).WithCount(user.Pets, pet.Name.In("a", "b")).AllX(ctx)
+		for index, expected := range []int{2, 2, 0} {
+			count, present := counted[index].Edges.Count(user.Pets)
+			require.True(t, present)
+			require.Equal(t, expected, count)
+		}
+		for _, parent := range client.User.Query().WithCount(user.Pets, pet.Name.EQ("missing")).AllX(ctx) {
+			count, present := parent.Edges.Count(user.Pets)
+			require.True(t, present)
+			require.Zero(t, count)
+		}
+		counted = client.User.Query().Order(user.ID.Asc()).WithCount(user.Groups, group.Name.EQ("Bravo")).AllX(ctx)
+		for index, expected := range []int{1, 1, 0} {
+			count, present := counted[index].Edges.Count(user.Groups)
+			require.True(t, present)
+			require.Equal(t, expected, count)
+		}
 		loaded := client.User.Query().Order(user.ID.Asc()).WithPets(func(query *ent.PetQuery) { query.Limit(0) }).AllX(ctx)
 		for _, parent := range loaded {
 			require.Empty(t, parent.Edges.Pets)

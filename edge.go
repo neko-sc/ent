@@ -46,16 +46,56 @@ func (e RelationRef) queryStep(selector *sql.Selector) *sqlgraph.Step {
 	return step
 }
 
+// EdgeCount is a per-parent count request, optionally restricted to neighbors
+// matching all of its predicates.
+type EdgeCount struct {
+	RelationRef
+	predicates []func(*sql.Selector)
+}
+
+// CountEdge requests the number of neighbors of an edge that match all predicates.
+func CountEdge[E, N, K any](edge Relation[E, N, K], predicates ...Predicate[N]) EdgeCount {
+	request := EdgeCount{RelationRef: edge.RelationRef}
+	for _, predicate := range predicates {
+		request.predicates = append(request.predicates, predicate)
+	}
+	return request
+}
+
 // CountQuery builds one grouped count query for the requested parent IDs.
-func (e RelationRef) CountQuery(selector *sql.Selector, ids ...any) *sql.Selector {
+func (e EdgeCount) CountQuery(selector *sql.Selector, ids ...any) *sql.Selector {
+	build := sql.Dialect(selector.Dialect())
 	step := e.queryStep(selector)
 	column := step.Edge.Columns[0]
 	if step.Edge.Rel == sqlgraph.M2M && step.Edge.Inverse {
 		column = step.Edge.Columns[1]
 	}
-	table := sql.Dialect(selector.Dialect()).Table(step.Edge.Table).Schema(step.Edge.Schema)
-	return sql.Dialect(selector.Dialect()).Select(table.C(column), sql.Count("*")).From(table).
+	table := build.Table(step.Edge.Table).Schema(step.Edge.Schema)
+	query := build.Select(table.C(column), sql.Count("*")).From(table).
 		Where(sql.In(table.C(column), ids...)).GroupBy(table.C(column))
+	if len(e.predicates) == 0 {
+		return query
+	}
+	if !step.ThroughEdgeTable() {
+		// The edge table is the neighbor table, so predicates restrict it directly.
+		for _, predicate := range e.predicates {
+			predicate(query)
+		}
+		return query
+	}
+	// The join table carries no neighbor columns, so the predicates select the
+	// matching neighbor keys on the neighbor table itself.
+	neighborColumn := step.Edge.Columns[1]
+	if step.Edge.Inverse {
+		neighborColumn = step.Edge.Columns[0]
+	}
+	to := build.Table(step.To.Table).Schema(step.To.Schema)
+	matches := build.Select(to.C(step.To.Column)).From(to)
+	matches.WithContext(selector.Context())
+	for _, predicate := range e.predicates {
+		predicate(matches)
+	}
+	return query.Where(sql.In(table.C(neighborColumn), matches))
 }
 
 func (e RelationRef) Ref() RelationRef { return e }

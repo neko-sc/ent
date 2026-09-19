@@ -27,7 +27,7 @@ type LinkQuery struct {
 	ctx        *QueryContext
 	order      []ent.OrderOption[entity.Link]
 	joins      []func(*sql.Selector)
-	withCounts []ent.RelationRef
+	withCounts []ent.EdgeCount
 
 	predicates []ent.Predicate[entity.Link]
 	modifiers  []func(*sql.Selector)
@@ -100,13 +100,17 @@ func (_q *LinkQuery) LeftJoinAs(table, alias string, on ...func(*sql.Selector)) 
 	return _q
 }
 
-func (_q *LinkQuery) WithCount[N, K any](edge ent.Relation[entity.Link, N, K]) *LinkQuery {
+// WithCount loads the number of neighbors of a non-unique edge into each returned
+// Link, readable with Edges.Count. Only neighbors matching all predicates are
+// counted, and a parent with no matching neighbor reports a present count of zero.
+// At most one count is kept per edge: a later call for the same edge is ignored.
+func (_q *LinkQuery) WithCount[N, K any](edge ent.Relation[entity.Link, N, K], predicates ...ent.Predicate[N]) *LinkQuery {
 	for _, requested := range _q.withCounts {
 		if requested.Name == edge.Ref().Name {
 			return _q
 		}
 	}
-	_q.withCounts = append(_q.withCounts, edge.Ref())
+	_q.withCounts = append(_q.withCounts, ent.CountEdge(edge, predicates...))
 	return _q
 }
 
@@ -335,7 +339,7 @@ func (_q *LinkQuery) Clone() *LinkQuery {
 		order:      append([]ent.OrderOption[entity.Link]{}, _q.order...),
 		predicates: append([]ent.Predicate[entity.Link]{}, _q.predicates...),
 		joins:      append([]func(*sql.Selector){}, _q.joins...),
-		withCounts: append([]ent.RelationRef{}, _q.withCounts...),
+		withCounts: append([]ent.EdgeCount{}, _q.withCounts...),
 
 		// clone intermediate query.
 		sql:       _q.sql.Clone(),

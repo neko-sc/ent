@@ -28,7 +28,7 @@ type NoteQuery struct {
 	ctx        *QueryContext
 	order      []ent.OrderOption[entity.Note]
 	joins      []func(*sql.Selector)
-	withCounts []ent.RelationRef
+	withCounts []ent.EdgeCount
 
 	predicates   []ent.Predicate[entity.Note]
 	withParent   *NoteQuery
@@ -104,13 +104,17 @@ func (_q *NoteQuery) LeftJoinAs(table, alias string, on ...func(*sql.Selector)) 
 	return _q
 }
 
-func (_q *NoteQuery) WithCount[N, K any](edge ent.Relation[entity.Note, N, K]) *NoteQuery {
+// WithCount loads the number of neighbors of a non-unique edge into each returned
+// Note, readable with Edges.Count. Only neighbors matching all predicates are
+// counted, and a parent with no matching neighbor reports a present count of zero.
+// At most one count is kept per edge: a later call for the same edge is ignored.
+func (_q *NoteQuery) WithCount[N, K any](edge ent.Relation[entity.Note, N, K], predicates ...ent.Predicate[N]) *NoteQuery {
 	for _, requested := range _q.withCounts {
 		if requested.Name == edge.Ref().Name {
 			return _q
 		}
 	}
-	_q.withCounts = append(_q.withCounts, edge.Ref())
+	_q.withCounts = append(_q.withCounts, ent.CountEdge(edge, predicates...))
 	return _q
 }
 
@@ -383,7 +387,7 @@ func (_q *NoteQuery) Clone() *NoteQuery {
 		order:        append([]ent.OrderOption[entity.Note]{}, _q.order...),
 		predicates:   append([]ent.Predicate[entity.Note]{}, _q.predicates...),
 		joins:        append([]func(*sql.Selector){}, _q.joins...),
-		withCounts:   append([]ent.RelationRef{}, _q.withCounts...),
+		withCounts:   append([]ent.EdgeCount{}, _q.withCounts...),
 		withFKs:      _q.withFKs,
 		withParent:   _q.withParent.Clone(),
 		withChildren: _q.withChildren.Clone(),

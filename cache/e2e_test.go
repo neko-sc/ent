@@ -258,6 +258,50 @@ func TestGeneratedClient(t *testing.T) {
 		})
 	})
 
+	t.Run("filtered edge counts", func(t *testing.T) {
+		client, cached := newClient(t)
+		member := createUser(t, client, "ada@example.com")
+		require.NoError(t, client.Group.Create().Set(group.Name, "Team").AddIDs(group.Users, member.ID).Exec(t.Context()))
+		ctx, info := cache.WithInfo(cache.Cache(t.Context()))
+		query := func(expected int) {
+			groups, err := client.Group.Query().WithCount(group.Users, user.Name.EQ("Ada")).All(ctx)
+			require.NoError(t, err)
+			require.Len(t, groups, 1)
+			count, loaded := groups[0].Edges.Count(group.Users)
+			require.True(t, loaded)
+			require.Equal(t, expected, count)
+		}
+
+		t.Run("first read fills and tracks the neighbor table", func(t *testing.T) {
+			before := cached.Stats().Snapshot()
+			query(1)
+			after := cached.Stats().Snapshot()
+			require.Positive(t, after.Fills-before.Fills)
+			require.False(t, info.Hit)
+			require.Contains(t, info.Tables, user.Table)
+		})
+
+		t.Run("second read serves from cache", func(t *testing.T) {
+			before := cached.Stats().Snapshot()
+			query(1)
+			after := cached.Stats().Snapshot()
+			require.Zero(t, after.Fills-before.Fills)
+			require.Positive(t, after.Hits["memory"]-before.Hits["memory"])
+			require.True(t, info.Hit)
+		})
+
+		t.Run("neighbor write invalidates the count", func(t *testing.T) {
+			require.NoError(t, client.User.UpdateOneID(member.ID).Set(user.Name, "Grace").Exec(t.Context()))
+			before := cached.Stats().Snapshot()
+			query(0)
+			after := cached.Stats().Snapshot()
+			require.Positive(t, after.Fills-before.Fills)
+			require.False(t, info.Hit)
+			query(0)
+			require.True(t, info.Hit)
+		})
+	})
+
 	t.Run("many to many", func(t *testing.T) {
 		client, cached := newClient(t)
 		first := createUser(t, client, "ada@example.com")

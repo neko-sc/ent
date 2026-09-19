@@ -28,7 +28,7 @@ type GroupInfoQuery struct {
 	ctx        *QueryContext
 	order      []ent.OrderOption[entity.GroupInfo]
 	joins      []func(*sql.Selector)
-	withCounts []ent.RelationRef
+	withCounts []ent.EdgeCount
 
 	predicates []ent.Predicate[entity.GroupInfo]
 	withGroups *GroupQuery
@@ -103,13 +103,17 @@ func (_q *GroupInfoQuery) LeftJoinAs(table, alias string, on ...func(*sql.Select
 	return _q
 }
 
-func (_q *GroupInfoQuery) WithCount[N, K any](edge ent.Relation[entity.GroupInfo, N, K]) *GroupInfoQuery {
+// WithCount loads the number of neighbors of a non-unique edge into each returned
+// GroupInfo, readable with Edges.Count. Only neighbors matching all predicates are
+// counted, and a parent with no matching neighbor reports a present count of zero.
+// At most one count is kept per edge: a later call for the same edge is ignored.
+func (_q *GroupInfoQuery) WithCount[N, K any](edge ent.Relation[entity.GroupInfo, N, K], predicates ...ent.Predicate[N]) *GroupInfoQuery {
 	for _, requested := range _q.withCounts {
 		if requested.Name == edge.Ref().Name {
 			return _q
 		}
 	}
-	_q.withCounts = append(_q.withCounts, edge.Ref())
+	_q.withCounts = append(_q.withCounts, ent.CountEdge(edge, predicates...))
 	return _q
 }
 
@@ -360,7 +364,7 @@ func (_q *GroupInfoQuery) Clone() *GroupInfoQuery {
 		order:      append([]ent.OrderOption[entity.GroupInfo]{}, _q.order...),
 		predicates: append([]ent.Predicate[entity.GroupInfo]{}, _q.predicates...),
 		joins:      append([]func(*sql.Selector){}, _q.joins...),
-		withCounts: append([]ent.RelationRef{}, _q.withCounts...),
+		withCounts: append([]ent.EdgeCount{}, _q.withCounts...),
 
 		withGroups: _q.withGroups.Clone(),
 		// clone intermediate query.
