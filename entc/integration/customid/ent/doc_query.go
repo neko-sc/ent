@@ -922,10 +922,11 @@ func (_q *DocQuery) ForShare(opts ...sql.LockOption) *DocQuery {
 	return _q
 }
 
-// Modify adds a query modifier for attaching custom logic to queries.
-func (_q *DocQuery) Modify(modifiers ...func(s *sql.Selector)) *DocSelect {
+// Modify adds a query modifier for attaching custom logic to queries. It can be
+// chained with the entity terminals (All, Count, ...) or with Select(...) for projections.
+func (_q *DocQuery) Modify(modifiers ...func(s *sql.Selector)) *DocQuery {
 	_q.modifiers = append(_q.modifiers, modifiers...)
-	return _q.Select()
+	return _q
 }
 
 // DocGroupBy is the group-by builder for Doc entities.

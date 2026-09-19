@@ -554,10 +554,11 @@ func (_q *LinkQuery) ForShare(opts ...sql.LockOption) *LinkQuery {
 	return _q
 }
 
-// Modify adds a query modifier for attaching custom logic to queries.
-func (_q *LinkQuery) Modify(modifiers ...func(s *sql.Selector)) *LinkSelect {
+// Modify adds a query modifier for attaching custom logic to queries. It can be
+// chained with the entity terminals (All, Count, ...) or with Select(...) for projections.
+func (_q *LinkQuery) Modify(modifiers ...func(s *sql.Selector)) *LinkQuery {
 	_q.modifiers = append(_q.modifiers, modifiers...)
-	return _q.Select()
+	return _q
 }
 
 // LinkGroupBy is the group-by builder for Link entities.

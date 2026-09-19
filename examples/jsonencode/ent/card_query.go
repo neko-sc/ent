@@ -553,10 +553,11 @@ func (_q *CardQuery) ForShare(opts ...sql.LockOption) *CardQuery {
 	return _q
 }
 
-// Modify adds a query modifier for attaching custom logic to queries.
-func (_q *CardQuery) Modify(modifiers ...func(s *sql.Selector)) *CardSelect {
+// Modify adds a query modifier for attaching custom logic to queries. It can be
+// chained with the entity terminals (All, Count, ...) or with Select(...) for projections.
+func (_q *CardQuery) Modify(modifiers ...func(s *sql.Selector)) *CardQuery {
 	_q.modifiers = append(_q.modifiers, modifiers...)
-	return _q.Select()
+	return _q
 }
 
 // CardGroupBy is the group-by builder for Card entities.

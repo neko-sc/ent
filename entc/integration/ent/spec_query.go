@@ -736,10 +736,11 @@ func (_q *SpecQuery) ForShare(opts ...sql.LockOption) *SpecQuery {
 	return _q
 }
 
-// Modify adds a query modifier for attaching custom logic to queries.
-func (_q *SpecQuery) Modify(modifiers ...func(s *sql.Selector)) *SpecSelect {
+// Modify adds a query modifier for attaching custom logic to queries. It can be
+// chained with the entity terminals (All, Count, ...) or with Select(...) for projections.
+func (_q *SpecQuery) Modify(modifiers ...func(s *sql.Selector)) *SpecQuery {
 	_q.modifiers = append(_q.modifiers, modifiers...)
-	return _q.Select()
+	return _q
 }
 
 // WithNamedCard tells the query-builder to eager-load the nodes that are connected to the "card"

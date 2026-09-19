@@ -695,10 +695,11 @@ func (_q *TokenQuery) ForShare(opts ...sql.LockOption) *TokenQuery {
 	return _q
 }
 
-// Modify adds a query modifier for attaching custom logic to queries.
-func (_q *TokenQuery) Modify(modifiers ...func(s *sql.Selector)) *TokenSelect {
+// Modify adds a query modifier for attaching custom logic to queries. It can be
+// chained with the entity terminals (All, Count, ...) or with Select(...) for projections.
+func (_q *TokenQuery) Modify(modifiers ...func(s *sql.Selector)) *TokenQuery {
 	_q.modifiers = append(_q.modifiers, modifiers...)
-	return _q.Select()
+	return _q
 }
 
 // TokenGroupBy is the group-by builder for Token entities.

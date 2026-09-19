@@ -769,10 +769,11 @@ func (_q *RentalQuery) ForShare(opts ...sql.LockOption) *RentalQuery {
 	return _q
 }
 
-// Modify adds a query modifier for attaching custom logic to queries.
-func (_q *RentalQuery) Modify(modifiers ...func(s *sql.Selector)) *RentalSelect {
+// Modify adds a query modifier for attaching custom logic to queries. It can be
+// chained with the entity terminals (All, Count, ...) or with Select(...) for projections.
+func (_q *RentalQuery) Modify(modifiers ...func(s *sql.Selector)) *RentalQuery {
 	_q.modifiers = append(_q.modifiers, modifiers...)
-	return _q.Select()
+	return _q
 }
 
 // RentalGroupBy is the group-by builder for Rental entities.

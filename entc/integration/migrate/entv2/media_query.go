@@ -556,10 +556,11 @@ func (_q *MediaQuery) ForShare(opts ...sql.LockOption) *MediaQuery {
 	return _q
 }
 
-// Modify adds a query modifier for attaching custom logic to queries.
-func (_q *MediaQuery) Modify(modifiers ...func(s *sql.Selector)) *MediaSelect {
+// Modify adds a query modifier for attaching custom logic to queries. It can be
+// chained with the entity terminals (All, Count, ...) or with Select(...) for projections.
+func (_q *MediaQuery) Modify(modifiers ...func(s *sql.Selector)) *MediaQuery {
 	_q.modifiers = append(_q.modifiers, modifiers...)
-	return _q.Select()
+	return _q
 }
 
 // MediaGroupBy is the group-by builder for Media entities.

@@ -27,11 +27,11 @@ SPDX-License-Identifier: Apache-2.0
 {{ define "dialect/sql/query/additional/modify" }}
     {{ $builder := pascal $.Scope.Builder }}
     {{ $receiver := $.Scope.Receiver }}
-    {{ $selectBuilder := pascal $.Name | printf "%sSelect" }}
-    // Modify adds a query modifier for attaching custom logic to queries.
-    func ({{ $receiver }} *{{ $builder }}) Modify(modifiers ...func(s *sql.Selector)) *{{ $selectBuilder }} {
+    // Modify adds a query modifier for attaching custom logic to queries. It can be
+    // chained with the entity terminals (All, Count, ...) or with Select(...) for projections.
+    func ({{ $receiver }} *{{ $builder }}) Modify(modifiers ...func(s *sql.Selector)) *{{ $builder }} {
         {{ $receiver }}.modifiers = append({{ $receiver }}.modifiers, modifiers...)
-        return {{ $receiver }}.Select()
+        return {{ $receiver }}
     }
 {{ end }}
 

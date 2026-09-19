@@ -869,10 +869,11 @@ func (_q *MetadataQuery) ForShare(opts ...sql.LockOption) *MetadataQuery {
 	return _q
 }
 
-// Modify adds a query modifier for attaching custom logic to queries.
-func (_q *MetadataQuery) Modify(modifiers ...func(s *sql.Selector)) *MetadataSelect {
+// Modify adds a query modifier for attaching custom logic to queries. It can be
+// chained with the entity terminals (All, Count, ...) or with Select(...) for projections.
+func (_q *MetadataQuery) Modify(modifiers ...func(s *sql.Selector)) *MetadataQuery {
 	_q.modifiers = append(_q.modifiers, modifiers...)
-	return _q.Select()
+	return _q
 }
 
 // WithNamedChildren tells the query-builder to eager-load the nodes that are connected to the "children"

@@ -702,10 +702,11 @@ func (_q *BlogQuery) ForShare(opts ...sql.LockOption) *BlogQuery {
 	return _q
 }
 
-// Modify adds a query modifier for attaching custom logic to queries.
-func (_q *BlogQuery) Modify(modifiers ...func(s *sql.Selector)) *BlogSelect {
+// Modify adds a query modifier for attaching custom logic to queries. It can be
+// chained with the entity terminals (All, Count, ...) or with Select(...) for projections.
+func (_q *BlogQuery) Modify(modifiers ...func(s *sql.Selector)) *BlogQuery {
 	_q.modifiers = append(_q.modifiers, modifiers...)
-	return _q.Select()
+	return _q
 }
 
 // BlogGroupBy is the group-by builder for Blog entities.

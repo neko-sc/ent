@@ -550,10 +550,11 @@ func (_q *TenantQuery) ForShare(opts ...sql.LockOption) *TenantQuery {
 	return _q
 }
 
-// Modify adds a query modifier for attaching custom logic to queries.
-func (_q *TenantQuery) Modify(modifiers ...func(s *sql.Selector)) *TenantSelect {
+// Modify adds a query modifier for attaching custom logic to queries. It can be
+// chained with the entity terminals (All, Count, ...) or with Select(...) for projections.
+func (_q *TenantQuery) Modify(modifiers ...func(s *sql.Selector)) *TenantQuery {
 	_q.modifiers = append(_q.modifiers, modifiers...)
-	return _q.Select()
+	return _q
 }
 
 // TenantGroupBy is the group-by builder for Tenant entities.

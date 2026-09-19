@@ -638,10 +638,11 @@ func (_q *BlobLinkQuery) ForShare(opts ...sql.LockOption) *BlobLinkQuery {
 	return _q
 }
 
-// Modify adds a query modifier for attaching custom logic to queries.
-func (_q *BlobLinkQuery) Modify(modifiers ...func(s *sql.Selector)) *BlobLinkSelect {
+// Modify adds a query modifier for attaching custom logic to queries. It can be
+// chained with the entity terminals (All, Count, ...) or with Select(...) for projections.
+func (_q *BlobLinkQuery) Modify(modifiers ...func(s *sql.Selector)) *BlobLinkQuery {
 	_q.modifiers = append(_q.modifiers, modifiers...)
-	return _q.Select()
+	return _q
 }
 
 // BlobLinkGroupBy is the group-by builder for BlobLink entities.

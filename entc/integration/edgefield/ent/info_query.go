@@ -683,10 +683,11 @@ func (_q *InfoQuery) ForShare(opts ...sql.LockOption) *InfoQuery {
 	return _q
 }
 
-// Modify adds a query modifier for attaching custom logic to queries.
-func (_q *InfoQuery) Modify(modifiers ...func(s *sql.Selector)) *InfoSelect {
+// Modify adds a query modifier for attaching custom logic to queries. It can be
+// chained with the entity terminals (All, Count, ...) or with Select(...) for projections.
+func (_q *InfoQuery) Modify(modifiers ...func(s *sql.Selector)) *InfoQuery {
 	_q.modifiers = append(_q.modifiers, modifiers...)
-	return _q.Select()
+	return _q
 }
 
 // InfoGroupBy is the group-by builder for Info entities.

@@ -768,10 +768,11 @@ func (_q *AttachedFileQuery) ForShare(opts ...sql.LockOption) *AttachedFileQuery
 	return _q
 }
 
-// Modify adds a query modifier for attaching custom logic to queries.
-func (_q *AttachedFileQuery) Modify(modifiers ...func(s *sql.Selector)) *AttachedFileSelect {
+// Modify adds a query modifier for attaching custom logic to queries. It can be
+// chained with the entity terminals (All, Count, ...) or with Select(...) for projections.
+func (_q *AttachedFileQuery) Modify(modifiers ...func(s *sql.Selector)) *AttachedFileQuery {
 	_q.modifiers = append(_q.modifiers, modifiers...)
-	return _q.Select()
+	return _q
 }
 
 // AttachedFileGroupBy is the group-by builder for AttachedFile entities.

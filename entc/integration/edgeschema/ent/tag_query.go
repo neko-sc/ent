@@ -1064,10 +1064,11 @@ func (_q *TagQuery) ForShare(opts ...sql.LockOption) *TagQuery {
 	return _q
 }
 
-// Modify adds a query modifier for attaching custom logic to queries.
-func (_q *TagQuery) Modify(modifiers ...func(s *sql.Selector)) *TagSelect {
+// Modify adds a query modifier for attaching custom logic to queries. It can be
+// chained with the entity terminals (All, Count, ...) or with Select(...) for projections.
+func (_q *TagQuery) Modify(modifiers ...func(s *sql.Selector)) *TagQuery {
 	_q.modifiers = append(_q.modifiers, modifiers...)
-	return _q.Select()
+	return _q
 }
 
 // TagGroupBy is the group-by builder for Tag entities.

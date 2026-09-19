@@ -531,10 +531,11 @@ func (_q *ZooQuery) ForShare(opts ...sql.LockOption) *ZooQuery {
 	return _q
 }
 
-// Modify adds a query modifier for attaching custom logic to queries.
-func (_q *ZooQuery) Modify(modifiers ...func(s *sql.Selector)) *ZooSelect {
+// Modify adds a query modifier for attaching custom logic to queries. It can be
+// chained with the entity terminals (All, Count, ...) or with Select(...) for projections.
+func (_q *ZooQuery) Modify(modifiers ...func(s *sql.Selector)) *ZooQuery {
 	_q.modifiers = append(_q.modifiers, modifiers...)
-	return _q.Select()
+	return _q
 }
 
 // ZooGroupBy is the group-by builder for Zoo entities.

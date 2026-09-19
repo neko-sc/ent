@@ -638,10 +638,11 @@ func (_q *TweetLikeQuery) ForShare(opts ...sql.LockOption) *TweetLikeQuery {
 	return _q
 }
 
-// Modify adds a query modifier for attaching custom logic to queries.
-func (_q *TweetLikeQuery) Modify(modifiers ...func(s *sql.Selector)) *TweetLikeSelect {
+// Modify adds a query modifier for attaching custom logic to queries. It can be
+// chained with the entity terminals (All, Count, ...) or with Select(...) for projections.
+func (_q *TweetLikeQuery) Modify(modifiers ...func(s *sql.Selector)) *TweetLikeQuery {
 	_q.modifiers = append(_q.modifiers, modifiers...)
-	return _q.Select()
+	return _q
 }
 
 // TweetLikeGroupBy is the group-by builder for TweetLike entities.

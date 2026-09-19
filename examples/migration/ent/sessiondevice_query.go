@@ -702,10 +702,11 @@ func (_q *SessionDeviceQuery) ForShare(opts ...sql.LockOption) *SessionDeviceQue
 	return _q
 }
 
-// Modify adds a query modifier for attaching custom logic to queries.
-func (_q *SessionDeviceQuery) Modify(modifiers ...func(s *sql.Selector)) *SessionDeviceSelect {
+// Modify adds a query modifier for attaching custom logic to queries. It can be
+// chained with the entity terminals (All, Count, ...) or with Select(...) for projections.
+func (_q *SessionDeviceQuery) Modify(modifiers ...func(s *sql.Selector)) *SessionDeviceQuery {
 	_q.modifiers = append(_q.modifiers, modifiers...)
-	return _q.Select()
+	return _q
 }
 
 // SessionDeviceGroupBy is the group-by builder for SessionDevice entities.

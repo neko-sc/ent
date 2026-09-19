@@ -703,10 +703,11 @@ func (_q *AccountQuery) ForShare(opts ...sql.LockOption) *AccountQuery {
 	return _q
 }
 
-// Modify adds a query modifier for attaching custom logic to queries.
-func (_q *AccountQuery) Modify(modifiers ...func(s *sql.Selector)) *AccountSelect {
+// Modify adds a query modifier for attaching custom logic to queries. It can be
+// chained with the entity terminals (All, Count, ...) or with Select(...) for projections.
+func (_q *AccountQuery) Modify(modifiers ...func(s *sql.Selector)) *AccountQuery {
 	_q.modifiers = append(_q.modifiers, modifiers...)
-	return _q.Select()
+	return _q
 }
 
 // AccountGroupBy is the group-by builder for Account entities.

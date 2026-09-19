@@ -531,10 +531,11 @@ func (_q *PCQuery) ForShare(opts ...sql.LockOption) *PCQuery {
 	return _q
 }
 
-// Modify adds a query modifier for attaching custom logic to queries.
-func (_q *PCQuery) Modify(modifiers ...func(s *sql.Selector)) *PCSelect {
+// Modify adds a query modifier for attaching custom logic to queries. It can be
+// chained with the entity terminals (All, Count, ...) or with Select(...) for projections.
+func (_q *PCQuery) Modify(modifiers ...func(s *sql.Selector)) *PCQuery {
 	_q.modifiers = append(_q.modifiers, modifiers...)
-	return _q.Select()
+	return _q
 }
 
 // PCGroupBy is the group-by builder for PC entities.

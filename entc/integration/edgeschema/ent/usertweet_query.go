@@ -769,10 +769,11 @@ func (_q *UserTweetQuery) ForShare(opts ...sql.LockOption) *UserTweetQuery {
 	return _q
 }
 
-// Modify adds a query modifier for attaching custom logic to queries.
-func (_q *UserTweetQuery) Modify(modifiers ...func(s *sql.Selector)) *UserTweetSelect {
+// Modify adds a query modifier for attaching custom logic to queries. It can be
+// chained with the entity terminals (All, Count, ...) or with Select(...) for projections.
+func (_q *UserTweetQuery) Modify(modifiers ...func(s *sql.Selector)) *UserTweetQuery {
 	_q.modifiers = append(_q.modifiers, modifiers...)
-	return _q.Select()
+	return _q
 }
 
 // UserTweetGroupBy is the group-by builder for UserTweet entities.

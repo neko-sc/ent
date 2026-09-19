@@ -769,10 +769,11 @@ func (_q *TweetTagQuery) ForShare(opts ...sql.LockOption) *TweetTagQuery {
 	return _q
 }
 
-// Modify adds a query modifier for attaching custom logic to queries.
-func (_q *TweetTagQuery) Modify(modifiers ...func(s *sql.Selector)) *TweetTagSelect {
+// Modify adds a query modifier for attaching custom logic to queries. It can be
+// chained with the entity terminals (All, Count, ...) or with Select(...) for projections.
+func (_q *TweetTagQuery) Modify(modifiers ...func(s *sql.Selector)) *TweetTagQuery {
 	_q.modifiers = append(_q.modifiers, modifiers...)
-	return _q.Select()
+	return _q
 }
 
 // TweetTagGroupBy is the group-by builder for TweetTag entities.

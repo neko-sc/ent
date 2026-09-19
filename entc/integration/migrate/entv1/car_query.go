@@ -672,10 +672,11 @@ func (_q *CarQuery) ForShare(opts ...sql.LockOption) *CarQuery {
 	return _q
 }
 
-// Modify adds a query modifier for attaching custom logic to queries.
-func (_q *CarQuery) Modify(modifiers ...func(s *sql.Selector)) *CarSelect {
+// Modify adds a query modifier for attaching custom logic to queries. It can be
+// chained with the entity terminals (All, Count, ...) or with Select(...) for projections.
+func (_q *CarQuery) Modify(modifiers ...func(s *sql.Selector)) *CarQuery {
 	_q.modifiers = append(_q.modifiers, modifiers...)
-	return _q.Select()
+	return _q
 }
 
 // CarGroupBy is the group-by builder for Car entities.

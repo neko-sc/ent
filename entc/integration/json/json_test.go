@@ -648,7 +648,7 @@ func Scan(t *testing.T, client *ent.Client) {
 	// Select all non-sensitive fields.
 	require.NoError(t, client.User.Query().Order(user.ID.Asc()).Modify(func(selector *sql.Selector) {
 		selector.Select(selector.Columns(user.Columns[:len(user.Columns)-2]...)...)
-	}).Scan(ctx, &scanned))
+	}).Select().Scan(ctx, &scanned))
 	require.Equal(t, len(all), len(scanned))
 	for i := range all {
 		require.Equal(t, all[i].ID, scanned[i].ID)

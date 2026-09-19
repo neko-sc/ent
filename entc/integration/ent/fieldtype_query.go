@@ -558,10 +558,11 @@ func (_q *FieldTypeQuery) ForShare(opts ...sql.LockOption) *FieldTypeQuery {
 	return _q
 }
 
-// Modify adds a query modifier for attaching custom logic to queries.
-func (_q *FieldTypeQuery) Modify(modifiers ...func(s *sql.Selector)) *FieldTypeSelect {
+// Modify adds a query modifier for attaching custom logic to queries. It can be
+// chained with the entity terminals (All, Count, ...) or with Select(...) for projections.
+func (_q *FieldTypeQuery) Modify(modifiers ...func(s *sql.Selector)) *FieldTypeQuery {
 	_q.modifiers = append(_q.modifiers, modifiers...)
-	return _q.Select()
+	return _q
 }
 
 // FieldTypeGroupBy is the group-by builder for FieldType entities.

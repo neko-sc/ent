@@ -35,7 +35,8 @@ type UserQuery struct {
 	withFriends *UserQuery
 	// additional query fields.
 	extra     string
-	modifiers []func(s *sql.Selector)
+	modifiers []func(*sql.Selector)
+
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -497,6 +498,7 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 	if len(_q.modifiers) > 0 {
 		_spec.Modifiers = _q.modifiers
 	}
+
 	for i := range hooks {
 		hooks[i](ctx, _spec)
 	}
@@ -721,6 +723,7 @@ func (_q *UserQuery) sqlCount(ctx context.Context) (int, error) {
 	if len(_q.modifiers) > 0 {
 		_spec.Modifiers = _q.modifiers
 	}
+
 	_spec.Node.Columns = _q.ctx.Fields
 	if len(_q.ctx.Fields) > 0 {
 		_spec.Unique = _q.ctx.Unique != nil && *_q.ctx.Unique
@@ -786,9 +789,6 @@ func (_q *UserQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	if _q.ctx.Unique != nil && *_q.ctx.Unique {
 		selector.Distinct()
 	}
-	for _, m := range _q.modifiers {
-		m(selector)
-	}
 	for _, join := range _q.joins {
 		join(selector)
 	}
@@ -838,8 +838,10 @@ func (_q *UserQuery) ForShare(opts ...sql.LockOption) *UserQuery {
 	return _q
 }
 
-func (_q *UserQuery) Modify(modifier func(s *sql.Selector)) *UserQuery {
-	_q.modifiers = append(_q.modifiers, modifier)
+// Modify adds a query modifier for attaching custom logic to queries. It can be
+// chained with the entity terminals (All, Count, ...) or with Select(...) for projections.
+func (_q *UserQuery) Modify(modifiers ...func(s *sql.Selector)) *UserQuery {
+	_q.modifiers = append(_q.modifiers, modifiers...)
 	return _q
 }
 

@@ -560,10 +560,11 @@ func (_q *ValueScanQuery) ForShare(opts ...sql.LockOption) *ValueScanQuery {
 	return _q
 }
 
-// Modify adds a query modifier for attaching custom logic to queries.
-func (_q *ValueScanQuery) Modify(modifiers ...func(s *sql.Selector)) *ValueScanSelect {
+// Modify adds a query modifier for attaching custom logic to queries. It can be
+// chained with the entity terminals (All, Count, ...) or with Select(...) for projections.
+func (_q *ValueScanQuery) Modify(modifiers ...func(s *sql.Selector)) *ValueScanQuery {
 	_q.modifiers = append(_q.modifiers, modifiers...)
-	return _q.Select()
+	return _q
 }
 
 // ValueScanGroupBy is the group-by builder for ValueScan entities.

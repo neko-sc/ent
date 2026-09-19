@@ -743,10 +743,11 @@ func (_q *FileQuery) ForShare(opts ...sql.LockOption) *FileQuery {
 	return _q
 }
 
-// Modify adds a query modifier for attaching custom logic to queries.
-func (_q *FileQuery) Modify(modifiers ...func(s *sql.Selector)) *FileSelect {
+// Modify adds a query modifier for attaching custom logic to queries. It can be
+// chained with the entity terminals (All, Count, ...) or with Select(...) for projections.
+func (_q *FileQuery) Modify(modifiers ...func(s *sql.Selector)) *FileQuery {
 	_q.modifiers = append(_q.modifiers, modifiers...)
-	return _q.Select()
+	return _q
 }
 
 // FileGroupBy is the group-by builder for File entities.

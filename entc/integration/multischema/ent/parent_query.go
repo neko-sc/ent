@@ -783,10 +783,11 @@ func (_q *ParentQuery) ForShare(opts ...sql.LockOption) *ParentQuery {
 	return _q
 }
 
-// Modify adds a query modifier for attaching custom logic to queries.
-func (_q *ParentQuery) Modify(modifiers ...func(s *sql.Selector)) *ParentSelect {
+// Modify adds a query modifier for attaching custom logic to queries. It can be
+// chained with the entity terminals (All, Count, ...) or with Select(...) for projections.
+func (_q *ParentQuery) Modify(modifiers ...func(s *sql.Selector)) *ParentQuery {
 	_q.modifiers = append(_q.modifiers, modifiers...)
-	return _q.Select()
+	return _q
 }
 
 // ParentGroupBy is the group-by builder for Parent entities.

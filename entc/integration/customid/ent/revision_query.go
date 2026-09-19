@@ -531,10 +531,11 @@ func (_q *RevisionQuery) ForShare(opts ...sql.LockOption) *RevisionQuery {
 	return _q
 }
 
-// Modify adds a query modifier for attaching custom logic to queries.
-func (_q *RevisionQuery) Modify(modifiers ...func(s *sql.Selector)) *RevisionSelect {
+// Modify adds a query modifier for attaching custom logic to queries. It can be
+// chained with the entity terminals (All, Count, ...) or with Select(...) for projections.
+func (_q *RevisionQuery) Modify(modifiers ...func(s *sql.Selector)) *RevisionQuery {
 	_q.modifiers = append(_q.modifiers, modifiers...)
-	return _q.Select()
+	return _q
 }
 
 // RevisionGroupBy is the group-by builder for Revision entities.

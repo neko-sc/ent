@@ -727,10 +727,11 @@ func (_q *GroupInfoQuery) ForShare(opts ...sql.LockOption) *GroupInfoQuery {
 	return _q
 }
 
-// Modify adds a query modifier for attaching custom logic to queries.
-func (_q *GroupInfoQuery) Modify(modifiers ...func(s *sql.Selector)) *GroupInfoSelect {
+// Modify adds a query modifier for attaching custom logic to queries. It can be
+// chained with the entity terminals (All, Count, ...) or with Select(...) for projections.
+func (_q *GroupInfoQuery) Modify(modifiers ...func(s *sql.Selector)) *GroupInfoQuery {
 	_q.modifiers = append(_q.modifiers, modifiers...)
-	return _q.Select()
+	return _q
 }
 
 // WithNamedGroups tells the query-builder to eager-load the nodes that are connected to the "groups"

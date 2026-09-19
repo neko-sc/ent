@@ -694,10 +694,11 @@ func (_q *PetQuery) ForShare(opts ...sql.LockOption) *PetQuery {
 	return _q
 }
 
-// Modify adds a query modifier for attaching custom logic to queries.
-func (_q *PetQuery) Modify(modifiers ...func(s *sql.Selector)) *PetSelect {
+// Modify adds a query modifier for attaching custom logic to queries. It can be
+// chained with the entity terminals (All, Count, ...) or with Select(...) for projections.
+func (_q *PetQuery) Modify(modifiers ...func(s *sql.Selector)) *PetQuery {
 	_q.modifiers = append(_q.modifiers, modifiers...)
-	return _q.Select()
+	return _q
 }
 
 // PetGroupBy is the group-by builder for Pet entities.

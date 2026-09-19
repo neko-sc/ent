@@ -557,10 +557,11 @@ func (_q *CommentQuery) ForShare(opts ...sql.LockOption) *CommentQuery {
 	return _q
 }
 
-// Modify adds a query modifier for attaching custom logic to queries.
-func (_q *CommentQuery) Modify(modifiers ...func(s *sql.Selector)) *CommentSelect {
+// Modify adds a query modifier for attaching custom logic to queries. It can be
+// chained with the entity terminals (All, Count, ...) or with Select(...) for projections.
+func (_q *CommentQuery) Modify(modifiers ...func(s *sql.Selector)) *CommentQuery {
 	_q.modifiers = append(_q.modifiers, modifiers...)
-	return _q.Select()
+	return _q
 }
 
 // CommentGroupBy is the group-by builder for Comment entities.

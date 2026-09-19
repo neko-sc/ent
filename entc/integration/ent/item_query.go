@@ -556,10 +556,11 @@ func (_q *ItemQuery) ForShare(opts ...sql.LockOption) *ItemQuery {
 	return _q
 }
 
-// Modify adds a query modifier for attaching custom logic to queries.
-func (_q *ItemQuery) Modify(modifiers ...func(s *sql.Selector)) *ItemSelect {
+// Modify adds a query modifier for attaching custom logic to queries. It can be
+// chained with the entity terminals (All, Count, ...) or with Select(...) for projections.
+func (_q *ItemQuery) Modify(modifiers ...func(s *sql.Selector)) *ItemQuery {
 	_q.modifiers = append(_q.modifiers, modifiers...)
-	return _q.Select()
+	return _q
 }
 
 // ItemGroupBy is the group-by builder for Item entities.

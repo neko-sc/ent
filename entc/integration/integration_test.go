@@ -592,7 +592,7 @@ func Select(t *testing.T, client *ent.Client) {
 	require.NoError(client.Pet.Query().
 		Modify(func(s *sql.Selector) {
 			s.Select("LENGTH(name)")
-		}).Scan(ctx, &lens))
+		}).Select().Scan(ctx, &lens))
 	require.Equal([]int{1, 1, 1, 1}, lens)
 
 	var dlen []int
@@ -601,7 +601,7 @@ func Select(t *testing.T, client *ent.Client) {
 			s.SelectExpr(sql.ExprFunc(func(b *sql.Builder) {
 				b.WriteString("LENGTH(name)").WriteOp(sql.OpMul).Arg(2)
 			}))
-		}).Scan(ctx, &dlen))
+		}).Select().Scan(ctx, &dlen))
 	require.Equal([]int{2, 2, 2, 2}, dlen)
 
 	for i := range pets {
@@ -611,7 +611,7 @@ func Select(t *testing.T, client *ent.Client) {
 	require.NoError(client.Pet.Query().
 		Modify(func(s *sql.Selector) {
 			s.Select("SUM(LENGTH(name))")
-		}).Scan(ctx, &lengths))
+		}).Select().Scan(ctx, &lengths))
 	require.Equal([]int{8}, lengths)
 
 	var (
@@ -625,7 +625,7 @@ func Select(t *testing.T, client *ent.Client) {
 		Order(pet.ID.Asc()).
 		Modify(func(s *sql.Selector) {
 			s.AppendSelect("LENGTH(name)")
-		}).Scan(ctx, &p1))
+		}).Select().Scan(ctx, &p1))
 	for i := range p2 {
 		require.Equal(p2[i].ID, p1[i].ID)
 		require.Equal(p2[i].Age, p1[i].Age)
@@ -667,7 +667,7 @@ func Select(t *testing.T, client *ent.Client) {
 					sql.As(sql.Count(t.C(group.UsersPrimaryKey[1])), "users_count"),
 				).
 				GroupBy(s.C(group.FieldID))
-		}).Scan(ctx, &gs))
+		}).Select().Scan(ctx, &gs))
 	require.Len(gs, 2)
 	require.Equal(hub.QueryUsers().CountX(ctx), gs[0].UsersCount)
 	require.Equal(lab.QueryUsers().CountX(ctx), gs[1].UsersCount)
@@ -678,8 +678,28 @@ func Select(t *testing.T, client *ent.Client) {
 	require.NoError(client.User.Query().Modify(func(s *sql.Selector) {
 		subQuery := sql.SelectExpr(sql.Raw("1")).As("s")
 		s.Select("*").From(subQuery)
-	}).Scan(ctx, &constants))
+	}).Select().Scan(ctx, &constants))
 	require.Equal([]int{1}, constants)
+
+	// Modify returns the query-builder itself, so it can be chained
+	// with entity terminals or with Select(...) for projections.
+	onlyAriel := func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(user.FieldName), "Ariel"))
+	}
+	narrowed, err := client.User.Query().Modify(onlyAriel).Columns(user.Name).All(ctx)
+	require.NoError(err)
+	require.Len(narrowed, 1)
+	require.Equal("Ariel", narrowed[0].Name)
+	require.Zero(narrowed[0].Age)
+
+	modified, err := client.User.Query().Modify(onlyAriel).Count(ctx)
+	require.NoError(err)
+	require.Equal(1, modified)
+
+	rows, err := client.User.Query().Modify(onlyAriel).Select(user.Name).Rows(ctx)
+	require.NoError(err)
+	require.Len(rows, 1)
+	require.Equal("Ariel", ent.Get(rows[0], user.Name))
 
 	// Select with join.
 	u = client.User.Create().Set(user.Name, "crossworth").Set(user.Age, 28).SaveX(ctx)

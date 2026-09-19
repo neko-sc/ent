@@ -553,10 +553,11 @@ func (_q *CustomTypeQuery) ForShare(opts ...sql.LockOption) *CustomTypeQuery {
 	return _q
 }
 
-// Modify adds a query modifier for attaching custom logic to queries.
-func (_q *CustomTypeQuery) Modify(modifiers ...func(s *sql.Selector)) *CustomTypeSelect {
+// Modify adds a query modifier for attaching custom logic to queries. It can be
+// chained with the entity terminals (All, Count, ...) or with Select(...) for projections.
+func (_q *CustomTypeQuery) Modify(modifiers ...func(s *sql.Selector)) *CustomTypeQuery {
 	_q.modifiers = append(_q.modifiers, modifiers...)
-	return _q.Select()
+	return _q
 }
 
 // CustomTypeGroupBy is the group-by builder for CustomType entities.
