@@ -126,8 +126,8 @@ const (
 var (
 	ID          = ent.OrderedColumn[entity.User, int]{Table: Table, Name: FieldID}
 	OptionalInt = ent.OrderedColumn[entity.User, int]{Table: Table, Name: FieldOptionalInt}
-	Tags        = ent.ArrayColumn[entity.User, []string]{Table: Table, Name: FieldTags}
-	Scores      = ent.ArrayColumn[entity.User, []int]{Table: Table, Name: FieldScores}
+	Tags        = ent.ArrayColumn[entity.User, string]{Table: Table, Name: FieldTags}
+	Scores      = ent.ArrayColumn[entity.User, int]{Table: Table, Name: FieldScores}
 	Age         = ent.OrderedColumn[entity.User, int]{Table: Table, Name: FieldAge}
 	Name        = ent.StringColumn[entity.User, string]{Table: Table, Name: FieldName}
 	Last        = ent.StringColumn[entity.User, string]{Table: Table, Name: FieldLast}
@@ -158,8 +158,8 @@ func Alias(name string) AliasedTable {
 		TableAlias:  name,
 		ID:          ent.OrderedColumn[entity.User, int]{Table: name, Name: FieldID},
 		OptionalInt: ent.OrderedColumn[entity.User, int]{Table: name, Name: FieldOptionalInt},
-		Tags:        ent.ArrayColumn[entity.User, []string]{Table: name, Name: FieldTags},
-		Scores:      ent.ArrayColumn[entity.User, []int]{Table: name, Name: FieldScores},
+		Tags:        ent.ArrayColumn[entity.User, string]{Table: name, Name: FieldTags},
+		Scores:      ent.ArrayColumn[entity.User, int]{Table: name, Name: FieldScores},
 		Age:         ent.OrderedColumn[entity.User, int]{Table: name, Name: FieldAge},
 		Name:        ent.StringColumn[entity.User, string]{Table: name, Name: FieldName},
 		Last:        ent.StringColumn[entity.User, string]{Table: name, Name: FieldLast},
@@ -179,8 +179,8 @@ type AliasedTable struct {
 	TableAlias  string
 	ID          ent.OrderedColumn[entity.User, int]
 	OptionalInt ent.OrderedColumn[entity.User, int]
-	Tags        ent.ArrayColumn[entity.User, []string]
-	Scores      ent.ArrayColumn[entity.User, []int]
+	Tags        ent.ArrayColumn[entity.User, string]
+	Scores      ent.ArrayColumn[entity.User, int]
 	Age         ent.OrderedColumn[entity.User, int]
 	Name        ent.StringColumn[entity.User, string]
 	Last        ent.StringColumn[entity.User, string]

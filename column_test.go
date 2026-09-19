@@ -20,7 +20,7 @@ type columnPet struct{}
 var (
 	userName     = ent.StringColumn[columnUser, string]{OrderedColumn: ent.OrderedColumn[columnUser, string]{Column: ent.Column[columnUser, string]{ColumnRef: ent.ColumnRef{Name: "name"}}}}
 	userAge      = ent.OrderedColumn[columnUser, int]{Column: ent.Column[columnUser, int]{ColumnRef: ent.ColumnRef{Name: "age"}}}
-	userTags     = ent.ArrayColumn[columnUser, []string]{Column: ent.Column[columnUser, []string]{ColumnRef: ent.ColumnRef{Name: "tags"}}}
+	userTags     = ent.ArrayColumn[columnUser, string]{Column: ent.Column[columnUser, []string]{ColumnRef: ent.ColumnRef{Name: "tags"}}}
 	userDocument = ent.JSONColumn[columnUser, map[string]any]{Column: ent.Column[columnUser, map[string]any]{ColumnRef: ent.ColumnRef{Name: "document"}}}
 )
 
@@ -162,11 +162,11 @@ func TestArrayPostgresRendering(t *testing.T) {
 		where     string
 		arguments []any
 	}{
-		{"contains", userTags.Contains("a"), `"users"."tags" @> $1`, []any{[]any{"a"}}},
-		{"any", userTags.HasAny("a", "b"), `"users"."tags" && $1`, []any{[]any{"a", "b"}}},
-		{"all", userTags.HasAll("a", "b"), `"users"."tags" @> $1`, []any{[]any{"a", "b"}}},
-		{"empty any", userTags.HasAny(), `"users"."tags" && $1`, []any{[]any{}}},
-		{"empty all", userTags.HasAll(), `"users"."tags" @> $1`, []any{[]any{}}},
+		{"contains", userTags.Contains("a"), `"users"."tags" @> $1`, []any{[]string{"a"}}},
+		{"any", userTags.HasAny("a", "b"), `"users"."tags" && $1`, []any{[]string{"a", "b"}}},
+		{"contains multiple", userTags.Contains("a", "b"), `"users"."tags" @> $1`, []any{[]string{"a", "b"}}},
+		{"empty any", userTags.HasAny(), `"users"."tags" && $1`, []any{[]string{}}},
+		{"empty contains", userTags.Contains(), `"users"."tags" @> $1`, []any{[]string{}}},
 		{"length equal", userTags.LenEQ(2), `cardinality("users"."tags") = $1`, []any{2}},
 		{"length unequal", userTags.LenNEQ(2), `cardinality("users"."tags") <> $1`, []any{2}},
 		{"length greater", userTags.LenGT(2), `cardinality("users"."tags") > $1`, []any{2}},
@@ -230,13 +230,12 @@ func TestSQLiteArrayAndJSONPredicates(t *testing.T) {
 	}{
 		{"contains", userTags.Contains("a"), []int{1}},
 		{"any", userTags.HasAny("a", "b"), []int{1, 2}},
-		{"all", userTags.HasAll("a", "b"), []int{1}},
-		{"duplicates", userTags.HasAll("b", "b"), []int{1, 2}},
+		{"contains multiple", userTags.Contains("a", "b"), []int{1}},
+		{"duplicates", userTags.Contains("b", "b"), []int{1, 2}},
 		{"empty any", userTags.HasAny(), nil},
-		{"empty all", userTags.HasAll(), []int{1, 2, 3}},
+		{"empty contains", userTags.Contains(), []int{1, 2, 3}},
 		{"negated contains excludes SQL NULL", ent.Not(userTags.Contains("a")), []int{2, 3}},
 		{"negated empty any excludes SQL NULL", ent.Not(userTags.HasAny()), []int{1, 2, 3}},
-		{"null member", userTags.Contains(nil), nil},
 		{"length", userTags.LenEQ(0), []int{3}},
 		{"length comparison", userTags.LenGTE(1), []int{1, 2}},
 		{"json equality", userDocument.Path("name").EQ("alpha"), []int{1}},

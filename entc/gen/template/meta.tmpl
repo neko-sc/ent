@@ -68,7 +68,7 @@ func Alias(name string) AliasedTable {
 type AliasedTable struct {
 	TableAlias string
 	{{- range $field := $.ColumnFields }}
-		{{ $field.StructField }} ent.{{ $field.ColumnKind }}[entity.{{ $.Name }}, {{ trimPackage $field.GoType $.Package }}]
+		{{ $field.StructField }} ent.{{ $field.ColumnKind }}[entity.{{ $.Name }}, {{ trimPackage $field.ColumnValueGoType $.Package }}]
 	{{- end }}
 }
 
@@ -199,7 +199,7 @@ func Not(predicate ent.Predicate[entity.{{ $.Name }}]) ent.Predicate[entity.{{ $
 {{ define "meta/column" -}}
 	{{- $field := $.Scope.Field -}}
 	{{- $type := trimPackage $field.GoType $.Package -}}
-	ent.{{ $field.ColumnKind }}[entity.{{ $.Name }}, {{ $type }}]{Table: {{ $.Scope.Table }}, Name: {{ $field.Constant }}
+	ent.{{ $field.ColumnKind }}[entity.{{ $.Name }}, {{ trimPackage $field.ColumnValueGoType $.Package }}]{Table: {{ $.Scope.Table }}, Name: {{ $field.Constant }}
 	{{- if $field.HasValueScanner }}, Valuer: func(value {{ $type }}) (driver.Value, error) { return ValueScanner.{{ $field.StructField }}.Value(value) }
 	{{- else if and (not $field.TypeValuer) (not $field.IsJSON) }}
 		{{- $projection := $field.BasicType "value" }}

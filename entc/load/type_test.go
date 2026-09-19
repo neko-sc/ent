@@ -302,6 +302,7 @@ func TestCollectRuntimeTypes_GenericHelperMixinAndDeterministicDedup(t *testing.
 		"semantic.EncodedBytes",
 		"semantic.Envelope[map[string][]*semantic.Phantom[url.URL, [2]int], chan<- func(url.URL) error]",
 		"semantic.FormattedTime",
+		"semantic.Labels",
 		"semantic.Link",
 		"semantic.Phantom[url.URL, [3]bool]",
 		"semantic.Status",

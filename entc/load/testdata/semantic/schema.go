@@ -32,6 +32,8 @@ type Status string
 
 type EncodedBytes []byte
 
+type Labels []string
+
 var EncodedValidatorCalls []string
 
 type FormattedTime time.Time
@@ -164,6 +166,8 @@ func (User) Fields() []ent.Field {
 				EncodedValidatorCalls = append(EncodedValidatorCalls, "representation:second:"+string(value))
 				return nil
 			}),
+		field.Array[Labels]("labels").Optional(),
+		field.Array[[]schema_types.RestrictionType]("restriction_array").Optional(),
 		field.JSON[json.RawMessage]("raw").Optional(),
 		field.JSON[map[string]string]("document").Optional(),
 		field.Other[[]schema_types.RestrictionType]("restrictions").

@@ -65,7 +65,7 @@ var (
 	Age       = ent.OrderedColumn[entity.User, int]{Table: Table, Name: FieldAge}
 	Nickname  = ent.StringColumn[entity.User, string]{Table: Table, Name: FieldNickname}
 	Role      = ent.StringColumn[entity.User, RoleValue]{Table: Table, Name: FieldRole}
-	Tags      = ent.ArrayColumn[entity.User, []string]{Table: Table, Name: FieldTags}
+	Tags      = ent.ArrayColumn[entity.User, string]{Table: Table, Name: FieldTags}
 	Profile   = ent.JSONColumn[entity.User, schema2.Profile]{Table: Table, Name: FieldProfile}
 	CreatedAt = ent.OrderedColumn[entity.User, time2.Time]{Table: Table, Name: FieldCreatedAt}
 	Avatar    = ent.OrderedColumn[entity.User, []byte]{Table: Table, Name: FieldAvatar}
@@ -83,7 +83,7 @@ func Alias(name string) AliasedTable {
 		Age:        ent.OrderedColumn[entity.User, int]{Table: name, Name: FieldAge},
 		Nickname:   ent.StringColumn[entity.User, string]{Table: name, Name: FieldNickname},
 		Role:       ent.StringColumn[entity.User, RoleValue]{Table: name, Name: FieldRole},
-		Tags:       ent.ArrayColumn[entity.User, []string]{Table: name, Name: FieldTags},
+		Tags:       ent.ArrayColumn[entity.User, string]{Table: name, Name: FieldTags},
 		Profile:    ent.JSONColumn[entity.User, schema2.Profile]{Table: name, Name: FieldProfile},
 		CreatedAt:  ent.OrderedColumn[entity.User, time2.Time]{Table: name, Name: FieldCreatedAt},
 		Avatar:     ent.OrderedColumn[entity.User, []byte]{Table: name, Name: FieldAvatar},
@@ -99,7 +99,7 @@ type AliasedTable struct {
 	Age        ent.OrderedColumn[entity.User, int]
 	Nickname   ent.StringColumn[entity.User, string]
 	Role       ent.StringColumn[entity.User, RoleValue]
-	Tags       ent.ArrayColumn[entity.User, []string]
+	Tags       ent.ArrayColumn[entity.User, string]
 	Profile    ent.JSONColumn[entity.User, schema2.Profile]
 	CreatedAt  ent.OrderedColumn[entity.User, time2.Time]
 	Avatar     ent.OrderedColumn[entity.User, []byte]

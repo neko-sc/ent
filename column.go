@@ -43,10 +43,8 @@ type StringColumn[E, T any] struct{ OrderedColumn[E, T] }
 // JSONColumn describes a JSON document and supports predicates on its paths.
 type JSONColumn[E, T any] struct{ Column[E, T] }
 
-// ArrayColumn describes a native PostgreSQL array or a SQLite JSON array.
-// T is the entire stored value (for example, []string), not its element type.
-// Membership arguments are untyped because T does not constrain the element type.
-type ArrayColumn[E, T any] struct{ Column[E, T] }
+// ArrayColumn describes a native PostgreSQL array or a SQLite JSON array of Element values.
+type ArrayColumn[E, Element any] struct{ Column[E, []Element] }
 
 // EntityColumn accepts every column kind belonging to entity E.
 type EntityColumn[E any] interface {
@@ -349,12 +347,10 @@ func (p JSONPath[E]) IsNull() Predicate[E] {
 	}
 }
 
-// Contains tests for an array element. NULL elements do not match.
-func (c ArrayColumn[E, T]) Contains(value any) Predicate[E] { return c.HasAll(value) }
-
-// HasAny tests array overlap. An empty argument list matches no non-null arrays.
-func (c ArrayColumn[E, T]) HasAny(values ...any) Predicate[E] {
-	values = append([]any{}, values...)
+// HasAny tests array overlap. An empty argument list matches no arrays.
+// NULL elements do not match. Duplicates are ignored.
+func (c ArrayColumn[E, Element]) HasAny(values ...Element) Predicate[E] {
+	values = append([]Element{}, values...)
 	return func(selector *sql.Selector) {
 		selector.Where(sql.P(func(builder *sql.Builder) {
 			switch builder.Dialect() {
@@ -366,7 +362,14 @@ func (c ArrayColumn[E, T]) HasAny(values ...any) Predicate[E] {
 					builder.WriteString("FALSE")
 				} else {
 					builder.WriteString("EXISTS (SELECT 1 FROM json_each(").Ident(c.column(selector))
-					builder.WriteString(") WHERE value IN (").Args(values...).WriteString("))")
+					builder.WriteString(") WHERE value IN (")
+					for index, value := range values {
+						if index > 0 {
+							builder.Comma()
+						}
+						builder.Arg(value)
+					}
+					builder.WriteString("))")
 				}
 				builder.WriteString(" END")
 			default:
@@ -376,10 +379,10 @@ func (c ArrayColumn[E, T]) HasAny(values ...any) Predicate[E] {
 	}
 }
 
-// HasAll tests array containment. An empty list matches every non-null array.
-// Duplicates are ignored, matching PostgreSQL array containment semantics.
-func (c ArrayColumn[E, T]) HasAll(values ...any) Predicate[E] {
-	values = append([]any{}, values...)
+// Contains tests array containment. An empty list matches every non-null array.
+// NULL elements do not match. Duplicates are ignored, matching PostgreSQL array containment semantics.
+func (c ArrayColumn[E, Element]) Contains(values ...Element) Predicate[E] {
+	values = append([]Element{}, values...)
 	return func(selector *sql.Selector) {
 		selector.Where(sql.P(func(builder *sql.Builder) {
 			switch builder.Dialect() {
@@ -405,7 +408,7 @@ func (c ArrayColumn[E, T]) HasAll(values ...any) Predicate[E] {
 	}
 }
 
-func (c ArrayColumn[E, T]) length() Expr[int] {
+func (c ArrayColumn[E, Element]) length() Expr[int] {
 	return Expr[int]{render: func(builder *sql.Builder, selector *sql.Selector) {
 		switch builder.Dialect() {
 		case dialect.Postgres:
@@ -422,19 +425,19 @@ func (c ArrayColumn[E, T]) length() Expr[int] {
 }
 
 // LenEQ tests equality to the array's element count.
-func (c ArrayColumn[E, T]) LenEQ(length int) Predicate[E] { return c.length().EQ(length) }
+func (c ArrayColumn[E, Element]) LenEQ(length int) Predicate[E] { return c.length().EQ(length) }
 
 // LenNEQ tests inequality to the array's element count.
-func (c ArrayColumn[E, T]) LenNEQ(length int) Predicate[E] { return c.length().NEQ(length) }
+func (c ArrayColumn[E, Element]) LenNEQ(length int) Predicate[E] { return c.length().NEQ(length) }
 
 // LenGT tests whether the array has more than length elements.
-func (c ArrayColumn[E, T]) LenGT(length int) Predicate[E] { return c.length().GT(length) }
+func (c ArrayColumn[E, Element]) LenGT(length int) Predicate[E] { return c.length().GT(length) }
 
 // LenGTE tests whether the array has at least length elements.
-func (c ArrayColumn[E, T]) LenGTE(length int) Predicate[E] { return c.length().GTE(length) }
+func (c ArrayColumn[E, Element]) LenGTE(length int) Predicate[E] { return c.length().GTE(length) }
 
 // LenLT tests whether the array has fewer than length elements.
-func (c ArrayColumn[E, T]) LenLT(length int) Predicate[E] { return c.length().LT(length) }
+func (c ArrayColumn[E, Element]) LenLT(length int) Predicate[E] { return c.length().LT(length) }
 
 // LenLTE tests whether the array has at most length elements.
-func (c ArrayColumn[E, T]) LenLTE(length int) Predicate[E] { return c.length().LTE(length) }
+func (c ArrayColumn[E, Element]) LenLTE(length int) Predicate[E] { return c.length().LTE(length) }

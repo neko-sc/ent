@@ -105,6 +105,7 @@ type (
 		Annotations  Annotations
 		semanticType string
 		baseType     string
+		elementType  string
 		// referenced foreign-key.
 		fk *ForeignKey
 	}
@@ -1131,6 +1132,11 @@ func (t *Type) renderSemanticTypes() error {
 		if field.baseType, err = t.semanticRenderer.Render(field.Semantic.Base); err != nil {
 			return fmt.Errorf("field %q logical base: %w", field.Name, err)
 		}
+		if field.IsArray() {
+			if field.elementType, err = t.semanticRenderer.Render(field.Semantic.Base.Element); err != nil {
+				return fmt.Errorf("field %q array element: %w", field.Name, err)
+			}
+		}
 	}
 	return nil
 }
@@ -1230,6 +1236,18 @@ func (f Field) GoType() string {
 		panic(fmt.Sprintf("field %q semantic type was not rendered", f.Name))
 	}
 	return f.semanticType
+}
+
+// ColumnValueGoType returns the value type argument of the field's column
+// descriptor: the element type for array fields, the field type otherwise.
+func (f Field) ColumnValueGoType() string {
+	if !f.IsArray() {
+		return f.GoType()
+	}
+	if f.elementType == "" {
+		panic(fmt.Sprintf("field %q array element type was not rendered", f.Name))
+	}
+	return f.elementType
 }
 
 // BaseType returns the logical field-family type used by base validators.

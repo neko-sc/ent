@@ -39,7 +39,7 @@ func TestLoad_SemanticTypesFromGenericHelperAndMixin(t *testing.T) {
 	require.Equal(t, "User", spec.Schemas[1].Name)
 	require.Equal(t, LogicalTypeUUID, spec.Schemas[0].Fields[0].Semantic.Logical)
 	require.Equal(t, "github.com/google/uuid", spec.Schemas[0].Fields[0].Semantic.Representation.Named.Package.Path)
-	require.Len(t, spec.Schemas[1].Fields, 18)
+	require.Len(t, spec.Schemas[1].Fields, 20)
 
 	mixed := spec.Schemas[1].Fields[0]
 	require.Equal(t, "mixed", mixed.Name)
