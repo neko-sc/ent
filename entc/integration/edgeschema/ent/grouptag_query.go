@@ -138,6 +138,19 @@ func (_q *GroupTagQuery) Order(o ...ent.OrderOption[entity.GroupTag]) *GroupTagQ
 	return _q
 }
 
+// Columns narrows the entity columns loaded by this query, including when it is used
+// as an eager-loading query. The ID and any columns required to bind loaded edges are
+// always included.
+func (_q *GroupTagQuery) Columns(columns ...ent.EntityColumn[entity.GroupTag]) *GroupTagQuery {
+	if len(columns) == 0 {
+		panic("ent: Columns requires at least one column")
+	}
+	for _, column := range columns {
+		_q.ctx.AppendFieldOnce(column.Ref().Name)
+	}
+	return _q
+}
+
 // QueryTag chains the current query on the "tag" edge.
 func (_q *GroupTagQuery) QueryTag() *TagQuery {
 	query := (&TagClient{config: _q.config}).Query()

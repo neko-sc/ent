@@ -146,6 +146,19 @@ func (_q *TweetQuery) Order(o ...ent.OrderOption[entity.Tweet]) *TweetQuery {
 	return _q
 }
 
+// Columns narrows the entity columns loaded by this query, including when it is used
+// as an eager-loading query. The ID and any columns required to bind loaded edges are
+// always included.
+func (_q *TweetQuery) Columns(columns ...ent.EntityColumn[entity.Tweet]) *TweetQuery {
+	if len(columns) == 0 {
+		panic("ent: Columns requires at least one column")
+	}
+	for _, column := range columns {
+		_q.ctx.AppendFieldOnce(column.Ref().Name)
+	}
+	return _q
+}
+
 // QueryLikedUsers chains the current query on the "liked_users" edge.
 func (_q *TweetQuery) QueryLikedUsers() *UserQuery {
 	query := (&UserClient{config: _q.config}).Query()

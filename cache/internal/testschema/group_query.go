@@ -13,12 +13,12 @@ import (
 	"math"
 
 	"github.com/neko-sc/ent"
-	"github.com/neko-sc/ent/dialect"
-	"github.com/neko-sc/ent/dialect/sql"
-	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/cache/internal/testschema/entity"
 	"github.com/neko-sc/ent/cache/internal/testschema/group"
 	"github.com/neko-sc/ent/cache/internal/testschema/user"
+	"github.com/neko-sc/ent/dialect"
+	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/schema/field"
 )
 
@@ -134,6 +134,19 @@ func (_q *GroupQuery) Unique(unique bool) *GroupQuery {
 // Order specifies how the records should be ordered.
 func (_q *GroupQuery) Order(o ...ent.OrderOption[entity.Group]) *GroupQuery {
 	_q.order = append(_q.order, o...)
+	return _q
+}
+
+// Columns narrows the entity columns loaded by this query, including when it is used
+// as an eager-loading query. The ID and any columns required to bind loaded edges are
+// always included.
+func (_q *GroupQuery) Columns(columns ...ent.EntityColumn[entity.Group]) *GroupQuery {
+	if len(columns) == 0 {
+		panic("ent: Columns requires at least one column")
+	}
+	for _, column := range columns {
+		_q.ctx.AppendFieldOnce(column.Ref().Name)
+	}
 	return _q
 }
 

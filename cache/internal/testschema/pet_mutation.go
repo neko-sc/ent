@@ -9,8 +9,8 @@ import (
 	"fmt"
 
 	"github.com/neko-sc/ent"
-	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/cache/internal/testschema/pet"
+	"github.com/neko-sc/ent/dialect/sql"
 )
 
 // PetInsert is the write representation of a Pet creation.

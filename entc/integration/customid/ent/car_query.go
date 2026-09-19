@@ -137,6 +137,19 @@ func (_q *CarQuery) Order(o ...ent.OrderOption[entity.Car]) *CarQuery {
 	return _q
 }
 
+// Columns narrows the entity columns loaded by this query, including when it is used
+// as an eager-loading query. The ID and any columns required to bind loaded edges are
+// always included.
+func (_q *CarQuery) Columns(columns ...ent.EntityColumn[entity.Car]) *CarQuery {
+	if len(columns) == 0 {
+		panic("ent: Columns requires at least one column")
+	}
+	for _, column := range columns {
+		_q.ctx.AppendFieldOnce(column.Ref().Name)
+	}
+	return _q
+}
+
 // QueryOwner chains the current query on the "owner" edge.
 func (_q *CarQuery) QueryOwner() *PetQuery {
 	query := (&PetClient{config: _q.config}).Query()

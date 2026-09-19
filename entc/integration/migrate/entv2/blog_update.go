@@ -425,9 +425,10 @@ func (b *BlogUpdateOne) ExecX(ctx context.Context) {
 	}
 }
 
-func (b *BlogUpdateOne) Select(columns ...ent.EntityColumn[entity.Blog]) *BlogUpdateOne {
+// Columns narrows the entity columns returned by the update. The ID is always included.
+func (b *BlogUpdateOne) Columns(columns ...ent.EntityColumn[entity.Blog]) *BlogUpdateOne {
 	if len(columns) == 0 {
-		panic("ent: Select requires at least one column")
+		panic("ent: Columns requires at least one column")
 	}
 	b.fields = make([]string, len(columns))
 	for index, column := range columns {

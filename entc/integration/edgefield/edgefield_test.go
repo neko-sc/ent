@@ -113,6 +113,15 @@ func TestEdgeField(t *testing.T) {
 	require.Error(t, err)
 	require.True(t, ent.IsConstraintError(err))
 
+	narrowed := client.User.Query().Where(user.ID.EQ(a8m.ID)).
+		WithRentals(func(query *ent.RentalQuery) { query.Columns(rental.CarID) }).OnlyX(ctx)
+	require.Len(t, narrowed.Edges.Rentals, 2)
+	for _, r := range narrowed.Edges.Rentals {
+		require.Equal(t, a8m.ID, r.UserID)
+		require.NotZero(t, r.CarID)
+		require.True(t, r.Date.IsZero())
+	}
+
 	curr := client.Node.Create().SaveX(ctx)
 	for i := 0; i < 5; i++ {
 		curr = client.Node.Create().Set(node.PrevID, curr.ID).Set(node.Value, curr.Value+1).SaveX(ctx)

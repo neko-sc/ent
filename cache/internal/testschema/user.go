@@ -13,10 +13,10 @@ import (
 	time2 "time"
 
 	"github.com/neko-sc/ent"
-	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/cache/internal/testschema/entity"
 	schema2 "github.com/neko-sc/ent/cache/internal/testschema/schema"
 	"github.com/neko-sc/ent/cache/internal/testschema/user"
+	"github.com/neko-sc/ent/dialect/sql"
 )
 
 // User is the model entity for the User schema.

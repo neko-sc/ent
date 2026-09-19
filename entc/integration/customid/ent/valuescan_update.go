@@ -372,9 +372,10 @@ func (b *ValueScanUpdateOne) ExecX(ctx context.Context) {
 	}
 }
 
-func (b *ValueScanUpdateOne) Select(columns ...ent.EntityColumn[entity.ValueScan]) *ValueScanUpdateOne {
+// Columns narrows the entity columns returned by the update. The ID is always included.
+func (b *ValueScanUpdateOne) Columns(columns ...ent.EntityColumn[entity.ValueScan]) *ValueScanUpdateOne {
 	if len(columns) == 0 {
-		panic("ent: Select requires at least one column")
+		panic("ent: Columns requires at least one column")
 	}
 	b.fields = make([]string, len(columns))
 	for index, column := range columns {

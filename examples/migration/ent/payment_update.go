@@ -487,9 +487,10 @@ func (b *PaymentUpdateOne) ExecX(ctx context.Context) {
 	}
 }
 
-func (b *PaymentUpdateOne) Select(columns ...ent.EntityColumn[entity.Payment]) *PaymentUpdateOne {
+// Columns narrows the entity columns returned by the update. The ID is always included.
+func (b *PaymentUpdateOne) Columns(columns ...ent.EntityColumn[entity.Payment]) *PaymentUpdateOne {
 	if len(columns) == 0 {
-		panic("ent: Select requires at least one column")
+		panic("ent: Columns requires at least one column")
 	}
 	b.fields = make([]string, len(columns))
 	for index, column := range columns {

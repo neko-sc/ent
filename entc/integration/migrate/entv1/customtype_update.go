@@ -371,9 +371,10 @@ func (b *CustomTypeUpdateOne) ExecX(ctx context.Context) {
 	}
 }
 
-func (b *CustomTypeUpdateOne) Select(columns ...ent.EntityColumn[entity.CustomType]) *CustomTypeUpdateOne {
+// Columns narrows the entity columns returned by the update. The ID is always included.
+func (b *CustomTypeUpdateOne) Columns(columns ...ent.EntityColumn[entity.CustomType]) *CustomTypeUpdateOne {
 	if len(columns) == 0 {
-		panic("ent: Select requires at least one column")
+		panic("ent: Columns requires at least one column")
 	}
 	b.fields = make([]string, len(columns))
 	for index, column := range columns {

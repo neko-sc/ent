@@ -401,9 +401,10 @@ func (b *StreetUpdateOne) ExecX(ctx context.Context) {
 	}
 }
 
-func (b *StreetUpdateOne) Select(columns ...ent.EntityColumn[entity.Street]) *StreetUpdateOne {
+// Columns narrows the entity columns returned by the update. The ID is always included.
+func (b *StreetUpdateOne) Columns(columns ...ent.EntityColumn[entity.Street]) *StreetUpdateOne {
 	if len(columns) == 0 {
-		panic("ent: Select requires at least one column")
+		panic("ent: Columns requires at least one column")
 	}
 	b.fields = make([]string, len(columns))
 	for index, column := range columns {

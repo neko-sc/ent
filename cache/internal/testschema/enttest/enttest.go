@@ -10,8 +10,8 @@ import (
 
 	"github.com/neko-sc/ent/cache/internal/testschema"
 
-	"github.com/neko-sc/ent/dialect/sql/schema"
 	"github.com/neko-sc/ent/cache/internal/testschema/migrate"
+	"github.com/neko-sc/ent/dialect/sql/schema"
 )
 
 type (

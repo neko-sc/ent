@@ -467,9 +467,10 @@ func (b *BlobLinkUpdateOne) ExecX(ctx context.Context) {
 	}
 }
 
-func (b *BlobLinkUpdateOne) Select(columns ...ent.EntityColumn[entity.BlobLink]) *BlobLinkUpdateOne {
+// Columns narrows the entity columns returned by the update. The ID is always included.
+func (b *BlobLinkUpdateOne) Columns(columns ...ent.EntityColumn[entity.BlobLink]) *BlobLinkUpdateOne {
 	if len(columns) == 0 {
-		panic("ent: Select requires at least one column")
+		panic("ent: Columns requires at least one column")
 	}
 	b.fields = make([]string, len(columns))
 	for index, column := range columns {

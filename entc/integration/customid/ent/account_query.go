@@ -138,6 +138,19 @@ func (_q *AccountQuery) Order(o ...ent.OrderOption[entity.Account]) *AccountQuer
 	return _q
 }
 
+// Columns narrows the entity columns loaded by this query, including when it is used
+// as an eager-loading query. The ID and any columns required to bind loaded edges are
+// always included.
+func (_q *AccountQuery) Columns(columns ...ent.EntityColumn[entity.Account]) *AccountQuery {
+	if len(columns) == 0 {
+		panic("ent: Columns requires at least one column")
+	}
+	for _, column := range columns {
+		_q.ctx.AppendFieldOnce(column.Ref().Name)
+	}
+	return _q
+}
+
 // QueryToken chains the current query on the "token" edge.
 func (_q *AccountQuery) QueryToken() *TokenQuery {
 	query := (&TokenClient{config: _q.config}).Query()

@@ -135,6 +135,19 @@ func (_q *OtherQuery) Order(o ...ent.OrderOption[entity.Other]) *OtherQuery {
 	return _q
 }
 
+// Columns narrows the entity columns loaded by this query, including when it is used
+// as an eager-loading query. The ID and any columns required to bind loaded edges are
+// always included.
+func (_q *OtherQuery) Columns(columns ...ent.EntityColumn[entity.Other]) *OtherQuery {
+	if len(columns) == 0 {
+		panic("ent: Columns requires at least one column")
+	}
+	for _, column := range columns {
+		_q.ctx.AppendFieldOnce(column.Ref().Name)
+	}
+	return _q
+}
+
 // First returns the first Other entity from the query.
 // Returns a *NotFoundError when no Other was found.
 func (_q *OtherQuery) First(ctx context.Context) (*Other, error) {

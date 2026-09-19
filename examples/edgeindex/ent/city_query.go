@@ -137,6 +137,19 @@ func (_q *CityQuery) Order(o ...ent.OrderOption[entity.City]) *CityQuery {
 	return _q
 }
 
+// Columns narrows the entity columns loaded by this query, including when it is used
+// as an eager-loading query. The ID and any columns required to bind loaded edges are
+// always included.
+func (_q *CityQuery) Columns(columns ...ent.EntityColumn[entity.City]) *CityQuery {
+	if len(columns) == 0 {
+		panic("ent: Columns requires at least one column")
+	}
+	for _, column := range columns {
+		_q.ctx.AppendFieldOnce(column.Ref().Name)
+	}
+	return _q
+}
+
 // QueryStreets chains the current query on the "streets" edge.
 func (_q *CityQuery) QueryStreets() *StreetQuery {
 	query := (&StreetClient{config: _q.config}).Query()

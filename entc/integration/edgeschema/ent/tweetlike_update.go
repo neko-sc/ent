@@ -470,9 +470,10 @@ func (b *TweetLikeUpdateOne) ExecX(ctx context.Context) {
 	}
 }
 
-func (b *TweetLikeUpdateOne) Select(columns ...ent.EntityColumn[entity.TweetLike]) *TweetLikeUpdateOne {
+// Columns narrows the entity columns returned by the update. The ID is always included.
+func (b *TweetLikeUpdateOne) Columns(columns ...ent.EntityColumn[entity.TweetLike]) *TweetLikeUpdateOne {
 	if len(columns) == 0 {
-		panic("ent: Select requires at least one column")
+		panic("ent: Columns requires at least one column")
 	}
 	b.fields = make([]string, len(columns))
 	for index, column := range columns {

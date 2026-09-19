@@ -138,6 +138,19 @@ func (_q *UserGroupQuery) Order(o ...ent.OrderOption[entity.UserGroup]) *UserGro
 	return _q
 }
 
+// Columns narrows the entity columns loaded by this query, including when it is used
+// as an eager-loading query. The ID and any columns required to bind loaded edges are
+// always included.
+func (_q *UserGroupQuery) Columns(columns ...ent.EntityColumn[entity.UserGroup]) *UserGroupQuery {
+	if len(columns) == 0 {
+		panic("ent: Columns requires at least one column")
+	}
+	for _, column := range columns {
+		_q.ctx.AppendFieldOnce(column.Ref().Name)
+	}
+	return _q
+}
+
 // QueryUser chains the current query on the "user" edge.
 func (_q *UserGroupQuery) QueryUser() *UserQuery {
 	query := (&UserClient{config: _q.config}).Query()

@@ -134,6 +134,19 @@ func (_q *ExValueScanQuery) Order(o ...ent.OrderOption[entity.ExValueScan]) *ExV
 	return _q
 }
 
+// Columns narrows the entity columns loaded by this query, including when it is used
+// as an eager-loading query. The ID and any columns required to bind loaded edges are
+// always included.
+func (_q *ExValueScanQuery) Columns(columns ...ent.EntityColumn[entity.ExValueScan]) *ExValueScanQuery {
+	if len(columns) == 0 {
+		panic("ent: Columns requires at least one column")
+	}
+	for _, column := range columns {
+		_q.ctx.AppendFieldOnce(column.Ref().Name)
+	}
+	return _q
+}
+
 // First returns the first ExValueScan entity from the query.
 // Returns a *NotFoundError when no ExValueScan was found.
 func (_q *ExValueScanQuery) First(ctx context.Context) (*ExValueScan, error) {

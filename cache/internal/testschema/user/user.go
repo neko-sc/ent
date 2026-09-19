@@ -10,9 +10,9 @@ import (
 	time2 "time"
 
 	"github.com/neko-sc/ent"
-	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/cache/internal/testschema/entity"
 	schema2 "github.com/neko-sc/ent/cache/internal/testschema/schema"
+	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 )
 
 const (

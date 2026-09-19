@@ -138,6 +138,19 @@ func (_q *AttachedFileQuery) Order(o ...ent.OrderOption[entity.AttachedFile]) *A
 	return _q
 }
 
+// Columns narrows the entity columns loaded by this query, including when it is used
+// as an eager-loading query. The ID and any columns required to bind loaded edges are
+// always included.
+func (_q *AttachedFileQuery) Columns(columns ...ent.EntityColumn[entity.AttachedFile]) *AttachedFileQuery {
+	if len(columns) == 0 {
+		panic("ent: Columns requires at least one column")
+	}
+	for _, column := range columns {
+		_q.ctx.AppendFieldOnce(column.Ref().Name)
+	}
+	return _q
+}
+
 // QueryFi chains the current query on the "fi" edge.
 func (_q *AttachedFileQuery) QueryFi() *FileQuery {
 	query := (&FileClient{config: _q.config}).Query()

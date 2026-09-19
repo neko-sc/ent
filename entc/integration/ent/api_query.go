@@ -134,6 +134,19 @@ func (_q *APIQuery) Order(o ...ent.OrderOption[entity.Api]) *APIQuery {
 	return _q
 }
 
+// Columns narrows the entity columns loaded by this query, including when it is used
+// as an eager-loading query. The ID and any columns required to bind loaded edges are
+// always included.
+func (_q *APIQuery) Columns(columns ...ent.EntityColumn[entity.Api]) *APIQuery {
+	if len(columns) == 0 {
+		panic("ent: Columns requires at least one column")
+	}
+	for _, column := range columns {
+		_q.ctx.AppendFieldOnce(column.Ref().Name)
+	}
+	return _q
+}
+
 // First returns the first Api entity from the query.
 // Returns a *NotFoundError when no Api was found.
 func (_q *APIQuery) First(ctx context.Context) (*Api, error) {

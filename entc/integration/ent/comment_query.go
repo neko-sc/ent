@@ -134,6 +134,19 @@ func (_q *CommentQuery) Order(o ...ent.OrderOption[entity.Comment]) *CommentQuer
 	return _q
 }
 
+// Columns narrows the entity columns loaded by this query, including when it is used
+// as an eager-loading query. The ID and any columns required to bind loaded edges are
+// always included.
+func (_q *CommentQuery) Columns(columns ...ent.EntityColumn[entity.Comment]) *CommentQuery {
+	if len(columns) == 0 {
+		panic("ent: Columns requires at least one column")
+	}
+	for _, column := range columns {
+		_q.ctx.AppendFieldOnce(column.Ref().Name)
+	}
+	return _q
+}
+
 // First returns the first Comment entity from the query.
 // Returns a *NotFoundError when no Comment was found.
 func (_q *CommentQuery) First(ctx context.Context) (*Comment, error) {

@@ -140,6 +140,19 @@ func (_q *DeviceQuery) Order(o ...ent.OrderOption[entity.Device]) *DeviceQuery {
 	return _q
 }
 
+// Columns narrows the entity columns loaded by this query, including when it is used
+// as an eager-loading query. The ID and any columns required to bind loaded edges are
+// always included.
+func (_q *DeviceQuery) Columns(columns ...ent.EntityColumn[entity.Device]) *DeviceQuery {
+	if len(columns) == 0 {
+		panic("ent: Columns requires at least one column")
+	}
+	for _, column := range columns {
+		_q.ctx.AppendFieldOnce(column.Ref().Name)
+	}
+	return _q
+}
+
 // QueryActiveSession chains the current query on the "active_session" edge.
 func (_q *DeviceQuery) QueryActiveSession() *SessionQuery {
 	query := (&SessionClient{config: _q.config}).Query()

@@ -137,6 +137,19 @@ func (_q *FileQuery) Order(o ...ent.OrderOption[entity.File]) *FileQuery {
 	return _q
 }
 
+// Columns narrows the entity columns loaded by this query, including when it is used
+// as an eager-loading query. The ID and any columns required to bind loaded edges are
+// always included.
+func (_q *FileQuery) Columns(columns ...ent.EntityColumn[entity.File]) *FileQuery {
+	if len(columns) == 0 {
+		panic("ent: Columns requires at least one column")
+	}
+	for _, column := range columns {
+		_q.ctx.AppendFieldOnce(column.Ref().Name)
+	}
+	return _q
+}
+
 // QueryProcesses chains the current query on the "processes" edge.
 func (_q *FileQuery) QueryProcesses() *ProcessQuery {
 	query := (&ProcessClient{config: _q.config}).Query()

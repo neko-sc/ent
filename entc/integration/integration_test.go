@@ -540,7 +540,7 @@ func Select(t *testing.T, client *ent.Client) {
 	require.NotEmpty(a8m.Age)
 	require.NotEmpty(a8m.Name)
 	require.NotEmpty(a8m.Nickname)
-	a8m = a8m.Update().Set(user.Age, 32).Select(user.Age).SaveX(ctx)
+	a8m = a8m.Update().Set(user.Age, 32).Columns(user.Age).SaveX(ctx)
 	require.NotEmpty(a8m.ID)
 	require.NotEmpty(a8m.Age)
 	require.Empty(a8m.Name)

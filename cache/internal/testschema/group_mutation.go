@@ -10,8 +10,8 @@ import (
 	"slices"
 
 	"github.com/neko-sc/ent"
-	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/cache/internal/testschema/group"
+	"github.com/neko-sc/ent/dialect/sql"
 )
 
 // GroupInsert is the write representation of a Group creation.

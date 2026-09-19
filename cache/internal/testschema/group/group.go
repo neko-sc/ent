@@ -7,8 +7,8 @@ package group
 
 import (
 	"github.com/neko-sc/ent"
-	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/cache/internal/testschema/entity"
+	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 )
 
 const (

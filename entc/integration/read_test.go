@@ -120,4 +120,59 @@ func ReadPath(t *testing.T, client *ent.Client) {
 			require.Equal(t, 1, ent.Get(row, ent.Count()))
 		}
 	})
+
+	t.Run("Columns", func(t *testing.T) {
+		require.Panics(t, func() { client.User.Query().Columns() })
+		require.Panics(t, func() { client.Pet.Query().Columns() })
+
+		loaded := client.User.Query().Order(user.ID.Asc()).
+			WithPets(func(query *ent.PetQuery) { query.Columns(pet.Name) }).AllX(ctx)
+		require.Len(t, loaded[0].Edges.Pets, 4)
+		require.NotZero(t, loaded[0].Age)
+		for _, parent := range loaded[:2] {
+			for _, child := range parent.Edges.Pets {
+				require.NotZero(t, child.ID)
+				require.NotEmpty(t, child.Name)
+				require.Zero(t, child.Age)
+			}
+		}
+
+		children := client.Pet.Query().WithOwner(func(query *ent.UserQuery) { query.Columns(user.Name) }).AllX(ctx)
+		require.Len(t, children, 8)
+		for _, child := range children {
+			require.NotEmpty(t, child.Name)
+			require.NotNil(t, child.Edges.Owner)
+			require.NotZero(t, child.Edges.Owner.ID)
+			require.NotEmpty(t, child.Edges.Owner.Name)
+			require.Zero(t, child.Edges.Owner.Age)
+		}
+
+		member := client.User.Query().Where(user.ID.EQ(parents[0].ID)).
+			WithGroups(func(query *ent.GroupQuery) { query.Columns(group.Name) }).OnlyX(ctx)
+		require.Len(t, member.Edges.Groups, 3)
+		for _, joined := range member.Edges.Groups {
+			require.NotZero(t, joined.ID)
+			require.NotEmpty(t, joined.Name)
+			require.True(t, joined.Expire.IsZero())
+			require.Zero(t, joined.MaxUsers)
+		}
+
+		narrowed := client.User.Query().Columns(user.Name).Order(user.ID.Asc()).
+			WithPets(func(query *ent.PetQuery) { query.Columns(pet.Name) }).AllX(ctx)
+		for index, parent := range narrowed {
+			require.Equal(t, parents[index].ID, parent.ID)
+			require.Equal(t, parents[index].Name, parent.Name)
+			require.Zero(t, parent.Age)
+		}
+		require.Len(t, narrowed[0].Edges.Pets, 4)
+		require.Empty(t, narrowed[2].Edges.Pets)
+
+		paged := client.User.Query().Columns(user.Name).Order(user.ID.Asc()).
+			WithPets(func(query *ent.PetQuery) { query.Columns(pet.Name).Order(pet.Name.Desc()).Offset(1).Limit(2) }).AllX(ctx)
+		for _, parent := range paged[:2] {
+			require.Len(t, parent.Edges.Pets, 2)
+			require.Equal(t, []string{"c", "b"}, []string{parent.Edges.Pets[0].Name, parent.Edges.Pets[1].Name})
+			require.Zero(t, parent.Edges.Pets[0].Age)
+		}
+	})
 }

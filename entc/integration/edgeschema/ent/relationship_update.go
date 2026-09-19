@@ -511,9 +511,10 @@ func (b *RelationshipUpdateOne) ExecX(ctx context.Context) {
 	}
 }
 
-func (b *RelationshipUpdateOne) Select(columns ...ent.EntityColumn[entity.Relationship]) *RelationshipUpdateOne {
+// Columns narrows the entity columns returned by the update. The ID is always included.
+func (b *RelationshipUpdateOne) Columns(columns ...ent.EntityColumn[entity.Relationship]) *RelationshipUpdateOne {
 	if len(columns) == 0 {
-		panic("ent: Select requires at least one column")
+		panic("ent: Columns requires at least one column")
 	}
 	b.fields = make([]string, len(columns))
 	for index, column := range columns {

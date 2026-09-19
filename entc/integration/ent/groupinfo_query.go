@@ -138,6 +138,19 @@ func (_q *GroupInfoQuery) Order(o ...ent.OrderOption[entity.GroupInfo]) *GroupIn
 	return _q
 }
 
+// Columns narrows the entity columns loaded by this query, including when it is used
+// as an eager-loading query. The ID and any columns required to bind loaded edges are
+// always included.
+func (_q *GroupInfoQuery) Columns(columns ...ent.EntityColumn[entity.GroupInfo]) *GroupInfoQuery {
+	if len(columns) == 0 {
+		panic("ent: Columns requires at least one column")
+	}
+	for _, column := range columns {
+		_q.ctx.AppendFieldOnce(column.Ref().Name)
+	}
+	return _q
+}
+
 // QueryGroups chains the current query on the "groups" edge.
 func (_q *GroupInfoQuery) QueryGroups() *GroupQuery {
 	query := (&GroupClient{config: _q.config}).Query()

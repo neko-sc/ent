@@ -101,6 +101,19 @@ func ({{ $receiver }} *{{ $builder }}) Order(o ...ent.OrderOption[entity.{{ $.Na
 	return {{ $receiver }}
 }
 
+// Columns narrows the entity columns loaded by this query, including when it is used
+// as an eager-loading query. The ID and any columns required to bind loaded edges are
+// always included.
+func ({{ $receiver }} *{{ $builder }}) Columns(columns ...ent.EntityColumn[entity.{{ $.Name }}]) *{{ $builder }} {
+	if len(columns) == 0 {
+		panic("ent: Columns requires at least one column")
+	}
+	for _, column := range columns {
+		{{ $receiver }}.ctx.AppendFieldOnce(column.Ref().Name)
+	}
+	return {{ $receiver }}
+}
+
 {{/* this code has similarity with edge queries in client.tmpl */}}
 {{ range $e := $.Edges }}
 	{{ $edge_builder := print $e.Type.QueryName }}

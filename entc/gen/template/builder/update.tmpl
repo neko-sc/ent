@@ -37,8 +37,9 @@ func(b *{{ $builder }}) Exec(ctx context.Context) error { _, err := b.Save(ctx);
 func(b *{{ $builder }}) ExecX(ctx context.Context) { if err := b.Exec(ctx); err != nil { panic(err) } }
 {{ if $one }}
 
-func(b *{{ $builder }}) Select(columns ...ent.EntityColumn[entity.{{ $.Name }}]) *{{ $builder }} {
-    if len(columns) == 0 { panic("ent: Select requires at least one column") }
+// Columns narrows the entity columns returned by the update. The ID is always included.
+func(b *{{ $builder }}) Columns(columns ...ent.EntityColumn[entity.{{ $.Name }}]) *{{ $builder }} {
+    if len(columns) == 0 { panic("ent: Columns requires at least one column") }
     b.fields = make([]string, len(columns))
     for index, column := range columns { b.fields[index] = column.Ref().Name }
     return b

@@ -134,6 +134,19 @@ func (_q *LicenseQuery) Order(o ...ent.OrderOption[entity.License]) *LicenseQuer
 	return _q
 }
 
+// Columns narrows the entity columns loaded by this query, including when it is used
+// as an eager-loading query. The ID and any columns required to bind loaded edges are
+// always included.
+func (_q *LicenseQuery) Columns(columns ...ent.EntityColumn[entity.License]) *LicenseQuery {
+	if len(columns) == 0 {
+		panic("ent: Columns requires at least one column")
+	}
+	for _, column := range columns {
+		_q.ctx.AppendFieldOnce(column.Ref().Name)
+	}
+	return _q
+}
+
 // First returns the first License entity from the query.
 // Returns a *NotFoundError when no License was found.
 func (_q *LicenseQuery) First(ctx context.Context) (*License, error) {

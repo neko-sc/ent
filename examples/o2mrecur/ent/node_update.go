@@ -462,9 +462,10 @@ func (b *NodeUpdateOne) ExecX(ctx context.Context) {
 	}
 }
 
-func (b *NodeUpdateOne) Select(columns ...ent.EntityColumn[entity.Node]) *NodeUpdateOne {
+// Columns narrows the entity columns returned by the update. The ID is always included.
+func (b *NodeUpdateOne) Columns(columns ...ent.EntityColumn[entity.Node]) *NodeUpdateOne {
 	if len(columns) == 0 {
-		panic("ent: Select requires at least one column")
+		panic("ent: Columns requires at least one column")
 	}
 	b.fields = make([]string, len(columns))
 	for index, column := range columns {

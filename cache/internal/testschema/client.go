@@ -14,13 +14,13 @@ import (
 
 	"github.com/neko-sc/ent/cache/internal/testschema/migrate"
 
+	"github.com/neko-sc/ent/cache/internal/testschema/group"
+	"github.com/neko-sc/ent/cache/internal/testschema/pet"
+	"github.com/neko-sc/ent/cache/internal/testschema/user"
 	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/pg"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
-	"github.com/neko-sc/ent/cache/internal/testschema/group"
-	"github.com/neko-sc/ent/cache/internal/testschema/pet"
-	"github.com/neko-sc/ent/cache/internal/testschema/user"
 )
 
 // Client is the client that holds all ent builders.

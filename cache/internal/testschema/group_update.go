@@ -11,12 +11,12 @@ import (
 	"fmt"
 
 	"github.com/neko-sc/ent"
-	"github.com/neko-sc/ent/dialect"
-	"github.com/neko-sc/ent/dialect/sql"
-	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/cache/internal/testschema/entity"
 	"github.com/neko-sc/ent/cache/internal/testschema/group"
 	"github.com/neko-sc/ent/cache/internal/testschema/user"
+	"github.com/neko-sc/ent/dialect"
+	"github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/schema/field"
 )
 
@@ -422,9 +422,10 @@ func (b *GroupUpdateOne) ExecX(ctx context.Context) {
 	}
 }
 
-func (b *GroupUpdateOne) Select(columns ...ent.EntityColumn[entity.Group]) *GroupUpdateOne {
+// Columns narrows the entity columns returned by the update. The ID is always included.
+func (b *GroupUpdateOne) Columns(columns ...ent.EntityColumn[entity.Group]) *GroupUpdateOne {
 	if len(columns) == 0 {
-		panic("ent: Select requires at least one column")
+		panic("ent: Columns requires at least one column")
 	}
 	b.fields = make([]string, len(columns))
 	for index, column := range columns {

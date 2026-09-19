@@ -137,6 +137,19 @@ func (_q *BlobLinkQuery) Order(o ...ent.OrderOption[entity.BlobLink]) *BlobLinkQ
 	return _q
 }
 
+// Columns narrows the entity columns loaded by this query, including when it is used
+// as an eager-loading query. The ID and any columns required to bind loaded edges are
+// always included.
+func (_q *BlobLinkQuery) Columns(columns ...ent.EntityColumn[entity.BlobLink]) *BlobLinkQuery {
+	if len(columns) == 0 {
+		panic("ent: Columns requires at least one column")
+	}
+	for _, column := range columns {
+		_q.ctx.AppendFieldOnce(column.Ref().Name)
+	}
+	return _q
+}
+
 // QueryBlob chains the current query on the "blob" edge.
 func (_q *BlobLinkQuery) QueryBlob() *BlobQuery {
 	query := (&BlobClient{config: _q.config}).Query()

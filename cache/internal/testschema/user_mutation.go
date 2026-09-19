@@ -11,9 +11,9 @@ import (
 	time2 "time"
 
 	"github.com/neko-sc/ent"
-	"github.com/neko-sc/ent/dialect/sql"
 	schema2 "github.com/neko-sc/ent/cache/internal/testschema/schema"
 	"github.com/neko-sc/ent/cache/internal/testschema/user"
+	"github.com/neko-sc/ent/dialect/sql"
 )
 
 // UserInsert is the write representation of a User creation.

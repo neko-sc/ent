@@ -137,6 +137,19 @@ func (_q *BlogQuery) Order(o ...ent.OrderOption[entity.Blog]) *BlogQuery {
 	return _q
 }
 
+// Columns narrows the entity columns loaded by this query, including when it is used
+// as an eager-loading query. The ID and any columns required to bind loaded edges are
+// always included.
+func (_q *BlogQuery) Columns(columns ...ent.EntityColumn[entity.Blog]) *BlogQuery {
+	if len(columns) == 0 {
+		panic("ent: Columns requires at least one column")
+	}
+	for _, column := range columns {
+		_q.ctx.AppendFieldOnce(column.Ref().Name)
+	}
+	return _q
+}
+
 // QueryAdmins chains the current query on the "admins" edge.
 func (_q *BlogQuery) QueryAdmins() *UserQuery {
 	query := (&UserClient{config: _q.config}).Query()

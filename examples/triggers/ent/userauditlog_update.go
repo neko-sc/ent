@@ -400,9 +400,10 @@ func (b *UserAuditLogUpdateOne) ExecX(ctx context.Context) {
 	}
 }
 
-func (b *UserAuditLogUpdateOne) Select(columns ...ent.EntityColumn[entity.UserAuditLog]) *UserAuditLogUpdateOne {
+// Columns narrows the entity columns returned by the update. The ID is always included.
+func (b *UserAuditLogUpdateOne) Columns(columns ...ent.EntityColumn[entity.UserAuditLog]) *UserAuditLogUpdateOne {
 	if len(columns) == 0 {
-		panic("ent: Select requires at least one column")
+		panic("ent: Columns requires at least one column")
 	}
 	b.fields = make([]string, len(columns))
 	for index, column := range columns {

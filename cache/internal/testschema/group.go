@@ -10,9 +10,9 @@ import (
 	"strings"
 
 	"github.com/neko-sc/ent"
-	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/cache/internal/testschema/entity"
 	"github.com/neko-sc/ent/cache/internal/testschema/group"
+	"github.com/neko-sc/ent/dialect/sql"
 )
 
 // Group is the model entity for the Group schema.

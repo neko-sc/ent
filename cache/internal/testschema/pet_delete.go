@@ -9,11 +9,11 @@ import (
 	"context"
 
 	"github.com/neko-sc/ent"
+	"github.com/neko-sc/ent/cache/internal/testschema/entity"
+	"github.com/neko-sc/ent/cache/internal/testschema/pet"
 	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
-	"github.com/neko-sc/ent/cache/internal/testschema/entity"
-	"github.com/neko-sc/ent/cache/internal/testschema/pet"
 	"github.com/neko-sc/ent/schema/field"
 )
 
