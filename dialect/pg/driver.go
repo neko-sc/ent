@@ -35,7 +35,16 @@ func WithCapabilities(capabilities dialect.Capabilities) Option {
 }
 
 func Open(ctx context.Context, dsn string, options ...Option) (*Driver, error) {
-	pool, err := pgxpool.New(ctx, dsn)
+	config, err := pgxpool.ParseConfig(dsn)
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return OpenConfig(ctx, config, options...)
+}
+
+// OpenConfig detects the version-gated capabilities of the server before applying options on top of them.
+func OpenConfig(ctx context.Context, config *pgxpool.Config, options ...Option) (*Driver, error) {
+	pool, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {
 		return nil, mapError(err)
 	}
@@ -44,18 +53,20 @@ func Open(ctx context.Context, dsn string, options ...Option) (*Driver, error) {
 		pool.Close()
 		return nil, mapError(err)
 	}
-	d := NewDriver(pool)
-	d.capabilities.ReturningOld = version >= 180000
-	d.capabilities.ConflictDoSelect = version >= 190000
+	detected := func(d *Driver) {
+		d.capabilities.ReturningOld = version >= 180000
+		d.capabilities.ConflictDoSelect = version >= 190000
+	}
+	return NewDriver(pool, append([]Option{detected}, options...)...), nil
+}
+
+// NewDriver leaves version-gated capabilities disabled unless they are supplied through WithCapabilities.
+func NewDriver(pool *pgxpool.Pool, options ...Option) *Driver {
+	d := &Driver{pool: pool, capabilities: dialect.Capabilities{NativeArray: true, MultiRowReturningOrdered: true}}
 	for _, option := range options {
 		option(d)
 	}
-	return d, nil
-}
-
-// NewDriver leaves version-gated capabilities disabled until explicitly configured.
-func NewDriver(pool *pgxpool.Pool) *Driver {
-	return &Driver{pool: pool, capabilities: dialect.Capabilities{NativeArray: true, MultiRowReturningOrdered: true}}
+	return d
 }
 
 func (d *Driver) Pool() *pgxpool.Pool { return d.pool }

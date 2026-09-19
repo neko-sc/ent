@@ -16,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/neko-sc/ent/dialect"
 	entsql "github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
@@ -23,23 +24,55 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func postgresDSN(t *testing.T) string {
+	t.Helper()
+	if dsn := os.Getenv("PG_DSN"); dsn != "" {
+		return dsn
+	}
+	connection, err := net.DialTimeout("tcp", "localhost:5438", time.Second)
+	if err != nil {
+		t.Skip("set PG_DSN or start PostgreSQL on localhost:5438")
+	}
+	require.NoError(t, connection.Close())
+	return "host=localhost port=5438 user=postgres dbname=test password=pass sslmode=disable"
+}
+
 func postgresDriver(t *testing.T) *Driver {
 	t.Helper()
-	dsn := os.Getenv("PG_DSN")
-	if dsn == "" {
-		connection, err := net.DialTimeout("tcp", "localhost:5438", time.Second)
-		if err != nil {
-			t.Skip("set PG_DSN or start PostgreSQL on localhost:5438")
-		}
-		require.NoError(t, connection.Close())
-		dsn = "host=localhost port=5438 user=postgres dbname=test password=pass sslmode=disable"
-	}
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
-	driver, err := Open(ctx, dsn)
+	driver, err := Open(ctx, postgresDSN(t))
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, driver.Close()) })
 	return driver
+}
+
+func TestNewDriverCapabilities(t *testing.T) {
+	require.Equal(t, dialect.Capabilities{NativeArray: true, MultiRowReturningOrdered: true}, NewDriver(nil).Capabilities())
+	require.Equal(t, dialect.Capabilities{ReturningOld: true}, NewDriver(nil, WithCapabilities(dialect.Capabilities{ReturningOld: true})).Capabilities())
+}
+
+func TestOpenConfig(t *testing.T) {
+	dsn := postgresDSN(t)
+	config, err := pgxpool.ParseConfig(dsn)
+	require.NoError(t, err)
+	config.MaxConns = 3
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	driver, err := OpenConfig(ctx, config, WithCapabilities(dialect.Capabilities{ConflictDoSelect: true}))
+	require.NoError(t, err)
+	defer func() { require.NoError(t, driver.Close()) }()
+	require.Equal(t, int32(3), driver.Pool().Config().MaxConns)
+	require.Equal(t, dialect.Capabilities{ConflictDoSelect: true}, driver.Capabilities(), "options must override detected capabilities")
+
+	config, err = pgxpool.ParseConfig(dsn)
+	require.NoError(t, err)
+	detected, err := OpenConfig(ctx, config)
+	require.NoError(t, err)
+	defer func() { require.NoError(t, detected.Close()) }()
+	var version int
+	require.NoError(t, detected.Pool().QueryRow(ctx, "SELECT current_setting('server_version_num')::int").Scan(&version))
+	require.Equal(t, dialect.Capabilities{ReturningOld: version >= 180000, ConflictDoSelect: version >= 190000, NativeArray: true, MultiRowReturningOrdered: true}, detected.Capabilities())
 }
 
 type textArray []string
