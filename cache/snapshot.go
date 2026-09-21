@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/neko-sc/ent/dialect"
+	entsql "github.com/neko-sc/ent/dialect/sql"
 )
 
 type recorder struct {
@@ -86,7 +87,7 @@ func (r *recorder) Scan(destinations ...any) error {
 
 	row := make([]any, len(destinations))
 	for index, destination := range destinations {
-		value, err := snapshot(destination)
+		value, err := snapshotCell(destination)
 		if err != nil {
 			r.cacheable = false
 			return nil
@@ -132,6 +133,57 @@ func (r *recorder) ColumnTypes() ([]*sql.ColumnType, error) {
 		return typed.ColumnTypes()
 	}
 	return nil, fmt.Errorf("cache: column types unavailable")
+}
+
+// snapshotCell normalizes a scan destination into a plain value before either cache tier retains it.
+// Unlike snapshot, it strips scanner state and NULL wrappers so replays do not depend on scanner internals.
+func snapshotCell(destination any) (any, error) {
+	value := reflect.ValueOf(destination)
+	if !value.IsValid() || value.Kind() != reflect.Pointer || value.IsNil() {
+		return nil, fmt.Errorf("cache: scan destination must be a non-nil pointer")
+	}
+	for depth := 0; depth <= 32; depth++ {
+		if !value.IsValid() || ((value.Kind() == reflect.Pointer || value.Kind() == reflect.Interface) && value.IsNil()) {
+			return nil, nil
+		}
+		if scanner, ok := value.Interface().(*entsql.NullScanner); ok {
+			if !scanner.Valid {
+				return nil, nil
+			}
+			value = reflect.ValueOf(scanner.S)
+			continue
+		}
+		if valuer, ok := value.Interface().(driver.Valuer); ok {
+			normalized, err := valuer.Value()
+			if err != nil {
+				return nil, err
+			}
+			if !driver.IsValue(normalized) {
+				return nil, fmt.Errorf("cache: unsupported driver value %T", normalized)
+			}
+			value = reflect.ValueOf(normalized)
+			continue
+		}
+		if value.Kind() == reflect.Pointer || value.Kind() == reflect.Interface {
+			value = value.Elem()
+			continue
+		}
+		if value.Kind() == reflect.Slice && value.Type().Elem().Kind() == reflect.Uint8 {
+			if value.IsNil() {
+				return nil, nil
+			}
+			return slices.Clone(value.Bytes()), nil
+		}
+		if reflect.PointerTo(value.Type()).Implements(reflect.TypeFor[sql.Scanner]()) {
+			return nil, fmt.Errorf("cache: cannot normalize scanner type %s", value.Type())
+		}
+		copied, err := copyValue(value, 0)
+		if err != nil {
+			return nil, err
+		}
+		return copied.Interface(), nil
+	}
+	return nil, fmt.Errorf("cache: snapshot nesting exceeds 32")
 }
 
 func snapshot(destination any) (any, error) {
@@ -372,8 +424,13 @@ func assignValue(destination, value any, encoded []byte) error {
 			}
 			return err
 		}
+		if copied.Type().AssignableTo(pointer.Elem().Type()) {
+			pointer.Elem().Set(copied)
+			return nil
+		}
 		value = copied.Interface()
 	}
+
 	if value == nil || driver.IsValue(value) {
 		err := sql.ConvertAssign(driver.ScanContext{}, destination, value)
 		if err == nil || encoded == nil {
@@ -382,10 +439,6 @@ func assignValue(destination, value any, encoded []byte) error {
 	}
 	if scanner, ok := destination.(sql.Scanner); ok && !nullable {
 		return scanner.Scan(value)
-	}
-	if reflect.TypeOf(value).AssignableTo(pointer.Elem().Type()) {
-		pointer.Elem().Set(reflect.ValueOf(value))
-		return nil
 	}
 	if encoded != nil {
 		return decodeValueInto(encoded, destination)

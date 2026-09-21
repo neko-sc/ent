@@ -111,6 +111,48 @@ func recordEntry(t *testing.T, idColumn string, columns []string, rows [][]any, 
 	return entry
 }
 
+func TestSnapshotCell(t *testing.T) {
+	type bytes []byte
+	for _, test := range []struct {
+		name        string
+		destination any
+		expected    any
+	}{
+		{name: "named bytes", destination: new(bytes("bytes")), expected: []byte("bytes")},
+		{name: "null bytes", destination: new(bytes), expected: nil},
+		{name: "empty bytes", destination: new(bytes{}), expected: []byte{}},
+		{name: "plain null bytes", destination: new([]byte), expected: nil},
+		{name: "nullable valuer", destination: new(new(sql.NullString{String: "value", Valid: true})), expected: "value"},
+		{name: "invalid valuer", destination: new(new(sql.NullString{String: "stale"})), expected: nil},
+		{name: "interface valuer", destination: new(any(&valueScanner{value: "value"})), expected: "value"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			value, err := snapshotCell(test.destination)
+
+			require.NoError(t, err)
+			require.Equal(t, test.expected, value)
+		})
+	}
+
+	t.Run("bytes belong to the entry", func(t *testing.T) {
+		original := bytes("bytes")
+		value, err := snapshotCell(&original)
+
+		require.NoError(t, err)
+		original[0] = 'X'
+
+		require.Equal(t, []byte("bytes"), value)
+	})
+
+	t.Run("assigns plain values directly", func(t *testing.T) {
+		type payload struct{ Text string }
+		var destination payload
+
+		require.NoError(t, assignValue(&destination, payload{Text: "value"}, nil))
+		require.Equal(t, "value", destination.Text)
+	})
+}
+
 func TestSnapshotReplay(t *testing.T) {
 	timestamp := time.Date(2026, 9, 18, 1, 2, 3, 4, time.UTC)
 	live := &fakeRows{
@@ -179,6 +221,9 @@ func TestSnapshotUncacheable(t *testing.T) {
 		{name: "rows", value: "value", destination: new(string), limits: Limits{MaxRows: 1}},
 		{name: "bytes", value: "value", destination: new(string), limits: Limits{MaxBytes: 3}},
 		{name: "valuer", value: "value", destination: &valueScanner{fail: true}},
+		{name: "scanner state", value: "value", destination: &struct{ sql.Scanner }{Scanner: new(valueScanner)}},
+		{name: "wrapped scanner state", value: "value", destination: &entsql.NullScanner{S: &struct{ sql.Scanner }{Scanner: new(valueScanner)}}},
+		{name: "invalid valuer result", value: struct{ Text string }{Text: "value"}, destination: new(valueScanner)},
 		{name: "channel", value: make(chan int), destination: new(chan int)},
 		{name: "function", value: func() {}, destination: new(func())},
 		{name: "map keys", value: map[int]string{1: "one"}, destination: new(map[int]string)},

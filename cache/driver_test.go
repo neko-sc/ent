@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/google/uuid"
 	"github.com/neko-sc/ent/dialect"
 	entsql "github.com/neko-sc/ent/dialect/sql"
 	"github.com/stretchr/testify/assert"
@@ -171,6 +172,88 @@ func TestDriverReadReplay(t *testing.T) {
 	require.Equal(t, uint64(1), snapshot.Fills)
 	require.Equal(t, uint64(1), snapshot.Misses)
 	require.Equal(t, uint64(1), snapshot.Hits["memory"])
+}
+
+func TestDriverScannerReplay(t *testing.T) {
+	for _, level := range []struct {
+		name string
+		new  func(*testing.T) Level
+	}{
+		{name: "memory", new: newMemoryLevel},
+		{name: "encoding", new: func(*testing.T) Level { return newEncodingLevel() }},
+	} {
+		t.Run(level.name, func(t *testing.T) {
+			t.Run("JSON projection", func(t *testing.T) {
+				cached, mock := newTestDriver(t, Levels(level.new(t)), OnError(func(_ context.Context, err error) {
+					t.Errorf("cache error: %v", err)
+				}))
+
+				mock.ExpectQuery("SELECT config FROM users").WillReturnRows(sqlmock.NewRows([]string{"config"}).
+					AddRow([]byte(`{"enabled":true}`)).AddRow(nil).AddRow([]byte(`{"enabled":false}`))).RowsWillBeClosed()
+				type projection struct {
+					Config struct {
+						Enabled bool `json:"enabled"`
+					} `sql:"config"`
+				}
+				for attempt := range 2 {
+					ctx, info := WithInfo(Cache(readContext(t.Context())))
+					rows, err := cached.Query(ctx, "SELECT config FROM users", nil)
+
+					require.NoError(t, err)
+					var result []projection
+
+					require.NoError(t, entsql.ScanSlice(rows, &result))
+					require.NoError(t, rows.Close())
+					require.Len(t, result, 3)
+					require.True(t, result[0].Config.Enabled)
+					require.False(t, result[1].Config.Enabled)
+					require.False(t, result[2].Config.Enabled)
+					require.Equal(t, attempt > 0, info.Hit)
+					if info.Hit {
+						require.Equal(t, level.name, info.Level)
+					}
+				}
+			})
+
+			t.Run("nullable UUID and plain NULL", func(t *testing.T) {
+				cached, mock := newTestDriver(t, Levels(level.new(t)), OnError(func(_ context.Context, err error) {
+					t.Errorf("cache error: %v", err)
+				}))
+
+				identifier := uuid.MustParse("01234567-89ab-cdef-0123-456789abcdef")
+				mock.ExpectQuery("SELECT uploader_user_id, empty FROM users").WillReturnRows(sqlmock.NewRows([]string{"uploader_user_id", "empty"}).
+					AddRow(identifier.String(), nil).AddRow(nil, nil)).RowsWillBeClosed()
+				for attempt := range 2 {
+					ctx, info := WithInfo(Cache(readContext(t.Context())))
+					rows, err := cached.Query(ctx, "SELECT uploader_user_id, empty FROM users", nil)
+
+					require.NoError(t, err)
+					var result []*uuid.UUID
+
+					for rows.Next() {
+						value := new(uuid.UUID)
+						nullable := &entsql.NullScanner{S: value}
+						var empty any = "stale"
+
+						require.NoError(t, rows.Scan(nullable, &empty))
+						require.Nil(t, empty)
+						if nullable.Valid {
+							result = append(result, value)
+						} else {
+							result = append(result, nil)
+						}
+					}
+					require.NoError(t, rows.Err())
+					require.NoError(t, rows.Close())
+					require.Equal(t, []*uuid.UUID{&identifier, nil}, result)
+					require.Equal(t, attempt > 0, info.Hit)
+					if info.Hit {
+						require.Equal(t, level.name, info.Level)
+					}
+				}
+			})
+		})
+	}
 }
 
 func TestDriverConcurrentReadWrite(t *testing.T) {
