@@ -146,11 +146,10 @@ func (d *Postgres) atTypeC(c1 *Column, c2 *schema.Column) error {
 	case field.TypeOther:
 		t = &schema.UnsupportedType{T: c1.typ}
 	default:
-		t, err := postgres.ParseType(strings.ToLower(c1.typ))
-		if err != nil {
+		var err error
+		if t, err = postgres.ParseType(strings.ToLower(c1.typ)); err != nil {
 			return err
 		}
-		c2.Type.Type = t
 	}
 	c2.Type.Type = t
 	return nil
