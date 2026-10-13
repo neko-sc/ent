@@ -593,10 +593,13 @@ func (u *UpdateBuilder) Add(column string, v any) *UpdateBuilder {
 	return u.Set(column, ExprFunc(func(b *Builder) {
 		b.WriteString("COALESCE")
 		b.Wrap(func(b *Builder) {
+			qualified := Table(u.table).C(column)
 			if exists {
-				b.Arg(previous)
+				// The always-NULL NULLIF types the expression by the column, as
+				// PostgreSQL would otherwise infer the parameters from the literal 0.
+				b.Arg(previous).Comma().WriteString("NULLIF(").Ident(qualified).Comma().Ident(qualified).Byte(')')
 			} else {
-				b.Ident(Table(u.table).C(column))
+				b.Ident(qualified)
 			}
 			b.Comma().Byte('0')
 		})

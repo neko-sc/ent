@@ -32,6 +32,7 @@ import (
 	comment "github.com/neko-sc/ent/entc/integration/ent/comment"
 	"github.com/neko-sc/ent/entc/integration/ent/enttest"
 	"github.com/neko-sc/ent/entc/integration/ent/exvaluescan"
+	"github.com/neko-sc/ent/entc/integration/ent/fieldtype"
 	"github.com/neko-sc/ent/entc/integration/ent/file"
 	"github.com/neko-sc/ent/entc/integration/ent/filetype"
 	"github.com/neko-sc/ent/entc/integration/ent/group"
@@ -989,6 +990,24 @@ func AddValues(t *testing.T, client *ent.Client) {
 	cmt1 = cmt1.Update().Add(comment.UniqueInt, 10).Add(comment.UniqueInt, -1).SaveX(ctx)
 	require.Equal(30, cmt1.UniqueInt)
 	require.Equal(30, client.Comment.GetX(ctx, cmt1.ID).UniqueInt)
+
+	t.Log("add values to set fields in the column type")
+	first, second := 0.1, 0.2
+	ft := client.FieldType.Create().Set(fieldtype.Int, 1).Set(fieldtype.Int8, 8).Set(fieldtype.Int16, 16).Set(fieldtype.Int32, 32).Set(fieldtype.Int64, 64).SaveX(ctx)
+	// Int64 has an update default, which is set before the Add.
+	updated := ft.Update().Set(fieldtype.OptionalFloat, first).Add(fieldtype.OptionalFloat, second).
+		Set(fieldtype.OptionalInt64, 5_000_000_000).Add(fieldtype.OptionalInt64, 1).Add(fieldtype.Int64, 5_000_000_000).SaveX(ctx)
+	for _, entity := range []*ent.FieldType{updated, client.FieldType.GetX(ctx, ft.ID)} {
+		require.Equal(first+second, entity.OptionalFloat)
+		require.Equal(int64(5_000_000_001), entity.OptionalInt64)
+		require.Equal(int64(5_000_000_100), entity.Int64)
+	}
+	client.FieldType.Update().Where(fieldtype.ID.EQ(ft.ID)).Set(fieldtype.OptionalFloat, second).Add(fieldtype.OptionalFloat, first).
+		Set(fieldtype.OptionalInt64, 6_000_000_000).Add(fieldtype.OptionalInt64, 1).Add(fieldtype.Int64, 6_000_000_000).ExecX(ctx)
+	updated = client.FieldType.GetX(ctx, ft.ID)
+	require.Equal(second+first, updated.OptionalFloat)
+	require.Equal(int64(6_000_000_001), updated.OptionalInt64)
+	require.Equal(int64(6_000_000_100), updated.Int64)
 }
 
 func Delete(t *testing.T, client *ent.Client) {

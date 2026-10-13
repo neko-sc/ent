@@ -350,7 +350,7 @@ func TestBuilder(t *testing.T) {
 				Set("age", 1).
 				Add("age", 2).
 				Where(HasPrefix("nickname", "a8m")),
-			wantQuery: "UPDATE `users` SET `age` = COALESCE(?, 0) + ? WHERE `nickname` LIKE ?",
+			wantQuery: "UPDATE `users` SET `age` = COALESCE(?, NULLIF(`users`.`age`, `users`.`age`), 0) + ? WHERE `nickname` LIKE ?",
 			wantArgs:  []any{1, 2, "a8m%"},
 		},
 		{
@@ -368,6 +368,15 @@ func TestBuilder(t *testing.T) {
 				Where(HasPrefix("nickname", "a8m")),
 			wantQuery: `UPDATE "users" SET "age" = COALESCE("users"."age", 0) + $1 WHERE "nickname" LIKE $2`,
 			wantArgs:  []any{1, "a8m%"},
+		},
+		{
+			input: Dialect(dialect.Postgres).
+				Update("users").
+				Set("score", 0.1).
+				Add("score", 0.2).
+				Add("score", 0.3),
+			wantQuery: `UPDATE "users" SET "score" = COALESCE(COALESCE($1, NULLIF("users"."score", "users"."score"), 0) + $2, NULLIF("users"."score", "users"."score"), 0) + $3`,
+			wantArgs:  []any{0.1, 0.2, 0.3},
 		},
 		{
 			input: Update("users").
@@ -396,7 +405,7 @@ func TestBuilder(t *testing.T) {
 				Set("age", 1).
 				Add("age", 2).
 				Where(HasPrefixFold("nickname", "a8m")),
-			wantQuery: "UPDATE `users` SET `age` = COALESCE(?, 0) + ? WHERE LOWER(`nickname`) LIKE ?",
+			wantQuery: "UPDATE `users` SET `age` = COALESCE(?, NULLIF(`users`.`age`, `users`.`age`), 0) + ? WHERE LOWER(`nickname`) LIKE ?",
 			wantArgs:  []any{1, 2, "a8m%"},
 		},
 		{
@@ -435,7 +444,7 @@ func TestBuilder(t *testing.T) {
 				Set("age", 1).
 				Add("age", 2).
 				Where(HasSuffixFold("nickname", "a8m")),
-			wantQuery: "UPDATE `users` SET `age` = COALESCE(?, 0) + ? WHERE LOWER(`nickname`) LIKE ?",
+			wantQuery: "UPDATE `users` SET `age` = COALESCE(?, NULLIF(`users`.`age`, `users`.`age`), 0) + ? WHERE LOWER(`nickname`) LIKE ?",
 			wantArgs:  []any{1, 2, "%a8m"},
 		},
 		{
