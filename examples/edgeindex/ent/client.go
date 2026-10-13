@@ -265,6 +265,12 @@ func (c *CityClient) UpdateOneID(id int) *CityUpdateOne {
 	return &CityUpdateOne{config: c.config, mutation: mutation}
 }
 
+// UpdateBulk returns a builder for updating a bulk of City entities in set-based statements, each with
+// the changes of its builder.
+func (c *CityClient) UpdateBulk(builders ...*CityUpdateOne) *CityUpdateBulk {
+	return &CityUpdateBulk{config: c.config, builders: builders}
+}
+
 // Delete returns a delete builder for City.
 func (c *CityClient) Delete() *CityDelete {
 	mutation := newCityMutation(c.config, OpDelete)
@@ -404,6 +410,12 @@ func (c *StreetClient) UpdateOneID(id int) *StreetUpdateOne {
 	mutation := newStreetMutation(c.config, OpUpdateOne)
 	mutation.id = &id
 	return &StreetUpdateOne{config: c.config, mutation: mutation}
+}
+
+// UpdateBulk returns a builder for updating a bulk of Street entities in set-based statements, each with
+// the changes of its builder.
+func (c *StreetClient) UpdateBulk(builders ...*StreetUpdateOne) *StreetUpdateBulk {
+	return &StreetUpdateBulk{config: c.config, builders: builders}
 }
 
 // Delete returns a delete builder for Street.

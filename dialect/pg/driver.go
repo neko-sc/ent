@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -87,6 +88,7 @@ func (d *Driver) Close() error {
 }
 
 func (d *Driver) Exec(ctx context.Context, query string, arguments []any) (dialect.Result, error) {
+	arguments = nativeArguments(arguments)
 	if len(entsql.VarsFromContext(ctx)) == 0 {
 		tag, err := d.pool.Exec(ctx, query, arguments...)
 		return result{tag}, mapError(err)
@@ -107,6 +109,7 @@ func (d *Driver) Exec(ctx context.Context, query string, arguments []any) (diale
 }
 
 func (d *Driver) Query(ctx context.Context, query string, arguments []any) (dialect.Rows, error) {
+	arguments = nativeArguments(arguments)
 	if len(entsql.VarsFromContext(ctx)) == 0 {
 		native, err := d.pool.Query(ctx, query, arguments...)
 		if err != nil {
@@ -174,7 +177,7 @@ func (t *Tx) Exec(ctx context.Context, query string, arguments []any) (dialect.R
 	if _, err := setVars(ctx, t.native, true); err != nil {
 		return nil, err
 	}
-	tag, err := t.native.Exec(ctx, query, arguments...)
+	tag, err := t.native.Exec(ctx, query, nativeArguments(arguments)...)
 	return result{tag}, mapError(err)
 }
 
@@ -182,7 +185,7 @@ func (t *Tx) Query(ctx context.Context, query string, arguments []any) (dialect.
 	if _, err := setVars(ctx, t.native, true); err != nil {
 		return nil, err
 	}
-	native, err := t.native.Query(ctx, query, arguments...)
+	native, err := t.native.Query(ctx, query, nativeArguments(arguments)...)
 	if err != nil {
 		return nil, mapError(err)
 	}
@@ -195,6 +198,58 @@ func (t *Tx) Rollback() error {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(t.ctx), 5*time.Second)
 	defer cancel()
 	return mapError(t.native.Rollback(ctx))
+}
+
+// nativeArguments wraps the array arguments in anyArray, which pgx encodes as PostgreSQL arrays.
+func nativeArguments(arguments []any) []any {
+	if !slices.ContainsFunc(arguments, func(argument any) bool { _, ok := argument.(entsql.ArrayArgument); return ok }) {
+		return arguments
+	}
+	wrapped := slices.Clone(arguments)
+	for index, argument := range wrapped {
+		if elements, ok := argument.(entsql.ArrayArgument); ok {
+			wrapped[index] = anyArray(elements)
+		}
+	}
+	return wrapped
+}
+
+// anyArray encodes through the array codec when pgx knows the parameter type. Arrays of unregistered
+// types, such as native enums, have no codec and fall back to Value.
+type anyArray []any
+
+func (a anyArray) Dimensions() []pgtype.ArrayDimension { return pgtype.FlatArray[any](a).Dimensions() }
+
+func (a anyArray) Index(index int) any { return a[index] }
+
+func (a anyArray) IndexType() any { return nil }
+
+// Value returns a pointer slice typed by the first non-nil converted element, which pgx encodes
+// in the text format that every array type accepts.
+func (a anyArray) Value() (driver.Value, error) {
+	var values reflect.Value
+	for index, element := range a {
+		converted, err := driver.DefaultParameterConverter.ConvertValue(element)
+		if err != nil {
+			return nil, err
+		}
+		if converted == nil {
+			continue
+		}
+		if !values.IsValid() {
+			values = reflect.MakeSlice(reflect.SliceOf(reflect.PointerTo(reflect.TypeOf(converted))), len(a), len(a))
+		}
+		if elementType := values.Type().Elem().Elem(); reflect.TypeOf(converted) != elementType {
+			return nil, fmt.Errorf("pg: array element %d has type %T, want %s", index, converted, elementType)
+		}
+		pointer := reflect.New(reflect.TypeOf(converted))
+		pointer.Elem().Set(reflect.ValueOf(converted))
+		values.Index(index).Set(pointer)
+	}
+	if !values.IsValid() {
+		return make([]*string, len(a)), nil
+	}
+	return values.Interface(), nil
 }
 
 type result struct{ pgconn.CommandTag }

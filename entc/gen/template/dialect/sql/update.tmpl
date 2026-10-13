@@ -33,6 +33,39 @@ func ({{ $receiver }} *{{ $builder }}) sqlSave(ctx context.Context) (_node {{ if
 	if err := {{ $receiver }}.check(); err != nil {
 		return _node, err
 	}
+	{{- /* Allow mutating the context of the statement by ent extensions or user templates.*/}}
+	{{- with $tmpls := matchTemplate "dialect/sql/update/context/*" }}
+		{{- range $tmpl := $tmpls }}
+			{{- xtemplate $tmpl $ }}
+		{{- end }}
+	{{- end }}
+	_spec, err := {{ $receiver }}.updateSpec()
+	if err != nil {
+		return _node, err
+	}
+	{{- if $one }}
+		_node = &{{ $.Name }}{config: {{ $receiver }}.config}
+		_spec.Assign = _node.assignValues
+		_spec.ScanValues = _node.scanValues
+		if {{ $receiver }}.old != nil {
+			_spec.OldScanValues = {{ $receiver }}.old.scanValues
+			_spec.OldAssign = {{ $receiver }}.old.assignValues
+		}
+		if err = sqlgraph.UpdateNode(ctx, {{ $receiver }}.driver, _spec); err != nil {
+	{{- else }}
+		if _node, err = sqlgraph.UpdateNodes(ctx, {{ $receiver }}.driver, _spec); err != nil {
+	{{- end }}
+		if _, ok := err.(*sqlgraph.NotFoundError); ok {
+			err = &NotFoundError{ {{ $.Package }}.Label}
+		} else if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{msg: err.Error(), wrap: err}
+		}
+		return {{ $zero }}, err
+	}
+	return _node, nil
+}
+
+func ({{ $receiver }} *{{ $builder }}) updateSpec() (*sqlgraph.UpdateSpec, error) {
 	_spec := sqlgraph.NewUpdateSpec({{ $.Package }}.Table, {{ $.Package }}.Columns,
 		{{- if $.HasOneFieldID -}}
 			sqlgraph.NewFieldSpec({{ $.Package }}.{{ $.ID.Constant }}, field.{{ $.ID.TypeConst }})
@@ -45,12 +78,12 @@ func ({{ $receiver }} *{{ $builder }}) sqlSave(ctx context.Context) (_node {{ if
 		{{- if $.HasOneFieldID }}
 			id, ok := {{ $mutation }}.ID()
 			if !ok {
-				return {{ $zero }}, &ValidationError{Name: "{{ $.ID.Name }}", err: errors.New(`{{ $pkg }}: missing "{{ $.Name }}.{{ $.ID.Name }}" for update`)}
+				return nil, &ValidationError{Name: "{{ $.ID.Name }}", err: errors.New(`{{ $pkg }}: missing "{{ $.Name }}.{{ $.ID.Name }}" for update`)}
 			}
 			{{- if $.ID.HasValueScanner }}
 				vv, err := {{ $.ID.ValueFunc }}(id)
 				if err != nil {
-					return {{ $zero }}, err
+					return nil, err
 				}
 				_spec.Node.ID.Value = vv
 			{{- else }}
@@ -96,7 +129,7 @@ func ({{ $receiver }} *{{ $builder }}) sqlSave(ctx context.Context) (_node {{ if
 					{{- if $f.HasValueScanner }}
 						vv, err := {{ $f.ValueFunc }}(value)
 						if err != nil {
-							return {{ $zero }}, err
+							return nil, err
 						}
 						_spec.SetField({{ $.Package }}.{{ $f.Constant }}, field.{{ $f.TypeConst }}, vv)
 					{{- else }}
@@ -108,7 +141,7 @@ func ({{ $receiver }} *{{ $builder }}) sqlSave(ctx context.Context) (_node {{ if
 						{{- if $f.HasValueScanner }}
 							vv, err := {{ $f.ValueFunc }}(value)
 							if err != nil {
-								return {{ $zero }}, err
+								return nil, err
 							}
 							_spec.AddField({{ $.Package }}.{{ $f.Constant }}, field.{{ $f.TypeConst }}, vv)
 						{{- else }}
@@ -143,14 +176,14 @@ func ({{ $receiver }} *{{ $builder }}) sqlSave(ctx context.Context) (_node {{ if
 		}
 		{{- if not $e.Unique }}
 			if nodes := {{ $mutation }}.patch.{{ $e.PatchSlot }}.Remove; len(nodes) > 0 && !{{ $mutation }}.patch.{{ $e.PatchSlot }}.Clear {
-				{{- with extend $ "Edge" $e "Nodes" true "Zero" $zero }}
+				{{- with extend $ "Edge" $e "Nodes" true }}
 					{{ template "dialect/sql/defedge" . }}
 				{{- end }}
 				_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 			}
 		{{- end }}
 		if nodes := {{ $mutation }}.patch.{{ camel $e.StructField }}IDs(); len(nodes) > 0 {
-			{{- with extend $ "Edge" $e "Nodes" true "Zero" $zero }}
+			{{- with extend $ "Edge" $e "Nodes" true }}
 				{{ template "dialect/sql/defedge" . }}
 			{{- end }}
 			_spec.Edges.Add = append(_spec.Edges.Add, edge)
@@ -168,28 +201,109 @@ func ({{ $receiver }} *{{ $builder }}) sqlSave(ctx context.Context) (_node {{ if
 			{{- xtemplate $tmpl $ }}
 		{{- end }}
 	{{- end }}
-	{{- if $one }}
-		_node = &{{ $.Name }}{config: {{ $receiver }}.config}
-		_spec.Assign = _node.assignValues
-		_spec.ScanValues = _node.scanValues
-		if {{ $receiver }}.old != nil {
-			_spec.OldScanValues = {{ $receiver }}.old.scanValues
-			_spec.OldAssign = {{ $receiver }}.old.assignValues
+	return _spec, nil
+}
+{{ end }}
+
+{{ define "dialect/sql/update_bulk" }}
+{{ $receiver := $.Scope.Receiver }}
+
+// Save updates the entities and returns them in the order of the builders. Entities that do not exist or do not
+// match the predicates fail the whole update. Inside a transaction, the caller must roll it back on error.
+func ({{ $receiver }} *{{ $.UpdateBulkName }}) Save(ctx context.Context) ([]*{{ $.Name }}, error) {
+	nodes, _spec, err := {{ $receiver }}.batchSpec()
+	if err != nil {
+		return nil, err
+	}
+	if err := {{ $receiver }}.sqlSave(ctx, _spec); err != nil {
+		return nil, err
+	}
+	return nodes, nil
+}
+
+// SaveX is like Save, but panics if an error occurs.
+func ({{ $receiver }} *{{ $.UpdateBulkName }}) SaveX(ctx context.Context) []*{{ $.Name }} {
+	nodes, err := {{ $receiver }}.Save(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return nodes
+}
+
+// Exec is like Save, but reads back only the IDs of the entities, to find those that do not exist or do not
+// match the predicates and fail the whole update. Inside a transaction, the caller must roll it back on error.
+func ({{ $receiver }} *{{ $.UpdateBulkName }}) Exec(ctx context.Context) error {
+	_, _spec, err := {{ $receiver }}.batchSpec()
+	if err != nil {
+		return err
+	}
+	columns := []string{
+		{{- if $.HasOneFieldID }}{{ $.Package }}.{{ $.ID.Constant }}{{ else }}{{ range $id := $.EdgeSchema.ID }}{{ $.Package }}.{{ $id.Constant }}, {{ end }}{{ end -}}
+	}
+	for index := range _spec.Nodes {
+		_spec.Nodes[index].Node.Columns = columns
+	}
+	return {{ $receiver }}.sqlSave(ctx, _spec)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func ({{ $receiver }} *{{ $.UpdateBulkName }}) ExecX(ctx context.Context) {
+	if err := {{ $receiver }}.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// batchSpec returns the entities that the update assigns and the spec of the update.
+func ({{ $receiver }} *{{ $.UpdateBulkName }}) batchSpec() ([]*{{ $.Name }}, *sqlgraph.BatchUpdateSpec, error) {
+	nodes := make([]*{{ $.Name }}, len({{ $receiver }}.builders))
+	_spec := &sqlgraph.BatchUpdateSpec{
+		Nodes: make([]*sqlgraph.UpdateSpec, len({{ $receiver }}.builders)),
+		PostgresTypes: postgresColumnTypes[{{ $.Package }}.Table],
+	}
+	for index, builder := range {{ $receiver }}.builders {
+		if builder.err != nil {
+			return nil, nil, builder.err
 		}
+		if err := builder.defaults(); err != nil {
+			return nil, nil, err
+		}
+		if err := builder.check(); err != nil {
+			return nil, nil, err
+		}
+		node, err := builder.updateSpec()
+		if err != nil {
+			return nil, nil, err
+		}
+		nodes[index] = &{{ $.Name }}{config: {{ $receiver }}.config}
+		node.Assign = nodes[index].assignValues
+		node.ScanValues = nodes[index].scanValues
+		_spec.Nodes[index] = node
+	}
+	if ps := {{ $receiver }}.predicates; len(ps) > 0 {
+		_spec.Predicate = func(selector *sql.Selector) {
+			for i := range ps {
+				ps[i](selector)
+			}
+		}
+	}
+	return nodes, _spec, nil
+}
+
+func ({{ $receiver }} *{{ $.UpdateBulkName }}) sqlSave(ctx context.Context, _spec *sqlgraph.BatchUpdateSpec) error {
+	{{- with $tmpls := matchTemplate "dialect/sql/update/context/*" }}
+		{{- range $tmpl := $tmpls }}
+			{{- xtemplate $tmpl $ }}
+		{{- end }}
 	{{- end }}
-	{{- if $one }}
-		if err = sqlgraph.UpdateNode(ctx, {{ $receiver }}.driver, _spec); err != nil {
-	{{- else }}
-		if _node, err = sqlgraph.UpdateNodes(ctx, {{ $receiver }}.driver, _spec); err != nil {
-	{{- end }}
+	if err := sqlgraph.BatchUpdate(ctx, {{ $receiver }}.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{ {{ $.Package }}.Label}
 		} else if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}
-		return {{ $zero }}, err
+		return err
 	}
-	return _node, nil
+	return nil
 }
 {{ end }}
 
@@ -224,9 +338,9 @@ func ({{ $receiver }} *{{ $builder }}) sqlSave(ctx context.Context) (_node {{ if
 		{{- if .HasDefault }}
 			createE := &{{ .CreateName }}{config: {{ $receiver }}.config, mutation: new{{ .MutationName }}({{ $receiver }}.config, OpCreate)}
 			{{- /* Skip error handling here as this check was already handled. */}}
-			if err := createE.defaults(); err != nil { return {{ if eq $.Scope.Builder $.CreateName }}nil, nil,{{ else }}{{ if hasSuffix $.Scope.Builder "One" }}nil{{ else }}0{{ end }},{{ end }} err }
+			if err := createE.defaults(); err != nil { return nil,{{ if eq $.Scope.Builder $.CreateName }} nil,{{ end }} err }
 			_, specE, err := createE.createSpec()
-                if err != nil { return {{ if eq $.Scope.Builder $.CreateName }}nil, nil,{{ else }}{{ if hasSuffix $.Scope.Builder "One" }}nil{{ else }}0{{ end }},{{ end }} err }
+                if err != nil { return nil,{{ if eq $.Scope.Builder $.CreateName }} nil,{{ end }} err }
 			edge.Target.Fields = specE.Fields
 			{{- if and .HasOneFieldID .ID.Default }}
 				if specE.ID.Value != nil {

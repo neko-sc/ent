@@ -425,6 +425,48 @@ func TestBatchCreateStatements(t *testing.T) {
 	}
 }
 
+func TestBatchUpdateStatements(t *testing.T) {
+	t.Run("ids", func(t *testing.T) {
+		driver, mock := newStatementDriver(t, dialect.SQLite)
+		assigned := make(map[any]map[string]any)
+		nodes := []*UpdateSpec{batchUser(assigned, 1), batchUser(assigned, 2), batchUser(assigned, 3)}
+		for _, node := range nodes {
+			node.Node.Schema = "tenant"
+			node.SetField("name", field.TypeString, "a")
+		}
+		mock.ExpectBegin()
+		mock.ExpectQuery("UPDATE").WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1).AddRow(2).AddRow(3))
+		mock.ExpectCommit()
+		require.NoError(t, BatchUpdate(t.Context(), driver, &BatchUpdateSpec{Nodes: nodes}))
+		require.Len(t, driver.calls, 1)
+		require.Equal(t, &dialect.Statement{Kind: dialect.StatementWrite, Tables: []string{"tenant.users"}, Rows: []dialect.RowRef{{Table: "tenant.users", ID: 1}, {Table: "tenant.users", ID: 2}, {Table: "tenant.users", ID: 3}}}, driver.calls[0].statement)
+	})
+	t.Run("composite", func(t *testing.T) {
+		driver, mock := newStatementDriver(t, dialect.SQLite)
+		node := batchTrack(NewUpdateSpec("friendships", []string{"user_id", "friend_id"}, &FieldSpec{Column: "user_id", Value: 1}, &FieldSpec{Column: "friend_id", Value: 2}), make(map[any]map[string]any), 1)
+		node.SetField("weight", field.TypeInt, 1)
+		mock.ExpectBegin()
+		mock.ExpectQuery("UPDATE").WillReturnRows(sqlmock.NewRows([]string{"user_id", "friend_id"}).AddRow(1, 2))
+		mock.ExpectCommit()
+		require.NoError(t, BatchUpdate(t.Context(), driver, &BatchUpdateSpec{Nodes: []*UpdateSpec{node}}))
+		require.Equal(t, &dialect.Statement{Kind: dialect.StatementWrite, Tables: []string{"friendships"}, Bulk: []string{"friendships"}}, driver.calls[0].statement)
+	})
+	t.Run("no changes", func(t *testing.T) {
+		driver, mock := newStatementDriver(t, dialect.SQLite)
+		assigned := make(map[any]map[string]any)
+		nodes := []*UpdateSpec{batchUser(assigned, 1), batchUser(assigned, 2)}
+		for _, node := range nodes {
+			node.Node.Schema = "tenant"
+		}
+		mock.ExpectBegin()
+		mock.ExpectQuery("SELECT").WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1).AddRow(2))
+		mock.ExpectCommit()
+		require.NoError(t, BatchUpdate(t.Context(), driver, &BatchUpdateSpec{Nodes: nodes}))
+		require.Len(t, driver.calls, 1)
+		require.Equal(t, &dialect.Statement{Kind: dialect.StatementRead, Tables: []string{"tenant.users"}, IDColumn: "id"}, driver.calls[0].statement)
+	})
+}
+
 func TestInterruptedCreateStatements(t *testing.T) {
 	for _, batch := range []bool{false, true} {
 		for _, returning := range []bool{false, true} {

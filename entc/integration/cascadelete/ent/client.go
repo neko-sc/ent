@@ -273,6 +273,12 @@ func (c *CommentClient) UpdateOneID(id int) *CommentUpdateOne {
 	return &CommentUpdateOne{config: c.config, mutation: mutation}
 }
 
+// UpdateBulk returns a builder for updating a bulk of Comment entities in set-based statements, each with
+// the changes of its builder.
+func (c *CommentClient) UpdateBulk(builders ...*CommentUpdateOne) *CommentUpdateBulk {
+	return &CommentUpdateBulk{config: c.config, builders: builders}
+}
+
 // Delete returns a delete builder for Comment.
 func (c *CommentClient) Delete() *CommentDelete {
 	mutation := newCommentMutation(c.config, OpDelete)
@@ -412,6 +418,12 @@ func (c *PostClient) UpdateOneID(id int) *PostUpdateOne {
 	mutation := newPostMutation(c.config, OpUpdateOne)
 	mutation.id = &id
 	return &PostUpdateOne{config: c.config, mutation: mutation}
+}
+
+// UpdateBulk returns a builder for updating a bulk of Post entities in set-based statements, each with
+// the changes of its builder.
+func (c *PostClient) UpdateBulk(builders ...*PostUpdateOne) *PostUpdateBulk {
+	return &PostUpdateBulk{config: c.config, builders: builders}
 }
 
 // Delete returns a delete builder for Post.
@@ -569,6 +581,12 @@ func (c *UserClient) UpdateOneID(id int) *UserUpdateOne {
 	mutation := newUserMutation(c.config, OpUpdateOne)
 	mutation.id = &id
 	return &UserUpdateOne{config: c.config, mutation: mutation}
+}
+
+// UpdateBulk returns a builder for updating a bulk of User entities in set-based statements, each with
+// the changes of its builder.
+func (c *UserClient) UpdateBulk(builders ...*UserUpdateOne) *UserUpdateBulk {
+	return &UserUpdateBulk{config: c.config, builders: builders}
 }
 
 // Delete returns a delete builder for User.

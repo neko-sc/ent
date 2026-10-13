@@ -222,3 +222,76 @@ func IsConstraintError(err error) bool {
 
 // queryHook describes an internal hook for the different sqlAll methods.
 type queryHook func(context.Context, *sqlgraph.QuerySpec)
+
+// postgresColumnTypes maps the tables to the PostgreSQL types of their columns.
+var postgresColumnTypes = map[string]map[string]string{
+	"Car": {
+		"id":       "bigint",
+		"name":     "text",
+		"user_car": "bigint",
+	},
+	"blogs": {
+		"id":  "integer",
+		"oid": "integer",
+	},
+	"conversions": {
+		"id":               "bigint",
+		"int16_to_string":  "text",
+		"int32_to_string":  "text",
+		"int64_to_string":  "text",
+		"int8_to_string":   "text",
+		"name":             "text",
+		"uint16_to_string": "text",
+		"uint32_to_string": "text",
+		"uint64_to_string": "text",
+		"uint8_to_string":  "text",
+	},
+	"custom_types": {
+		"custom": "customtype",
+		"id":     "bigint",
+		"tz0":    "timestamptz",
+		"tz3":    "timestamptz",
+	},
+	"groups": {
+		"id": "bigint",
+	},
+	"media": {
+		"id":         "bigint",
+		"source":     "text",
+		"source_uri": "text",
+		"text":       "text",
+	},
+	"pets": {
+		"id":       "bigint",
+		"name":     "text",
+		"owner_id": "bigint",
+	},
+	"users": {
+		"active":        "boolean",
+		"age":           "bigint",
+		"blob":          "bytea",
+		"blog_admins":   "integer",
+		"buffer":        "bytea",
+		"created_at":    "timestamptz",
+		"default_expr":  "text",
+		"default_exprs": "text",
+		"description":   "text",
+		"drop_optional": "text",
+		"mixed_enum":    "text",
+		"mixed_string":  "text",
+		"name":          "text",
+		"new_token":     "text",
+		"nickname":      "text",
+		"oid":           "bigint",
+		"phone":         "text",
+		"renamed":       "text",
+		"roles":         "jsonb",
+		"state":         "text",
+		"status":        "text",
+		"title":         "text",
+		"workplace":     "text",
+	},
+	"zoos": {
+		"id": "bigint",
+	},
+}

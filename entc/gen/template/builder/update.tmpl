@@ -95,5 +95,16 @@ func(b *{{ $builder }}) check() error {
 }
 {{ with extend $ "Builder" $builder "Receiver" $receiver "Package" (base $.Config.Package) }}{{ template "dialect/sql/update" . }}{{ end }}
 {{ end }}
+
+// {{ $.UpdateBulkName }} updates a bulk of {{ $.Name }} entities, each with the changes of its builder, in set-based statements.
+type {{ $.UpdateBulkName }} struct {
+    config
+    builders []*{{ $.UpdateOneName }}
+    predicates []ent.Predicate[entity.{{ $.Name }}]
+}
+
+// Where adds predicates that every updated entity must match. Entities that do not match fail the update with a NotFoundError.
+func(b *{{ $.UpdateBulkName }}) Where(predicates ...ent.Predicate[entity.{{ $.Name }}]) *{{ $.UpdateBulkName }} { b.predicates = append(b.predicates, predicates...); return b }
+{{ with extend $ "Builder" $.UpdateBulkName "Receiver" $.UpdateBulkReceiver }}{{ template "dialect/sql/update_bulk" . }}{{ end }}
 {{ range $tmpl := matchTemplate "update/additional/*" }}{{ xtemplate $tmpl $ }}{{ end }}
 {{ end }}

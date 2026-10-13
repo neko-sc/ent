@@ -120,6 +120,35 @@ func TestGeneratedClient(t *testing.T) {
 		})
 	})
 
+	t.Run("bulk update invalidates the updated rows", func(t *testing.T) {
+		client, _ := newClient(t)
+		changed := createUser(t, client, "ada@example.com")
+		untouched := createUser(t, client, "grace@example.com")
+		ctx, info := cache.WithInfo(cache.Cache(t.Context()))
+		for _, warmed := range []*generated.User{changed, untouched} {
+			_, err := client.User.Get(ctx, warmed.ID)
+			require.NoError(t, err)
+			_, err = client.User.Get(ctx, warmed.ID)
+			require.NoError(t, err)
+			require.True(t, info.Hit)
+		}
+
+		updated, err := client.User.UpdateBulk(
+			client.User.UpdateOneID(changed.ID).Set(user.Name, "Grace").Add(user.Age, 1),
+		).Save(t.Context())
+		require.NoError(t, err)
+
+		found, err := client.User.Get(ctx, changed.ID)
+		require.NoError(t, err)
+		require.False(t, info.Hit)
+		requireUser(t, updated[0], found)
+
+		found, err = client.User.Get(ctx, untouched.ID)
+		require.NoError(t, err)
+		require.True(t, info.Hit)
+		requireUser(t, untouched, found)
+	})
+
 	t.Run("unique email", func(t *testing.T) {
 		client, _ := newClient(t)
 		created := createUser(t, client, "ada@example.com")

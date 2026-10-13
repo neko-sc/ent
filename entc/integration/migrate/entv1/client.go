@@ -281,6 +281,12 @@ func (c *CarClient) UpdateOneID(id int) *CarUpdateOne {
 	return &CarUpdateOne{config: c.config, mutation: mutation}
 }
 
+// UpdateBulk returns a builder for updating a bulk of Car entities in set-based statements, each with
+// the changes of its builder.
+func (c *CarClient) UpdateBulk(builders ...*CarUpdateOne) *CarUpdateBulk {
+	return &CarUpdateBulk{config: c.config, builders: builders}
+}
+
 // Delete returns a delete builder for Car.
 func (c *CarClient) Delete() *CarDelete {
 	mutation := newCarMutation(c.config, OpDelete)
@@ -422,6 +428,12 @@ func (c *ConversionClient) UpdateOneID(id int) *ConversionUpdateOne {
 	return &ConversionUpdateOne{config: c.config, mutation: mutation}
 }
 
+// UpdateBulk returns a builder for updating a bulk of Conversion entities in set-based statements, each with
+// the changes of its builder.
+func (c *ConversionClient) UpdateBulk(builders ...*ConversionUpdateOne) *ConversionUpdateBulk {
+	return &ConversionUpdateBulk{config: c.config, builders: builders}
+}
+
 // Delete returns a delete builder for Conversion.
 func (c *ConversionClient) Delete() *ConversionDelete {
 	mutation := newConversionMutation(c.config, OpDelete)
@@ -547,6 +559,12 @@ func (c *CustomTypeClient) UpdateOneID(id int) *CustomTypeUpdateOne {
 	return &CustomTypeUpdateOne{config: c.config, mutation: mutation}
 }
 
+// UpdateBulk returns a builder for updating a bulk of CustomType entities in set-based statements, each with
+// the changes of its builder.
+func (c *CustomTypeClient) UpdateBulk(builders ...*CustomTypeUpdateOne) *CustomTypeUpdateBulk {
+	return &CustomTypeUpdateBulk{config: c.config, builders: builders}
+}
+
 // Delete returns a delete builder for CustomType.
 func (c *CustomTypeClient) Delete() *CustomTypeDelete {
 	mutation := newCustomTypeMutation(c.config, OpDelete)
@@ -670,6 +688,12 @@ func (c *UserClient) UpdateOneID(id int) *UserUpdateOne {
 	mutation := newUserMutation(c.config, OpUpdateOne)
 	mutation.id = &id
 	return &UserUpdateOne{config: c.config, mutation: mutation}
+}
+
+// UpdateBulk returns a builder for updating a bulk of User entities in set-based statements, each with
+// the changes of its builder.
+func (c *UserClient) UpdateBulk(builders ...*UserUpdateOne) *UserUpdateBulk {
+	return &UserUpdateBulk{config: c.config, builders: builders}
 }
 
 // Delete returns a delete builder for User.

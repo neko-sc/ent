@@ -264,6 +264,12 @@ func (c *GroupClient) UpdateOneID(id int) *GroupUpdateOne {
 	return &GroupUpdateOne{config: c.config, mutation: mutation}
 }
 
+// UpdateBulk returns a builder for updating a bulk of Group entities in set-based statements, each with
+// the changes of its builder.
+func (c *GroupClient) UpdateBulk(builders ...*GroupUpdateOne) *GroupUpdateBulk {
+	return &GroupUpdateBulk{config: c.config, builders: builders}
+}
+
 // Delete returns a delete builder for Group.
 func (c *GroupClient) Delete() *GroupDelete {
 	mutation := newGroupMutation(c.config, OpDelete)
@@ -387,6 +393,12 @@ func (c *UserClient) UpdateOneID(id int) *UserUpdateOne {
 	mutation := newUserMutation(c.config, OpUpdateOne)
 	mutation.id = &id
 	return &UserUpdateOne{config: c.config, mutation: mutation}
+}
+
+// UpdateBulk returns a builder for updating a bulk of User entities in set-based statements, each with
+// the changes of its builder.
+func (c *UserClient) UpdateBulk(builders ...*UserUpdateOne) *UserUpdateBulk {
+	return &UserUpdateBulk{config: c.config, builders: builders}
 }
 
 // Delete returns a delete builder for User.

@@ -20,6 +20,7 @@ import (
 	"strings"
 	"text/template/parse"
 
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql/schema"
 	"github.com/neko-sc/ent/entc/load"
 	"github.com/neko-sc/ent/schema/field"
@@ -698,7 +699,11 @@ func (g *Graph) edgeSchemas() error {
 }
 
 // Tables returns the schema definitions of SQL tables for the graph.
-func (g *Graph) Tables() (all []*schema.Table, err error) {
+func (g *Graph) Tables() ([]*schema.Table, error) { return g.tables(true) }
+
+// tables returns the SQL tables of the graph. Migrated tables
+// omit the tables and fields that entsql.Skip excludes from migrations.
+func (g *Graph) tables(migrated bool) (all []*schema.Table, err error) {
 	tables := make(map[string]*schema.Table)
 	for _, n := range g.MutableNodes() {
 		table := schema.NewTable(n.Table()).
@@ -709,13 +714,13 @@ func (g *Graph) Tables() (all []*schema.Table, err error) {
 		}
 		switch ant := n.EntSQL(); {
 		case ant == nil:
-		case ant.Skip:
+		case ant.Skip && migrated:
 			continue
 		default:
 			table.SetAnnotation(ant).SetSchema(ant.Schema)
 		}
 		for _, f := range n.Fields {
-			if a := f.EntSQL(); a != nil && a.Skip {
+			if a := f.EntSQL(); a != nil && a.Skip && migrated {
 				continue
 			}
 			if !f.IsEdgeField() {
@@ -875,6 +880,34 @@ func (g *Graph) Views() (views []*schema.Table, err error) {
 		views = append(views, view)
 	}
 	return
+}
+
+// PostgresColumnTypes returns the PostgreSQL types of the node table columns, keyed by table and column
+// name, including tables and fields that migrations skip. Columns without a PostgreSQL type, such as
+// Other fields without a PostgreSQL SchemaType, are omitted.
+func (g *Graph) PostgresColumnTypes() (map[string]map[string]string, error) {
+	tables, err := g.tables(false)
+	if err != nil {
+		return nil, err
+	}
+	nodes, types := g.MutableNodes(), make(map[string]map[string]string)
+	for _, table := range tables {
+		if !slices.ContainsFunc(nodes, func(n *Type) bool { return n.Table() == table.Name }) {
+			continue
+		}
+		types[table.Name] = make(map[string]string, len(table.Columns))
+		for _, column := range table.Columns {
+			if column.Type == field.TypeOther && column.SchemaType[dialect.Postgres] == "" {
+				continue
+			}
+			postgresType, err := schema.PostgresType(column)
+			if err != nil {
+				return nil, fmt.Errorf("postgres type of column %q in table %q: %w", column.Name, table.Name, err)
+			}
+			types[table.Name][column.Name] = postgresType
+		}
+	}
+	return types, nil
 }
 
 // mayAddColumn adds the given column if it does not already exist in the table.

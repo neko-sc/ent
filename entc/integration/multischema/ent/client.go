@@ -317,6 +317,12 @@ func (c *FriendshipClient) UpdateOneID(id int) *FriendshipUpdateOne {
 	return &FriendshipUpdateOne{config: c.config, mutation: mutation}
 }
 
+// UpdateBulk returns a builder for updating a bulk of Friendship entities in set-based statements, each with
+// the changes of its builder.
+func (c *FriendshipClient) UpdateBulk(builders ...*FriendshipUpdateOne) *FriendshipUpdateBulk {
+	return &FriendshipUpdateBulk{config: c.config, builders: builders}
+}
+
 // Delete returns a delete builder for Friendship.
 func (c *FriendshipClient) Delete() *FriendshipDelete {
 	mutation := newFriendshipMutation(c.config, OpDelete)
@@ -480,6 +486,12 @@ func (c *GroupClient) UpdateOneID(id int) *GroupUpdateOne {
 	return &GroupUpdateOne{config: c.config, mutation: mutation}
 }
 
+// UpdateBulk returns a builder for updating a bulk of Group entities in set-based statements, each with
+// the changes of its builder.
+func (c *GroupClient) UpdateBulk(builders ...*GroupUpdateOne) *GroupUpdateBulk {
+	return &GroupUpdateBulk{config: c.config, builders: builders}
+}
+
 // Delete returns a delete builder for Group.
 func (c *GroupClient) Delete() *GroupDelete {
 	mutation := newGroupMutation(c.config, OpDelete)
@@ -622,6 +634,12 @@ func (c *ParentClient) UpdateOneID(id int) *ParentUpdateOne {
 	mutation := newParentMutation(c.config, OpUpdateOne)
 	mutation.id = &id
 	return &ParentUpdateOne{config: c.config, mutation: mutation}
+}
+
+// UpdateBulk returns a builder for updating a bulk of Parent entities in set-based statements, each with
+// the changes of its builder.
+func (c *ParentClient) UpdateBulk(builders ...*ParentUpdateOne) *ParentUpdateBulk {
+	return &ParentUpdateBulk{config: c.config, builders: builders}
 }
 
 // Delete returns a delete builder for Parent.
@@ -787,6 +805,12 @@ func (c *PetClient) UpdateOneID(id int) *PetUpdateOne {
 	return &PetUpdateOne{config: c.config, mutation: mutation}
 }
 
+// UpdateBulk returns a builder for updating a bulk of Pet entities in set-based statements, each with
+// the changes of its builder.
+func (c *PetClient) UpdateBulk(builders ...*PetUpdateOne) *PetUpdateBulk {
+	return &PetUpdateBulk{config: c.config, builders: builders}
+}
+
 // Delete returns a delete builder for Pet.
 func (c *PetClient) Delete() *PetDelete {
 	mutation := newPetMutation(c.config, OpDelete)
@@ -929,6 +953,12 @@ func (c *UserClient) UpdateOneID(id int) *UserUpdateOne {
 	mutation := newUserMutation(c.config, OpUpdateOne)
 	mutation.id = &id
 	return &UserUpdateOne{config: c.config, mutation: mutation}
+}
+
+// UpdateBulk returns a builder for updating a bulk of User entities in set-based statements, each with
+// the changes of its builder.
+func (c *UserClient) UpdateBulk(builders ...*UserUpdateOne) *UserUpdateBulk {
+	return &UserUpdateBulk{config: c.config, builders: builders}
 }
 
 // Delete returns a delete builder for User.

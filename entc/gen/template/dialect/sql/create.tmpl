@@ -40,7 +40,7 @@ func({{ $receiver }} *{{ $.CreateName }}) createSpec() (*{{ $.Name }}, *sqlgraph
     _spec.Expressions = {{ $receiver }}.mutation.insert.expressions
     {{ range $e := $.EdgesWithID }}
     if nodes := {{ $receiver }}.mutation.insert.{{ camel $e.StructField }}IDs(); len(nodes) > 0 {
-        {{ with extend $ "Edge" $e "Nodes" true "Zero" "nil" }}{{ template "dialect/sql/defedge" . }}{{ end }}
+        {{ with extend $ "Edge" $e "Nodes" true }}{{ template "dialect/sql/defedge" . }}{{ end }}
         _spec.Edges = append(_spec.Edges, edge)
     }
     {{ end }}

@@ -222,3 +222,91 @@ func IsConstraintError(err error) bool {
 
 // queryHook describes an internal hook for the different sqlAll methods.
 type queryHook func(context.Context, *sqlgraph.QuerySpec)
+
+// postgresColumnTypes maps the tables to the PostgreSQL types of their columns.
+var postgresColumnTypes = map[string]map[string]string{
+	"attached_files": {
+		"attach_time": "timestamptz",
+		"f_id":        "bigint",
+		"id":          "bigint",
+		"proc_id":     "bigint",
+	},
+	"files": {
+		"id":   "bigint",
+		"name": "text",
+	},
+	"friendships": {
+		"created_at": "timestamptz",
+		"friend_id":  "bigint",
+		"id":         "bigint",
+		"user_id":    "bigint",
+		"weight":     "bigint",
+	},
+	"group_tags": {
+		"group_id": "bigint",
+		"id":       "bigint",
+		"tag_id":   "bigint",
+	},
+	"groups": {
+		"id":   "bigint",
+		"name": "text",
+	},
+	"processes": {
+		"id": "bigint",
+	},
+	"relationship_infos": {
+		"id":   "bigint",
+		"text": "text",
+	},
+	"relationships": {
+		"info_id":     "bigint",
+		"relative_id": "bigint",
+		"user_id":     "bigint",
+		"weight":      "bigint",
+	},
+	"role_users": {
+		"created_at": "timestamptz",
+		"role_id":    "bigint",
+		"user_id":    "bigint",
+	},
+	"roles": {
+		"created_at": "timestamptz",
+		"id":         "bigint",
+		"name":       "text",
+	},
+	"tags": {
+		"id":    "bigint",
+		"value": "text",
+	},
+	"tweet_likes": {
+		"liked_at": "timestamptz",
+		"tweet_id": "bigint",
+		"user_id":  "bigint",
+	},
+	"tweet_tags": {
+		"added_at": "timestamptz",
+		"id":       "uuid",
+		"tag_id":   "bigint",
+		"tweet_id": "bigint",
+	},
+	"tweets": {
+		"id":   "bigint",
+		"text": "text",
+	},
+	"user_groups": {
+		"group_id":  "bigint",
+		"id":        "bigint",
+		"joined_at": "timestamptz",
+		"user_id":   "bigint",
+	},
+	"user_tweets": {
+		"created_at": "timestamptz",
+		"id":         "bigint",
+		"tweet_id":   "bigint",
+		"user_id":    "bigint",
+	},
+	"users": {
+		"id":   "bigint",
+		"name": "text",
+	},
+}

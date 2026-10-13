@@ -14,6 +14,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/entsql"
 	"github.com/neko-sc/ent/dialect/sql/schema"
 	"github.com/neko-sc/ent/entc/load"
@@ -668,6 +669,7 @@ func TestGraph_GenSemanticFields(t *testing.T) {
 	client, err := os.ReadFile(filepath.Join(target, "client.go"))
 	require.NoError(err)
 	require.Contains(string(client), "func (c *Client) Driver() dialect.Driver")
+	require.Contains(string(client), "func (c *UserClient) UpdateBulk(builders ...*UserUpdateOne) *UserUpdateBulk")
 	update, err := os.ReadFile(filepath.Join(target, "user_update.go"))
 	require.NoError(err)
 	require.Contains(string(update), "func (b *UserUpdate) check() error")
@@ -676,6 +678,9 @@ func TestGraph_GenSemanticFields(t *testing.T) {
 	require.Contains(string(update), "v.Validate()")
 	require.Contains(string(update), "user.StateValuesValidator(v)")
 	require.Contains(string(update), "user.StateValidator(v)")
+	require.Contains(string(update), "type UserUpdateBulk struct")
+	require.Contains(string(update), "func (_u *UserUpdateBulk) Save(ctx context.Context) ([]*User, error)")
+	require.Contains(string(update), "func (_u *UserUpdateBulk) Exec(ctx context.Context) error")
 
 	workingDirectory, err := os.Getwd()
 	require.NoError(err)
@@ -981,4 +986,57 @@ func TestEdgeFieldCollation(t *testing.T) {
 	col, ok := postTable.Column("author_id")
 	require.True(t, ok)
 	require.Equal(t, "utf8mb4_bin", col.Collation)
+}
+
+func TestGraph_PostgresColumnTypes(t *testing.T) {
+	var (
+		user = &load.Schema{
+			Name: "User",
+			Fields: []*load.Field{
+				{Name: "id", Type: field.TypeString, Semantic: builtinFieldType(field.TypeString), SchemaType: map[string]string{dialect.Postgres: "uuid"}},
+				{Name: "name", Type: field.TypeString, Semantic: builtinFieldType(field.TypeString)},
+				{Name: "location", Type: field.TypeOther, Semantic: builtinFieldType(field.TypeOther), SchemaType: map[string]string{dialect.SQLite: "blob"}},
+				{Name: "external", Type: field.TypeInt, Semantic: builtinFieldType(field.TypeInt), Annotations: map[string]any{"EntSQL": entsql.Annotation{Skip: true}}},
+			},
+			Edges: []*load.Edge{
+				{Name: "groups", Type: "Group"},
+			},
+		}
+		audit = &load.Schema{
+			Name: "Audit",
+			Fields: []*load.Field{
+				{Name: "action", Type: field.TypeString, Semantic: builtinFieldType(field.TypeString)},
+			},
+			Annotations: map[string]any{"EntSQL": entsql.Annotation{Skip: true}},
+		}
+		post = &load.Schema{
+			Name: "Post",
+			Edges: []*load.Edge{
+				{Name: "author", Type: "User", Unique: true},
+			},
+		}
+		group = &load.Schema{
+			Name: "Group",
+			Edges: []*load.Edge{
+				{Name: "users", Type: "User", RefName: "groups", Inverse: true},
+			},
+		}
+		userView = &load.Schema{
+			View: true,
+			Name: "UserView",
+			Fields: []*load.Field{
+				{Name: "name", Type: field.TypeString, Semantic: builtinFieldType(field.TypeString)},
+			},
+		}
+	)
+	g, err := NewGraph(&Config{Package: "entc/gen", Storage: drivers[0]}, user, post, group, userView, audit)
+	require.NoError(t, err)
+	types, err := g.PostgresColumnTypes()
+	require.NoError(t, err)
+	require.Equal(t, map[string]map[string]string{
+		"users":  {"id": "uuid", "name": "text", "external": "bigint"},
+		"posts":  {"id": "bigint", "post_author": "uuid"},
+		"groups": {"id": "bigint"},
+		"audits": {"id": "bigint", "action": "text"},
+	}, types)
 }

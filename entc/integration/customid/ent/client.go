@@ -397,6 +397,12 @@ func (c *AccountClient) UpdateOneID(id sid.ID) *AccountUpdateOne {
 	return &AccountUpdateOne{config: c.config, mutation: mutation}
 }
 
+// UpdateBulk returns a builder for updating a bulk of Account entities in set-based statements, each with
+// the changes of its builder.
+func (c *AccountClient) UpdateBulk(builders ...*AccountUpdateOne) *AccountUpdateBulk {
+	return &AccountUpdateBulk{config: c.config, builders: builders}
+}
+
 // Delete returns a delete builder for Account.
 func (c *AccountClient) Delete() *AccountDelete {
 	mutation := newAccountMutation(c.config, OpDelete)
@@ -536,6 +542,12 @@ func (c *BlobClient) UpdateOneID(id uuid.UUID) *BlobUpdateOne {
 	mutation := newBlobMutation(c.config, OpUpdateOne)
 	mutation.id = &id
 	return &BlobUpdateOne{config: c.config, mutation: mutation}
+}
+
+// UpdateBulk returns a builder for updating a bulk of Blob entities in set-based statements, each with
+// the changes of its builder.
+func (c *BlobClient) UpdateBulk(builders ...*BlobUpdateOne) *BlobUpdateBulk {
+	return &BlobUpdateBulk{config: c.config, builders: builders}
 }
 
 // Delete returns a delete builder for Blob.
@@ -704,6 +716,12 @@ func (c *BlobLinkClient) UpdateOne(_m *BlobLink) *BlobLinkUpdateOne {
 
 }
 
+// UpdateBulk returns a builder for updating a bulk of BlobLink entities in set-based statements, each with
+// the changes of its builder.
+func (c *BlobLinkClient) UpdateBulk(builders ...*BlobLinkUpdateOne) *BlobLinkUpdateBulk {
+	return &BlobLinkUpdateBulk{config: c.config, builders: builders}
+}
+
 // Delete returns a delete builder for BlobLink.
 func (c *BlobLinkClient) Delete() *BlobLinkDelete {
 	mutation := newBlobLinkMutation(c.config, OpDelete)
@@ -814,6 +832,12 @@ func (c *CarClient) UpdateOneID(id int) *CarUpdateOne {
 	mutation := newCarMutation(c.config, OpUpdateOne)
 	mutation.id = &id
 	return &CarUpdateOne{config: c.config, mutation: mutation}
+}
+
+// UpdateBulk returns a builder for updating a bulk of Car entities in set-based statements, each with
+// the changes of its builder.
+func (c *CarClient) UpdateBulk(builders ...*CarUpdateOne) *CarUpdateBulk {
+	return &CarUpdateBulk{config: c.config, builders: builders}
 }
 
 // Delete returns a delete builder for Car.
@@ -955,6 +979,12 @@ func (c *DeviceClient) UpdateOneID(id schema2.ID) *DeviceUpdateOne {
 	mutation := newDeviceMutation(c.config, OpUpdateOne)
 	mutation.id = &id
 	return &DeviceUpdateOne{config: c.config, mutation: mutation}
+}
+
+// UpdateBulk returns a builder for updating a bulk of Device entities in set-based statements, each with
+// the changes of its builder.
+func (c *DeviceClient) UpdateBulk(builders ...*DeviceUpdateOne) *DeviceUpdateBulk {
+	return &DeviceUpdateBulk{config: c.config, builders: builders}
 }
 
 // Delete returns a delete builder for Device.
@@ -1112,6 +1142,12 @@ func (c *DocClient) UpdateOneID(id schema2.DocID) *DocUpdateOne {
 	mutation := newDocMutation(c.config, OpUpdateOne)
 	mutation.id = &id
 	return &DocUpdateOne{config: c.config, mutation: mutation}
+}
+
+// UpdateBulk returns a builder for updating a bulk of Doc entities in set-based statements, each with
+// the changes of its builder.
+func (c *DocClient) UpdateBulk(builders ...*DocUpdateOne) *DocUpdateBulk {
+	return &DocUpdateBulk{config: c.config, builders: builders}
 }
 
 // Delete returns a delete builder for Doc.
@@ -1287,6 +1323,12 @@ func (c *GroupClient) UpdateOneID(id int) *GroupUpdateOne {
 	return &GroupUpdateOne{config: c.config, mutation: mutation}
 }
 
+// UpdateBulk returns a builder for updating a bulk of Group entities in set-based statements, each with
+// the changes of its builder.
+func (c *GroupClient) UpdateBulk(builders ...*GroupUpdateOne) *GroupUpdateBulk {
+	return &GroupUpdateBulk{config: c.config, builders: builders}
+}
+
 // Delete returns a delete builder for Group.
 func (c *GroupClient) Delete() *GroupDelete {
 	mutation := newGroupMutation(c.config, OpDelete)
@@ -1426,6 +1468,12 @@ func (c *IntSIDClient) UpdateOneID(id sid.ID) *IntSIDUpdateOne {
 	mutation := newIntSIDMutation(c.config, OpUpdateOne)
 	mutation.id = &id
 	return &IntSIDUpdateOne{config: c.config, mutation: mutation}
+}
+
+// UpdateBulk returns a builder for updating a bulk of IntSID entities in set-based statements, each with
+// the changes of its builder.
+func (c *IntSIDClient) UpdateBulk(builders ...*IntSIDUpdateOne) *IntSIDUpdateBulk {
+	return &IntSIDUpdateBulk{config: c.config, builders: builders}
 }
 
 // Delete returns a delete builder for IntSID.
@@ -1585,6 +1633,12 @@ func (c *LinkClient) UpdateOneID(id uuidc.UUIDC) *LinkUpdateOne {
 	return &LinkUpdateOne{config: c.config, mutation: mutation}
 }
 
+// UpdateBulk returns a builder for updating a bulk of Link entities in set-based statements, each with
+// the changes of its builder.
+func (c *LinkClient) UpdateBulk(builders ...*LinkUpdateOne) *LinkUpdateBulk {
+	return &LinkUpdateBulk{config: c.config, builders: builders}
+}
+
 // Delete returns a delete builder for Link.
 func (c *LinkClient) Delete() *LinkDelete {
 	mutation := newLinkMutation(c.config, OpDelete)
@@ -1710,6 +1764,12 @@ func (c *MixinIDClient) UpdateOneID(id uuid.UUID) *MixinIDUpdateOne {
 	return &MixinIDUpdateOne{config: c.config, mutation: mutation}
 }
 
+// UpdateBulk returns a builder for updating a bulk of MixinID entities in set-based statements, each with
+// the changes of its builder.
+func (c *MixinIDClient) UpdateBulk(builders ...*MixinIDUpdateOne) *MixinIDUpdateBulk {
+	return &MixinIDUpdateBulk{config: c.config, builders: builders}
+}
+
 // Delete returns a delete builder for MixinID.
 func (c *MixinIDClient) Delete() *MixinIDDelete {
 	mutation := newMixinIDMutation(c.config, OpDelete)
@@ -1833,6 +1893,12 @@ func (c *NoteClient) UpdateOneID(id schema2.NoteID) *NoteUpdateOne {
 	mutation := newNoteMutation(c.config, OpUpdateOne)
 	mutation.id = &id
 	return &NoteUpdateOne{config: c.config, mutation: mutation}
+}
+
+// UpdateBulk returns a builder for updating a bulk of Note entities in set-based statements, each with
+// the changes of its builder.
+func (c *NoteClient) UpdateBulk(builders ...*NoteUpdateOne) *NoteUpdateBulk {
+	return &NoteUpdateBulk{config: c.config, builders: builders}
 }
 
 // Delete returns a delete builder for Note.
@@ -1992,6 +2058,12 @@ func (c *OtherClient) UpdateOneID(id sid.ID) *OtherUpdateOne {
 	return &OtherUpdateOne{config: c.config, mutation: mutation}
 }
 
+// UpdateBulk returns a builder for updating a bulk of Other entities in set-based statements, each with
+// the changes of its builder.
+func (c *OtherClient) UpdateBulk(builders ...*OtherUpdateOne) *OtherUpdateBulk {
+	return &OtherUpdateBulk{config: c.config, builders: builders}
+}
+
 // Delete returns a delete builder for Other.
 func (c *OtherClient) Delete() *OtherDelete {
 	mutation := newOtherMutation(c.config, OpDelete)
@@ -2115,6 +2187,12 @@ func (c *PetClient) UpdateOneID(id string) *PetUpdateOne {
 	mutation := newPetMutation(c.config, OpUpdateOne)
 	mutation.id = &id
 	return &PetUpdateOne{config: c.config, mutation: mutation}
+}
+
+// UpdateBulk returns a builder for updating a bulk of Pet entities in set-based statements, each with
+// the changes of its builder.
+func (c *PetClient) UpdateBulk(builders ...*PetUpdateOne) *PetUpdateBulk {
+	return &PetUpdateBulk{config: c.config, builders: builders}
 }
 
 // Delete returns a delete builder for Pet.
@@ -2306,6 +2384,12 @@ func (c *RevisionClient) UpdateOneID(id string) *RevisionUpdateOne {
 	return &RevisionUpdateOne{config: c.config, mutation: mutation}
 }
 
+// UpdateBulk returns a builder for updating a bulk of Revision entities in set-based statements, each with
+// the changes of its builder.
+func (c *RevisionClient) UpdateBulk(builders ...*RevisionUpdateOne) *RevisionUpdateBulk {
+	return &RevisionUpdateBulk{config: c.config, builders: builders}
+}
+
 // Delete returns a delete builder for Revision.
 func (c *RevisionClient) Delete() *RevisionDelete {
 	mutation := newRevisionMutation(c.config, OpDelete)
@@ -2429,6 +2513,12 @@ func (c *SessionClient) UpdateOneID(id schema2.ID) *SessionUpdateOne {
 	mutation := newSessionMutation(c.config, OpUpdateOne)
 	mutation.id = &id
 	return &SessionUpdateOne{config: c.config, mutation: mutation}
+}
+
+// UpdateBulk returns a builder for updating a bulk of Session entities in set-based statements, each with
+// the changes of its builder.
+func (c *SessionClient) UpdateBulk(builders ...*SessionUpdateOne) *SessionUpdateBulk {
+	return &SessionUpdateBulk{config: c.config, builders: builders}
 }
 
 // Delete returns a delete builder for Session.
@@ -2572,6 +2662,12 @@ func (c *TokenClient) UpdateOneID(id sid.ID) *TokenUpdateOne {
 	return &TokenUpdateOne{config: c.config, mutation: mutation}
 }
 
+// UpdateBulk returns a builder for updating a bulk of Token entities in set-based statements, each with
+// the changes of its builder.
+func (c *TokenClient) UpdateBulk(builders ...*TokenUpdateOne) *TokenUpdateBulk {
+	return &TokenUpdateBulk{config: c.config, builders: builders}
+}
+
 // Delete returns a delete builder for Token.
 func (c *TokenClient) Delete() *TokenDelete {
 	mutation := newTokenMutation(c.config, OpDelete)
@@ -2711,6 +2807,12 @@ func (c *UserClient) UpdateOneID(id int) *UserUpdateOne {
 	mutation := newUserMutation(c.config, OpUpdateOne)
 	mutation.id = &id
 	return &UserUpdateOne{config: c.config, mutation: mutation}
+}
+
+// UpdateBulk returns a builder for updating a bulk of User entities in set-based statements, each with
+// the changes of its builder.
+func (c *UserClient) UpdateBulk(builders ...*UserUpdateOne) *UserUpdateBulk {
+	return &UserUpdateBulk{config: c.config, builders: builders}
 }
 
 // Delete returns a delete builder for User.
@@ -2900,6 +3002,12 @@ func (c *ValueScanClient) UpdateOneID(id schema2.ValueScanID) *ValueScanUpdateOn
 	mutation := newValueScanMutation(c.config, OpUpdateOne)
 	mutation.id = &id
 	return &ValueScanUpdateOne{config: c.config, mutation: mutation}
+}
+
+// UpdateBulk returns a builder for updating a bulk of ValueScan entities in set-based statements, each with
+// the changes of its builder.
+func (c *ValueScanClient) UpdateBulk(builders ...*ValueScanUpdateOne) *ValueScanUpdateBulk {
+	return &ValueScanUpdateBulk{config: c.config, builders: builders}
 }
 
 // Delete returns a delete builder for ValueScan.

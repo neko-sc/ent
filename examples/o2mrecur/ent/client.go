@@ -257,6 +257,12 @@ func (c *NodeClient) UpdateOneID(id int) *NodeUpdateOne {
 	return &NodeUpdateOne{config: c.config, mutation: mutation}
 }
 
+// UpdateBulk returns a builder for updating a bulk of Node entities in set-based statements, each with
+// the changes of its builder.
+func (c *NodeClient) UpdateBulk(builders ...*NodeUpdateOne) *NodeUpdateBulk {
+	return &NodeUpdateBulk{config: c.config, builders: builders}
+}
+
 // Delete returns a delete builder for Node.
 func (c *NodeClient) Delete() *NodeDelete {
 	mutation := newNodeMutation(c.config, OpDelete)

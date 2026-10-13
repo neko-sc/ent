@@ -19,6 +19,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/neko-sc/ent/dialect"
 	entsql "github.com/neko-sc/ent/dialect/sql"
+	"github.com/neko-sc/ent/dialect/sql/schema"
 	"github.com/neko-sc/ent/dialect/sql/sqlgraph"
 	"github.com/neko-sc/ent/schema/field"
 	"github.com/stretchr/testify/require"
@@ -190,6 +191,175 @@ func assertConstraint(t *testing.T, err error, kind dialect.ConstraintKind) {
 	require.Equal(t, kind, constraint.Kind)
 	_, ok = errors.AsType[*pgconn.PgError](err)
 	require.True(t, ok)
+}
+
+type mood string
+
+// TestUnnestAnyArrays pins the encoding contract of batch updates: one ArrayArgument per column with NULL elements.
+func TestUnnestAnyArrays(t *testing.T) {
+	native := postgresDriver(t)
+	_, err := native.Exec(t.Context(), "CREATE TYPE ent_pg_unnest_mood AS ENUM ('happy', 'sad')", nil)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_, err := native.Exec(context.Background(), "DROP TYPE ent_pg_unnest_mood", nil)
+		require.NoError(t, err)
+	})
+	tx, err := native.Tx(t.Context())
+	require.NoError(t, err)
+	defer func() { require.NoError(t, tx.Rollback()) }()
+	identifier := uuid.MustParse("a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11")
+	timestamp := time.Date(2026, 9, 4, 12, 34, 56, 0, time.UTC)
+	for name, querier := range map[string]dialect.ExecQuerier{"driver": native, "tx": tx} {
+		t.Run(name, func(t *testing.T) {
+			rows, err := querier.Query(t.Context(), `SELECT * FROM unnest($1::bigint[], $2::character varying[], $3::jsonb[], $4::uuid[],
+				$5::timestamp with time zone[], $6::ent_pg_unnest_mood[], $7::ent_pg_unnest_mood[], $8::smallint[])`, []any{
+				entsql.ArrayArgument{int64(1), nil},
+				entsql.ArrayArgument{nil, "text"},
+				entsql.ArrayArgument{json.RawMessage(`{"answer":42}`), nil},
+				entsql.ArrayArgument{nil, identifier},
+				entsql.ArrayArgument{timestamp, nil},
+				entsql.ArrayArgument{nil, mood("sad")},
+				entsql.ArrayArgument{nil, nil},
+				[]int16{1, 3},
+			})
+			require.NoError(t, err)
+			defer rows.Close()
+			var (
+				number    *int64
+				text      *string
+				message   []byte
+				uuidValue *uuid.UUID
+				moment    *time.Time
+				enum      *string
+				null      *string
+				mode      int16
+			)
+			require.True(t, rows.Next())
+			require.NoError(t, rows.Scan(&number, &text, &message, &uuidValue, &moment, &enum, &null, &mode))
+			require.Equal(t, int64(1), *number)
+			require.Nil(t, text)
+			require.JSONEq(t, `{"answer":42}`, string(message))
+			require.Nil(t, uuidValue)
+			require.True(t, moment.Equal(timestamp))
+			require.Nil(t, enum)
+			require.Nil(t, null)
+			require.Equal(t, int16(1), mode)
+			require.True(t, rows.Next())
+			require.NoError(t, rows.Scan(&number, &text, &message, &uuidValue, &moment, &enum, &null, &mode))
+			require.Nil(t, number)
+			require.Equal(t, "text", *text)
+			require.Nil(t, message)
+			require.Equal(t, identifier, *uuidValue)
+			require.Nil(t, moment)
+			require.Equal(t, "sad", *enum)
+			require.Nil(t, null)
+			require.Equal(t, int16(3), mode)
+			require.False(t, rows.Next())
+			require.NoError(t, rows.Err())
+		})
+	}
+}
+
+// TestSliceArgument checks that plain []any arguments reach pgx, which encodes them as JSON.
+func TestSliceArgument(t *testing.T) {
+	native := postgresDriver(t)
+	tx, err := native.Tx(t.Context())
+	require.NoError(t, err)
+	defer func() { require.NoError(t, tx.Rollback()) }()
+	for name, querier := range map[string]dialect.ExecQuerier{"driver": native, "tx": tx} {
+		t.Run(name, func(t *testing.T) {
+			rows, err := querier.Query(t.Context(), "SELECT $1::jsonb", []any{[]any{"a", 1, map[string]any{"b": true}}})
+			require.NoError(t, err)
+			defer rows.Close()
+			var document []byte
+			require.True(t, rows.Next())
+			require.NoError(t, rows.Scan(&document))
+			require.JSONEq(t, `["a", 1, {"b": true}]`, string(document))
+			require.NoError(t, rows.Err())
+		})
+	}
+}
+
+func TestBatchUpdate(t *testing.T) {
+	driver := postgresDriver(t)
+	ctx := t.Context()
+	_, err := driver.Exec(ctx, `CREATE TYPE ent_pg_batch_mood AS ENUM ('happy', 'sad');
+		CREATE TABLE ent_pg_batch (id bigint PRIMARY KEY, mood ent_pg_batch_mood, tags text[]);
+		INSERT INTO ent_pg_batch (id, mood) VALUES (1, 'happy'), (2, 'happy')`, nil)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_, err := driver.Exec(context.Background(), "DROP TABLE ent_pg_batch; DROP TYPE ent_pg_batch_mood", nil)
+		require.NoError(t, err)
+	})
+	returned := make(map[int64][]any)
+	node := func(id int) *sqlgraph.UpdateSpec {
+		spec := sqlgraph.NewUpdateSpec("ent_pg_batch", []string{"id", "mood", "tags"}, &sqlgraph.FieldSpec{Column: "id", Type: field.TypeInt, Value: id})
+		spec.ScanValues = func([]string) ([]any, error) { return []any{new(int64), new(sql.NullString), new(textArray)}, nil }
+		spec.Assign = func(_ []string, values []any) error {
+			returned[*values[0].(*int64)] = []any{*values[1].(*sql.NullString), *values[2].(*textArray)}
+			return nil
+		}
+		return spec
+	}
+	// Array columns cannot be unnested and use a VALUES list, which types the native enum by its first row.
+	first, second := node(1), node(2)
+	first.SetField("tags", field.TypeArray, textArray{"a", "b"})
+	second.SetField("tags", field.TypeArray, textArray{"c"})
+	second.SetField("mood", field.TypeEnum, mood("sad"))
+	types := map[string]string{"id": "bigint", "mood": "ent_pg_batch_mood", "tags": "text[]"}
+	require.NoError(t, sqlgraph.BatchUpdate(ctx, driver, &sqlgraph.BatchUpdateSpec{Nodes: []*sqlgraph.UpdateSpec{first, second}, PostgresTypes: types}))
+	require.Equal(t, map[int64][]any{
+		1: {sql.NullString{String: "happy", Valid: true}, textArray{"a", "b"}},
+		2: {sql.NullString{String: "sad", Valid: true}, textArray{"c"}},
+	}, returned)
+}
+
+// TestBatchUpdateTable updates a table named like the row source, with a column named like a row source column.
+func TestBatchUpdateTable(t *testing.T) {
+	driver := postgresDriver(t)
+	ctx := t.Context()
+	_, err := driver.Exec(ctx, `CREATE SCHEMA ent_pg_batch_table;
+		CREATE TABLE ent_pg_batch_table.batch (id bigint PRIMARY KEY, code varchar(3), value1 bigint);
+		INSERT INTO ent_pg_batch_table.batch (id, code, value1) VALUES (1, 'a', 10), (2, 'b', 20)`, nil)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_, err := driver.Exec(context.Background(), "DROP SCHEMA ent_pg_batch_table CASCADE", nil)
+		require.NoError(t, err)
+	})
+	code, err := schema.PostgresType(&schema.Column{Type: field.TypeString, SchemaType: map[string]string{dialect.Postgres: "varchar(3)"}})
+	require.NoError(t, err)
+	types := map[string]string{"id": "bigint", "code": code, "value1": "bigint"}
+	returned := make(map[int64][]any)
+	node := func(id int) *sqlgraph.UpdateSpec {
+		spec := sqlgraph.NewUpdateSpec("batch", []string{"id", "code", "value1"}, &sqlgraph.FieldSpec{Column: "id", Type: field.TypeInt, Value: id})
+		spec.Node.Schema = "ent_pg_batch_table"
+		spec.ScanValues = func([]string) ([]any, error) { return []any{new(int64), new(string), new(int64)}, nil }
+		spec.Assign = func(_ []string, values []any) error {
+			returned[*values[0].(*int64)] = []any{*values[1].(*string), *values[2].(*int64)}
+			return nil
+		}
+		return spec
+	}
+	first, second := node(1), node(2)
+	first.SetField("code", field.TypeString, "abc")
+	first.AddField("value1", field.TypeInt, 1)
+	second.AddField("value1", field.TypeInt, 2)
+	require.NoError(t, sqlgraph.BatchUpdate(ctx, driver, &sqlgraph.BatchUpdateSpec{Nodes: []*sqlgraph.UpdateSpec{first, second}, PostgresTypes: types}))
+	require.Equal(t, map[int64][]any{1: {"abc", int64(11)}, 2: {"b", int64(22)}}, returned)
+
+	// The row source must not truncate values that the column rejects.
+	first = node(1)
+	first.SetField("code", field.TypeString, "abcdef")
+	err = sqlgraph.BatchUpdate(ctx, driver, &sqlgraph.BatchUpdateSpec{Nodes: []*sqlgraph.UpdateSpec{first}, PostgresTypes: types})
+	require.ErrorContains(t, err, "value too long for type character varying(3)")
+	var stored string
+	require.NoError(t, driver.Pool().QueryRow(ctx, "SELECT code FROM ent_pg_batch_table.batch WHERE id = 1").Scan(&stored))
+	require.Equal(t, "abc", stored)
+}
+
+func TestAnyArrayValue(t *testing.T) {
+	_, err := anyArray{"sad", int64(1)}.Value()
+	require.EqualError(t, err, "pg: array element 1 has type int64, want string")
 }
 
 type recordingExecutor struct {

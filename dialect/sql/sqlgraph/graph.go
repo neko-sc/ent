@@ -6,6 +6,7 @@
 package sqlgraph
 
 import (
+	"cmp"
 	"context"
 	"database/sql/driver"
 	"encoding/json"
@@ -13,8 +14,12 @@ import (
 	"fmt"
 	"maps"
 	"math"
+	"math/bits"
 	"slices"
 	"sort"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
@@ -704,6 +709,17 @@ func (n *NodeSpec) AddColumnOnce(column string) *NodeSpec {
 	return n
 }
 
+// identity returns the ID column and value of the node, or the columns and values of its composite ID.
+func (n *NodeSpec) identity() (columns []string, values []any) {
+	switch {
+	case n.ID != nil:
+		return []string{n.ID.Column}, []any{n.ID.Value}
+	case len(n.CompositeID) == 2:
+		return []string{n.CompositeID[0].Column, n.CompositeID[1].Column}, []any{n.CompositeID[0].Value, n.CompositeID[1].Value}
+	}
+	return nil, nil
+}
+
 // FieldValues returns the values of additional fields that were set on the join-table.
 func (e *EdgeTarget) FieldValues() []any {
 	vs := make([]any, len(e.Fields))
@@ -924,6 +940,27 @@ func UpdateNodes(ctx context.Context, drv dialect.Driver, spec *UpdateSpec) (int
 	cr := &updater{UpdateSpec: spec, graph: gr}
 	count, err := cr.nodes(ctx, drv)
 	return count, constraintError(err)
+}
+
+// BatchUpdateSpec holds the information for updating multiple
+// nodes of one table, each with its own changes.
+type BatchUpdateSpec struct {
+	Nodes []*UpdateSpec
+	// Predicate is the condition every node must match besides its ID.
+	Predicate func(*sql.Selector)
+	// PostgresTypes maps the ID, field and foreign-key columns
+	// to their PostgreSQL types, used to type the row source.
+	PostgresTypes map[string]string
+}
+
+// BatchUpdate applies the BatchUpdateSpec on the graph with set-based UPDATE ... FROM statements.
+// Nodes that do not exist or do not match the predicate fail the whole update with a NotFoundError
+// holding their IDs. The predicate is evaluated once, against the rows before the update. If drv is a
+// transaction, the statements that already ran stay applied, and the caller must roll back the
+// transaction on error.
+func BatchUpdate(ctx context.Context, drv dialect.Driver, spec *BatchUpdateSpec) error {
+	updater := &batchUpdater{BatchUpdateSpec: spec, graph: graph{builder: sql.Dialect(drv.Dialect())}, postgres: drv.Dialect() == dialect.Postgres}
+	return constraintError(updater.nodes(ctx, drv))
 }
 
 // NotFoundError returns when trying to update an
@@ -1403,6 +1440,16 @@ func (u *updater) setExternalEdges(ctx context.Context, ids []driver.Value, addE
 
 // setTableColumns sets the table columns and foreign_keys used in insert.
 func (u *updater) setTableColumns(update *sql.UpdateBuilder, addEdges, clearEdges map[Rel][]*EdgeSpec) error {
+	return updateColumns(u.UpdateSpec, addEdges, clearEdges,
+		func(column string) { update.SetNull(column) },
+		func(column string, value driver.Value) { update.Set(column, value) },
+		func(column string, value driver.Value) { update.Add(column, value) },
+	)
+}
+
+// updateColumns reports the column changes of an update in the order they
+// apply: cleared columns, set columns and foreign keys, and added columns.
+func updateColumns(spec *UpdateSpec, addEdges, clearEdges map[Rel][]*EdgeSpec, setNull func(column string), set, add func(column string, value driver.Value)) error {
 	// Avoid multiple assignments to the same column.
 	setEdges := make(map[string]bool)
 	for _, e := range addEdges[M2O] {
@@ -1413,28 +1460,25 @@ func (u *updater) setTableColumns(update *sql.UpdateBuilder, addEdges, clearEdge
 			setEdges[e.Columns[0]] = true
 		}
 	}
-	for _, fi := range u.Fields.Clear {
-		update.SetNull(fi.Column)
+	for _, fi := range spec.Fields.Clear {
+		setNull(fi.Column)
 	}
 	for _, e := range clearEdges[M2O] {
 		if col := e.Columns[0]; !setEdges[col] {
-			update.SetNull(col)
+			setNull(col)
 		}
 	}
 	for _, e := range clearEdges[O2O] {
 		col := e.Columns[0]
 		if (e.Inverse || e.Bidi) && !setEdges[col] {
-			update.SetNull(col)
+			setNull(col)
 		}
 	}
-	err := setTableColumns(u.Fields.Set, addEdges, func(column string, value driver.Value) {
-		update.Set(column, value)
-	})
-	if err != nil {
+	if err := setTableColumns(spec.Fields.Set, addEdges, set); err != nil {
 		return err
 	}
-	for _, fi := range u.Fields.Add {
-		update.Add(fi.Column, fi.Value)
+	for _, fi := range spec.Fields.Add {
+		add(fi.Column, fi.Value)
 	}
 	return nil
 }
@@ -1493,6 +1537,550 @@ func (u *updater) scan(rows dialect.Rows) error {
 		return err
 	}
 	return rows.Close()
+}
+
+// The modes of a column in one row of a batch update. The
+// row source passes them to the CASE expression of mixed columns.
+const (
+	batchKeep int16 = iota
+	batchSet
+	batchNull
+	batchAdd
+	// batchSetAdd adds the delta to the value the row sets, as UpdateBuilder.Add does after Set.
+	batchSetAdd
+)
+
+type (
+	batchUpdater struct {
+		graph
+		*BatchUpdateSpec
+
+		postgres bool
+		alias    string    // name of the row source.
+		node     *NodeSpec // table node shared by the nodes.
+
+		identifiers []string       // ID columns.
+		columns     []string       // sorted union of the updated columns.
+		modes       []uint8        // bit masks of the modes each column has in the batch.
+		sources     []batchSource  // columns of the row source, starting with the ID columns.
+		returning   []string       // ID columns and the union of the node columns.
+		positions   map[string]int // positions of the returning columns.
+
+		rows map[any]*batchRow // rows by their key.
+
+		predicate *sql.Predicate
+		arguments int // number of predicate arguments.
+	}
+
+	// batchRow holds the changes of one node of a batch update.
+	batchRow struct {
+		node    *UpdateSpec
+		ids     []any
+		key     any // normalized IDs, see batchKey.
+		cells   map[string]batchCell
+		matched bool // matched the predicate before the batch.
+		found   bool
+	}
+
+	batchCell struct {
+		mode  int16
+		value driver.Value
+		delta driver.Value // added to the value in batchSetAdd.
+	}
+
+	// batchSource is a column of the row source.
+	batchSource struct {
+		name  string
+		typ   string
+		value func(*batchRow) any
+	}
+)
+
+func (u *batchUpdater) nodes(ctx context.Context, drv dialect.Driver) error {
+	if len(u.Nodes) == 0 {
+		return nil
+	}
+	u.node = u.Nodes[0].Node
+	if u.identifiers, _ = u.node.identity(); len(u.identifiers) == 0 {
+		return fmt.Errorf("sqlgraph: batch update of table %q requires node ids", u.node.Table)
+	}
+	u.returning = slices.Clone(u.identifiers)
+	u.positions = make(map[string]int)
+	for index, column := range u.identifiers {
+		u.positions[column] = index
+	}
+	u.rows = make(map[any]*batchRow, len(u.Nodes))
+	rows := make([]*batchRow, len(u.Nodes))
+	used := make(map[string]struct{})
+	for index, spec := range u.Nodes {
+		columns, ids := spec.Node.identity()
+		switch {
+		case spec.Node.Table != u.node.Table || spec.Node.Schema != u.node.Schema:
+			return errors.New("sqlgraph: batch update nodes must share a table and schema")
+		case !slices.Equal(columns, u.identifiers) || slices.Contains(ids, nil):
+			return fmt.Errorf("sqlgraph: batch update node %d requires an id of columns %v", index, u.identifiers)
+		case len(spec.Modifiers) > 0:
+			return errors.New("sqlgraph: batch update does not support statement modifiers")
+		case spec.Predicate != nil:
+			return errors.New("sqlgraph: batch update does not support node predicates")
+		case slices.ContainsFunc(spec.Edges.Add, isExternalEdge) || slices.ContainsFunc(spec.Edges.Clear, isExternalEdge):
+			return errors.New("sqlgraph: batch update does not support edges stored in other tables")
+		}
+		key, err := batchKey(ids)
+		if err != nil {
+			return err
+		}
+		if u.rows[key] != nil {
+			return fmt.Errorf("sqlgraph: batch update has duplicate id %v", key)
+		}
+		row := &batchRow{node: spec, ids: ids, key: key, cells: make(map[string]batchCell)}
+		err = updateColumns(spec, EdgeSpecs(spec.Edges.Add).GroupRel(), EdgeSpecs(spec.Edges.Clear).GroupRel(),
+			func(column string) { row.cells[column] = batchCell{mode: batchNull} },
+			func(column string, value driver.Value) { row.cells[column] = batchCell{mode: batchSet, value: value} },
+			func(column string, value driver.Value) {
+				if cell := row.cells[column]; cell.mode == batchSet {
+					row.cells[column] = batchCell{mode: batchSetAdd, value: cell.value, delta: value}
+				} else {
+					row.cells[column] = batchCell{mode: batchAdd, value: value}
+				}
+			},
+		)
+		if err != nil {
+			return err
+		}
+		// Rows are found by their IDs, which must not change.
+		for _, column := range u.identifiers {
+			if _, ok := row.cells[column]; ok {
+				return fmt.Errorf("sqlgraph: batch update node %d changes the id column %q", index, column)
+			}
+		}
+		for column := range row.cells {
+			used[column] = struct{}{}
+		}
+		for _, column := range spec.Node.Columns {
+			if _, ok := u.positions[column]; !ok {
+				u.positions[column] = len(u.returning)
+				u.returning = append(u.returning, column)
+			}
+		}
+		u.rows[key], rows[index] = row, row
+	}
+	u.columns = keys(used)
+	if u.postgres {
+		for _, column := range slices.Concat(u.identifiers, u.columns) {
+			if u.PostgresTypes[column] == "" {
+				return fmt.Errorf("sqlgraph: batch update has no PostgreSQL type for column %q", column)
+			}
+		}
+	}
+	u.sources = make([]batchSource, len(u.identifiers))
+	for index, column := range u.identifiers {
+		u.sources[index] = batchSource{name: fmt.Sprintf("id%d", index+1), typ: u.PostgresTypes[column], value: func(row *batchRow) any { return row.ids[index] }}
+	}
+	// Columns that change the same way in all rows are assigned directly, and the others through a CASE on their mode.
+	u.modes = make([]uint8, len(u.columns))
+	for index, column := range u.columns {
+		for _, row := range rows {
+			u.modes[index] |= 1 << row.cells[column].mode
+		}
+		if u.modes[index]&(1<<batchSet|1<<batchAdd|1<<batchSetAdd) != 0 {
+			u.sources = append(u.sources, batchSource{name: fmt.Sprintf("value%d", index+1), typ: u.PostgresTypes[column], value: func(row *batchRow) any { return row.cells[column].value }})
+		}
+		if u.modes[index]&(1<<batchSetAdd) != 0 {
+			u.sources = append(u.sources, batchSource{name: fmt.Sprintf("delta%d", index+1), typ: u.PostgresTypes[column], value: func(row *batchRow) any { return row.cells[column].delta }})
+		}
+		if bits.OnesCount8(u.modes[index]) > 1 {
+			u.sources = append(u.sources, batchSource{name: fmt.Sprintf("mode%d", index+1), typ: "smallint", value: func(row *batchRow) any { return row.cells[column].mode }})
+		}
+	}
+	selector := u.builder.Select().
+		From(u.builder.Table(u.node.Table).Schema(u.node.Schema)).
+		WithContext(ctx)
+	if u.Predicate != nil {
+		u.Predicate(selector)
+	}
+	// Rendering counts the predicate arguments, which every statement binds.
+	_, arguments := selector.Query()
+	if err := selector.Err(); err != nil {
+		return err
+	}
+	u.predicate, u.arguments = selector.P(), len(arguments)
+	// The row source is named differently from the target table.
+	u.alias = "batch"
+	if u.node.Table == u.alias {
+		u.alias = "batch_rows"
+	}
+	size, err := u.chunkSize(u.sources)
+	if err != nil {
+		return err
+	}
+	// The row sources list their rows by ID, and the chunks cover consecutive ranges of IDs. Plans
+	// that loop over the row source lock the rows in this order, unlike hash joins and table scans.
+	sorted := slices.SortedStableFunc(slices.Values(rows), func(a, b *batchRow) int { return compareBatchKeys(a.key, b.key) })
+	tx, err := drv.Tx(ctx)
+	if err != nil {
+		return err
+	}
+	// Each statement would evaluate the predicate against the writes of the previous ones. Instead,
+	// the rows are matched once before the batch, and updated without the predicate. A batch that
+	// changes no column writes nothing, and selects its rows with the predicate as UpdateNode does.
+	statement := u.update
+	switch {
+	case len(u.columns) == 0:
+		statement = u.read
+	case u.predicate != nil && len(rows) > size:
+		if err := u.match(ctx, tx, sorted); err != nil {
+			return rollback(tx, err)
+		}
+		if err := u.notFound(rows, func(row *batchRow) bool { return row.matched }); err != nil {
+			return rollback(tx, err)
+		}
+		u.predicate, u.arguments = nil, 0
+	}
+	for chunk := range slices.Chunk(sorted, size) {
+		if err := statement(ctx, tx, chunk); err != nil {
+			return rollback(tx, err)
+		}
+	}
+	if err := u.notFound(rows, func(row *batchRow) bool { return row.found }); err != nil {
+		return rollback(tx, err)
+	}
+	return tx.Commit()
+}
+
+// unnest reports if the row source passes its columns as arrays to unnest.
+// Arrays cannot be nested in arrays, so array columns use a VALUES list instead.
+func (u *batchUpdater) unnest(sources []batchSource) bool {
+	return u.postgres && !slices.ContainsFunc(sources, func(source batchSource) bool { return strings.HasSuffix(source.typ, "[]") })
+}
+
+// batchValuesRows caps the rows of VALUES, past about 32,400 of which SQLite scans the table per row.
+const batchValuesRows = 16384
+
+// chunkSize returns the number of rows that each statement binds in its row source. Every
+// statement binds the predicate arguments and one parameter per source: its array in unnest,
+// which holds any number of rows, or its value in each row of VALUES, which holds at most
+// batchValuesRows rows.
+func (u *batchUpdater) chunkSize(sources []batchSource) (int, error) {
+	// The maximum number of parameters in one statement.
+	limit := 32766
+	if u.postgres {
+		limit = 65535
+	}
+	if fixed := len(sources) + u.arguments; fixed > limit {
+		return 0, fmt.Errorf("sqlgraph: batch update needs %d parameters per statement, more than the limit of %d", fixed, limit)
+	}
+	if u.unnest(sources) {
+		return math.MaxInt, nil
+	}
+	return min((limit-u.arguments)/len(sources), batchValuesRows), nil
+}
+
+// rowSource renders the rows of one statement as an unnest of one array per source, or as
+// a VALUES list in the returned prefix. PostgreSQL infers the types of the other rows of
+// VALUES from the first one. On PostgreSQL, the row source also numbers its rows from 1 in
+// the column "position", by which the returned rows are found.
+func (u *batchUpdater) rowSource(sources []batchSource, chunk []*batchRow) (prefix []sql.Querier, from sql.Querier) {
+	names := make([]string, len(sources), len(sources)+1)
+	for index, source := range sources {
+		names[index] = source.name
+	}
+	if u.postgres {
+		names = append(names, "position")
+	}
+	if u.unnest(sources) {
+		return nil, sql.ExprFunc(func(b *sql.Builder) {
+			b.WriteString("unnest(")
+			for index, source := range sources {
+				values := make(sql.ArrayArgument, len(chunk))
+				for position, row := range chunk {
+					values[position] = source.value(row)
+				}
+				if index > 0 {
+					b.Comma()
+				}
+				b.Arg(values).WriteString("::" + source.typ + "[]")
+			}
+			b.WriteString(") WITH ORDINALITY AS ").Ident(u.alias).Wrap(func(b *sql.Builder) { b.IdentComma(names...) })
+		})
+	}
+	return []sql.Querier{sql.With(u.alias, names...).As(sql.ExprFunc(func(b *sql.Builder) {
+		b.WriteString("VALUES ")
+		for index, row := range chunk {
+			if index > 0 {
+				b.Comma()
+			}
+			b.Wrap(func(b *sql.Builder) {
+				for position, source := range sources {
+					if position > 0 {
+						b.Comma()
+					}
+					b.Arg(source.value(row))
+					if u.postgres && index == 0 {
+						b.WriteString("::" + source.typ)
+					}
+				}
+				if u.postgres {
+					b.Comma().WriteString(strconv.Itoa(index + 1))
+				}
+			})
+		}
+	}))}, sql.ExprFunc(func(b *sql.Builder) { b.Ident(u.alias) })
+}
+
+// where matches the target rows to the rows of the row source, and to the predicate.
+func (u *batchUpdater) where() *sql.Predicate {
+	table, batch := u.builder.Table(u.node.Table), u.builder.Table(u.alias)
+	predicates := make([]*sql.Predicate, 0, len(u.identifiers)+1)
+	for index, column := range u.identifiers {
+		predicates = append(predicates, sql.ColumnsEQ(table.C(column), batch.C(fmt.Sprintf("id%d", index+1))))
+	}
+	if u.predicate != nil {
+		predicates = append(predicates, u.predicate)
+	}
+	return sql.And(predicates...)
+}
+
+// selectChunk selects the columns of the target rows that match one chunk of the row source and
+// the predicate. On PostgreSQL, it also selects the position of each row in the row source.
+func (u *batchUpdater) selectChunk(sources []batchSource, chunk []*batchRow, columns []string) *sql.Selector {
+	selected := u.builder.Table(u.node.Table).Columns(columns...)
+	if u.postgres {
+		selected = append(selected, u.builder.Table(u.alias).C("position"))
+	}
+	prefix, from := u.rowSource(sources, chunk)
+	return u.builder.Select(selected...).
+		Prefix(prefix...).
+		From(u.builder.Table(u.node.Table).Schema(u.node.Schema)).
+		AppendFromExpr(from).
+		Where(u.where())
+}
+
+// match marks the rows that match the predicate before the batch, locking them on PostgreSQL.
+func (u *batchUpdater) match(ctx context.Context, tx dialect.ExecQuerier, rows []*batchRow) error {
+	sources := u.sources[:len(u.identifiers)]
+	size, err := u.chunkSize(sources)
+	if err != nil {
+		return err
+	}
+	for chunk := range slices.Chunk(rows, size) {
+		selector := u.selectChunk(sources, chunk, u.identifiers)
+		if u.postgres {
+			selector.ForUpdate(sql.WithLockTables(u.node.Table))
+		}
+		result, err := QuerySelector(ctx, tx, selector)
+		if err != nil {
+			return err
+		}
+		err = u.scan(result, u.identifiers, chunk, func(row *batchRow, _ []any) error {
+			row.matched = true
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// notFound returns a NotFoundError holding the IDs of the rows that were not found, if any.
+func (u *batchUpdater) notFound(rows []*batchRow, found func(*batchRow) bool) error {
+	var missing []driver.Value
+	for _, row := range rows {
+		switch {
+		case found(row):
+		case len(row.ids) == 1:
+			missing = append(missing, row.ids[0])
+		default:
+			missing = append(missing, row.ids)
+		}
+	}
+	if len(missing) == 0 {
+		return nil
+	}
+	return &NotFoundError{table: u.node.Table, id: missing}
+}
+
+// update updates the rows of one chunk of the row source.
+func (u *batchUpdater) update(ctx context.Context, tx dialect.ExecQuerier, chunk []*batchRow) error {
+	table, batch := u.builder.Table(u.node.Table), u.builder.Table(u.alias)
+	update := u.builder.Update(u.node.Table).Schema(u.node.Schema)
+	for index, column := range u.columns {
+		value, delta := batch.C(fmt.Sprintf("value%d", index+1)), batch.C(fmt.Sprintf("delta%d", index+1))
+		has := func(mode int16) bool { return u.modes[index]&(1<<mode) != 0 }
+		setAdd := func(b *sql.Builder) { b.WriteString("COALESCE(").Ident(value).WriteString(", 0) + ").Ident(delta) }
+		switch {
+		case bits.OnesCount8(u.modes[index]) > 1:
+			update.Set(column, sql.ExprFunc(func(b *sql.Builder) {
+				b.WriteString("CASE ").Ident(batch.C(fmt.Sprintf("mode%d", index+1)))
+				if has(batchSet) {
+					b.WriteString(fmt.Sprintf(" WHEN %d THEN ", batchSet)).Ident(value)
+				}
+				if has(batchNull) {
+					b.WriteString(fmt.Sprintf(" WHEN %d THEN NULL", batchNull))
+				}
+				if has(batchAdd) {
+					b.WriteString(fmt.Sprintf(" WHEN %d THEN COALESCE(", batchAdd)).Ident(table.C(column)).WriteString(", 0) + ").Ident(value)
+				}
+				if has(batchSetAdd) {
+					b.WriteString(fmt.Sprintf(" WHEN %d THEN ", batchSetAdd))
+					setAdd(b)
+				}
+				b.WriteString(" ELSE ").Ident(table.C(column)).WriteString(" END")
+			}))
+		case has(batchSet):
+			update.Set(column, sql.Expr(value))
+		case has(batchNull):
+			update.SetNull(column)
+		case has(batchAdd):
+			update.Add(column, sql.Expr(value))
+		case has(batchSetAdd):
+			update.Set(column, sql.ExprFunc(setAdd))
+		}
+	}
+	// PostgreSQL also resolves RETURNING columns against the row source.
+	returning := u.returning
+	if u.postgres {
+		returning = append(table.Columns(u.returning...), batch.C("position"))
+	}
+	prefix, from := u.rowSource(u.sources, chunk)
+	query, args, err := update.Prefix(prefix...).From(from).Where(u.where()).Returning(returning...).QueryErr()
+	if err != nil {
+		return err
+	}
+	var ids []any
+	if len(u.identifiers) == 1 {
+		ids = make([]any, len(chunk))
+		for index, row := range chunk {
+			ids[index] = row.ids[0]
+		}
+	}
+	rows, err := tx.Query(dialect.WithStatement(ctx, rowWrite(dialect.QualifiedTable(u.node.Schema, u.node.Table), ids)), query, args)
+	if err != nil {
+		return err
+	}
+	return u.scan(rows, u.returning, chunk, u.assign)
+}
+
+// read selects the rows of one chunk of the row source in a batch that changes no column.
+func (u *batchUpdater) read(ctx context.Context, tx dialect.ExecQuerier, chunk []*batchRow) error {
+	selector := u.selectChunk(u.sources, chunk, u.returning)
+	query, args := selector.Query()
+	if err := selector.Err(); err != nil {
+		return err
+	}
+	rows, err := tx.Query(dialect.WithStatement(ctx, u.node.readStatement(selector)), query, args)
+	if err != nil {
+		return err
+	}
+	return u.scan(rows, u.returning, chunk, u.assign)
+}
+
+// scan scans each returned row into the scan values of the given columns, which start with the
+// ID columns, and visits it with the row of the chunk it belongs to. PostgreSQL may return an ID
+// in another form than it was given, such as a canonical UUID, so its rows are found by their
+// position in the row source, returned after the columns. SQLite cannot return columns of the
+// row source, and returns IDs as given, so its rows are found by their IDs.
+func (u *batchUpdater) scan(rows dialect.Rows, columns []string, chunk []*batchRow, visit func(*batchRow, []any) error) error {
+	defer rows.Close()
+	for rows.Next() {
+		values, err := u.Nodes[0].ScanValues(columns)
+		if err != nil {
+			return err
+		}
+		for i, v := range values {
+			if _, ok := v.(*sql.UnknownType); ok {
+				values[i] = sql.ScanTypeOf(rows, i)
+			}
+		}
+		var position int64
+		destinations := values
+		if u.postgres {
+			destinations = append(destinations, &position)
+		}
+		if err := rows.Scan(destinations...); err != nil {
+			return fmt.Errorf("failed scanning rows: %w", err)
+		}
+		var row *batchRow
+		if u.postgres {
+			row = chunk[position-1]
+		} else {
+			key, err := batchKey(values[:len(u.identifiers)])
+			if err != nil {
+				return err
+			}
+			if row = u.rows[key]; row == nil {
+				return fmt.Errorf("sqlgraph: batch update returned an unexpected row with id %v", key)
+			}
+		}
+		if err := visit(row, values); err != nil {
+			return err
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	return rows.Close()
+}
+
+// assign assigns a returned row to its node, narrowed to the columns of the node.
+func (u *batchUpdater) assign(row *batchRow, values []any) error {
+	row.found = true
+	columns := row.node.Node.Columns
+	assigned := make([]any, len(columns))
+	for index, column := range columns {
+		assigned[index] = values[u.positions[column]]
+	}
+	return row.node.Assign(columns, assigned)
+}
+
+// batchKey normalizes the ID values of a node, or the scan destinations of a returned
+// row, so that both compare equal. Composite IDs are keyed by their pair of values.
+func batchKey(ids []any) (any, error) {
+	var key [2]any
+	for index, id := range ids {
+		value, err := driver.DefaultParameterConverter.ConvertValue(id)
+		if err != nil {
+			return nil, fmt.Errorf("sqlgraph: batch update id: %w", err)
+		}
+		if bytes, ok := value.([]byte); ok {
+			value = string(bytes)
+		}
+		key[index] = value
+	}
+	if len(ids) == 1 {
+		return key[0], nil
+	}
+	return key, nil
+}
+
+// compareBatchKeys orders the keys of batchKey by their numbers, strings or times, and
+// composite keys lexicographically. Keys of other or different types compare equal.
+func compareBatchKeys(a, b any) int {
+	switch a := a.(type) {
+	case [2]any:
+		b := b.([2]any)
+		return cmp.Or(compareBatchKeys(a[0], b[0]), compareBatchKeys(a[1], b[1]))
+	case int64:
+		return compareAs(a, b)
+	case float64:
+		return compareAs(a, b)
+	case string:
+		return compareAs(a, b)
+	case time.Time:
+		if b, ok := b.(time.Time); ok {
+			return a.Compare(b)
+		}
+	}
+	return 0
+}
+
+// compareAs compares a to b if b has the type of a, and reports them equal otherwise.
+func compareAs[T cmp.Ordered](a T, b any) int {
+	if b, ok := b.(T); ok {
+		return cmp.Compare(a, b)
+	}
+	return 0
 }
 
 type creator struct {

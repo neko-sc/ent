@@ -965,6 +965,16 @@ func (t Type) UpdateOneReceiver() string {
 	return "_u"
 }
 
+// UpdateBulkName returns the struct name denoting the update-bulk-builder for this type.
+func (t Type) UpdateBulkName() string {
+	return pascal(t.Name) + "UpdateBulk"
+}
+
+// UpdateBulkReceiver returns the receiver name of the update-bulk-builder for this type.
+func (t Type) UpdateBulkReceiver() string {
+	return "_u"
+}
+
 // DeleteName returns the struct name denoting the delete-builder for this type.
 func (t Type) DeleteName() string {
 	return pascal(t.Name) + "Delete"

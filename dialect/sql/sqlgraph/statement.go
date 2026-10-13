@@ -11,12 +11,12 @@ import (
 	"github.com/neko-sc/ent/dialect/sql"
 )
 
-func QuerySelector(ctx context.Context, driver dialect.Driver, selector *sql.Selector) (dialect.Rows, error) {
+func QuerySelector(ctx context.Context, querier dialect.ExecQuerier, selector *sql.Selector) (dialect.Rows, error) {
 	query, arguments := selector.Query()
 	if err := selector.Err(); err != nil {
 		return nil, err
 	}
-	return driver.Query(dialect.WithStatement(ctx, readStatement(selector)), query, arguments)
+	return querier.Query(dialect.WithStatement(ctx, readStatement(selector)), query, arguments)
 }
 
 // bulkWrite describes a write to one already-qualified table whose affected rows

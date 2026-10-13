@@ -7,9 +7,11 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/neko-sc/ent/dialect"
+	"github.com/neko-sc/ent/dialect/pg"
 	entsql "github.com/neko-sc/ent/dialect/sql"
 	"github.com/neko-sc/ent/dialect/sql/schema"
 	"github.com/neko-sc/ent/entc/integration/customid/ent"
@@ -58,6 +60,11 @@ func TestPostgres(t *testing.T) {
 			require.NoError(t, err)
 			CustomID(t, client)
 			BytesID(t, client)
+			// lib/pq does not accept the array parameters of batch updates; use the native driver.
+			native, err := pg.Open(context.Background(), dsn+" search_path=custom_id")
+			require.NoError(t, err)
+			defer native.Close()
+			UpdateBulk(t, ent.NewClient(ent.Driver(native)))
 		})
 	}
 }
@@ -69,6 +76,7 @@ func TestSQLite(t *testing.T) {
 	require.NoError(t, client.Schema.Create(context.Background(), schema.WithHooks(clearDefault)))
 	CustomID(t, client)
 	BytesID(t, client)
+	UpdateBulk(t, client)
 }
 
 func CustomID(t *testing.T, client *ent.Client) {
@@ -278,6 +286,97 @@ func BytesID(t *testing.T, client *ent.Client) {
 	d := client.Device.Query().WithActiveSession().WithSessions().OnlyX(ctx)
 	require.Equal(t, s.ID, d.Edges.ActiveSession.ID)
 	require.Equal(t, s.ID, d.Edges.Sessions[0].ID)
+}
+
+func UpdateBulk(t *testing.T, client *ent.Client) {
+	ctx := context.Background()
+	t.Run("UUID", func(t *testing.T) {
+		blobs := client.Blob.CreateBulk(client.Blob.Create(), client.Blob.Create()).SaveX(ctx)
+		updated := client.Blob.UpdateBulk(
+			client.Blob.UpdateOne(blobs[1]).Set(blob.Count, 5),
+			client.Blob.UpdateOne(blobs[0]).Add(blob.Count, 2),
+		).SaveX(ctx)
+		require.Equal(t, []uuid.UUID{blobs[1].ID, blobs[0].ID}, []uuid.UUID{updated[0].ID, updated[1].ID})
+		require.Equal(t, 5, updated[0].Count)
+		require.Equal(t, 2, updated[1].Count)
+		require.Equal(t, 5, client.Blob.GetX(ctx, blobs[1].ID).Count)
+		require.Equal(t, 2, client.Blob.GetX(ctx, blobs[0].ID).Count)
+		_, err := client.Blob.UpdateBulk(
+			client.Blob.UpdateOne(blobs[0]).Set(blob.Count, 100),
+			client.Blob.UpdateOneID(uuid.New()).Set(blob.Count, 100),
+		).Save(ctx)
+		require.True(t, ent.IsNotFound(err), "got %v", err)
+		require.Equal(t, 2, client.Blob.GetX(ctx, blobs[0].ID).Count)
+	})
+
+	t.Run("NonCanonicalID", func(t *testing.T) {
+		ids := []entschema.DocID{entschema.DocID(strings.ToUpper(uuid.NewString())), entschema.DocID(strings.ReplaceAll(uuid.NewString(), "-", ""))}
+		for _, id := range ids {
+			client.Doc.Create().Set(doc.ID, id).Set(doc.Text, "created").ExecX(ctx)
+		}
+		updated := client.Doc.UpdateBulk(
+			client.Doc.UpdateOneID(ids[1]).Set(doc.Text, "bulk"),
+			client.Doc.UpdateOneID(ids[0]).Set(doc.Text, "bulk"),
+		).SaveX(ctx)
+		for index, id := range []entschema.DocID{ids[1], ids[0]} {
+			require.Equal(t, client.Doc.UpdateOneID(id).Set(doc.Text, "bulk").SaveX(ctx).String(), updated[index].String())
+		}
+	})
+
+	t.Run("Other", func(t *testing.T) {
+		accounts := client.Account.CreateBulk(
+			client.Account.Create().Set(account.Email, "first@example.org"),
+			client.Account.Create().Set(account.Email, "second@example.org"),
+		).SaveX(ctx)
+		updated := client.Account.UpdateBulk(
+			client.Account.UpdateOne(accounts[0]).Set(account.Email, "first-updated@example.org"),
+			client.Account.UpdateOne(accounts[1]).Set(account.Email, "second-updated@example.org"),
+		).SaveX(ctx)
+		require.Equal(t, accounts[0].ID, updated[0].ID)
+		require.Equal(t, "first-updated@example.org", updated[0].Email)
+		require.Equal(t, accounts[1].ID, updated[1].ID)
+		require.Equal(t, "second-updated@example.org", updated[1].Email)
+		require.Equal(t, "second-updated@example.org", client.Account.GetX(ctx, accounts[1].ID).Email)
+	})
+
+	t.Run("ValueScanner", func(t *testing.T) {
+		first, second := entschema.ValueScanID{V: 50}, entschema.ValueScanID{V: 60}
+		client.ValueScan.CreateBulk(
+			client.ValueScan.Create().Set(valuescan.ID, first).Set(valuescan.Name, "first"),
+			client.ValueScan.Create().Set(valuescan.ID, second).Set(valuescan.Name, "second"),
+		).ExecX(ctx)
+		updated := client.ValueScan.UpdateBulk(
+			client.ValueScan.UpdateOneID(second).Set(valuescan.Name, "second-updated"),
+			client.ValueScan.UpdateOneID(first).Set(valuescan.Name, "first-updated"),
+		).SaveX(ctx)
+		require.Equal(t, second, updated[0].ID)
+		require.Equal(t, "second-updated", updated[0].Name)
+		require.Equal(t, first, updated[1].ID)
+		require.Equal(t, "first-updated", updated[1].Name)
+		require.Equal(t, "first-updated", client.ValueScan.GetX(ctx, first).Name)
+		err := client.ValueScan.UpdateBulk(
+			client.ValueScan.UpdateOneID(first).Set(valuescan.Name, "changed"),
+			client.ValueScan.UpdateOneID(entschema.ValueScanID{V: 999}).Set(valuescan.Name, "changed"),
+		).Exec(ctx)
+		require.True(t, ent.IsNotFound(err), "got %v", err)
+		require.Equal(t, "first-updated", client.ValueScan.GetX(ctx, first).Name)
+	})
+
+	t.Run("Bytes", func(t *testing.T) {
+		sessions := client.Session.CreateBulk(client.Session.Create(), client.Session.Create()).SaveX(ctx)
+		devices := client.Device.CreateBulk(
+			client.Device.Create().SetEdge(device.ActiveSession, sessions[0].ID),
+			client.Device.Create(),
+		).SaveX(ctx)
+		updated := client.Device.UpdateBulk(
+			client.Device.UpdateOne(devices[1]).SetEdge(device.ActiveSession, sessions[1].ID),
+			client.Device.UpdateOne(devices[0]).ClearEdge(device.ActiveSession),
+		).SaveX(ctx)
+		require.Equal(t, devices[1].ID, updated[0].ID)
+		require.Equal(t, devices[0].ID, updated[1].ID)
+		require.Equal(t, sessions[1].ID, devices[1].QueryActiveSession().OnlyIDX(ctx))
+		require.False(t, devices[0].QueryActiveSession().ExistX(ctx))
+	})
 }
 
 func TestStringIDPredicates(t *testing.T) {

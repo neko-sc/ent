@@ -77,7 +77,15 @@ func NewSchemaConfigContext(parent context.Context, config SchemaConfig) context
 {{- end }}
 
 {{- define "dialect/sql/update/spec/ctxschemaconfig" }}
-	{{- template "dialect/sql/spec/ctxschemaconfig" $ }}
+	{{- with extend $ "SkipContext" true }}
+		{{- template "dialect/sql/spec/ctxschemaconfig" . }}
+	{{- end }}
+{{- end }}
+
+{{- define "dialect/sql/update/context/ctxschemaconfig" }}
+	{{- if $.FeatureEnabled "sql/schemaconfig" }}
+		ctx = internal.NewSchemaConfigContext(ctx, {{ $.Scope.Receiver }}.schemaConfig)
+	{{- end }}
 {{- end }}
 
 {{- define "dialect/sql/create/spec/ctxschemaconfig" }}

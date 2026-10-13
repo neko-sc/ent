@@ -313,6 +313,12 @@ func (c *{{ $client }}) UpdateOne({{ $rec }} *{{ $n.Name }}) *{{ $n.UpdateOneNam
 	}
 {{ end }}
 
+// UpdateBulk returns a builder for updating a bulk of {{ $n.Name }} entities in set-based statements, each with
+// the changes of its builder.
+func (c *{{ $client }}) UpdateBulk(builders ...*{{ $n.UpdateOneName }}) *{{ $n.UpdateBulkName }} {
+	return &{{ $n.UpdateBulkName }}{config: c.config, builders: builders}
+}
+
 // Delete returns a delete builder for {{ $n.Name }}.
 func (c *{{ $client }}) Delete() *{{ $n.DeleteName }} {
 	mutation := new{{ $n.MutationName }}(c.config, OpDelete)

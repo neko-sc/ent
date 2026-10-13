@@ -10,4 +10,15 @@ SPDX-License-Identifier: Apache-2.0
 
 // queryHook describes an internal hook for the different sqlAll methods.
 type queryHook func(context.Context, *sqlgraph.QuerySpec)
+
+// postgresColumnTypes maps the tables to the PostgreSQL types of their columns.
+var postgresColumnTypes = map[string]map[string]string{
+	{{- range $table, $columns := $.PostgresColumnTypes }}
+		{{ printf "%q" $table }}: {
+			{{- range $column, $type := $columns }}
+				{{ printf "%q" $column }}: {{ printf "%q" $type }},
+			{{- end }}
+		},
+	{{- end }}
+}
 {{ end }}

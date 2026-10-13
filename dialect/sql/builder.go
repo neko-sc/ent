@@ -551,6 +551,7 @@ type UpdateBuilder struct {
 	order        []any
 	limit        *int
 	prefix       Queries
+	from         Querier
 }
 
 // Update creates a builder for the `UPDATE` statement.
@@ -677,6 +678,18 @@ func (u *UpdateBuilder) Prefix(stmts ...Querier) *UpdateBuilder {
 	return u
 }
 
+// From adds the `FROM` clause to the `UPDATE` statement. The source is rendered
+// as-is between the SET and WHERE clauses. Supported by SQLite and PostgreSQL.
+//
+//	Update("users").
+//		Set("name", Expr(`"batch"."name"`)).
+//		From(Expr(`"batch"`)).
+//		Where(ColumnsEQ(`"users"."id"`, `"batch"."id"`))
+func (u *UpdateBuilder) From(source Querier) *UpdateBuilder {
+	u.from = source
+	return u
+}
+
 // Returning adds the `RETURNING` clause to the insert statement.
 // Supported by SQLite and PostgreSQL.
 func (u *UpdateBuilder) Returning(columns ...string) *UpdateBuilder {
@@ -712,6 +725,9 @@ func (u *UpdateBuilder) QueryErr() (string, []any, error) {
 	b.writeSchema(u.schema)
 	b.Ident(u.table).WriteString(" SET ")
 	u.writeSetter(&b)
+	if u.from != nil {
+		b.WriteString(" FROM ").Join(u.from)
+	}
 	if u.where != nil {
 		b.WriteString(" WHERE ")
 		b.collectPredicates = true

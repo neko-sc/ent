@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"maps"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -153,6 +154,35 @@ func (d *Postgres) atTypeC(c1 *Column, c2 *schema.Column) error {
 	}
 	c2.Type.Type = t
 	return nil
+}
+
+// typeModifiers matches the modifiers of a type, such as the length of varchar(10).
+var typeModifiers = regexp.MustCompile(`\s*\([^)]*\)`)
+
+// PostgresType returns the PostgreSQL type of the column for casts such as $1::bigint that must not truncate
+// or round values: the type migrations declare, with serial types as their integer types, without type
+// modifiers, and with character and bit types as text and bit varying, as unmodified character and bit have
+// a length of 1. The column enforces its constraints when the cast value is assigned to it.
+func PostgresType(column *Column) (string, error) {
+	converted := &schema.Column{Type: &schema.ColumnType{}}
+	if err := (&Postgres{}).atTypeC(column, converted); err != nil {
+		return "", err
+	}
+	if serial, ok := converted.Type.Type.(*postgres.SerialType); ok {
+		converted.Type.Type = serial.IntegerType()
+	}
+	formatted, err := postgres.FormatType(converted.Type.Type)
+	if err != nil {
+		return "", err
+	}
+	formatted = typeModifiers.ReplaceAllString(formatted, "")
+	switch element := strings.TrimRight(formatted, "[]"); strings.ToLower(element) {
+	case "character varying", "varchar", "character", "char", "bpchar":
+		return "text" + strings.TrimPrefix(formatted, element), nil
+	case "bit":
+		return "bit varying" + strings.TrimPrefix(formatted, element), nil
+	}
+	return formatted, nil
 }
 
 func (d *Postgres) atUniqueC(t1 *Table, c1 *Column, t2 *schema.Table, c2 *schema.Column) {

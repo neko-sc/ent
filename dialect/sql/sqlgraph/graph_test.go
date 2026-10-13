@@ -6,11 +6,15 @@ package sqlgraph
 import (
 	"context"
 	"database/sql/driver"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/neko-sc/ent/dialect"
 	"github.com/neko-sc/ent/dialect/sql"
@@ -278,6 +282,556 @@ func TestUpdateReturningOldNew(t *testing.T) {
 	require.Equal(t, []int{1, 21}, updated)
 	require.NoError(t, mock.ExpectationsWereMet())
 	require.ErrorAs(t, UpdateNode(context.Background(), sql.OpenDB(dialect.SQLite, db), spec), new(*dialect.UnsupportedError))
+}
+
+// passthrough keeps slice arguments, such as unnest arrays, that database/sql rejects by default.
+type passthrough struct{}
+
+func (passthrough) ConvertValue(value any) (driver.Value, error) { return value, nil }
+
+// batchTrack makes the spec scan every column into an *any and record its assignments under key.
+func batchTrack(spec *UpdateSpec, assigned map[any]map[string]any, key any) *UpdateSpec {
+	spec.ScanValues = func(columns []string) ([]any, error) {
+		values := make([]any, len(columns))
+		for index := range values {
+			values[index] = new(any)
+		}
+		return values, nil
+	}
+	spec.Assign = func(columns []string, values []any) error {
+		assigned[key] = make(map[string]any)
+		for index, column := range columns {
+			assigned[key][column] = *values[index].(*any)
+		}
+		return nil
+	}
+	return spec
+}
+
+func batchUser(assigned map[any]map[string]any, id int, columns ...string) *UpdateSpec {
+	return batchTrack(NewUpdateSpec("users", append([]string{"id"}, columns...), &FieldSpec{Column: "id", Type: field.TypeInt, Value: id}), assigned, id)
+}
+
+// batchAssigned returns the assignments of users 1 to n that select only their IDs.
+func batchAssigned(n int) map[any]map[string]any {
+	assigned := make(map[any]map[string]any, n)
+	for id := 1; id <= n; id++ {
+		assigned[id] = map[string]any{"id": int64(id)}
+	}
+	return assigned
+}
+
+// batchAdult renders its condition only in a dialect, like the array predicates of the root package.
+func batchAdult(selector *sql.Selector) {
+	selector.Where(sql.P(func(b *sql.Builder) {
+		if b.Dialect() == "" {
+			b.AddError(&dialect.UnsupportedError{Feature: "batchAdult"})
+			return
+		}
+		b.Ident(selector.C("age")).WriteString(" > ").Arg(18)
+	}))
+}
+
+func TestBatchUpdate(t *testing.T) {
+	// SQLite binds 32766 parameters per statement: one predicate argument and three sources per row.
+	const sqliteChunk = (32766 - 1) / 3
+	for _, test := range []struct {
+		name      string
+		dialect   dialect.Dialect
+		nodes     func(assigned map[any]map[string]any) []*UpdateSpec
+		predicate func(*sql.Selector)
+		expect    func(sqlmock.Sqlmock)
+		assigned  map[any]map[string]any
+		err       string
+	}{
+		{
+			name:    "empty",
+			dialect: dialect.Postgres,
+			nodes:   func(map[any]map[string]any) []*UpdateSpec { return nil },
+		},
+		{
+			name:    "postgres/uniform",
+			dialect: dialect.Postgres,
+			nodes: func(assigned map[any]map[string]any) []*UpdateSpec {
+				first, second := batchUser(assigned, 1, "name"), batchUser(assigned, 2)
+				first.SetField("name", field.TypeString, "a")
+				first.AddField("age", field.TypeInt, 10)
+				second.SetField("name", field.TypeString, "b")
+				second.AddField("age", field.TypeInt, 20)
+				return []*UpdateSpec{first, second}
+			},
+			expect: func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery(escape(`UPDATE "users" SET "age" = COALESCE("users"."age", 0) + "batch"."value1", "name" = "batch"."value2" FROM unnest($1::bigint[], $2::bigint[], $3::character varying[]) WITH ORDINALITY AS "batch"("id1", "value1", "value2", "position") WHERE "users"."id" = "batch"."id1" RETURNING "users"."id", "users"."name", "batch"."position"`)).
+					WithArgs(sql.ArrayArgument{1, 2}, sql.ArrayArgument{10, 20}, sql.ArrayArgument{"a", "b"}).
+					WillReturnRows(sqlmock.NewRows([]string{"id", "name", "position"}).AddRow(2, "b", 2).AddRow(1, "a", 1))
+				mock.ExpectCommit()
+			},
+			assigned: map[any]map[string]any{1: {"id": int64(1), "name": "a"}, 2: {"id": int64(2)}},
+		},
+		{
+			name:    "postgres/mixed sorted by id",
+			dialect: dialect.Postgres,
+			nodes: func(assigned map[any]map[string]any) []*UpdateSpec {
+				first, second, third := batchUser(assigned, 3, "age"), batchUser(assigned, 1, "name"), batchUser(assigned, 2, "name")
+				first.AddField("age", field.TypeInt, 5)
+				second.SetField("name", field.TypeString, "a")
+				third.ClearField("name", field.TypeString)
+				return []*UpdateSpec{first, second, third}
+			},
+			predicate: batchAdult,
+			expect: func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery(escape(`UPDATE "users" SET "age" = CASE "batch"."mode1" WHEN 3 THEN COALESCE("users"."age", 0) + "batch"."value1" ELSE "users"."age" END, "name" = CASE "batch"."mode2" WHEN 1 THEN "batch"."value2" WHEN 2 THEN NULL ELSE "users"."name" END FROM unnest($1::bigint[], $2::bigint[], $3::smallint[], $4::character varying[], $5::smallint[]) WITH ORDINALITY AS "batch"("id1", "value1", "mode1", "value2", "mode2", "position") WHERE "users"."id" = "batch"."id1" AND "users"."age" > $6 RETURNING "users"."id", "users"."age", "users"."name", "batch"."position"`)).
+					WithArgs(sql.ArrayArgument{1, 2, 3}, sql.ArrayArgument{nil, nil, 5}, sql.ArrayArgument{int16(0), int16(0), int16(3)}, sql.ArrayArgument{"a", nil, nil}, sql.ArrayArgument{int16(1), int16(2), int16(0)}, 18).
+					WillReturnRows(sqlmock.NewRows([]string{"id", "age", "name", "position"}).AddRow(3, 25, nil, 3).AddRow(1, 20, "a", 1).AddRow(2, 30, nil, 2))
+				mock.ExpectCommit()
+			},
+			assigned: map[any]map[string]any{1: {"id": int64(1), "name": "a"}, 2: {"id": int64(2), "name": nil}, 3: {"id": int64(3), "age": int64(25)}},
+		},
+		{
+			name:    "postgres/foreign keys and json",
+			dialect: dialect.Postgres,
+			nodes: func(assigned map[any]map[string]any) []*UpdateSpec {
+				first, second := batchUser(assigned, 1), batchUser(assigned, 2)
+				first.SetField("meta", field.TypeJSON, map[string]int{"a": 1})
+				first.Edges.Add = []*EdgeSpec{{Rel: M2O, Inverse: true, Table: "users", Columns: []string{"owner_id"}, Target: &EdgeTarget{Nodes: []driver.Value{5}, IDSpec: NewFieldSpec("id", field.TypeInt)}}}
+				second.SetField("meta", field.TypeJSON, []int{1})
+				second.Edges.Clear = []*EdgeSpec{{Rel: M2O, Inverse: true, Table: "users", Columns: []string{"owner_id"}, Target: &EdgeTarget{IDSpec: NewFieldSpec("id", field.TypeInt)}}}
+				return []*UpdateSpec{first, second}
+			},
+			expect: func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery(escape(`UPDATE "users" SET "meta" = "batch"."value1", "owner_id" = CASE "batch"."mode2" WHEN 1 THEN "batch"."value2" WHEN 2 THEN NULL ELSE "users"."owner_id" END FROM unnest($1::bigint[], $2::jsonb[], $3::bigint[], $4::smallint[]) WITH ORDINALITY AS "batch"("id1", "value1", "value2", "mode2", "position") WHERE "users"."id" = "batch"."id1" RETURNING "users"."id", "batch"."position"`)).
+					WithArgs(sql.ArrayArgument{1, 2}, sql.ArrayArgument{json.RawMessage(`{"a":1}`), json.RawMessage(`[1]`)}, sql.ArrayArgument{5, nil}, sql.ArrayArgument{int16(1), int16(2)}).
+					WillReturnRows(sqlmock.NewRows([]string{"id", "position"}).AddRow(1, 1).AddRow(2, 2))
+				mock.ExpectCommit()
+			},
+			assigned: map[any]map[string]any{1: {"id": int64(1)}, 2: {"id": int64(2)}},
+		},
+		{
+			name:    "postgres/arrays in chunks sorted by id",
+			dialect: dialect.Postgres,
+			nodes: func(assigned map[any]map[string]any) []*UpdateSpec {
+				nodes := make([]*UpdateSpec, batchValuesRows+1)
+				for index := range nodes {
+					id := len(nodes) - index
+					nodes[index] = batchUser(assigned, id)
+					nodes[index].SetField("tags", field.TypeArray, []string{strconv.Itoa(id)})
+				}
+				return nodes
+			},
+			predicate: func(selector *sql.Selector) { selector.Where(sql.NEQ(selector.C("name"), "x")) },
+			expect: func(mock sqlmock.Sqlmock) {
+				ids, matched := make(sql.ArrayArgument, batchValuesRows+1), sqlmock.NewRows([]string{"id", "position"})
+				for index := range ids {
+					ids[index] = index + 1
+					matched.AddRow(index+1, index+1)
+				}
+				var values strings.Builder
+				args, updated := make([]driver.Value, 0, 2*batchValuesRows), sqlmock.NewRows([]string{"id", "position"})
+				for index := range batchValuesRows {
+					if index > 0 {
+						fmt.Fprintf(&values, ", ($%d, $%d, %d)", 2*index+1, 2*index+2, index+1)
+					}
+					args = append(args, index+1, []string{strconv.Itoa(index + 1)})
+					updated.AddRow(index+1, index+1)
+				}
+				mock.ExpectBegin()
+				mock.ExpectQuery(escape(`SELECT "users"."id", "batch"."position" FROM "users", unnest($1::bigint[]) WITH ORDINALITY AS "batch"("id1", "position") WHERE "users"."id" = "batch"."id1" AND "users"."name" <> $2 FOR UPDATE OF "users"`)).
+					WithArgs(ids, "x").
+					WillReturnRows(matched)
+				mock.ExpectQuery(escape(`WITH "batch"("id1", "value1", "position") AS (VALUES ($1::bigint, $2::text[], 1)` + values.String() + `) UPDATE "users" SET "tags" = "batch"."value1" FROM "batch" WHERE "users"."id" = "batch"."id1" RETURNING "users"."id", "batch"."position"`)).
+					WithArgs(args...).
+					WillReturnRows(updated)
+				mock.ExpectQuery(escape(`WITH "batch"("id1", "value1", "position") AS (VALUES ($1::bigint, $2::text[], 1)) UPDATE "users" SET "tags" = "batch"."value1" FROM "batch" WHERE "users"."id" = "batch"."id1" RETURNING "users"."id", "batch"."position"`)).
+					WithArgs(batchValuesRows+1, []string{strconv.Itoa(batchValuesRows + 1)}).
+					WillReturnRows(sqlmock.NewRows([]string{"id", "position"}).AddRow(batchValuesRows+1, 1))
+				mock.ExpectCommit()
+			},
+			assigned: batchAssigned(batchValuesRows + 1),
+		},
+		{
+			name:    "postgres/predicate mismatch across chunks",
+			dialect: dialect.Postgres,
+			nodes: func(assigned map[any]map[string]any) []*UpdateSpec {
+				nodes := make([]*UpdateSpec, batchValuesRows+1)
+				for index := range nodes {
+					nodes[index] = batchUser(assigned, len(nodes)-index)
+					nodes[index].SetField("tags", field.TypeArray, []string{"a"})
+				}
+				return nodes
+			},
+			predicate: func(selector *sql.Selector) { selector.Where(sql.NEQ(selector.C("name"), "x")) },
+			expect: func(mock sqlmock.Sqlmock) {
+				ids, matched := make(sql.ArrayArgument, batchValuesRows+1), sqlmock.NewRows([]string{"id", "position"})
+				for index := range ids {
+					ids[index] = index + 1
+					if index+1 != 2 && index+1 != 4 {
+						matched.AddRow(index+1, index+1)
+					}
+				}
+				mock.ExpectBegin()
+				mock.ExpectQuery(escape(`SELECT "users"."id", "batch"."position" FROM "users", unnest($1::bigint[]) WITH ORDINALITY AS "batch"("id1", "position") WHERE "users"."id" = "batch"."id1" AND "users"."name" <> $2 FOR UPDATE OF "users"`)).
+					WithArgs(ids, "x").
+					WillReturnRows(matched)
+				mock.ExpectRollback()
+			},
+			err: "record with id [4 2] not found in table users",
+		},
+		{
+			name:    "postgres/canonical ids by position",
+			dialect: dialect.Postgres,
+			nodes: func(assigned map[any]map[string]any) []*UpdateSpec {
+				nodes := make([]*UpdateSpec, 2)
+				for index, id := range []string{"a0000000000000000000000000000000", "B0000000-0000-0000-0000-000000000000"} {
+					nodes[index] = batchTrack(NewUpdateSpec("docs", []string{"doc_id", "text"}, &FieldSpec{Column: "doc_id", Type: field.TypeString, Value: id}), assigned, id)
+					nodes[index].SetField("text", field.TypeString, id)
+				}
+				return nodes
+			},
+			expect: func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery(escape(`UPDATE "docs" SET "text" = "batch"."value1" FROM unnest($1::uuid[], $2::text[]) WITH ORDINALITY AS "batch"("id1", "value1", "position") WHERE "docs"."doc_id" = "batch"."id1" RETURNING "docs"."doc_id", "docs"."text", "batch"."position"`)).
+					WithArgs(sql.ArrayArgument{"B0000000-0000-0000-0000-000000000000", "a0000000000000000000000000000000"}, sql.ArrayArgument{"B0000000-0000-0000-0000-000000000000", "a0000000000000000000000000000000"}).
+					WillReturnRows(sqlmock.NewRows([]string{"doc_id", "text", "position"}).
+						AddRow("a0000000-0000-0000-0000-000000000000", "a0000000000000000000000000000000", 2).
+						AddRow("b0000000-0000-0000-0000-000000000000", "B0000000-0000-0000-0000-000000000000", 1))
+				mock.ExpectCommit()
+			},
+			assigned: map[any]map[string]any{
+				"a0000000000000000000000000000000":     {"doc_id": "a0000000-0000-0000-0000-000000000000", "text": "a0000000000000000000000000000000"},
+				"B0000000-0000-0000-0000-000000000000": {"doc_id": "b0000000-0000-0000-0000-000000000000", "text": "B0000000-0000-0000-0000-000000000000"},
+			},
+		},
+		{
+			name:      "sqlite/predicate across chunks",
+			dialect:   dialect.SQLite,
+			predicate: batchAdult,
+			nodes: func(assigned map[any]map[string]any) []*UpdateSpec {
+				nodes := make([]*UpdateSpec, sqliteChunk+1)
+				for index := range nodes {
+					id := len(nodes) - index
+					nodes[index] = batchUser(assigned, id)
+					if id == 2 {
+						nodes[index].ClearField("name", field.TypeString)
+					} else {
+						nodes[index].SetField("name", field.TypeString, strconv.Itoa(id))
+					}
+				}
+				return nodes
+			},
+			expect: func(mock sqlmock.Sqlmock) {
+				ids, matched := make([]driver.Value, sqliteChunk+1), sqlmock.NewRows([]string{"id"})
+				for index := range ids {
+					ids[index] = index + 1
+					matched.AddRow(index + 1)
+				}
+				args, updated := []driver.Value{1, "1", int16(1), 2, int16(2)}, sqlmock.NewRows([]string{"id"}).AddRow(1).AddRow(2)
+				for id := 3; id <= sqliteChunk; id++ {
+					args = append(args, id, strconv.Itoa(id), int16(1))
+					updated.AddRow(id)
+				}
+				mock.ExpectBegin()
+				mock.ExpectQuery(escape("WITH `batch`(`id1`) AS (VALUES " + strings.Repeat("(?), ", sqliteChunk) + "(?)) SELECT `users`.`id` FROM `users`, `batch` WHERE `users`.`id` = `batch`.`id1` AND `users`.`age` > ?")).
+					WithArgs(append(ids, 18)...).
+					WillReturnRows(matched)
+				mock.ExpectQuery(escape("WITH `batch`(`id1`, `value1`, `mode1`) AS (VALUES (?, ?, ?), (?, NULL, ?)" + strings.Repeat(", (?, ?, ?)", sqliteChunk-2) + ") UPDATE `users` SET `name` = CASE `batch`.`mode1` WHEN 1 THEN `batch`.`value1` WHEN 2 THEN NULL ELSE `users`.`name` END FROM `batch` WHERE `users`.`id` = `batch`.`id1` RETURNING `id`")).
+					WithArgs(args...).
+					WillReturnRows(updated)
+				mock.ExpectQuery(escape("WITH `batch`(`id1`, `value1`, `mode1`) AS (VALUES (?, ?, ?)) UPDATE `users` SET `name` = CASE `batch`.`mode1` WHEN 1 THEN `batch`.`value1` WHEN 2 THEN NULL ELSE `users`.`name` END FROM `batch` WHERE `users`.`id` = `batch`.`id1` RETURNING `id`")).
+					WithArgs(sqliteChunk+1, strconv.Itoa(sqliteChunk+1), int16(1)).
+					WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(sqliteChunk + 1))
+				mock.ExpectCommit()
+			},
+			assigned: batchAssigned(sqliteChunk + 1),
+		},
+		{
+			name:      "sqlite/predicate mismatch",
+			dialect:   dialect.SQLite,
+			predicate: batchAdult,
+			nodes: func(assigned map[any]map[string]any) []*UpdateSpec {
+				first, second := batchUser(assigned, 1), batchUser(assigned, 2)
+				first.SetField("name", field.TypeString, "a")
+				second.ClearField("name", field.TypeString)
+				return []*UpdateSpec{first, second}
+			},
+			expect: func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery(escape("WITH `batch`(`id1`, `value1`, `mode1`) AS (VALUES (?, ?, ?), (?, NULL, ?)) UPDATE `users` SET `name` = CASE `batch`.`mode1` WHEN 1 THEN `batch`.`value1` WHEN 2 THEN NULL ELSE `users`.`name` END FROM `batch` WHERE `users`.`id` = `batch`.`id1` AND `users`.`age` > ? RETURNING `id`")).
+					WithArgs(1, "a", int16(1), 2, int16(2), 18).
+					WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
+				mock.ExpectRollback()
+			},
+			assigned: map[any]map[string]any{1: {"id": int64(1)}},
+			err:      "record with id [2] not found in table users",
+		},
+		{
+			name:    "postgres/set and add",
+			dialect: dialect.Postgres,
+			nodes: func(assigned map[any]map[string]any) []*UpdateSpec {
+				first, second := batchUser(assigned, 1, "age"), batchUser(assigned, 2, "age")
+				first.SetField("age", field.TypeInt, 100)
+				first.AddField("age", field.TypeInt, 3)
+				second.SetField("age", field.TypeInt, 200)
+				second.AddField("age", field.TypeInt, 4)
+				return []*UpdateSpec{first, second}
+			},
+			expect: func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery(escape(`UPDATE "users" SET "age" = COALESCE("batch"."value1", 0) + "batch"."delta1" FROM unnest($1::bigint[], $2::bigint[], $3::bigint[]) WITH ORDINALITY AS "batch"("id1", "value1", "delta1", "position") WHERE "users"."id" = "batch"."id1" RETURNING "users"."id", "users"."age", "batch"."position"`)).
+					WithArgs(sql.ArrayArgument{1, 2}, sql.ArrayArgument{100, 200}, sql.ArrayArgument{3, 4}).
+					WillReturnRows(sqlmock.NewRows([]string{"id", "age", "position"}).AddRow(1, 103, 1).AddRow(2, 204, 2))
+				mock.ExpectCommit()
+			},
+			assigned: map[any]map[string]any{1: {"id": int64(1), "age": int64(103)}, 2: {"id": int64(2), "age": int64(204)}},
+		},
+		{
+			name:    "postgres/set and add mixed",
+			dialect: dialect.Postgres,
+			nodes: func(assigned map[any]map[string]any) []*UpdateSpec {
+				nodes := []*UpdateSpec{batchUser(assigned, 1), batchUser(assigned, 2), batchUser(assigned, 3), batchUser(assigned, 4), batchUser(assigned, 5)}
+				nodes[0].SetField("age", field.TypeInt, 100)
+				nodes[0].AddField("age", field.TypeInt, 3)
+				nodes[1].AddField("age", field.TypeInt, 5)
+				nodes[2].SetField("age", field.TypeInt, 7)
+				nodes[3].ClearField("age", field.TypeInt)
+				nodes[4].ClearField("age", field.TypeInt)
+				nodes[4].AddField("age", field.TypeInt, 6)
+				return nodes
+			},
+			expect: func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery(escape(`UPDATE "users" SET "age" = CASE "batch"."mode1" WHEN 1 THEN "batch"."value1" WHEN 2 THEN NULL WHEN 3 THEN COALESCE("users"."age", 0) + "batch"."value1" WHEN 4 THEN COALESCE("batch"."value1", 0) + "batch"."delta1" ELSE "users"."age" END FROM unnest($1::bigint[], $2::bigint[], $3::bigint[], $4::smallint[]) WITH ORDINALITY AS "batch"("id1", "value1", "delta1", "mode1", "position") WHERE "users"."id" = "batch"."id1" RETURNING "users"."id", "batch"."position"`)).
+					WithArgs(sql.ArrayArgument{1, 2, 3, 4, 5}, sql.ArrayArgument{100, 5, 7, nil, 6}, sql.ArrayArgument{3, nil, nil, nil, nil}, sql.ArrayArgument{int16(4), int16(3), int16(1), int16(2), int16(3)}).
+					WillReturnRows(sqlmock.NewRows([]string{"id", "position"}).AddRow(1, 1).AddRow(2, 2).AddRow(3, 3).AddRow(4, 4).AddRow(5, 5))
+				mock.ExpectCommit()
+			},
+			assigned: map[any]map[string]any{1: {"id": int64(1)}, 2: {"id": int64(2)}, 3: {"id": int64(3)}, 4: {"id": int64(4)}, 5: {"id": int64(5)}},
+		},
+		{
+			name:      "sqlite/no changes with predicate across chunks",
+			dialect:   dialect.SQLite,
+			predicate: batchAdult,
+			nodes: func(assigned map[any]map[string]any) []*UpdateSpec {
+				nodes := make([]*UpdateSpec, batchValuesRows+1)
+				for index := range nodes {
+					nodes[index] = batchUser(assigned, len(nodes)-index)
+				}
+				return nodes
+			},
+			expect: func(mock sqlmock.Sqlmock) {
+				ids, rows := make([]driver.Value, batchValuesRows), sqlmock.NewRows([]string{"id"})
+				for index := range ids {
+					ids[index] = index + 1
+					rows.AddRow(index + 1)
+				}
+				mock.ExpectBegin()
+				mock.ExpectQuery(escape("WITH `batch`(`id1`) AS (VALUES " + strings.Repeat("(?), ", batchValuesRows-1) + "(?)) SELECT `users`.`id` FROM `users`, `batch` WHERE `users`.`id` = `batch`.`id1` AND `users`.`age` > ?")).
+					WithArgs(append(ids, 18)...).
+					WillReturnRows(rows)
+				mock.ExpectQuery(escape("WITH `batch`(`id1`) AS (VALUES (?)) SELECT `users`.`id` FROM `users`, `batch` WHERE `users`.`id` = `batch`.`id1` AND `users`.`age` > ?")).
+					WithArgs(batchValuesRows+1, 18).
+					WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(batchValuesRows + 1))
+				mock.ExpectCommit()
+			},
+			assigned: batchAssigned(batchValuesRows + 1),
+		},
+		{
+			name:    "sqlite/no changes missing",
+			dialect: dialect.SQLite,
+			nodes: func(assigned map[any]map[string]any) []*UpdateSpec {
+				return []*UpdateSpec{batchUser(assigned, 1, "name"), batchUser(assigned, 2, "name")}
+			},
+			expect: func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery(escape("WITH `batch`(`id1`) AS (VALUES (?), (?)) SELECT `users`.`id`, `users`.`name` FROM `users`, `batch` WHERE `users`.`id` = `batch`.`id1`")).
+					WithArgs(1, 2).
+					WillReturnRows(sqlmock.NewRows([]string{"id", "name"}).AddRow(1, "a"))
+				mock.ExpectRollback()
+			},
+			assigned: map[any]map[string]any{1: {"id": int64(1), "name": "a"}},
+			err:      "record with id [2] not found in table users",
+		},
+		{
+			name:      "postgres/no changes by position",
+			dialect:   dialect.Postgres,
+			predicate: func(selector *sql.Selector) { selector.Where(sql.GT(selector.C("age"), 18)) },
+			nodes: func(assigned map[any]map[string]any) []*UpdateSpec {
+				return []*UpdateSpec{batchUser(assigned, 2, "name"), batchUser(assigned, 1)}
+			},
+			expect: func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery(escape(`SELECT "users"."id", "users"."name", "batch"."position" FROM "users", unnest($1::bigint[]) WITH ORDINALITY AS "batch"("id1", "position") WHERE "users"."id" = "batch"."id1" AND "users"."age" > $2`)).
+					WithArgs(sql.ArrayArgument{1, 2}, 18).
+					WillReturnRows(sqlmock.NewRows([]string{"id", "name", "position"}).AddRow(2, "b", 2).AddRow(1, "a", 1))
+				mock.ExpectCommit()
+			},
+			assigned: map[any]map[string]any{1: {"id": int64(1)}, 2: {"id": int64(2), "name": "b"}},
+		},
+		{
+			name:    "postgres/composite sorted by id",
+			dialect: dialect.Postgres,
+			nodes: func(assigned map[any]map[string]any) []*UpdateSpec {
+				nodes := make([]*UpdateSpec, 3)
+				for index, pair := range [][2]int{{2, 1}, {1, 2}, {1, 1}} {
+					nodes[index] = batchTrack(NewUpdateSpec("friendships", []string{"user_id", "friend_id", "weight"},
+						&FieldSpec{Column: "user_id", Type: field.TypeInt, Value: pair[0]}, &FieldSpec{Column: "friend_id", Type: field.TypeInt, Value: pair[1]}), assigned, pair)
+					nodes[index].SetField("weight", field.TypeInt, 10*(index+1))
+				}
+				return nodes
+			},
+			expect: func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery(escape(`UPDATE "friendships" SET "weight" = "batch"."value1" FROM unnest($1::bigint[], $2::bigint[], $3::bigint[]) WITH ORDINALITY AS "batch"("id1", "id2", "value1", "position") WHERE "friendships"."user_id" = "batch"."id1" AND "friendships"."friend_id" = "batch"."id2" RETURNING "friendships"."user_id", "friendships"."friend_id", "friendships"."weight", "batch"."position"`)).
+					WithArgs(sql.ArrayArgument{1, 1, 2}, sql.ArrayArgument{1, 2, 1}, sql.ArrayArgument{30, 20, 10}).
+					WillReturnRows(sqlmock.NewRows([]string{"user_id", "friend_id", "weight", "position"}).AddRow(2, 1, 10, 3).AddRow(1, 1, 30, 1).AddRow(1, 2, 20, 2))
+				mock.ExpectCommit()
+			},
+			assigned: map[any]map[string]any{
+				[2]int{2, 1}: {"user_id": int64(2), "friend_id": int64(1), "weight": int64(10)},
+				[2]int{1, 2}: {"user_id": int64(1), "friend_id": int64(2), "weight": int64(20)},
+				[2]int{1, 1}: {"user_id": int64(1), "friend_id": int64(1), "weight": int64(30)},
+			},
+		},
+		{
+			name:    "postgres/target table batch",
+			dialect: dialect.Postgres,
+			nodes: func(assigned map[any]map[string]any) []*UpdateSpec {
+				nodes := make([]*UpdateSpec, 2)
+				for index, name := range []string{"a", "b"} {
+					nodes[index] = batchTrack(NewUpdateSpec("batch", []string{"id"}, &FieldSpec{Column: "id", Type: field.TypeInt, Value: index + 1}), assigned, index+1)
+					nodes[index].SetField("name", field.TypeString, name)
+				}
+				return nodes
+			},
+			expect: func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery(escape(`UPDATE "batch" SET "name" = "batch_rows"."value1" FROM unnest($1::bigint[], $2::character varying[]) WITH ORDINALITY AS "batch_rows"("id1", "value1", "position") WHERE "batch"."id" = "batch_rows"."id1" RETURNING "batch"."id", "batch_rows"."position"`)).
+					WithArgs(sql.ArrayArgument{1, 2}, sql.ArrayArgument{"a", "b"}).
+					WillReturnRows(sqlmock.NewRows([]string{"id", "position"}).AddRow(1, 1).AddRow(2, 2))
+				mock.ExpectCommit()
+			},
+			assigned: map[any]map[string]any{1: {"id": int64(1)}, 2: {"id": int64(2)}},
+		},
+		{
+			name:    "sqlite/values over parameter limit",
+			dialect: dialect.SQLite,
+			nodes: func(assigned map[any]map[string]any) []*UpdateSpec {
+				first, second := batchUser(assigned, 1), batchUser(assigned, 2)
+				first.SetField("name", field.TypeString, "a")
+				second.SetField("name", field.TypeString, "b")
+				return []*UpdateSpec{first, second}
+			},
+			predicate: func(selector *sql.Selector) {
+				selector.Where(sql.In(selector.C("age"), slices.Repeat([]any{18}, 32766)...))
+			},
+			err: "sqlgraph: batch update needs 32768 parameters per statement, more than the limit of 32766",
+		},
+		{
+			name:    "postgres/missing",
+			dialect: dialect.Postgres,
+			nodes: func(assigned map[any]map[string]any) []*UpdateSpec {
+				first, second, third := batchUser(assigned, 3), batchUser(assigned, 1), batchUser(assigned, 2)
+				first.SetField("name", field.TypeString, "c")
+				second.SetField("name", field.TypeString, "a")
+				third.SetField("name", field.TypeString, "b")
+				return []*UpdateSpec{first, second, third}
+			},
+			expect: func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery(escape(`UPDATE "users" SET "name" = "batch"."value1" FROM unnest($1::bigint[], $2::character varying[]) WITH ORDINALITY AS "batch"("id1", "value1", "position") WHERE "users"."id" = "batch"."id1" RETURNING "users"."id", "batch"."position"`)).
+					WithArgs(sql.ArrayArgument{1, 2, 3}, sql.ArrayArgument{"a", "b", "c"}).
+					WillReturnRows(sqlmock.NewRows([]string{"id", "position"}).AddRow(1, 1))
+				mock.ExpectRollback()
+			},
+			assigned: map[any]map[string]any{1: {"id": int64(1)}},
+			err:      "record with id [3 2] not found in table users",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			db, mock, err := sqlmock.New(sqlmock.ValueConverterOption(passthrough{}))
+			require.NoError(t, err)
+			defer db.Close()
+			assigned := make(map[any]map[string]any)
+			spec := &BatchUpdateSpec{
+				Nodes:         test.nodes(assigned),
+				Predicate:     test.predicate,
+				PostgresTypes: map[string]string{"id": "bigint", "age": "bigint", "name": "character varying", "tags": "text[]", "meta": "jsonb", "owner_id": "bigint", "user_id": "bigint", "friend_id": "bigint", "weight": "bigint", "doc_id": "uuid", "text": "text"},
+			}
+			if test.expect != nil {
+				test.expect(mock)
+			}
+			err = BatchUpdate(t.Context(), sql.OpenDB(test.dialect, db), spec)
+			if test.err != "" {
+				require.EqualError(t, err, test.err)
+			} else {
+				require.NoError(t, err)
+			}
+			if test.assigned == nil {
+				test.assigned = map[any]map[string]any{}
+			}
+			require.Equal(t, test.assigned, assigned)
+			require.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
+}
+
+func TestBatchUpdateValidation(t *testing.T) {
+	for _, test := range []struct {
+		name   string
+		modify func(first, second *UpdateSpec)
+		err    string
+	}{
+		{name: "duplicate id", modify: func(_, second *UpdateSpec) { second.Node.ID.Value = int64(1) }, err: "sqlgraph: batch update has duplicate id 1"},
+		{name: "missing id", modify: func(first, _ *UpdateSpec) { first.Node.ID.Value = nil }, err: "sqlgraph: batch update node 0 requires an id of columns [id]"},
+		{name: "id shape", modify: func(_, second *UpdateSpec) {
+			second.Node.ID, second.Node.CompositeID = nil, []*FieldSpec{{Column: "id", Value: 2}, {Column: "other", Value: 3}}
+		}, err: "sqlgraph: batch update node 1 requires an id of columns [id]"},
+		{name: "table", modify: func(_, second *UpdateSpec) { second.Node.Table = "pets" }, err: "sqlgraph: batch update nodes must share a table and schema"},
+		{name: "schema", modify: func(_, second *UpdateSpec) { second.Node.Schema = "tenant" }, err: "sqlgraph: batch update nodes must share a table and schema"},
+		{name: "modifiers", modify: func(first, _ *UpdateSpec) { first.AddModifier(func(*sql.UpdateBuilder) {}) }, err: "sqlgraph: batch update does not support statement modifiers"},
+		{name: "predicate", modify: func(_, second *UpdateSpec) { second.Predicate = func(*sql.Selector) {} }, err: "sqlgraph: batch update does not support node predicates"},
+		{name: "external edge", modify: func(_, second *UpdateSpec) {
+			second.Edges.Add = []*EdgeSpec{{Rel: O2M, Table: "pets", Columns: []string{"owner_id"}, Target: &EdgeTarget{Nodes: []driver.Value{5}, IDSpec: NewFieldSpec("id", field.TypeInt)}}}
+		}, err: "sqlgraph: batch update does not support edges stored in other tables"},
+		{name: "id column", modify: func(_, second *UpdateSpec) { second.SetField("id", field.TypeInt, 3) }, err: `sqlgraph: batch update node 1 changes the id column "id"`},
+		{name: "id edge", modify: func(first, _ *UpdateSpec) {
+			first.Edges.Add = []*EdgeSpec{{Rel: M2O, Inverse: true, Table: "users", Columns: []string{"id"}, Target: &EdgeTarget{Nodes: []driver.Value{5}, IDSpec: NewFieldSpec("id", field.TypeInt)}}}
+		}, err: `sqlgraph: batch update node 0 changes the id column "id"`},
+		{name: "postgres type", modify: func(first, _ *UpdateSpec) { first.SetField("nickname", field.TypeString, "a") }, err: `sqlgraph: batch update has no PostgreSQL type for column "nickname"`},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			db, mock, err := sqlmock.New()
+			require.NoError(t, err)
+			defer db.Close()
+			assigned := make(map[any]map[string]any)
+			first, second := batchUser(assigned, 1), batchUser(assigned, 2)
+			test.modify(first, second)
+			err = BatchUpdate(t.Context(), sql.OpenDB(dialect.Postgres, db), &BatchUpdateSpec{Nodes: []*UpdateSpec{first, second}, PostgresTypes: map[string]string{"id": "bigint", "age": "bigint"}})
+			require.EqualError(t, err, test.err)
+			require.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
+}
+
+func TestCompareBatchKeys(t *testing.T) {
+	now := time.Now()
+	for _, test := range []struct {
+		a, b   any
+		expect int
+	}{
+		{a: int64(1), b: int64(2), expect: -1},
+		{a: 2.5, b: 1.5, expect: 1},
+		{a: "B", b: "a", expect: -1},
+		{a: now, b: now.Add(time.Second), expect: -1},
+		{a: [2]any{int64(1), "b"}, b: [2]any{int64(1), "a"}, expect: 1},
+		{a: [2]any{int64(1), "b"}, b: [2]any{int64(2), "a"}, expect: -1},
+		{a: int64(1), b: "1", expect: 0},
+		{a: true, b: false, expect: 0},
+	} {
+		require.Equal(t, test.expect, compareBatchKeys(test.a, test.b), "%v, %v", test.a, test.b)
+	}
 }
 
 func TestNeighbors(t *testing.T) {

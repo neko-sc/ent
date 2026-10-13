@@ -265,6 +265,12 @@ func (c *CardClient) UpdateOneID(id int) *CardUpdateOne {
 	return &CardUpdateOne{config: c.config, mutation: mutation}
 }
 
+// UpdateBulk returns a builder for updating a bulk of Card entities in set-based statements, each with
+// the changes of its builder.
+func (c *CardClient) UpdateBulk(builders ...*CardUpdateOne) *CardUpdateBulk {
+	return &CardUpdateBulk{config: c.config, builders: builders}
+}
+
 // Delete returns a delete builder for Card.
 func (c *CardClient) Delete() *CardDelete {
 	mutation := newCardMutation(c.config, OpDelete)
@@ -404,6 +410,12 @@ func (c *UserClient) UpdateOneID(id int) *UserUpdateOne {
 	mutation := newUserMutation(c.config, OpUpdateOne)
 	mutation.id = &id
 	return &UserUpdateOne{config: c.config, mutation: mutation}
+}
+
+// UpdateBulk returns a builder for updating a bulk of User entities in set-based statements, each with
+// the changes of its builder.
+func (c *UserClient) UpdateBulk(builders ...*UserUpdateOne) *UserUpdateBulk {
+	return &UserUpdateBulk{config: c.config, builders: builders}
 }
 
 // Delete returns a delete builder for User.

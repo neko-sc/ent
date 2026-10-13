@@ -222,3 +222,56 @@ func IsConstraintError(err error) bool {
 
 // queryHook describes an internal hook for the different sqlAll methods.
 type queryHook func(context.Context, *sqlgraph.QuerySpec)
+
+// postgresColumnTypes maps the tables to the PostgreSQL types of their columns.
+var postgresColumnTypes = map[string]map[string]string{
+	"cards": {
+		"cvv_hash":    "text",
+		"expires_at":  "timestamptz",
+		"id":          "bigint",
+		"number_hash": "text",
+		"owner_id":    "bigint",
+		"type":        "text",
+	},
+	"payments": {
+		"amount":      "double precision",
+		"card_id":     "bigint",
+		"currency":    "text",
+		"description": "text",
+		"id":          "bigint",
+		"status":      "text",
+		"time":        "timestamptz",
+	},
+	"pets": {
+		"age":            "double precision",
+		"best_friend_id": "uuid",
+		"id":             "uuid",
+		"name":           "text",
+		"owner_id":       "bigint",
+		"weight":         "double precision",
+	},
+	"session_devices": {
+		"created_at": "timestamptz",
+		"id":         "uuid",
+		"ip_address": "text",
+		"location":   "text",
+		"updated_at": "timestamptz",
+		"user_agent": "text",
+	},
+	"sessions": {
+		"active":     "boolean",
+		"device_id":  "uuid",
+		"expires_at": "timestamptz",
+		"id":         "uuid",
+		"issued_at":  "timestamptz",
+		"method":     "jsonb",
+		"token":      "text",
+	},
+	"users": {
+		"age":        "double precision",
+		"first_name": "text",
+		"id":         "bigint",
+		"last_name":  "text",
+		"tags":       "jsonb",
+	},
+}

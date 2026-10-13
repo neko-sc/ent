@@ -379,6 +379,19 @@ func TestBuilder(t *testing.T) {
 			wantArgs:  []any{0.1, 0.2, 0.3},
 		},
 		{
+			input: Dialect(dialect.Postgres).
+				Update("users").
+				Prefix(With("limits").As(Dialect(dialect.Postgres).Select().AppendSelectExprAs(ExprFunc(func(b *Builder) { b.Arg(10) }), "maximum"))).
+				Add("age", 1).
+				Set("name", Expr(`"batch"."value1"`)).
+				From(ExprFunc(func(b *Builder) {
+					b.WriteString("unnest(").Arg([]any{int64(1)}).WriteString("::bigint[], ").Arg([]any{"a"}).WriteString(`::text[]) AS "batch"("id1", "value1")`)
+				})).
+				Where(And(ColumnsEQ(Dialect(dialect.Postgres).Table("users").C("id"), `"batch"."id1"`), NEQ("name", "b"))),
+			wantQuery: `WITH "limits" AS (SELECT ($1) AS "maximum") UPDATE "users" SET "age" = COALESCE("users"."age", 0) + $2, "name" = "batch"."value1" FROM unnest($3::bigint[], $4::text[]) AS "batch"("id1", "value1") WHERE "users"."id" = "batch"."id1" AND "name" <> $5`,
+			wantArgs:  []any{10, 1, []any{int64(1)}, []any{"a"}, "b"},
+		},
+		{
 			input: Update("users").
 				Set("name", "foo").
 				Where(And(HasPrefixFold("nickname", "a8m"), Contains("lastname", "mash"))),

@@ -236,6 +236,22 @@ func (_u *ExValueScanUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	if err := _u.check(); err != nil {
 		return _node, err
 	}
+	_spec, err := _u.updateSpec()
+	if err != nil {
+		return _node, err
+	}
+	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
+		if _, ok := err.(*sqlgraph.NotFoundError); ok {
+			err = &NotFoundError{exvaluescan.Label}
+		} else if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{msg: err.Error(), wrap: err}
+		}
+		return 0, err
+	}
+	return _node, nil
+}
+
+func (_u *ExValueScanUpdate) updateSpec() (*sqlgraph.UpdateSpec, error) {
 	_spec := sqlgraph.NewUpdateSpec(exvaluescan.Table, exvaluescan.Columns, sqlgraph.NewFieldSpec(exvaluescan.FieldID, field.TypeInt))
 	if ps := _u.mutation.Predicates(); len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -247,21 +263,21 @@ func (_u *ExValueScanUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	if value, ok := _u.mutation.patch.Binary.Get(); ok {
 		vv, err := exvaluescan.ValueScanner.Binary.Value(value)
 		if err != nil {
-			return 0, err
+			return nil, err
 		}
 		_spec.SetField(exvaluescan.FieldBinary, field.TypeString, vv)
 	}
 	if value, ok := _u.mutation.patch.BinaryBytes.Get(); ok {
 		vv, err := exvaluescan.ValueScanner.BinaryBytes.Value(value)
 		if err != nil {
-			return 0, err
+			return nil, err
 		}
 		_spec.SetField(exvaluescan.FieldBinaryBytes, field.TypeBytes, vv)
 	}
 	if value, ok := _u.mutation.patch.BinaryOptional.Get(); ok {
 		vv, err := exvaluescan.ValueScanner.BinaryOptional.Value(value)
 		if err != nil {
-			return 0, err
+			return nil, err
 		}
 		_spec.SetField(exvaluescan.FieldBinaryOptional, field.TypeString, vv)
 	}
@@ -271,14 +287,14 @@ func (_u *ExValueScanUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	if value, ok := _u.mutation.patch.Text.Get(); ok {
 		vv, err := exvaluescan.ValueScanner.Text.Value(value)
 		if err != nil {
-			return 0, err
+			return nil, err
 		}
 		_spec.SetField(exvaluescan.FieldText, field.TypeString, vv)
 	}
 	if value, ok := _u.mutation.patch.TextOptional.Get(); ok {
 		vv, err := exvaluescan.ValueScanner.TextOptional.Value(value)
 		if err != nil {
-			return 0, err
+			return nil, err
 		}
 		_spec.SetField(exvaluescan.FieldTextOptional, field.TypeString, vv)
 	}
@@ -288,21 +304,21 @@ func (_u *ExValueScanUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	if value, ok := _u.mutation.patch.Base64.Get(); ok {
 		vv, err := exvaluescan.ValueScanner.Base64.Value(value)
 		if err != nil {
-			return 0, err
+			return nil, err
 		}
 		_spec.SetField(exvaluescan.FieldBase64, field.TypeString, vv)
 	}
 	if value, ok := _u.mutation.patch.Custom.Get(); ok {
 		vv, err := exvaluescan.ValueScanner.Custom.Value(value)
 		if err != nil {
-			return 0, err
+			return nil, err
 		}
 		_spec.SetField(exvaluescan.FieldCustom, field.TypeString, vv)
 	}
 	if value, ok := _u.mutation.patch.CustomOptional.Get(); ok {
 		vv, err := exvaluescan.ValueScanner.CustomOptional.Value(value)
 		if err != nil {
-			return 0, err
+			return nil, err
 		}
 		_spec.SetField(exvaluescan.FieldCustomOptional, field.TypeString, vv)
 	}
@@ -315,15 +331,7 @@ func (_u *ExValueScanUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	}
 	_spec.AddModifiers(_u.modifiers...)
 
-	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
-		if _, ok := err.(*sqlgraph.NotFoundError); ok {
-			err = &NotFoundError{exvaluescan.Label}
-		} else if sqlgraph.IsConstraintError(err) {
-			err = &ConstraintError{msg: err.Error(), wrap: err}
-		}
-		return 0, err
-	}
-	return _node, nil
+	return _spec, nil
 }
 
 type ExValueScanUpdateOne struct {
@@ -546,6 +554,29 @@ func (_u *ExValueScanUpdateOne) sqlSave(ctx context.Context) (_node *ExValueScan
 	if err := _u.check(); err != nil {
 		return _node, err
 	}
+	_spec, err := _u.updateSpec()
+	if err != nil {
+		return _node, err
+	}
+	_node = &ExValueScan{config: _u.config}
+	_spec.Assign = _node.assignValues
+	_spec.ScanValues = _node.scanValues
+	if _u.old != nil {
+		_spec.OldScanValues = _u.old.scanValues
+		_spec.OldAssign = _u.old.assignValues
+	}
+	if err = sqlgraph.UpdateNode(ctx, _u.driver, _spec); err != nil {
+		if _, ok := err.(*sqlgraph.NotFoundError); ok {
+			err = &NotFoundError{exvaluescan.Label}
+		} else if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{msg: err.Error(), wrap: err}
+		}
+		return nil, err
+	}
+	return _node, nil
+}
+
+func (_u *ExValueScanUpdateOne) updateSpec() (*sqlgraph.UpdateSpec, error) {
 	_spec := sqlgraph.NewUpdateSpec(exvaluescan.Table, exvaluescan.Columns, sqlgraph.NewFieldSpec(exvaluescan.FieldID, field.TypeInt))
 	id, ok := _u.mutation.ID()
 	if !ok {
@@ -641,20 +672,109 @@ func (_u *ExValueScanUpdateOne) sqlSave(ctx context.Context) (_node *ExValueScan
 	}
 	_spec.AddModifiers(_u.modifiers...)
 
-	_node = &ExValueScan{config: _u.config}
-	_spec.Assign = _node.assignValues
-	_spec.ScanValues = _node.scanValues
-	if _u.old != nil {
-		_spec.OldScanValues = _u.old.scanValues
-		_spec.OldAssign = _u.old.assignValues
+	return _spec, nil
+}
+
+// ExValueScanUpdateBulk updates a bulk of ExValueScan entities, each with the changes of its builder, in set-based statements.
+type ExValueScanUpdateBulk struct {
+	config
+	builders   []*ExValueScanUpdateOne
+	predicates []ent.Predicate[entity.ExValueScan]
+}
+
+// Where adds predicates that every updated entity must match. Entities that do not match fail the update with a NotFoundError.
+func (b *ExValueScanUpdateBulk) Where(predicates ...ent.Predicate[entity.ExValueScan]) *ExValueScanUpdateBulk {
+	b.predicates = append(b.predicates, predicates...)
+	return b
+}
+
+// Save updates the entities and returns them in the order of the builders. Entities that do not exist or do not
+// match the predicates fail the whole update. Inside a transaction, the caller must roll it back on error.
+func (_u *ExValueScanUpdateBulk) Save(ctx context.Context) ([]*ExValueScan, error) {
+	nodes, _spec, err := _u.batchSpec()
+	if err != nil {
+		return nil, err
 	}
-	if err = sqlgraph.UpdateNode(ctx, _u.driver, _spec); err != nil {
+	if err := _u.sqlSave(ctx, _spec); err != nil {
+		return nil, err
+	}
+	return nodes, nil
+}
+
+// SaveX is like Save, but panics if an error occurs.
+func (_u *ExValueScanUpdateBulk) SaveX(ctx context.Context) []*ExValueScan {
+	nodes, err := _u.Save(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return nodes
+}
+
+// Exec is like Save, but reads back only the IDs of the entities, to find those that do not exist or do not
+// match the predicates and fail the whole update. Inside a transaction, the caller must roll it back on error.
+func (_u *ExValueScanUpdateBulk) Exec(ctx context.Context) error {
+	_, _spec, err := _u.batchSpec()
+	if err != nil {
+		return err
+	}
+	columns := []string{exvaluescan.FieldID}
+	for index := range _spec.Nodes {
+		_spec.Nodes[index].Node.Columns = columns
+	}
+	return _u.sqlSave(ctx, _spec)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (_u *ExValueScanUpdateBulk) ExecX(ctx context.Context) {
+	if err := _u.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// batchSpec returns the entities that the update assigns and the spec of the update.
+func (_u *ExValueScanUpdateBulk) batchSpec() ([]*ExValueScan, *sqlgraph.BatchUpdateSpec, error) {
+	nodes := make([]*ExValueScan, len(_u.builders))
+	_spec := &sqlgraph.BatchUpdateSpec{
+		Nodes:         make([]*sqlgraph.UpdateSpec, len(_u.builders)),
+		PostgresTypes: postgresColumnTypes[exvaluescan.Table],
+	}
+	for index, builder := range _u.builders {
+		if builder.err != nil {
+			return nil, nil, builder.err
+		}
+		if err := builder.defaults(); err != nil {
+			return nil, nil, err
+		}
+		if err := builder.check(); err != nil {
+			return nil, nil, err
+		}
+		node, err := builder.updateSpec()
+		if err != nil {
+			return nil, nil, err
+		}
+		nodes[index] = &ExValueScan{config: _u.config}
+		node.Assign = nodes[index].assignValues
+		node.ScanValues = nodes[index].scanValues
+		_spec.Nodes[index] = node
+	}
+	if ps := _u.predicates; len(ps) > 0 {
+		_spec.Predicate = func(selector *sql.Selector) {
+			for i := range ps {
+				ps[i](selector)
+			}
+		}
+	}
+	return nodes, _spec, nil
+}
+
+func (_u *ExValueScanUpdateBulk) sqlSave(ctx context.Context, _spec *sqlgraph.BatchUpdateSpec) error {
+	if err := sqlgraph.BatchUpdate(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{exvaluescan.Label}
 		} else if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}
-		return nil, err
+		return err
 	}
-	return _node, nil
+	return nil
 }

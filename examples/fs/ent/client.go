@@ -257,6 +257,12 @@ func (c *FileClient) UpdateOneID(id int) *FileUpdateOne {
 	return &FileUpdateOne{config: c.config, mutation: mutation}
 }
 
+// UpdateBulk returns a builder for updating a bulk of File entities in set-based statements, each with
+// the changes of its builder.
+func (c *FileClient) UpdateBulk(builders ...*FileUpdateOne) *FileUpdateBulk {
+	return &FileUpdateBulk{config: c.config, builders: builders}
+}
+
 // Delete returns a delete builder for File.
 func (c *FileClient) Delete() *FileDelete {
 	mutation := newFileMutation(c.config, OpDelete)

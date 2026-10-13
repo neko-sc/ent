@@ -222,3 +222,21 @@ func IsConstraintError(err error) bool {
 
 // queryHook describes an internal hook for the different sqlAll methods.
 type queryHook func(context.Context, *sqlgraph.QuerySpec)
+
+// postgresColumnTypes maps the tables to the PostgreSQL types of their columns.
+var postgresColumnTypes = map[string]map[string]string{
+	"groups": {
+		"id":        "bigint",
+		"max_users": "bigint",
+	},
+	"pets": {
+		"age":         "bigint",
+		"id":          "bigint",
+		"licensed_at": "timestamptz",
+		"user_pets":   "bigint",
+	},
+	"users": {
+		"id":   "bigint",
+		"name": "text",
+	},
+}

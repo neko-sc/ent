@@ -150,3 +150,27 @@ func TestDriver(t *testing.T) {
 	require.Same(t, db.DB(), db.DB())
 	require.Equal(t, dialect.Capabilities{}, db.Capabilities())
 }
+
+// TestBatchUpdateTable updates a table named like the row source, with a column named like a row
+// source column. SQLite resolves the unqualified RETURNING columns against the target table only.
+func TestBatchUpdateTable(t *testing.T) {
+	ctx := context.Background()
+	db, err := Open(ctx, ":memory:")
+	require.NoError(t, err)
+	defer db.Close()
+	_, err = db.Exec(ctx, "CREATE TABLE batch(id INTEGER PRIMARY KEY, value1 INTEGER); INSERT INTO batch VALUES (1, 10), (2, 20)", nil)
+	require.NoError(t, err)
+	returned := make(map[int64]int64)
+	node := func(id int, add int) *sqlgraph.UpdateSpec {
+		spec := sqlgraph.NewUpdateSpec("batch", []string{"id", "value1"}, &sqlgraph.FieldSpec{Column: "id", Type: field.TypeInt, Value: id})
+		spec.ScanValues = func([]string) ([]any, error) { return []any{new(int64), new(int64)}, nil }
+		spec.Assign = func(_ []string, values []any) error {
+			returned[*values[0].(*int64)] = *values[1].(*int64)
+			return nil
+		}
+		spec.AddField("value1", field.TypeInt, add)
+		return spec
+	}
+	require.NoError(t, sqlgraph.BatchUpdate(ctx, db, &sqlgraph.BatchUpdateSpec{Nodes: []*sqlgraph.UpdateSpec{node(1, 1), node(2, 2)}}))
+	require.Equal(t, map[int64]int64{1: 11, 2: 22}, returned)
+}

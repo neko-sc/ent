@@ -222,3 +222,87 @@ func IsConstraintError(err error) bool {
 
 // queryHook describes an internal hook for the different sqlAll methods.
 type queryHook func(context.Context, *sqlgraph.QuerySpec)
+
+// postgresColumnTypes maps the tables to the PostgreSQL types of their columns.
+var postgresColumnTypes = map[string]map[string]string{
+	"accounts": {
+		"email": "text",
+		"id":    "bigint",
+	},
+	"blob_links": {
+		"blob_id":    "uuid",
+		"created_at": "timestamptz",
+		"link_id":    "uuid",
+	},
+	"blobs": {
+		"blob_parent": "uuid",
+		"count":       "bigint",
+		"id":          "uuid",
+		"uuid":        "uuid",
+	},
+	"cars": {
+		"after_id":  "double precision",
+		"before_id": "double precision",
+		"id":        "bigint",
+		"model":     "text",
+		"pet_cars":  "text",
+	},
+	"devices": {
+		"device_active_session": "bytea",
+		"id":                    "bytea",
+	},
+	"docs": {
+		"doc_children": "uuid",
+		"id":           "uuid",
+		"text":         "text",
+	},
+	"groups": {
+		"id": "bigint",
+	},
+	"int_si_ds": {
+		"id":             "bigint",
+		"int_sid_parent": "bigint",
+	},
+	"links": {
+		"id":               "uuid",
+		"link_information": "jsonb",
+	},
+	"mixin_ids": {
+		"id":          "uuid",
+		"mixin_field": "text",
+		"some_field":  "text",
+	},
+	"notes": {
+		"id":            "text",
+		"note_children": "text",
+		"text":          "text",
+	},
+	"others": {
+		"id": "bigint",
+	},
+	"pets": {
+		"id":              "text",
+		"pet_best_friend": "text",
+		"user_pets":       "bigint",
+	},
+	"revisions": {
+		"id": "text",
+	},
+	"sessions": {
+		"device_sessions": "bytea",
+		"id":              "bytea",
+	},
+	"tokens": {
+		"account_token": "bigint",
+		"body":          "text",
+		"id":            "bigint",
+	},
+	"users": {
+		"oid":           "bigint",
+		"user_children": "bigint",
+	},
+	"value_scans": {
+		"id":   "bigint",
+		"name": "text",
+	},
+}

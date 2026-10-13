@@ -386,6 +386,12 @@ func (c *AttachedFileClient) UpdateOneID(id int) *AttachedFileUpdateOne {
 	return &AttachedFileUpdateOne{config: c.config, mutation: mutation}
 }
 
+// UpdateBulk returns a builder for updating a bulk of AttachedFile entities in set-based statements, each with
+// the changes of its builder.
+func (c *AttachedFileClient) UpdateBulk(builders ...*AttachedFileUpdateOne) *AttachedFileUpdateBulk {
+	return &AttachedFileUpdateBulk{config: c.config, builders: builders}
+}
+
 // Delete returns a delete builder for AttachedFile.
 func (c *AttachedFileClient) Delete() *AttachedFileDelete {
 	mutation := newAttachedFileMutation(c.config, OpDelete)
@@ -543,6 +549,12 @@ func (c *FileClient) UpdateOneID(id int) *FileUpdateOne {
 	return &FileUpdateOne{config: c.config, mutation: mutation}
 }
 
+// UpdateBulk returns a builder for updating a bulk of File entities in set-based statements, each with
+// the changes of its builder.
+func (c *FileClient) UpdateBulk(builders ...*FileUpdateOne) *FileUpdateBulk {
+	return &FileUpdateBulk{config: c.config, builders: builders}
+}
+
 // Delete returns a delete builder for File.
 func (c *FileClient) Delete() *FileDelete {
 	mutation := newFileMutation(c.config, OpDelete)
@@ -682,6 +694,12 @@ func (c *FriendshipClient) UpdateOneID(id int) *FriendshipUpdateOne {
 	mutation := newFriendshipMutation(c.config, OpUpdateOne)
 	mutation.id = &id
 	return &FriendshipUpdateOne{config: c.config, mutation: mutation}
+}
+
+// UpdateBulk returns a builder for updating a bulk of Friendship entities in set-based statements, each with
+// the changes of its builder.
+func (c *FriendshipClient) UpdateBulk(builders ...*FriendshipUpdateOne) *FriendshipUpdateBulk {
+	return &FriendshipUpdateBulk{config: c.config, builders: builders}
 }
 
 // Delete returns a delete builder for Friendship.
@@ -839,6 +857,12 @@ func (c *GroupClient) UpdateOneID(id int) *GroupUpdateOne {
 	mutation := newGroupMutation(c.config, OpUpdateOne)
 	mutation.id = &id
 	return &GroupUpdateOne{config: c.config, mutation: mutation}
+}
+
+// UpdateBulk returns a builder for updating a bulk of Group entities in set-based statements, each with
+// the changes of its builder.
+func (c *GroupClient) UpdateBulk(builders ...*GroupUpdateOne) *GroupUpdateBulk {
+	return &GroupUpdateBulk{config: c.config, builders: builders}
 }
 
 // Delete returns a delete builder for Group.
@@ -1030,6 +1054,12 @@ func (c *GroupTagClient) UpdateOneID(id int) *GroupTagUpdateOne {
 	return &GroupTagUpdateOne{config: c.config, mutation: mutation}
 }
 
+// UpdateBulk returns a builder for updating a bulk of GroupTag entities in set-based statements, each with
+// the changes of its builder.
+func (c *GroupTagClient) UpdateBulk(builders ...*GroupTagUpdateOne) *GroupTagUpdateBulk {
+	return &GroupTagUpdateBulk{config: c.config, builders: builders}
+}
+
 // Delete returns a delete builder for GroupTag.
 func (c *GroupTagClient) Delete() *GroupTagDelete {
 	mutation := newGroupTagMutation(c.config, OpDelete)
@@ -1187,6 +1217,12 @@ func (c *ProcessClient) UpdateOneID(id int) *ProcessUpdateOne {
 	return &ProcessUpdateOne{config: c.config, mutation: mutation}
 }
 
+// UpdateBulk returns a builder for updating a bulk of Process entities in set-based statements, each with
+// the changes of its builder.
+func (c *ProcessClient) UpdateBulk(builders ...*ProcessUpdateOne) *ProcessUpdateBulk {
+	return &ProcessUpdateBulk{config: c.config, builders: builders}
+}
+
 // Delete returns a delete builder for Process.
 func (c *ProcessClient) Delete() *ProcessDelete {
 	mutation := newProcessMutation(c.config, OpDelete)
@@ -1337,6 +1373,12 @@ func (c *RelationshipClient) UpdateOne(_m *Relationship) *RelationshipUpdateOne 
 
 }
 
+// UpdateBulk returns a builder for updating a bulk of Relationship entities in set-based statements, each with
+// the changes of its builder.
+func (c *RelationshipClient) UpdateBulk(builders ...*RelationshipUpdateOne) *RelationshipUpdateBulk {
+	return &RelationshipUpdateBulk{config: c.config, builders: builders}
+}
+
 // Delete returns a delete builder for Relationship.
 func (c *RelationshipClient) Delete() *RelationshipDelete {
 	mutation := newRelationshipMutation(c.config, OpDelete)
@@ -1454,6 +1496,12 @@ func (c *RelationshipInfoClient) UpdateOneID(id int) *RelationshipInfoUpdateOne 
 	mutation := newRelationshipInfoMutation(c.config, OpUpdateOne)
 	mutation.id = &id
 	return &RelationshipInfoUpdateOne{config: c.config, mutation: mutation}
+}
+
+// UpdateBulk returns a builder for updating a bulk of RelationshipInfo entities in set-based statements, each with
+// the changes of its builder.
+func (c *RelationshipInfoClient) UpdateBulk(builders ...*RelationshipInfoUpdateOne) *RelationshipInfoUpdateBulk {
+	return &RelationshipInfoUpdateBulk{config: c.config, builders: builders}
 }
 
 // Delete returns a delete builder for RelationshipInfo.
@@ -1579,6 +1627,12 @@ func (c *RoleClient) UpdateOneID(id int) *RoleUpdateOne {
 	mutation := newRoleMutation(c.config, OpUpdateOne)
 	mutation.id = &id
 	return &RoleUpdateOne{config: c.config, mutation: mutation}
+}
+
+// UpdateBulk returns a builder for updating a bulk of Role entities in set-based statements, each with
+// the changes of its builder.
+func (c *RoleClient) UpdateBulk(builders ...*RoleUpdateOne) *RoleUpdateBulk {
+	return &RoleUpdateBulk{config: c.config, builders: builders}
 }
 
 // Delete returns a delete builder for Role.
@@ -1731,6 +1785,12 @@ func (c *RoleUserClient) UpdateOne(_m *RoleUser) *RoleUserUpdateOne {
 
 }
 
+// UpdateBulk returns a builder for updating a bulk of RoleUser entities in set-based statements, each with
+// the changes of its builder.
+func (c *RoleUserClient) UpdateBulk(builders ...*RoleUserUpdateOne) *RoleUserUpdateBulk {
+	return &RoleUserUpdateBulk{config: c.config, builders: builders}
+}
+
 // Delete returns a delete builder for RoleUser.
 func (c *RoleUserClient) Delete() *RoleUserDelete {
 	mutation := newRoleUserMutation(c.config, OpDelete)
@@ -1841,6 +1901,12 @@ func (c *TagClient) UpdateOneID(id int) *TagUpdateOne {
 	mutation := newTagMutation(c.config, OpUpdateOne)
 	mutation.id = &id
 	return &TagUpdateOne{config: c.config, mutation: mutation}
+}
+
+// UpdateBulk returns a builder for updating a bulk of Tag entities in set-based statements, each with
+// the changes of its builder.
+func (c *TagClient) UpdateBulk(builders ...*TagUpdateOne) *TagUpdateBulk {
+	return &TagUpdateBulk{config: c.config, builders: builders}
 }
 
 // Delete returns a delete builder for Tag.
@@ -2030,6 +2096,12 @@ func (c *TweetClient) UpdateOneID(id int) *TweetUpdateOne {
 	mutation := newTweetMutation(c.config, OpUpdateOne)
 	mutation.id = &id
 	return &TweetUpdateOne{config: c.config, mutation: mutation}
+}
+
+// UpdateBulk returns a builder for updating a bulk of Tweet entities in set-based statements, each with
+// the changes of its builder.
+func (c *TweetClient) UpdateBulk(builders ...*TweetUpdateOne) *TweetUpdateBulk {
+	return &TweetUpdateBulk{config: c.config, builders: builders}
 }
 
 // Delete returns a delete builder for Tweet.
@@ -2246,6 +2318,12 @@ func (c *TweetLikeClient) UpdateOne(_m *TweetLike) *TweetLikeUpdateOne {
 
 }
 
+// UpdateBulk returns a builder for updating a bulk of TweetLike entities in set-based statements, each with
+// the changes of its builder.
+func (c *TweetLikeClient) UpdateBulk(builders ...*TweetLikeUpdateOne) *TweetLikeUpdateBulk {
+	return &TweetLikeUpdateBulk{config: c.config, builders: builders}
+}
+
 // Delete returns a delete builder for TweetLike.
 func (c *TweetLikeClient) Delete() *TweetLikeDelete {
 	mutation := newTweetLikeMutation(c.config, OpDelete)
@@ -2356,6 +2434,12 @@ func (c *TweetTagClient) UpdateOneID(id uuid.UUID) *TweetTagUpdateOne {
 	mutation := newTweetTagMutation(c.config, OpUpdateOne)
 	mutation.id = &id
 	return &TweetTagUpdateOne{config: c.config, mutation: mutation}
+}
+
+// UpdateBulk returns a builder for updating a bulk of TweetTag entities in set-based statements, each with
+// the changes of its builder.
+func (c *TweetTagClient) UpdateBulk(builders ...*TweetTagUpdateOne) *TweetTagUpdateBulk {
+	return &TweetTagUpdateBulk{config: c.config, builders: builders}
 }
 
 // Delete returns a delete builder for TweetTag.
@@ -2513,6 +2597,12 @@ func (c *UserClient) UpdateOneID(id int) *UserUpdateOne {
 	mutation := newUserMutation(c.config, OpUpdateOne)
 	mutation.id = &id
 	return &UserUpdateOne{config: c.config, mutation: mutation}
+}
+
+// UpdateBulk returns a builder for updating a bulk of User entities in set-based statements, each with
+// the changes of its builder.
+func (c *UserClient) UpdateBulk(builders ...*UserUpdateOne) *UserUpdateBulk {
+	return &UserUpdateBulk{config: c.config, builders: builders}
 }
 
 // Delete returns a delete builder for User.
@@ -2832,6 +2922,12 @@ func (c *UserGroupClient) UpdateOneID(id int) *UserGroupUpdateOne {
 	return &UserGroupUpdateOne{config: c.config, mutation: mutation}
 }
 
+// UpdateBulk returns a builder for updating a bulk of UserGroup entities in set-based statements, each with
+// the changes of its builder.
+func (c *UserGroupClient) UpdateBulk(builders ...*UserGroupUpdateOne) *UserGroupUpdateBulk {
+	return &UserGroupUpdateBulk{config: c.config, builders: builders}
+}
+
 // Delete returns a delete builder for UserGroup.
 func (c *UserGroupClient) Delete() *UserGroupDelete {
 	mutation := newUserGroupMutation(c.config, OpDelete)
@@ -2987,6 +3083,12 @@ func (c *UserTweetClient) UpdateOneID(id int) *UserTweetUpdateOne {
 	mutation := newUserTweetMutation(c.config, OpUpdateOne)
 	mutation.id = &id
 	return &UserTweetUpdateOne{config: c.config, mutation: mutation}
+}
+
+// UpdateBulk returns a builder for updating a bulk of UserTweet entities in set-based statements, each with
+// the changes of its builder.
+func (c *UserTweetClient) UpdateBulk(builders ...*UserTweetUpdateOne) *UserTweetUpdateBulk {
+	return &UserTweetUpdateBulk{config: c.config, builders: builders}
 }
 
 // Delete returns a delete builder for UserTweet.

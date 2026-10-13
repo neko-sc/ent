@@ -130,6 +130,7 @@ var (
 		NamedEagerLoading,
 		Mutation,
 		CreateBulk,
+		UpdateBulk,
 		ConstraintChecks,
 		NillableRequired,
 		ExtValueScan,

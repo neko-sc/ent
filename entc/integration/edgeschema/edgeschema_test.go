@@ -290,6 +290,68 @@ func TestEdgeSchemaBidiCompositeID(t *testing.T) {
 	require.Equal(t, info.ID, r2.Edges.Info.ID)
 }
 
+func TestEdgeSchemaCompositeIDUpdateBulk(t *testing.T) {
+	client, err := ent.Open(dialect.SQLite, "file:edgeschema-update-bulk?mode=memory&cache=shared&_fk=1")
+	require.NoError(t, err)
+	defer client.Close()
+	ctx := context.Background()
+	require.NoError(t, client.Schema.Create(ctx, migrate.WithGlobalUniqueID(true)))
+
+	u1, u2, u3 := client.User.Create().Set(user.Name, "u1").SaveX(ctx), client.User.Create().Set(user.Name, "u2").SaveX(ctx), client.User.Create().Set(user.Name, "u3").SaveX(ctx)
+	relationships := client.Relationship.CreateBulk(
+		client.Relationship.Create().Set(relationship.UserID, u1.ID).Set(relationship.RelativeID, u2.ID),
+		client.Relationship.Create().Set(relationship.UserID, u1.ID).Set(relationship.RelativeID, u3.ID),
+		client.Relationship.Create().Set(relationship.UserID, u2.ID).Set(relationship.RelativeID, u3.ID),
+	).SaveX(ctx)
+	stored := func(r *ent.Relationship) *ent.Relationship {
+		return client.Relationship.Query().Where(relationship.UserID.EQ(r.UserID), relationship.RelativeID.EQ(r.RelativeID)).OnlyX(ctx)
+	}
+	info := client.RelationshipInfo.Create().Set(relationshipinfo.Text, "u1->u2").SaveX(ctx)
+
+	updated := client.Relationship.UpdateBulk(
+		client.Relationship.UpdateOne(relationships[2]).Set(relationship.Weight, 5),
+		client.Relationship.UpdateOne(relationships[0]).Add(relationship.Weight, 2).SetEdge(relationship.Info, info.ID),
+	).SaveX(ctx)
+	require.Len(t, updated, 2)
+	require.Equal(t, [2]int{u2.ID, u3.ID}, [2]int{updated[0].UserID, updated[0].RelativeID})
+	require.Equal(t, 5, updated[0].Weight)
+	require.Equal(t, [2]int{u1.ID, u2.ID}, [2]int{updated[1].UserID, updated[1].RelativeID})
+	require.Equal(t, 3, updated[1].Weight)
+	require.Equal(t, info.ID, updated[1].InfoID)
+	for _, r := range updated {
+		require.Equal(t, r.String(), stored(r).String())
+	}
+	require.Equal(t, 1, stored(relationships[1]).Weight, "rows outside the bulk are not changed")
+
+	client.Relationship.UpdateBulk(
+		client.Relationship.UpdateOne(relationships[1]).Set(relationship.Weight, 7),
+		client.Relationship.UpdateOne(relationships[2]).Add(relationship.Weight, 1),
+	).ExecX(ctx)
+	require.Equal(t, 7, stored(relationships[1]).Weight)
+	require.Equal(t, 6, stored(relationships[2]).Weight)
+
+	missing := &ent.Relationship{UserID: u3.ID, RelativeID: u1.ID}
+	_, err = client.Relationship.UpdateBulk(
+		client.Relationship.UpdateOne(relationships[0]).Set(relationship.Weight, 100),
+		client.Relationship.UpdateOne(missing).Set(relationship.Weight, 100),
+	).Save(ctx)
+	require.True(t, ent.IsNotFound(err), "got %v", err)
+	require.Equal(t, 3, stored(relationships[0]).Weight, "the matched pair rolls back")
+
+	_, err = client.Relationship.UpdateBulk(
+		client.Relationship.UpdateOne(relationships[0]).Set(relationship.Weight, 100),
+		client.Relationship.UpdateOne(relationships[0]).Add(relationship.Weight, 1),
+	).Save(ctx)
+	require.Error(t, err, "duplicate pairs are rejected")
+	require.Equal(t, 3, stored(relationships[0]).Weight)
+
+	_, err = client.Relationship.UpdateBulk(
+		client.Relationship.UpdateOne(relationships[0]).Set(relationship.RelativeID, u1.ID),
+	).Save(ctx)
+	require.ErrorContains(t, err, `changes the id column "relative_id"`)
+	require.Equal(t, 3, stored(relationships[0]).Weight)
+}
+
 func TestEdgeSchemaForO2M(t *testing.T) {
 	client, err := ent.Open(dialect.SQLite, "file:ent?mode=memory&cache=shared&_fk=1")
 	require.NoError(t, err)

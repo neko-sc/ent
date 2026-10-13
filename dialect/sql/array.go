@@ -13,6 +13,10 @@ import (
 	"github.com/neko-sc/ent/dialect"
 )
 
+// ArrayArgument is a statement argument that binds its elements as one PostgreSQL array,
+// such as the argument of unnest($1::bigint[]). The statement casts it to its array type.
+type ArrayArgument []any
+
 func arrayArguments(arguments []any) ([]any, error) {
 	result := append([]any(nil), arguments...)
 	for index, argument := range result {

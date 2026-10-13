@@ -214,6 +214,22 @@ func (_u *CommentUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if err := _u.check(); err != nil {
 		return _node, err
 	}
+	_spec, err := _u.updateSpec()
+	if err != nil {
+		return _node, err
+	}
+	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
+		if _, ok := err.(*sqlgraph.NotFoundError); ok {
+			err = &NotFoundError{comment.Label}
+		} else if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{msg: err.Error(), wrap: err}
+		}
+		return 0, err
+	}
+	return _node, nil
+}
+
+func (_u *CommentUpdate) updateSpec() (*sqlgraph.UpdateSpec, error) {
 	_spec := sqlgraph.NewUpdateSpec(comment.Table, comment.Columns, sqlgraph.NewFieldSpec(comment.FieldID, field.TypeInt))
 	if ps := _u.mutation.Predicates(); len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -265,15 +281,7 @@ func (_u *CommentUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	_spec.AddModifiers(_u.modifiers...)
 
-	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
-		if _, ok := err.(*sqlgraph.NotFoundError); ok {
-			err = &NotFoundError{comment.Label}
-		} else if sqlgraph.IsConstraintError(err) {
-			err = &ConstraintError{msg: err.Error(), wrap: err}
-		}
-		return 0, err
-	}
-	return _node, nil
+	return _spec, nil
 }
 
 type CommentUpdateOne struct {
@@ -476,6 +484,29 @@ func (_u *CommentUpdateOne) sqlSave(ctx context.Context) (_node *Comment, err er
 	if err := _u.check(); err != nil {
 		return _node, err
 	}
+	_spec, err := _u.updateSpec()
+	if err != nil {
+		return _node, err
+	}
+	_node = &Comment{config: _u.config}
+	_spec.Assign = _node.assignValues
+	_spec.ScanValues = _node.scanValues
+	if _u.old != nil {
+		_spec.OldScanValues = _u.old.scanValues
+		_spec.OldAssign = _u.old.assignValues
+	}
+	if err = sqlgraph.UpdateNode(ctx, _u.driver, _spec); err != nil {
+		if _, ok := err.(*sqlgraph.NotFoundError); ok {
+			err = &NotFoundError{comment.Label}
+		} else if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{msg: err.Error(), wrap: err}
+		}
+		return nil, err
+	}
+	return _node, nil
+}
+
+func (_u *CommentUpdateOne) updateSpec() (*sqlgraph.UpdateSpec, error) {
 	_spec := sqlgraph.NewUpdateSpec(comment.Table, comment.Columns, sqlgraph.NewFieldSpec(comment.FieldID, field.TypeInt))
 	id, ok := _u.mutation.ID()
 	if !ok {
@@ -543,20 +574,109 @@ func (_u *CommentUpdateOne) sqlSave(ctx context.Context) (_node *Comment, err er
 	}
 	_spec.AddModifiers(_u.modifiers...)
 
-	_node = &Comment{config: _u.config}
-	_spec.Assign = _node.assignValues
-	_spec.ScanValues = _node.scanValues
-	if _u.old != nil {
-		_spec.OldScanValues = _u.old.scanValues
-		_spec.OldAssign = _u.old.assignValues
+	return _spec, nil
+}
+
+// CommentUpdateBulk updates a bulk of Comment entities, each with the changes of its builder, in set-based statements.
+type CommentUpdateBulk struct {
+	config
+	builders   []*CommentUpdateOne
+	predicates []ent.Predicate[entity.Comment]
+}
+
+// Where adds predicates that every updated entity must match. Entities that do not match fail the update with a NotFoundError.
+func (b *CommentUpdateBulk) Where(predicates ...ent.Predicate[entity.Comment]) *CommentUpdateBulk {
+	b.predicates = append(b.predicates, predicates...)
+	return b
+}
+
+// Save updates the entities and returns them in the order of the builders. Entities that do not exist or do not
+// match the predicates fail the whole update. Inside a transaction, the caller must roll it back on error.
+func (_u *CommentUpdateBulk) Save(ctx context.Context) ([]*Comment, error) {
+	nodes, _spec, err := _u.batchSpec()
+	if err != nil {
+		return nil, err
 	}
-	if err = sqlgraph.UpdateNode(ctx, _u.driver, _spec); err != nil {
+	if err := _u.sqlSave(ctx, _spec); err != nil {
+		return nil, err
+	}
+	return nodes, nil
+}
+
+// SaveX is like Save, but panics if an error occurs.
+func (_u *CommentUpdateBulk) SaveX(ctx context.Context) []*Comment {
+	nodes, err := _u.Save(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return nodes
+}
+
+// Exec is like Save, but reads back only the IDs of the entities, to find those that do not exist or do not
+// match the predicates and fail the whole update. Inside a transaction, the caller must roll it back on error.
+func (_u *CommentUpdateBulk) Exec(ctx context.Context) error {
+	_, _spec, err := _u.batchSpec()
+	if err != nil {
+		return err
+	}
+	columns := []string{comment.FieldID}
+	for index := range _spec.Nodes {
+		_spec.Nodes[index].Node.Columns = columns
+	}
+	return _u.sqlSave(ctx, _spec)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (_u *CommentUpdateBulk) ExecX(ctx context.Context) {
+	if err := _u.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// batchSpec returns the entities that the update assigns and the spec of the update.
+func (_u *CommentUpdateBulk) batchSpec() ([]*Comment, *sqlgraph.BatchUpdateSpec, error) {
+	nodes := make([]*Comment, len(_u.builders))
+	_spec := &sqlgraph.BatchUpdateSpec{
+		Nodes:         make([]*sqlgraph.UpdateSpec, len(_u.builders)),
+		PostgresTypes: postgresColumnTypes[comment.Table],
+	}
+	for index, builder := range _u.builders {
+		if builder.err != nil {
+			return nil, nil, builder.err
+		}
+		if err := builder.defaults(); err != nil {
+			return nil, nil, err
+		}
+		if err := builder.check(); err != nil {
+			return nil, nil, err
+		}
+		node, err := builder.updateSpec()
+		if err != nil {
+			return nil, nil, err
+		}
+		nodes[index] = &Comment{config: _u.config}
+		node.Assign = nodes[index].assignValues
+		node.ScanValues = nodes[index].scanValues
+		_spec.Nodes[index] = node
+	}
+	if ps := _u.predicates; len(ps) > 0 {
+		_spec.Predicate = func(selector *sql.Selector) {
+			for i := range ps {
+				ps[i](selector)
+			}
+		}
+	}
+	return nodes, _spec, nil
+}
+
+func (_u *CommentUpdateBulk) sqlSave(ctx context.Context, _spec *sqlgraph.BatchUpdateSpec) error {
+	if err := sqlgraph.BatchUpdate(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{comment.Label}
 		} else if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}
-		return nil, err
+		return err
 	}
-	return _node, nil
+	return nil
 }
