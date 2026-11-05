@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -161,6 +162,40 @@ func TestRedisGenerationLoadBumpCache(t *testing.T) {
 		require.Empty(t, empty)
 		require.NoError(t, level.Bump(t.Context(), nil))
 		require.NoError(t, level.Delete(t.Context()))
+	})
+}
+
+func TestRedisGenerationTTL(t *testing.T) {
+	client := newClient(t)
+	level, prefix := newLevel(t, client, redis.WithGenerationTTL(time.Minute))
+	expirable := []string{"users#01", "~feed"}
+	bounded := []string{"*", "users", "users!bulk"}
+
+	requireLifetimes := func(t *testing.T) {
+		t.Helper()
+		for _, tag := range expirable {
+			remaining, err := client.Do(t.Context(), client.B().Pttl().Key(prefix+":g:"+tag).Build()).AsInt64()
+			require.NoError(t, err)
+			require.Positive(t, remaining, tag)
+			require.LessOrEqual(t, remaining, time.Minute.Milliseconds(), tag)
+		}
+		for _, tag := range bounded {
+			remaining, err := client.Do(t.Context(), client.B().Pttl().Key(prefix+":g:"+tag).Build()).AsInt64()
+			require.NoError(t, err)
+			require.Equal(t, int64(-1), remaining, tag)
+		}
+	}
+
+	t.Run("initialized tags", func(t *testing.T) {
+		_, err := level.Load(t.Context(), slices.Concat(expirable, bounded))
+		require.NoError(t, err)
+		requireLifetimes(t)
+	})
+
+	t.Run("bumped tags", func(t *testing.T) {
+		require.NoError(t, client.Do(t.Context(), client.B().Pexpire().Key(prefix+":g:users").Milliseconds(time.Minute.Milliseconds()).Build()).Error())
+		require.NoError(t, level.Bump(t.Context(), slices.Concat(expirable, bounded)))
+		requireLifetimes(t)
 	})
 }
 

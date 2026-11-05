@@ -14,6 +14,8 @@ import (
 	"github.com/neko-sc/ent/dialect"
 )
 
+const defaultMaxGenerationTags = 1 << 16
+
 // As with database/sql, callers must close Rows to release database resources.
 type Driver struct {
 	dialect.Driver
@@ -76,7 +78,7 @@ func New(driver dialect.Driver, options ...Option) (*Driver, error) {
 			}
 		}
 		if cached.generations == nil {
-			cached.generations = NewMemoryGenerations()
+			cached.generations = NewMemoryGenerations(defaultMaxGenerationTags)
 		}
 	}
 

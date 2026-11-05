@@ -81,8 +81,8 @@ func TestDriverGenerationFailures(t *testing.T) {
 		name  string
 		store *failingGenerations
 	}{
-		{name: "now", store: &failingGenerations{GenerationStore: NewMemoryGenerations(), nowError: errors.New("now")}},
-		{name: "load", store: &failingGenerations{GenerationStore: NewMemoryGenerations(), loadError: errors.New("load")}},
+		{name: "now", store: &failingGenerations{GenerationStore: NewMemoryGenerations(100), nowError: errors.New("now")}},
+		{name: "load", store: &failingGenerations{GenerationStore: NewMemoryGenerations(100), loadError: errors.New("load")}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			var reported error
@@ -117,7 +117,7 @@ func TestDriverLevelFailures(t *testing.T) {
 func TestDriverBumpFailure(t *testing.T) {
 	var reported error
 	failure := errors.New("bump")
-	store := &failingGenerations{GenerationStore: NewMemoryGenerations(), bumpError: failure}
+	store := &failingGenerations{GenerationStore: NewMemoryGenerations(100), bumpError: failure}
 	cached, mock := newTestDriver(t, Generations(store), OnError(func(_ context.Context, err error) { reported = err }))
 	executeWrite(t, cached, mock, writeContext(t.Context(), 1))
 	require.ErrorIs(t, reported, failure)

@@ -167,7 +167,7 @@ func TestTransactionErrors(t *testing.T) {
 
 func TestTransactionBumpFailure(t *testing.T) {
 	var reported error
-	cached, mock := newTestDriver(t, Generations(&failingGenerations{GenerationStore: NewMemoryGenerations(), bumpError: errors.New("bump")}), OnError(func(_ context.Context, err error) { reported = err }))
+	cached, mock := newTestDriver(t, Generations(&failingGenerations{GenerationStore: NewMemoryGenerations(100), bumpError: errors.New("bump")}), OnError(func(_ context.Context, err error) { reported = err }))
 	mock.ExpectBegin()
 	transaction, err := cached.Tx(t.Context())
 	require.NoError(t, err)

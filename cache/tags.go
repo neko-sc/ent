@@ -6,9 +6,17 @@ package cache
 import (
 	"encoding/hex"
 	"slices"
+	"strings"
 
 	"github.com/neko-sc/ent/dialect"
 )
+
+// Expirable reports whether a generation tag names a row or a user tag. These
+// tags grow with the data, so stores should expire them. Global and table tags
+// are bounded by the schema, and losing one invalidates many entries at once.
+func Expirable(tag string) bool {
+	return strings.HasPrefix(tag, "~") || strings.Contains(tag, "#")
+}
 
 type set map[string]struct{}
 

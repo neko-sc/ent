@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neko-sc/ent/cache"
 	"github.com/redis/rueidis"
 )
 
@@ -34,7 +35,11 @@ func (l *Level) Load(ctx context.Context, tags []string) ([]uint64, error) {
 	for index, result := range l.client.DoMultiCache(ctx, commands...) {
 		token, err := result.AsUint64()
 		if rueidis.IsRedisNil(err) {
-			missing = append(missing, rueidis.LuaExec{Keys: []string{l.generationPrefix + tags[index]}})
+			execution := rueidis.LuaExec{Keys: []string{l.generationPrefix + tags[index]}}
+			if cache.Expirable(tags[index]) {
+				execution.Args = l.generationExpiry
+			}
+			missing = append(missing, execution)
 			indices = append(indices, index)
 			continue
 		}
@@ -72,7 +77,11 @@ func (l *Level) Bump(ctx context.Context, tags []string) error {
 	}
 	executions := make([]rueidis.LuaExec, len(tags))
 	for index, tag := range tags {
-		executions[index].Keys = []string{l.generationPrefix + tag}
+		// A SET without PX also clears any TTL a bounded tag had.
+		executions[index] = rueidis.LuaExec{Keys: []string{l.generationPrefix + tag}}
+		if cache.Expirable(tag) {
+			executions[index].Args = l.generationExpiry
+		}
 	}
 
 	var failure error

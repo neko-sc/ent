@@ -5,10 +5,13 @@
 // Clients must use RESP3 with server-assisted client-side caching enabled.
 // Generation invalidations propagate asynchronously through Redis tracking;
 // WithGenerationLocalTTL bounds cached reads if a notification is delayed.
+// Row and user generation tags expire WithGenerationTTL after their last write
+// or first load, while global and table tags stay persistent.
 package redis
 
 import (
 	"context"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -27,6 +30,8 @@ type Level struct {
 	generationPrefix   string
 	fillConcurrency    int
 	generationLocalTTL time.Duration
+	generationTTL      time.Duration
+	generationExpiry   []string
 	timeSync           time.Duration
 	fills              chan struct{}
 	dropped            atomic.Uint64
@@ -59,6 +64,7 @@ func New(client rueidis.Client, prefix string, options ...Option) *Level {
 		generationPrefix:   prefix + ":g:",
 		fillConcurrency:    64,
 		generationLocalTTL: time.Minute,
+		generationTTL:      time.Hour,
 		timeSync:           30 * time.Second,
 		origin:             time.Now(),
 		done:               make(chan struct{}),
@@ -67,10 +73,12 @@ func New(client rueidis.Client, prefix string, options ...Option) *Level {
 		option(level)
 	}
 
-	if client == nil || level.fillConcurrency <= 0 || level.generationLocalTTL <= 0 || level.timeSync <= 0 {
-		panic("cache/redis: client and positive concurrency, cache TTL, and time sync interval required")
+	if client == nil || level.fillConcurrency <= 0 || level.generationLocalTTL <= 0 ||
+		level.generationTTL < time.Millisecond || level.timeSync <= 0 {
+		panic("cache/redis: client, positive concurrency, cache TTL, time sync interval, and generation TTL of at least 1ms required")
 	}
 
+	level.generationExpiry = []string{"PX", strconv.FormatInt(level.generationTTL.Milliseconds(), 10)}
 	level.fills = make(chan struct{}, level.fillConcurrency)
 	ctx, cancel := context.WithCancel(context.Background())
 	level.stop = cancel
@@ -86,6 +94,14 @@ func WithFillConcurrency(concurrency int) Option {
 // WithGenerationLocalTTL bounds the lifetime of server-tracked generation reads.
 func WithGenerationLocalTTL(duration time.Duration) Option {
 	return func(level *Level) { level.generationLocalTTL = duration }
+}
+
+// WithGenerationTTL expires row and user generation tags, as reported by
+// cache.Expirable, the duration after their last write or first load; later
+// loads do not extend it. An expired tag restarts at the server time, so the
+// duration must exceed any lead its tokens gained over the server clock.
+func WithGenerationTTL(duration time.Duration) Option {
+	return func(level *Level) { level.generationTTL = duration }
 }
 
 func WithTimeSync(duration time.Duration) Option {

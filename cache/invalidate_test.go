@@ -45,7 +45,7 @@ func TestInvalidateHitMissMatrix(t *testing.T) {
 }
 
 func TestStandaloneInvalidator(t *testing.T) {
-	store := NewMemoryGenerations()
+	store := NewMemoryGenerations(100)
 	cached, mock := newTestDriver(t, Generations(store))
 	ctx := Cache(readContext(t.Context(), 1), Tags("feed"))
 	expectRead(mock, "SELECT id", 1)

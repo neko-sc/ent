@@ -43,8 +43,8 @@ func TestDriverOptions(t *testing.T) {
 	})
 
 	t.Run("the last level providing generations wins", func(t *testing.T) {
-		first := &generationLevel{Level: NewMemory(100, 0), GenerationStore: NewMemoryGenerations()}
-		last := &generationLevel{Level: NewMemory(100, 0), GenerationStore: NewMemoryGenerations()}
+		first := &generationLevel{Level: NewMemory(100, 0), GenerationStore: NewMemoryGenerations(100)}
+		last := &generationLevel{Level: NewMemory(100, 0), GenerationStore: NewMemoryGenerations(100)}
 		cached, mock := newTestDriver(t, Levels(first, last))
 		ctx, info := WithInfo(Cache(readContext(t.Context())))
 		expectRead(mock, "SELECT id", 1)
@@ -61,8 +61,8 @@ func TestDriverOptions(t *testing.T) {
 	})
 
 	t.Run("an explicit generation store overrides the levels", func(t *testing.T) {
-		level := &generationLevel{Level: NewMemory(100, 0), GenerationStore: NewMemoryGenerations()}
-		store := NewMemoryGenerations()
+		level := &generationLevel{Level: NewMemory(100, 0), GenerationStore: NewMemoryGenerations(100)}
+		store := NewMemoryGenerations(100)
 		cached, mock := newTestDriver(t, Levels(level), Generations(store))
 		ctx, info := WithInfo(Cache(readContext(t.Context())))
 		expectRead(mock, "SELECT id", 1)
@@ -117,7 +117,7 @@ func TestSchemaPrefix(t *testing.T) {
 	})
 	// One shared level and one shared generation store, so only the schema can
 	// separate the drivers' entries.
-	level, store := NewMemory(100, 0), NewMemoryGenerations()
+	level, store := NewMemory(100, 0), NewMemoryGenerations(100)
 	newDriver := func(t *testing.T, tables ...*schema.Table) *Driver {
 		t.Helper()
 		cached, err := New(entsql.OpenDB(dialect.SQLite, database), Levels(level), Generations(store), Schema(tables...))
@@ -223,6 +223,6 @@ func TestTableOptionsOwnTheirInput(t *testing.T) {
 func TestTagsOptionAppliesToBothSides(t *testing.T) {
 	var invalidation InvalidateOption = Tags("feed")
 	var query QueryOption = Tags("feed")
-	require.NoError(t, NewInvalidator(NewMemoryGenerations()).Invalidate(context.Background(), invalidation))
+	require.NoError(t, NewInvalidator(NewMemoryGenerations(100)).Invalidate(context.Background(), invalidation))
 	require.Equal(t, []string{"feed"}, queryOptionsFrom(Cache(t.Context(), query)).tags)
 }

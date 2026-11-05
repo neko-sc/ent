@@ -270,7 +270,7 @@ func TestDriverConcurrentReadWrite(t *testing.T) {
 	database.SetMaxIdleConns(workerCount)
 	cached, err := New(entsql.OpenDB(dialect.SQLite, database),
 		Levels(ContextLevel(), newMemoryLevel(t)),
-		Generations(NewMemoryGenerations()), Global(true), TTL(time.Hour),
+		Generations(NewMemoryGenerations(100)), Global(true), TTL(time.Hour),
 	)
 	require.NoError(t, err)
 	t.Cleanup(func() {
